@@ -1,0 +1,16 @@
+.storyq {
+  text-align: left;
+}
+
+.title {
+  text-align: center;
+}
+
+.storyText {
+  height: 75vh;
+  width: 90vw;
+}
+
+.storyq div {
+  margin: 10px;
+}
