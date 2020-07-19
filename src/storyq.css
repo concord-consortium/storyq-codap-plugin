@@ -4,6 +4,7 @@
 
 .title {
   text-align: center;
+  font-size: larger;
 }
 
 .storyText {
@@ -13,4 +14,8 @@
 
 .storyq div {
   margin: 10px;
+}
+
+.button-list {
+  padding: 5px;
 }

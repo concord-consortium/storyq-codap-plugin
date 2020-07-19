@@ -1,70 +1,71 @@
 import React, {Component} from 'react';
 // import { AppRegistry, Text, TextInput, View } from 'react-native';
 // import {natural} from 'natural'
-import {initializePlugin, openTable, addData, createDataContext, processAndAddData, registerObservers} from './lib/codap-helper';
+import {
+	initializePlugin,
+	openStory,
+	openTable,
+	registerObservers
+} from './lib/codap-helper';
 import './storyq.css';
+import {TextManager} from './text_manager';
+import DataManager from './data_manager';
+import {string} from "prop-types";
 
 const kPluginName = "StoryQ";
 const kVersion = "0.1";
 const kInitialDimensions = {
-    width: 300,
-    height: 500
+	width: 250,
+	height: 150
 }
 const kDataContextName = "Story Measurements";
-
-class StoryText extends Component<{}, { value: string, className: string }> {
-    constructor(props: any) {
-        super(props);
-        this.state = {value: '', className: 'storyText'};
-
-        this.handleChange = this.handleChange.bind(this);
-        this.handleSubmit = this.handleSubmit.bind(this);
-    }
-
-    handleChange(event: any) {
-        this.setState({value: event.target.value});
-    }
-
-    handleSubmit(event: any) {
-        processAndAddData( kDataContextName, this.state.value)
-        event.preventDefault();
-    }
-
-    render() {
-        return (
-            <form onSubmit={this.handleSubmit}>
-                <textarea className={this.state.className}
-                          value={this.state.value} onChange={this.handleChange}/>
-                <input type="submit" value="Submit" />
-            </form>
-        );
-    }
-}
+const kTextComponentName = 'A New Story';
 
 class Storyq extends Component {
-    public componentWillMount() {
-        initializePlugin(kPluginName, kVersion, kInitialDimensions)
-            .then(() => createDataContext(kDataContextName)
-                .then(() => registerObservers()));
-    }
+	private textManager: TextManager;
+	private dataManager: DataManager;
+	private mode:string;
 
-    public render() {
-        var tStoryText = <div><StoryText/></div>
-        return (
-            <div className="storyq">
-                <div className="title">
-                    Welcome to StoryQ
-                </div>
-                <div>
-                    {tStoryText}
-                </div>
-            </div>
-        );
-    }
+	constructor(props: any) {
+		super(props);
+		this.state = {value: '', className: 'storyText', mode: 'welcome'};
+		this.dataManager = new DataManager();
+		this.textManager = new TextManager( this.dataManager);
+		this.mode = 'welcome';
 
-     private handleCreateData() {
-        addData(kDataContextName, [1, 2, 3])
-    }
+		this.writeStory = this.writeStory.bind(this);
+	}
+
+	public componentWillMount() {
+		initializePlugin(kPluginName, kVersion, kInitialDimensions)
+			.then(() => this.dataManager.createDataContext(kDataContextName)
+				.then(() => registerObservers()));
+	}
+
+	async writeStory(event: any) {
+		this.setState({mode: 'write'});
+		this.mode = 'write';
+		openTable( kDataContextName);
+		let textComponentID = await openStory(kTextComponentName);
+		this.textManager.setTextComponentID( textComponentID);
+	}
+
+	public render() {
+		let pane:any = (this.mode === 'welcome') ?
+			(<div className="button-list">
+				<button onClick={this.writeStory}>Write and Analyze a Story</button>
+			</div>) :
+			(<div>Enjoy writing and analyzing your story!</div>);
+
+		return (
+			<div className="storyq">
+				<div className="title">
+					Welcome to StoryQ
+				</div>
+				{pane}
+			</div>
+		);
+	}
 }
 
 export default Storyq;
