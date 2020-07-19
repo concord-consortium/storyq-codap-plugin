@@ -1,70 +1,94 @@
 import React, {Component} from 'react';
+import codapInterface from "./lib/CodapInterface";
 // import { AppRegistry, Text, TextInput, View } from 'react-native';
 // import {natural} from 'natural'
-import {initializePlugin, openTable, addData, createDataContext, processAndAddData, registerObservers} from './lib/codap-helper';
+import {
+	initializePlugin,
+	openStory,
+	openTable,
+	registerObservers
+} from './lib/codap-helper';
 import './storyq.css';
+import {TextManager} from './text_manager';
+import DataManager from './data_manager';
+import {string} from "prop-types";
 
 const kPluginName = "StoryQ";
-const kVersion = "0.1";
+const kVersion = "0.2";
 const kInitialDimensions = {
-    width: 300,
-    height: 500
+	width: 250,
+	height: 150
 }
 const kDataContextName = "Story Measurements";
+const kTextComponentName = 'A New Story';
 
-class StoryText extends Component<{}, { value: string, className: string }> {
-    constructor(props: any) {
-        super(props);
-        this.state = {value: '', className: 'storyText'};
+class Storyq extends Component<{}, { value: string, className:string, mode:string}> {
+	private textManager: TextManager;
+	private dataManager: DataManager;
 
-        this.handleChange = this.handleChange.bind(this);
-        this.handleSubmit = this.handleSubmit.bind(this);
-    }
+	constructor(props: any) {
+		super(props);
+		this.state = {value: '', className: 'storyText', mode: 'welcome'};
+		this.dataManager = new DataManager();
+		this.textManager = new TextManager( this.dataManager);
+		this.setState( {mode: 'welcome'});
 
-    handleChange(event: any) {
-        this.setState({value: event.target.value});
-    }
+		this.writeStory = this.writeStory.bind(this);
+		this.restorePluginState = this.restorePluginState.bind(this);
+		this.getPluginState = this.getPluginState.bind(this);
 
-    handleSubmit(event: any) {
-        processAndAddData( kDataContextName, this.state.value)
-        event.preventDefault();
-    }
+		codapInterface.on('update', 'interactiveState', '', this.restorePluginState);
+		codapInterface.on('get', 'interactiveState', '', this.getPluginState);
+	}
 
-    render() {
-        return (
-            <form onSubmit={this.handleSubmit}>
-                <textarea className={this.state.className}
-                          value={this.state.value} onChange={this.handleChange}/>
-                <input type="submit" value="Submit" />
-            </form>
-        );
-    }
-}
+	public componentWillMount() {
+		initializePlugin(kPluginName, kVersion, kInitialDimensions, this.restorePluginState)
+			.then(() => registerObservers());
+	}
 
-class Storyq extends Component {
-    public componentWillMount() {
-        initializePlugin(kPluginName, kVersion, kInitialDimensions)
-            .then(() => createDataContext(kDataContextName)
-                .then(() => registerObservers()));
-    }
+	getPluginState(): any {
+		return {
+			success: true,
+			values: {
+				textManagerStorage: this.textManager.createStorage(),
+				dataManagerStorage: this.dataManager.createStorage()
+			}
+		};
+	}
 
-    public render() {
-        var tStoryText = <div><StoryText/></div>
-        return (
-            <div className="storyq">
-                <div className="title">
-                    Welcome to StoryQ
-                </div>
-                <div>
-                    {tStoryText}
-                </div>
-            </div>
-        );
-    }
+	async restorePluginState(iStorage: any) {
+		if( iStorage) {
+			this.textManager.restoreFromStorage(iStorage.textManagerStorage);
+			await this.dataManager.restoreFromStorage(iStorage.dataManagerStorage);
+			this.setState( {mode: 'write'});
+			this.textManager.checkStory();
+		}
+	}
 
-     private handleCreateData() {
-        addData(kDataContextName, [1, 2, 3])
-    }
+	async writeStory(event: any) {
+		this.setState({mode: 'write'});
+		await this.dataManager.createDataContext( kDataContextName);
+		openTable( kDataContextName);
+		let textComponentID = await openStory(kTextComponentName);
+		this.textManager.setTextComponentID( textComponentID);
+	}
+
+	public render() {
+		let pane:any = (this.state.mode === 'welcome') ?
+			(<div className="button-list">
+				<button onClick={this.writeStory}>Write and Analyze a Story</button>
+			</div>) :
+			(<div>Enjoy writing and analyzing your story!</div>);
+
+		return (
+			<div className="storyq">
+				<div className="title">
+					Welcome to StoryQ
+				</div>
+				{pane}
+			</div>
+		);
+	}
 }
 
 export default Storyq;

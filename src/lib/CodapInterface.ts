@@ -351,7 +351,7 @@ const codapInterface = {
    *   'move', 'resize', .... If not specified, all operations will be reported.
    * @param handler {Function} A handler to receive the notifications.
    */
-  on: function (actionSpec: string, resourceSpec: string, operation: string | (() => void), handler?: () => void) {
+	on: function (actionSpec: string, resourceSpec: string, operation: string | (() => void), handler?: (...args:any) => void) {
     var as = 'notify',
         rs,
         os,

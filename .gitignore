@@ -13,3 +13,8 @@
 # Logs
 npm-debug.log*
 npm-error.log*
+
+#IntelliJ
+/.idea
+
+/storyq
