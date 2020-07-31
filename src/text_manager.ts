@@ -24,11 +24,13 @@ export class TextManager {
 	 * @param iNotification    the Command resulting from the user action
 	 */
 	private async handleNotification(iNotification: any): Promise<any> {
-		if (iNotification.resource === 'undoChangeNotice' && iNotification.values.operation==='clearRedo') {
+/*
+		if (iNotification.resource === 'undoChangeNotice' && iNotification.values.operation === 'clearRedo') {
 			this.checkStory();
-		} else if( iNotification.action === 'notify' && iNotification.values.operation === 'selectCases') {
-			this.handleSelection( );
+		} else if (iNotification.action === 'notify' && iNotification.values.operation === 'selectCases') {
+			this.handleSelection();
 		}
+*/
 	}
 
 	public async checkStory() {
@@ -46,6 +48,7 @@ export class TextManager {
 		let tArrayOfChildren:[] = await this.getCurrentStory();
 		// console.log( `checkStory: ${ JSON.stringify( tArrayOfChildren)}`);
 		let tStory:string = '';
+/*
 		if( Array.isArray( tArrayOfChildren)) {
 			tArrayOfChildren.forEach(processChild);
 			if( tStory !== this.currentStory) {
@@ -53,6 +56,7 @@ export class TextManager {
 				this.dataManager.processAndAddData(tStory);
 			}
 		}
+*/
 	}
 
 	private async getCurrentStory(): Promise<any> {

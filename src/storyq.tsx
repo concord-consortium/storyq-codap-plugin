@@ -2,6 +2,10 @@ import React, {Component} from 'react';
 import codapInterface from "./lib/CodapInterface";
 // import { AppRegistry, Text, TextInput, View } from 'react-native';
 // import {natural} from 'natural'
+import Button from 'react-bootstrap/Button';
+import Dropdown from 'react-bootstrap/Dropdown';
+import DropdownButton from 'react-bootstrap/DropdownButton';
+import 'bootstrap/dist/css/bootstrap.min.css';
 import {
 	initializePlugin,
 	openStory,
@@ -11,13 +15,14 @@ import {
 import './storyq.css';
 import {TextManager} from './text_manager';
 import DataManager from './data_manager';
-import {string} from "prop-types";
+import {FeatureManager} from './feature_manager';
+// import {string} from "prop-types";
 
 const kPluginName = "StoryQ";
-const kVersion = "0.2";
+const kVersion = "0.2a";
 const kInitialDimensions = {
 	width: 250,
-	height: 150
+	height: 200
 }
 const kDataContextName = "Story Measurements";
 const kTextComponentName = 'A New Story';
@@ -25,15 +30,18 @@ const kTextComponentName = 'A New Story';
 class Storyq extends Component<{}, { value: string, className:string, mode:string}> {
 	private textManager: TextManager;
 	private dataManager: DataManager;
+	private featureManager: FeatureManager;
 
 	constructor(props: any) {
 		super(props);
 		this.state = {value: '', className: 'storyText', mode: 'welcome'};
 		this.dataManager = new DataManager();
 		this.textManager = new TextManager( this.dataManager);
+		this.featureManager = new FeatureManager( {});
 		this.setState( {mode: 'welcome'});
 
 		this.writeStory = this.writeStory.bind(this);
+		this.extractFeatures = this.extractFeatures.bind(this);
 		this.restorePluginState = this.restorePluginState.bind(this);
 		this.getPluginState = this.getPluginState.bind(this);
 
@@ -50,6 +58,7 @@ class Storyq extends Component<{}, { value: string, className:string, mode:strin
 		return {
 			success: true,
 			values: {
+				mode: this.state.mode,
 				textManagerStorage: this.textManager.createStorage(),
 				dataManagerStorage: this.dataManager.createStorage()
 			}
@@ -60,7 +69,7 @@ class Storyq extends Component<{}, { value: string, className:string, mode:strin
 		if( iStorage) {
 			this.textManager.restoreFromStorage(iStorage.textManagerStorage);
 			await this.dataManager.restoreFromStorage(iStorage.dataManagerStorage);
-			this.setState( {mode: 'write'});
+			this.setState( {mode: iStorage.mode || 'welcome'});
 			this.textManager.checkStory();
 		}
 	}
@@ -73,19 +82,34 @@ class Storyq extends Component<{}, { value: string, className:string, mode:strin
 		this.textManager.setTextComponentID( textComponentID);
 	}
 
-	public render() {
-		let pane:any = (this.state.mode === 'welcome') ?
-			(<div className="button-list">
-				<button onClick={this.writeStory}>Write and Analyze a Story</button>
-			</div>) :
-			(<div>Enjoy writing and analyzing your story!</div>);
+	async extractFeatures(event: any) {
+		this.setState({mode: 'extractFeatures'});
+	}
 
-		return (
+	getPane() {
+		switch (this.state.mode) {
+			case 'welcome':
+				return (<div className="button-list">
+					<Button onClick={this.writeStory} variant="outline-primary">Write and Analyze a Story</Button>
+					<br/><br/>
+					<Button onClick={this.extractFeatures} variant="outline-primary">Analyze Phrases</Button>
+				</div>);
+				break;
+			case 'write':
+				return (<div>Enjoy writing and analyzing your story!</div>);
+				break;
+			case 'extractFeatures':
+				return this.featureManager.render();
+		}
+	}
+
+	public render() {
+				return (
 			<div className="storyq">
 				<div className="title">
 					Welcome to StoryQ
 				</div>
-				{pane}
+				{this.getPane()}
 			</div>
 		);
 	}
