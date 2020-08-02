@@ -91,11 +91,18 @@ var config: IConfig | null = null;
  */
 var interactiveState = {};
 
+interface Subscriber {
+	actionSpec: string;
+	resourceSpec: any;
+	operation: any;
+	handler: any;
+}
+
 /**
  * A list of subscribers to messages from CODAP
  * @param {[{actionSpec: {RegExp}, resourceSpec: {RegExp}, handler: {function}}]}
  */
-var notificationSubscribers: { actionSpec: string; resourceSpec: any; operation: any; handler: any; }[] = [];
+var notificationSubscribers: Subscriber[] = [];
 
 function matchResource(resourceName: any, resourceSpec: string) {
   return resourceSpec === '*' || resourceName === resourceSpec;
@@ -351,7 +358,8 @@ const codapInterface = {
    *   'move', 'resize', .... If not specified, all operations will be reported.
    * @param handler {Function} A handler to receive the notifications.
    */
-	on: function (actionSpec: string, resourceSpec: string, operation: string | (() => void), handler?: (...args:any) => void) {
+	createSubscriber: function (actionSpec: string, resourceSpec: string,
+                              operation: string | (() => void), handler?: (...args: any) => void):Subscriber {
     var as = 'notify',
         rs,
         os,
@@ -366,15 +374,28 @@ const codapInterface = {
     }
     hn = args.shift();
 
-    const subscriber = {
+    const subscriber:Subscriber = {
       actionSpec: as,
       resourceSpec: rs,
       operation: os,
       handler: hn
     };
 
-    notificationSubscribers.push(subscriber);
+    return subscriber;
+
   },
+
+	on: function (actionSpec: string, resourceSpec: string,
+								operation: string | (() => void), handler?: (...args: any) => void):number {
+		notificationSubscribers.push(this.createSubscriber(
+			actionSpec, resourceSpec, operation, handler
+		));
+		return notificationSubscribers.length - 1;
+	},
+
+	off: function (iSubscriberIndex:number) {
+		notificationSubscribers.splice( iSubscriberIndex);
+	},
 
   /**
    * Parses a resource selector returning a hash of named resource names to

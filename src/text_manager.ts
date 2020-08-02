@@ -7,12 +7,23 @@ export class TextManager {
 	private textComponentID:number | undefined;
 	private dataManager:DataManager;
 	private currentStory:string = '';
+	private isActive = false;
+	private subscriberIndex:number | null = null;
 
 	constructor(iDataManager:DataManager) {
 		this.dataManager = iDataManager;
 		this.handleNotification = this.handleNotification.bind(this);
 
-		codapInterface.on('notify', '*', '', this.handleNotification);
+	}
+
+	public setIsActive( iIsActive:boolean) {
+		this.isActive = iIsActive;
+		if( iIsActive) {
+			this.subscriberIndex = codapInterface.on('notify', '*', '', this.handleNotification);
+		}
+		else if( this.subscriberIndex !== null){
+			codapInterface.off(this.subscriberIndex);
+		}
 	}
 
 	public setTextComponentID( iID:number) {
@@ -21,16 +32,14 @@ export class TextManager {
 
 	/**
 	 *
-	 * @param iNotification    the Command resulting from the user action
+	 * @param iNotification    (from CODAP)
 	 */
-	private async handleNotification(iNotification: any): Promise<any> {
-/*
+	private handleNotification(iNotification: any) {
 		if (iNotification.resource === 'undoChangeNotice' && iNotification.values.operation === 'clearRedo') {
 			this.checkStory();
 		} else if (iNotification.action === 'notify' && iNotification.values.operation === 'selectCases') {
 			this.handleSelection();
 		}
-*/
 	}
 
 	public async checkStory() {
@@ -48,7 +57,6 @@ export class TextManager {
 		let tArrayOfChildren:[] = await this.getCurrentStory();
 		// console.log( `checkStory: ${ JSON.stringify( tArrayOfChildren)}`);
 		let tStory:string = '';
-/*
 		if( Array.isArray( tArrayOfChildren)) {
 			tArrayOfChildren.forEach(processChild);
 			if( tStory !== this.currentStory) {
@@ -56,7 +64,6 @@ export class TextManager {
 				this.dataManager.processAndAddData(tStory);
 			}
 		}
-*/
 	}
 
 	private async getCurrentStory(): Promise<any> {

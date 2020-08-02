@@ -1,7 +1,5 @@
 import React, {Component} from 'react';
 import codapInterface from "./lib/CodapInterface";
-// import { AppRegistry, Text, TextInput, View } from 'react-native';
-// import {natural} from 'natural'
 import Button from 'react-bootstrap/Button';
 import Dropdown from 'react-bootstrap/Dropdown';
 import DropdownButton from 'react-bootstrap/DropdownButton';
@@ -15,42 +13,43 @@ import {
 import './storyq.css';
 import {TextManager} from './text_manager';
 import DataManager from './data_manager';
-import {FeatureManager} from './feature_manager';
+import {FeatureManager, StorageCallbackFuncs} from './feature_manager';
 // import {string} from "prop-types";
 
-const kPluginName = "StoryQ";
-const kVersion = "0.2a";
-const kInitialDimensions = {
-	width: 250,
-	height: 200
-}
-const kDataContextName = "Story Measurements";
-const kTextComponentName = 'A New Story';
-
 class Storyq extends Component<{}, { value: string, className:string, mode:string}> {
+	private kPluginName = "StoryQ";
+	private kVersion = "0.3";
+	private kInitialDimensions = {
+		width: 250,
+		height: 200
+	}
+	private kDataContextName = "Story Measurements";
+	private kTextComponentName = 'A New Story';
+
 	private textManager: TextManager;
 	private dataManager: DataManager;
-	private featureManager: FeatureManager;
+	private featureManagerCreateStorage:any;
+	private featureManagerRestoreStorage:any;
+	private stashedFeatureManagerStorage:any;
 
 	constructor(props: any) {
 		super(props);
 		this.state = {value: '', className: 'storyText', mode: 'welcome'};
 		this.dataManager = new DataManager();
 		this.textManager = new TextManager( this.dataManager);
-		this.featureManager = new FeatureManager( {});
-		this.setState( {mode: 'welcome'});
 
 		this.writeStory = this.writeStory.bind(this);
 		this.extractFeatures = this.extractFeatures.bind(this);
 		this.restorePluginState = this.restorePluginState.bind(this);
 		this.getPluginState = this.getPluginState.bind(this);
+		this.setFeatureManagerStorageCallbacks = this.setFeatureManagerStorageCallbacks.bind(this);
 
 		codapInterface.on('update', 'interactiveState', '', this.restorePluginState);
 		codapInterface.on('get', 'interactiveState', '', this.getPluginState);
 	}
 
 	public componentWillMount() {
-		initializePlugin(kPluginName, kVersion, kInitialDimensions, this.restorePluginState)
+		initializePlugin(this.kPluginName, this.kVersion, this.kInitialDimensions, this.restorePluginState)
 			.then(() => registerObservers());
 	}
 
@@ -60,7 +59,8 @@ class Storyq extends Component<{}, { value: string, className:string, mode:strin
 			values: {
 				mode: this.state.mode,
 				textManagerStorage: this.textManager.createStorage(),
-				dataManagerStorage: this.dataManager.createStorage()
+				dataManagerStorage: this.dataManager.createStorage(),
+				featureManagerStorage: this.featureManagerCreateStorage ? this.featureManagerCreateStorage() : null
 			}
 		};
 	}
@@ -69,20 +69,41 @@ class Storyq extends Component<{}, { value: string, className:string, mode:strin
 		if( iStorage) {
 			this.textManager.restoreFromStorage(iStorage.textManagerStorage);
 			await this.dataManager.restoreFromStorage(iStorage.dataManagerStorage);
+			this.stashedFeatureManagerStorage = iStorage.featureManagerStorage;
+			if( this.featureManagerRestoreStorage && this.stashedFeatureManagerStorage) {
+				this.featureManagerRestoreStorage(this.stashedFeatureManagerStorage);
+				this.stashedFeatureManagerStorage = null;
+			}
 			this.setState( {mode: iStorage.mode || 'welcome'});
-			this.textManager.checkStory();
+			if( this.state.mode === 'write') {
+				this.textManager.setIsActive( true);
+				this.textManager.checkStory();
+			}
+			else
+				this.textManager.setIsActive( false);
+		}
+	}
+
+	public setFeatureManagerStorageCallbacks(iCallbackFuncs:StorageCallbackFuncs) {
+		this.featureManagerCreateStorage = iCallbackFuncs.createStorageCallback;
+		this.featureManagerRestoreStorage = iCallbackFuncs.restoreStorageCallback;
+		if( this.stashedFeatureManagerStorage) {
+			this.featureManagerRestoreStorage(this.stashedFeatureManagerStorage);
+			this.stashedFeatureManagerStorage = null;
 		}
 	}
 
 	async writeStory(event: any) {
+		this.textManager.setIsActive( true);
 		this.setState({mode: 'write'});
-		await this.dataManager.createDataContext( kDataContextName);
-		openTable( kDataContextName);
-		let textComponentID = await openStory(kTextComponentName);
+		await this.dataManager.createDataContext( this.kDataContextName);
+		openTable( this.kDataContextName);
+		let textComponentID = await openStory(this.kTextComponentName);
 		this.textManager.setTextComponentID( textComponentID);
 	}
 
 	async extractFeatures(event: any) {
+		this.textManager.setIsActive(false);
 		this.setState({mode: 'extractFeatures'});
 	}
 
@@ -99,7 +120,7 @@ class Storyq extends Component<{}, { value: string, className:string, mode:strin
 				return (<div>Enjoy writing and analyzing your story!</div>);
 				break;
 			case 'extractFeatures':
-				return this.featureManager.render();
+				return <FeatureManager status='active' setStorageCallbacks={this.setFeatureManagerStorageCallbacks}/>;
 		}
 	}
 
