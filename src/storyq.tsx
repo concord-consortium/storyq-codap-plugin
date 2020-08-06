@@ -1,8 +1,6 @@
 import React, {Component} from 'react';
 import codapInterface from "./lib/CodapInterface";
 import Button from 'react-bootstrap/Button';
-import Dropdown from 'react-bootstrap/Dropdown';
-import DropdownButton from 'react-bootstrap/DropdownButton';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import {
 	initializePlugin,
@@ -11,7 +9,7 @@ import {
 	registerObservers
 } from './lib/codap-helper';
 import './storyq.css';
-import {TextManager} from './text_manager';
+import {TextManager, kStoryFeaturesContextName, kStoryTextComponentName} from './text_manager';
 import DataManager from './data_manager';
 import {FeatureManager, StorageCallbackFuncs} from './feature_manager';
 // import {string} from "prop-types";
@@ -21,10 +19,8 @@ class Storyq extends Component<{}, { value: string, className:string, mode:strin
 	private kVersion = "0.3";
 	private kInitialDimensions = {
 		width: 250,
-		height: 200
-	}
-	private kDataContextName = "Story Measurements";
-	private kTextComponentName = 'A New Story';
+		height: 280
+	};
 
 	private textManager: TextManager;
 	private dataManager: DataManager;
@@ -46,9 +42,6 @@ class Storyq extends Component<{}, { value: string, className:string, mode:strin
 
 		codapInterface.on('update', 'interactiveState', '', this.restorePluginState);
 		codapInterface.on('get', 'interactiveState', '', this.getPluginState);
-	}
-
-	public componentWillMount() {
 		initializePlugin(this.kPluginName, this.kVersion, this.kInitialDimensions, this.restorePluginState)
 			.then(() => registerObservers());
 	}
@@ -93,16 +86,16 @@ class Storyq extends Component<{}, { value: string, className:string, mode:strin
 		}
 	}
 
-	async writeStory(event: any) {
+	async writeStory() {
 		this.textManager.setIsActive( true);
 		this.setState({mode: 'write'});
-		await this.dataManager.createDataContext( this.kDataContextName);
-		openTable( this.kDataContextName);
-		let textComponentID = await openStory(this.kTextComponentName);
+		await this.dataManager.createDataContext( kStoryFeaturesContextName);
+		openTable( kStoryFeaturesContextName);
+		let textComponentID = await openStory(kStoryTextComponentName);
 		this.textManager.setTextComponentID( textComponentID);
 	}
 
-	async extractFeatures(event: any) {
+	async extractFeatures() {
 		this.textManager.setIsActive(false);
 		this.setState({mode: 'extractFeatures'});
 	}
@@ -115,10 +108,8 @@ class Storyq extends Component<{}, { value: string, className:string, mode:strin
 					<br/><br/>
 					<Button onClick={this.extractFeatures} variant="outline-primary">Analyze Phrases</Button>
 				</div>);
-				break;
 			case 'write':
 				return (<div>Enjoy writing and analyzing your story!</div>);
-				break;
 			case 'extractFeatures':
 				return <FeatureManager status='active' setStorageCallbacks={this.setFeatureManagerStorageCallbacks}/>;
 		}

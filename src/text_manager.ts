@@ -1,6 +1,9 @@
 import codapInterface from "./lib/CodapInterface";
 import DataManager from './data_manager';
-import {string} from "prop-types";
+import {textToObject} from "./utilities";
+
+export const kStoryFeaturesContextName = "Story Measurements";
+export const kStoryTextComponentName = 'A New Story';
 
 export class TextManager {
 
@@ -38,7 +41,7 @@ export class TextManager {
 		if (iNotification.resource === 'undoChangeNotice' && iNotification.values.operation === 'clearRedo') {
 			this.checkStory();
 		} else if (iNotification.action === 'notify' && iNotification.values.operation === 'selectCases') {
-			this.handleSelection();
+			this.handleSelection( iNotification.resource);
 		}
 	}
 
@@ -46,7 +49,7 @@ export class TextManager {
 
 		function processChild( iChild:any) {
 			if( iChild.type && iChild.children) {
-				iChild.children.forEach( processChild)
+				iChild.children.forEach( processChild);
 				tStory += '\n';
 			}
 			else if( iChild.text) {
@@ -82,7 +85,11 @@ export class TextManager {
 		return tChildren;
 	}
 
-	private async handleSelection() {
+	private async handleSelection( iResource:any) {
+		let tDataContextName: string = iResource.match(/\[(.+)]/)[1];
+		if (tDataContextName !== kStoryFeaturesContextName)
+			return;
+
 		let tResult: any,
 				tNewStory: any = [],
 				tStoryChildren = await this.getCurrentStory(),
@@ -99,43 +106,21 @@ export class TextManager {
 			}
 		}
 
-		function processChildShowSelection(iChild: any, iIndex:number, iArray:any, top?: any) {
-			let segment = '';
-			if( !top)
+		function processChildShowSelection(iChild: any, iIndex: number, iArray: any, top?: any) {
+			if (!top)
 				top = tNewStory;
 			if (iChild.type === 'paragraph' && iChild.children) {
 				let tNewNode = {type: 'paragraph', children: []};
 				top.push(tNewNode);
-				iChild.children.forEach((iChild:any, iChildIndex:number) => {
-					processChildShowSelection( iChild, iChildIndex, iChild.children, tNewNode.children);
+				iChild.children.forEach((iChild: any, iChildIndex: number) => {
+					processChildShowSelection(iChild, iChildIndex, iChild.children, tNewNode.children);
 				});
 			}
 			else if (iChild.text) {
-				let words:RegExpMatchArray | [] = iChild.text.match(/[^ ]+/g) || [];
-				words.forEach((iWord) => {
-					let tRawWordArray = iWord.match(/\w+/),
-						tRawWord = (tRawWordArray && tRawWordArray.length > 0 ? tRawWordArray[0] : '').toLowerCase();
-					if (tSelectedWords.indexOf(tRawWord) >= 0) {
-						if (segment !== '') {
-							top.push({
-								text: segment
-							});
-							segment = '';
-						}
-						top.push({
-							text: iWord, bold: true, underlined: true, color: "#0432ff"
-						});
-						top.push({
-							text: ' '
-						})
-					}
-					else {
-						segment += iWord + ' ';
-					}
+				textToObject(iChild.text, tSelectedWords).forEach((anObject: any) => {
+					top.push(anObject);
 				});
 			}
-			if( segment !== '')
-				top.push({ text: segment })
 		}
 
 		if (tStoryChildren) {

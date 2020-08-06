@@ -1,9 +1,12 @@
 import React, {Component} from 'react';
+import pluralize from 'pluralize';
 import codapInterface from "./lib/CodapInterface";
+import {getDatasetNames, getSelectedCasesFrom} from './lib/codap-helper';
 import Dropdown from 'react-bootstrap/Dropdown';
 import DropdownButton from 'react-bootstrap/DropdownButton';
 import ButtonGroup from "react-bootstrap/esm/ButtonGroup";
 import 'bootstrap/dist/css/bootstrap.min.css';
+import {textToObject} from "./utilities";
 import './storyq.css';
 
 export interface StorageCallbackFuncs {
@@ -18,12 +21,14 @@ export class FeatureManager extends Component<{status:string,
 	private datasetNames:string[] = [];
 	private collectionName = '';
 	private targetAttributeName = '';
+	private classAttributeName = '';
 	private featureDatasetName = 'Features';
 	private featureDatasetID = 0;
 	private featureCollectionName = 'features';
 	private textComponentName = 'Selected';
 	private textComponentID = 0;
 	private subscriberIndex:number | null = null;
+	private stashedStatus:string = '';	// Used to circumvent problem getting state.status to stick in restoreStorage
 
 	constructor(props: any) {
 		super(props);
@@ -35,12 +40,12 @@ export class FeatureManager extends Component<{status:string,
 		props.setStorageCallbacks( {
 			createStorageCallback: this.createStorage,
 			restoreStorageCallback: this.restoreStorage
-		})
+		});
 
 	}
 
 	public async componentDidMount() {
-		this.datasetNames = await this.getDatasetNames();
+		this.datasetNames = await getDatasetNames();
 		this.setState({count: 1});
 		this.subscriberIndex = codapInterface.on('notify', '*', '', this.handleNotification);
 	}
@@ -50,23 +55,28 @@ export class FeatureManager extends Component<{status:string,
 			datasetName: this.datasetName,
 			collectionName: this.collectionName,
 			targetAttributeName: this.targetAttributeName,
+			classAttributeName: this.classAttributeName,
 			featureDatasetName: this.featureDatasetName,
 			featureDatasetID: this.featureDatasetID,
 			featureCollectionName: this.featureCollectionName,
 			textComponentName: this.textComponentName,
-			textComponentID: this.textComponentID
+			textComponentID: this.textComponentID,
+			status: this.state.status
 		}
 	}
 
 	public restoreStorage( iStorage:any) {
 		this.datasetName = iStorage.datasetName;
-			this.collectionName = iStorage.collectionName;
-			this.targetAttributeName = iStorage.targetAttributeName;
-			this.featureDatasetName = iStorage.featureDatasetName;
-			this.featureDatasetID = iStorage.featureDatasetID;
-			this.featureCollectionName = iStorage.featureCollectionName;
-			this.textComponentName = iStorage.textComponentName;
-			this.textComponentID = iStorage.textComponentID;
+		this.collectionName = iStorage.collectionName;
+		this.targetAttributeName = iStorage.targetAttributeName;
+		this.classAttributeName = iStorage.classAttributeName;
+		this.featureDatasetName = iStorage.featureDatasetName;
+		this.featureDatasetID = iStorage.featureDatasetID;
+		this.featureCollectionName = iStorage.featureCollectionName;
+		this.textComponentName = iStorage.textComponentName;
+		this.textComponentID = iStorage.textComponentID;
+		this.stashedStatus = iStorage.status;
+		this.setState({status: iStorage.status})
 	}
 
 	/**
@@ -75,11 +85,11 @@ export class FeatureManager extends Component<{status:string,
 	 */
 	private async handleNotification(iNotification: any) {
 		if (iNotification.action === 'notify' && iNotification.values.operation === 'dataContextCountChanged') {
-			this.datasetNames = await this.getDatasetNames();
+			this.datasetNames = await getDatasetNames();
 			this.setState({count: this.state.count + 1});
 		}
 		else if(iNotification.action === 'notify' && iNotification.values.operation === 'selectCases') {
-			this.handleSelection( iNotification.resource, iNotification.values.result.cases);
+			this.handleSelection( iNotification.resource);
 		}
 	}
 
@@ -90,37 +100,58 @@ export class FeatureManager extends Component<{status:string,
 	 * 	- Pull the phrase from the target case
 	 * 	- Cause the text component to display these phrases with the selected features highlighted
 	 * @param iResource
-	 * @param iArrayOfCases
 	 */
-	private async handleSelection( iResource:any, iArrayOfCases:any) {
-		let tDataContextName:string = iResource.match(/\[(.+)\]/)[1];
-		if( tDataContextName === this.featureDatasetName && iArrayOfCases) {
-			let tUsedCaseIDs:any = [];
-			iArrayOfCases.forEach( (iCase:any) => {
-				tUsedCaseIDs = tUsedCaseIDs.concat( JSON.parse(iCase.values.usages))
+	private async handleSelection( iResource:any) {
+		let tDataContextName:string = iResource.match(/\[(.+)]/)[1];
+		if( tDataContextName === this.featureDatasetName) {
+			let tSelectedCases = await getSelectedCasesFrom( this.featureDatasetName);
+			let tFeatures:string[] = [],
+					tUsedIDsSet:any = new Set();
+			tSelectedCases.forEach( (iCase:any) => {
+				( JSON.parse(iCase.values.usages)).forEach((anID:number)=> { tUsedIDsSet.add(anID);});
+				tFeatures.push( iCase.values.feature);
 			});
+			let tUsedCaseIDs:number[] = Array.from(tUsedIDsSet);
 			codapInterface.sendRequest( {
 				action: 'create',
 				resource: `dataContext[${this.datasetName}].selectionList`,
 				values: tUsedCaseIDs
 			});
+			let tItems:any = [];
+			for(let i = 0; i < tUsedCaseIDs.length; i++) {
+				let tGetCaseResult:any = await codapInterface.sendRequest({
+					action: 'get',
+					resource: `dataContext[${this.datasetName}].collection[${this.collectionName}].caseByID[${tUsedCaseIDs[i]}]`
+				});
+				let tClass = tGetCaseResult.values.case.values[this.classAttributeName];
+				let tPhrase = tGetCaseResult.values.case.values[this.targetAttributeName];
+				let tPhraseObjectArray = textToObject(tClass + ' - ' + tPhrase, tFeatures);
+				tItems.push( {
+					type: 'list-item',
+					children: tPhraseObjectArray
+				})
+			}
+			await codapInterface.sendRequest({
+				action: 'update',
+				resource: `component[${this.textComponentID}]`,
+				values: {
+					text: {
+						document: {
+							children: [
+								{
+									type: "bulleted-list",
+									children: tItems
+								}
+							],
+							objTypes: {
+								'list-item': 'block',
+								'bulleted-list': 'block'
+							}
+						}
+					}
+				}
+			});
 		}
-	}
-
-	private async getDatasetNames():Promise<any[]> {
-		let tDropDownItems:string[] = [];
-		let tContextListResult:any = await codapInterface.sendRequest( {
-			"action": "get",
-			"resource": "dataContextList"
-		}).catch((reason) => {
-			console.log('unable to get datacontext list');
-		});
-		tDropDownItems = tContextListResult.values.map( (aValue:any) => {
-			return aValue.title;
-		});
-		if( tDropDownItems.length === 0)
-			tDropDownItems.push('No Datasets Found');
-		return tDropDownItems;
 	}
 
 	private async getCaseCount(): Promise<number> {
@@ -148,7 +179,7 @@ export class FeatureManager extends Component<{status:string,
 		else return '';
 	}
 
-	private async getFirstAttributeName(): Promise<string> {
+	private async getAttributeNameByIndex(iIndex:number): Promise<string> {
 		const tListResult:any = await codapInterface.sendRequest(
 			{
 				action: 'get',
@@ -156,8 +187,8 @@ export class FeatureManager extends Component<{status:string,
 			}
 		)
 			.catch(() => { console.log('Error getting attribute list')});
-		if( tListResult.values.length > 0)
-			return tListResult.values[ 0].name;
+		if( tListResult.values.length > iIndex)
+			return tListResult.values[ iIndex].name;
 		else return '';
 	}
 
@@ -181,7 +212,7 @@ export class FeatureManager extends Component<{status:string,
 						attrs: [
 							{ name: "feature" },
 							{ name: "type" },
-							{ name: "count" },
+							{ name: "frequency" },
 							{ name: "usages", hidden: true },
 							{ name: "weight"}
 						]
@@ -221,9 +252,9 @@ export class FeatureManager extends Component<{status:string,
 				tWords: RegExpMatchArray | [] = tText.toLowerCase().match(/\w+/g) || [];
 			tWords.forEach((aWord) => {
 				if (!tFeatureMap[aWord]) {
-					tFeatureMap[aWord] = {count: 1, caseIDs: [tCaseID]};
+					tFeatureMap[aWord] = {frequency: 1, caseIDs: [tCaseID]};
 				} else {
-					tFeatureMap[aWord].count++;
+					tFeatureMap[aWord].frequency++;
 					tFeatureMap[aWord].caseIDs.push(tCaseID);
 				}
 			});
@@ -232,7 +263,7 @@ export class FeatureManager extends Component<{status:string,
 			let aValue = tFeatureMap[aWord];
 			return {
 				values: {
-					feature: aWord, type: 'unigram', count: aValue.count, usages: JSON.stringify(aValue.caseIDs),
+					feature: aWord, type: 'unigram', frequency: aValue.frequency, usages: JSON.stringify(aValue.caseIDs),
 					weight: Math.random() + Math.random() - 1
 				}
 			};
@@ -245,7 +276,7 @@ export class FeatureManager extends Component<{status:string,
 	}
 
 	private async addTextComponent() {
-		this.textComponentName = 'Selected ' + this.targetAttributeName;
+		this.textComponentName = 'Selected ' + pluralize(this.targetAttributeName);
 		let tResult:any = await codapInterface.sendRequest( {
 			action: 'create',
 			resource: 'component',
@@ -263,25 +294,53 @@ export class FeatureManager extends Component<{status:string,
 		this.textComponentID = tResult.values.id
 	}
 
-	private async extract(eventKey: any, event: Object) {
+	private async extract(eventKey: any) {
 		this.datasetName = eventKey;
 		this.collectionName = await this.getChildMostCollectionName();
-		this.targetAttributeName = await this.getFirstAttributeName();
+		// todo: arbitrary assumption of column positions!
+		this.targetAttributeName = await this.getAttributeNameByIndex(0);
+		this.classAttributeName = await this.getAttributeNameByIndex(1);
 		await this.createFeatureDataset();
 		await this.addFeatures();
 		await this.addTextComponent();
+		this.stashedStatus = '';
+		this.setState({status: 'finished'});
 	}
 
-	public render() {
+	private renderForActiveState() {
 		return (<div>Dataset:
 			<DropdownButton as={ButtonGroup} key='Secondary'
 											title="Choose One" size="sm" variant="secondary">
 				{this.datasetNames.map((aName, iIndex) => {
-					return <Dropdown.Item as="button" eventKey={aName} onSelect={this.extract}>{aName}</Dropdown.Item>
+					const tNoneFound = aName.indexOf('--') === 0;
+					return <Dropdown.Item as="button" id={String(iIndex)}
+																eventKey={aName} onSelect={this.extract} disabled={tNoneFound}>
+						{aName}</Dropdown.Item>
 				})}
 			</DropdownButton>
 		</div>)
 	}
-}
 
-export default FeatureManager;
+	private static renderForFinishedState() {
+		return <div>
+			<p>Your analysis is finished!</p>
+			<p>Try:</p>
+			<ul>
+				<li>Click on a feature</li>
+				<li>Make a graph of your classifier</li>
+				<li>Make a graph of frequency or weight and select points</li>
+			</ul>
+		</div>
+	}
+
+	public render() {
+		let tStatus:string = (this.stashedStatus === '') ? this.state.status : this.stashedStatus;
+		switch (tStatus) {
+			case 'active':
+				return this.renderForActiveState();
+			case 'finished':
+			default:
+				return FeatureManager.renderForFinishedState();
+		}
+	}
+}
