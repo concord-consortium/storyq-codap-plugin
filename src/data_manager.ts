@@ -16,7 +16,7 @@ export default class DataManager {
 		return codapInterface.sendRequest({
 				action: 'get',
 				resource: this.dataSetString(dataContextName)
-			}, function (result: { success: any; }) {
+			}, function (result: { success: boolean; }) {
 				if (result && !result.success) {
 					codapInterface.sendRequest({
 						action: 'create',
@@ -35,7 +35,7 @@ export default class DataManager {
 								}
 							]
 						}
-					}, function (result: { success: any; values: any }) {
+					}, function (result: { success: boolean; values: any }) {
 						if (result && result.success) {
 							this_.dataContextID = result.values.id;
 						}
@@ -52,16 +52,16 @@ export default class DataManager {
 		});
 	}
 
-	public async getSelectedWords():Promise<[] | [any]> {
+	public async getSelectedWords():Promise<[] | string[]> {
 		let this_ = this,
-				tSelectedWords = [];
+				tSelectedWords:string[] = [];
 		let tCasesRequest = [];
 		let tResult:any = await codapInterface.sendRequest({
 			action: 'get',
 			resource: `${this.dataSetIDString()}.selectionList`
 		});
 		if (tResult.success && Array.isArray(tResult.values)) {
-			tCasesRequest = tResult.values.map(function (iValue: any) {
+			tCasesRequest = tResult.values.map(function (iValue: { caseID:number }) {
 				return {
 					action: 'get',
 					resource: `${this_.dataSetIDString()}.caseByID[${iValue.caseID}]`
@@ -83,10 +83,10 @@ export default class DataManager {
 		*/
 		let words = this.wordMap,
 			splitText: RegExpMatchArray | [] = iText.toLowerCase().match(/\w+/g) || [],
-			itemsToCreate: any = [],
-			itemsToDelete: any = [],
-			itemsToUpdate: any = [],
-			tRequests: any = [],
+			itemsToCreate: { word:string, count:number }[] = [],
+			itemsToDelete: string[] = [],
+			itemsToUpdate: { ID:number, count:number }[] = [],
+			tRequests: { action:string, resource:any, values?:any }[] = [],
 			tResults: any;
 
 		// Prepare wordMap
@@ -163,8 +163,7 @@ export default class DataManager {
 		if (itemsToCreate.length > 0) {
 			for (let i = 0; i < itemsToCreate.length; i++) {
 				let word = itemsToCreate[i].word;
-				let itemID = tResults[0].itemIDs[i];
-				words[word].itemID = itemID;
+				words[word].itemID = tResults[0].itemIDs[i];
 			}
 		}
 

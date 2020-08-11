@@ -1,6 +1,6 @@
 import React, {Component} from 'react';
 import pluralize from 'pluralize';
-import codapInterface from "./lib/CodapInterface";
+import codapInterface, {CODAP_Notification} from "./lib/CodapInterface";
 import {getDatasetNames, getSelectedCasesFrom} from './lib/codap-helper';
 import Dropdown from 'react-bootstrap/Dropdown';
 import DropdownButton from 'react-bootstrap/DropdownButton';
@@ -14,9 +14,25 @@ export interface StorageCallbackFuncs {
 	restoreStorageCallback: ( iStorage:any)=> void
 }
 
-export class FeatureManager extends Component<{status:string,
-	setStorageCallbacks:(iCallbacks: StorageCallbackFuncs)=>void },
-	{ status:string, count:number}> {
+export interface FM_Props {
+	status:string, setStorageCallbacks:(iCallbacks: StorageCallbackFuncs)=>void
+}
+
+interface FMStorage {
+	datasetName: string,
+	collectionName: string,
+	targetAttributeName: string,
+	classAttributeName: string,
+	featureDatasetName: string,
+	featureDatasetID: number,
+	featureCollectionName: string,
+	textComponentName: string,
+	textComponentID: number,
+	status: string
+
+}
+
+export class FeatureManager extends Component<FM_Props, { status:string, count:number}> {
 	private datasetName = '';
 	private datasetNames:string[] = [];
 	private collectionName = '';
@@ -30,9 +46,9 @@ export class FeatureManager extends Component<{status:string,
 	private subscriberIndex:number | null = null;
 	private stashedStatus:string = '';	// Used to circumvent problem getting state.status to stick in restoreStorage
 
-	constructor(props: any) {
+	constructor(props: FM_Props) {
 		super(props);
-		this.state = {status: props.status, count: props.count};
+		this.state = {status: props.status, count: 0};
 		this.extract = this.extract.bind(this);
 		this.handleNotification = this.handleNotification.bind(this);
 		this.createStorage = this.createStorage.bind(this);
@@ -50,7 +66,7 @@ export class FeatureManager extends Component<{status:string,
 		this.subscriberIndex = codapInterface.on('notify', '*', '', this.handleNotification);
 	}
 
-	public createStorage():any {
+	public createStorage():FMStorage {
 		return {
 			datasetName: this.datasetName,
 			collectionName: this.collectionName,
@@ -65,7 +81,7 @@ export class FeatureManager extends Component<{status:string,
 		}
 	}
 
-	public restoreStorage( iStorage:any) {
+	public restoreStorage( iStorage:FMStorage) {
 		this.datasetName = iStorage.datasetName;
 		this.collectionName = iStorage.collectionName;
 		this.targetAttributeName = iStorage.targetAttributeName;
@@ -83,7 +99,7 @@ export class FeatureManager extends Component<{status:string,
 	 *
 	 * @param iNotification    (from CODAP)
 	 */
-	private async handleNotification(iNotification: any) {
+	private async handleNotification(iNotification: CODAP_Notification) {
 		if (iNotification.action === 'notify' && iNotification.values.operation === 'dataContextCountChanged') {
 			this.datasetNames = await getDatasetNames();
 			this.setState({count: this.state.count + 1});
@@ -101,12 +117,13 @@ export class FeatureManager extends Component<{status:string,
 	 * 	- Cause the text component to display these phrases with the selected features highlighted
 	 * @param iResource
 	 */
-	private async handleSelection( iResource:any) {
-		let tDataContextName:string = iResource.match(/\[(.+)]/)[1];
+	private async handleSelection( iResource:string) {
+		// @ts-ignore
+		let tDataContextName:string = iResource && iResource.match(/\[(.+)]/)[1];
 		if( tDataContextName === this.featureDatasetName) {
 			let tSelectedCases = await getSelectedCasesFrom( this.featureDatasetName);
 			let tFeatures:string[] = [],
-					tUsedIDsSet:any = new Set();
+					tUsedIDsSet:Set<number> = new Set();
 			tSelectedCases.forEach( (iCase:any) => {
 				( JSON.parse(iCase.values.usages)).forEach((anID:number)=> { tUsedIDsSet.add(anID);});
 				tFeatures.push( iCase.values.feature);

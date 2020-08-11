@@ -1,4 +1,4 @@
-import codapInterface from "./lib/CodapInterface";
+import codapInterface, {CODAP_Notification} from "./lib/CodapInterface";
 import DataManager from './data_manager';
 import {textToObject} from "./utilities";
 
@@ -37,7 +37,7 @@ export class TextManager {
 	 *
 	 * @param iNotification    (from CODAP)
 	 */
-	private handleNotification(iNotification: any) {
+	private handleNotification(iNotification: CODAP_Notification) {
 		if (iNotification.resource === 'undoChangeNotice' && iNotification.values.operation === 'clearRedo') {
 			this.checkStory();
 		} else if (iNotification.action === 'notify' && iNotification.values.operation === 'selectCases') {
@@ -47,7 +47,7 @@ export class TextManager {
 
 	public async checkStory() {
 
-		function processChild( iChild:any) {
+		function processChild( iChild: { type:string, text:string, children:any[] }) {
 			if( iChild.type && iChild.children) {
 				iChild.children.forEach( processChild);
 				tStory += '\n';
@@ -85,15 +85,16 @@ export class TextManager {
 		return tChildren;
 	}
 
-	private async handleSelection( iResource:any) {
-		let tDataContextName: string = iResource.match(/\[(.+)]/)[1];
+	private async handleSelection( iResource:string) {
+		// @ts-ignore
+		let tDataContextName: string = iResource && iResource.match(/\[(.+)]/)[1];
 		if (tDataContextName !== kStoryFeaturesContextName)
 			return;
 
 		let tResult: any,
 				tNewStory: any = [],
 				tStoryChildren = await this.getCurrentStory(),
-				tSelectedWords:any = await this.dataManager.getSelectedWords();
+				tSelectedWords:string[] = await this.dataManager.getSelectedWords();
 
 		function processChildRemoveFormatting(iChild: any) {
 			if (iChild.type === 'paragraph' && iChild.children) {
@@ -129,7 +130,7 @@ export class TextManager {
 			// Make bold chunks for the selected words
 			tStoryChildren.forEach(processChildShowSelection);
 
-			let tRequest: any = {
+			let tRequest: CODAP_Notification = {
 				action: 'update',
 				resource: `component[${this.textComponentID}]`,
 				values: {
@@ -154,11 +155,11 @@ export class TextManager {
 
 	}
 
-	public restoreFromStorage( iStorage: any) {
+	public restoreFromStorage( iStorage: { textComponentID:number }) {
 		this.textComponentID = iStorage.textComponentID;
 	}
 
-	createStorage():any {
+	createStorage():{ textComponentID: number | undefined } {
 		return {
 			textComponentID: this.textComponentID
 		}

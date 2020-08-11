@@ -14,6 +14,18 @@ import DataManager from './data_manager';
 import {FeatureManager, StorageCallbackFuncs} from './feature_manager';
 // import {string} from "prop-types";
 
+interface StoryqValues {
+	mode: string,
+	textManagerStorage: any,
+	dataManagerStorage: any,
+	featureManagerStorage: any
+}
+
+interface StoryqStorage {
+	success: boolean,
+	values: StoryqValues
+}
+
 class Storyq extends Component<{}, { value: string, className:string, mode:string}> {
 	private kPluginName = "StoryQ";
 	private kVersion = "0.3";
@@ -46,7 +58,7 @@ class Storyq extends Component<{}, { value: string, className:string, mode:strin
 			.then(() => registerObservers());
 	}
 
-	getPluginState(): any {
+	getPluginState():StoryqStorage {
 		return {
 			success: true,
 			values: {
@@ -58,7 +70,7 @@ class Storyq extends Component<{}, { value: string, className:string, mode:strin
 		};
 	}
 
-	async restorePluginState(iStorage: any) {
+	async restorePluginState(iStorage: StoryqValues) {
 		if( iStorage) {
 			this.textManager.restoreFromStorage(iStorage.textManagerStorage);
 			await this.dataManager.restoreFromStorage(iStorage.dataManagerStorage);
