@@ -55,22 +55,23 @@ export async function openStory(iTextComponentName: string): Promise<number> {
 }
 
 export async function getDatasetNames(): Promise<any[]> {
-	let tDropDownItems: string[];
+	let tDropDownItems: string[] = [];
 	let tContextListResult: any = await codapInterface.sendRequest({
 		"action": "get",
 		"resource": "dataContextList"
 	}).catch((reason) => {
 		console.log('unable to get datacontext list because ' + reason);
 	});
-	tDropDownItems = tContextListResult.values.map((aValue: any) => {
-		return aValue.title;
+	tContextListResult.values.map((aValue: any) => {
+		if( aValue.title.indexOf('features') < 0)
+			tDropDownItems.push( aValue.title);
 	});
 	if (tDropDownItems.length === 0)
 		tDropDownItems.push('--No Datasets Found--');
 	return tDropDownItems;
 }
 
-export async function getSelectedCasesFrom( iDatasetName:string):Promise<any[]> {
+export async function getSelectedCasesFrom( iDatasetName:string | null):Promise<any[]> {
 	let tCasesRequest = [],
 			tSelectedCases = [],
 			tResult:any = await codapInterface.sendRequest({
