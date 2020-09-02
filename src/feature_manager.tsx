@@ -1,5 +1,6 @@
 import React, {Component} from 'react';
 import pluralize from 'pluralize';
+import naiveBaseClassifier from './lib/NaiveBayesClassifier';
 import codapInterface, {CODAP_Notification} from "./lib/CodapInterface";
 import {getDatasetNames, getSelectedCasesFrom} from './lib/codap-helper';
 import Dropdown from 'react-bootstrap/Dropdown';
@@ -8,6 +9,7 @@ import ButtonGroup from "react-bootstrap/esm/ButtonGroup";
 import 'bootstrap/dist/css/bootstrap.min.css';
 import {textToObject} from "./utilities";
 import './storyq.css';
+import NaiveBayesClassifier from "./lib/NaiveBayesClassifier";
 
 export interface StorageCallbackFuncs {
 	createStorageCallback: ()=> any,
@@ -23,6 +25,7 @@ interface FMStorage {
 	collectionName: string,
 	targetAttributeName: string,
 	targetCaseCount: number,
+	targetCategories: string[],
 	classAttributeName: string,
 	featureDatasetName: string,
 	featureDatasetID: number,
@@ -41,6 +44,7 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 	private targetAttributeName = '';
 	private classAttributeName = '';
 	private targetCaseCount = 0;
+	private targetCategories:string[] = [];
 	private featureDatasetName = 'Features';
 	private featureDatasetID = 0;
 	private featureCollectionName = 'features';
@@ -50,6 +54,7 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 	private subscriberIndex:number | null = null;
 	private stashedStatus:string = '';	// Used to circumvent problem getting state.status to stick in restoreStorage
 	private createdTargetChildCases:number[] = [];
+	private nbClassifier: NaiveBayesClassifier;
 
 	constructor(props: FM_Props) {
 		super(props);
@@ -69,6 +74,7 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 		this.datasetNames = await getDatasetNames();
 		this.setState({count: 1});
 		this.subscriberIndex = codapInterface.on('notify', '*', '', this.handleNotification);
+		this.nbClassifier = new NaiveBayesClassifier();
 	}
 
 	public createStorage():FMStorage {
@@ -77,6 +83,7 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 			collectionName: this.targetCollectionName,
 			targetAttributeName: this.targetAttributeName,
 			targetCaseCount: this.targetCaseCount,
+			targetCategories: this.targetCategories,
 			classAttributeName: this.classAttributeName,
 			featureDatasetName: this.featureDatasetName,
 			featureDatasetID: this.featureDatasetID,
@@ -92,6 +99,8 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 		this.targetDatasetName = iStorage.datasetName;
 		this.targetCollectionName = iStorage.collectionName;
 		this.targetAttributeName = iStorage.targetAttributeName;
+		this.targetCaseCount = iStorage.targetCaseCount;
+		this.targetCategories = iStorage.targetCategories;
 		this.classAttributeName = iStorage.classAttributeName;
 		this.featureDatasetName = iStorage.featureDatasetName;
 		this.featureDatasetID = iStorage.featureDatasetID;
@@ -302,7 +311,19 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 
 	private async createFeatureDataset() {
 		let tFeatureDataSetName = this.featureDatasetName,
-			tFeatureCollectionName = this.featureCollectionName;
+				tFeatureCollectionName = this.featureCollectionName,
+				tAttributes:any[] = [
+					{ name: "feature", description: `A feature is something that comes from the ${this.targetAttributeName} that can help in the classification process` },
+					{ name: "type", description: `The kind of feature (unigram, bigram, count, …)` },
+					{ name: "frequency", description: `The number of times the feature appears` },
+					{ name: "usages", hidden: true },
+					{ name: "weight", description: `A computed value that is proportional to the importance of the feature in the logistic regression classification model`,
+						formula: `lookupByKey("clickbait features", "Feature Weight", "Feature", feature)`}
+				];
+		this.targetCategories.forEach( (aCategory) => {
+			tAttributes.push( { name: aCategory, precision: 5,
+					description: `The probability assigned by a Naive Bayes classification model that the feature belongs to "${aCategory}"`});
+		});
 		const tResult: any = await codapInterface.sendRequest(
 			{
 				action: "create",
@@ -317,14 +338,7 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 							singleCase: "feature",
 							pluralCase: "features"
 						},
-						attrs: [
-							{ name: "feature", description: `A feature is something that comes from the ${this.targetAttributeName} that can help in the classification process` },
-							{ name: "type", description: `The kind of feature (unigram, bigram, count, …)` },
-							{ name: "frequency", description: `The number of times the feature appears` },
-							{ name: "usages", hidden: true },
-							{ name: "weight", description: `A computed value that is proportional to the importance of the feature in the classification model`,
-								formula: `lookupByKey("clickbait features", "Feature Weight", "Feature", feature)`}
-						]
+						attrs: tAttributes
 					}]
 				}
 			})
@@ -346,7 +360,9 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 
 	private async addFeatures( ) {
 		this.targetCaseCount = await this.getCaseCount();
-		let tFeatureMap:any = {};
+		let tFeatureMap:any = {},
+				tClassifier = this.nbClassifier,
+				tCategories: string[];
 		for (let i = 0; i < this.targetCaseCount; i++) {
 			const tGetResult: any = await codapInterface.sendRequest({
 				"action": "get",
@@ -358,6 +374,7 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 
 			let tCaseID = tGetResult.values.case.id,
 				tText: string = tGetResult.values.case.values[this.targetAttributeName],
+				tClass: string = tGetResult.values.case.values[this.classAttributeName],
 				tWords: RegExpMatchArray | [] = tText.toLowerCase().match(/\w+/g) || [];
 			tWords.forEach((aWord) => {
 				if (!tFeatureMap[aWord]) {
@@ -367,17 +384,27 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 					tFeatureMap[aWord].caseIDs.push(tCaseID);
 				}
 			});
+			tClassifier.learn(tText, tClass);
 		}
+
+		// We wait until now to create the features dataset so that we know the categories
+		tCategories = this.targetCategories = Object.keys(tClassifier.categories);
+		await this.createFeatureDataset();
+
 		let tFeaturesValues: any = [],
 				tFeatureCount = 0;
 		Object.keys(tFeatureMap).forEach((aWord: string) => {
 			let aValue = tFeatureMap[aWord];
 			if( aValue.frequency > 4) {
+				let tValues:any = {
+					feature: aWord, type: 'unigram', frequency: aValue.frequency,
+					usages: JSON.stringify(aValue.caseIDs)
+				};
+				tCategories.forEach((aCategory) => {
+					tValues[aCategory] = tClassifier.tokenProbability( aWord, aCategory);
+				});
 				tFeaturesValues.push({
-					values: {
-						feature: aWord, type: 'unigram', frequency: aValue.frequency, usages: JSON.stringify(aValue.caseIDs),
-						weight: Math.random() + Math.random() - 1
-					}
+					values: tValues
 				});
 				tFeatureCount++;
 			}
@@ -418,7 +445,6 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 			// todo: arbitrary assumption of column positions!
 			this.targetAttributeName = await this.getAttributeNameByIndex(0);
 			this.classAttributeName = await this.getAttributeNameByIndex(1);
-			await this.createFeatureDataset();
 			await this.addFeatures();
 			await this.addTextComponent();
 			this.stashedStatus = '';
@@ -451,6 +477,8 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 			<p>Your analysis is finished!</p>
 			<p>In <b>{this.targetDatasetName}</b> identified {this.featureCaseCount} <b>unigrams </b>
 				in <b>{pluralize(this.targetAttributeName)}</b>.</p>
+			<p>Feature weights were computed by a logistic regression model.</p>
+			<p>Probabilities the features belong in categories were computed by a Naive Bayes model.</p>
 		</div>
 	}
 
