@@ -8,6 +8,7 @@ import DropdownButton from 'react-bootstrap/DropdownButton';
 import ButtonGroup from "react-bootstrap/esm/ButtonGroup";
 import 'bootstrap/dist/css/bootstrap.min.css';
 import {textToObject} from "./utilities";
+import {oneHot} from "./lib/one_hot";
 import './storyq.css';
 import NaiveBayesClassifier from "./lib/NaiveBayesClassifier";
 
@@ -362,7 +363,8 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 		this.targetCaseCount = await this.getCaseCount();
 		let tFeatureMap:any = {},
 				tClassifier = this.nbClassifier,
-				tCategories: string[];
+				tCategories: string[],
+				tDocuments: {example:string, class:string}[] = [];
 		for (let i = 0; i < this.targetCaseCount; i++) {
 			const tGetResult: any = await codapInterface.sendRequest({
 				"action": "get",
@@ -385,7 +387,9 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 				}
 			});
 			tClassifier.learn(tText, tClass);
+			tDocuments.push({example: tText, class: tClass});
 		}
+		let oneHotResult = oneHot(tDocuments);
 
 		// We wait until now to create the features dataset so that we know the categories
 		tCategories = this.targetCategories = Object.keys(tClassifier.categories);
