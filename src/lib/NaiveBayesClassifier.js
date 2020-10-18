@@ -7,9 +7,6 @@
  * @license: BSD-3-Clause, see LICENSE file
 */
 
-// @ts-ignore
-'use strict';
-
 /**
  * The NaiveBayesClassifier object holds all the properties and methods used by the classifier.
  *

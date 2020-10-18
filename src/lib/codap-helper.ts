@@ -63,7 +63,7 @@ export async function getDatasetNames(): Promise<any[]> {
 		console.log('unable to get datacontext list because ' + reason);
 	});
 	tContextListResult.values.map((aValue: any) => {
-		if( aValue.title.indexOf('features') < 0)
+		if( aValue.title.indexOf('features') < 0 && aValue.title.indexOf('Labels') < 0)
 			tDropDownItems.push( aValue.title);
 	});
 	if (tDropDownItems.length === 0)

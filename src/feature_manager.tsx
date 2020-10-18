@@ -11,6 +11,8 @@ import {textToObject} from "./utilities";
 import {oneHot} from "./lib/one_hot";
 import './storyq.css';
 import NaiveBayesClassifier from "./lib/NaiveBayesClassifier";
+import {LogisticRegression} from './lib/jsregression';
+// import tf from "@tensorflow/tfjs";
 
 export interface StorageCallbackFuncs {
 	createStorageCallback: ()=> any,
@@ -43,6 +45,7 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 	private datasetNames:string[] = [];
 	private targetCollectionName = '';
 	private targetAttributeName = '';
+	private targetPredictedLabelAttributeName = 'predicted label';
 	private classAttributeName = '';
 	private targetCaseCount = 0;
 	private targetCategories:string[] = [];
@@ -56,6 +59,13 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 	private stashedStatus:string = '';	// Used to circumvent problem getting state.status to stick in restoreStorage
 	private createdTargetChildCases:number[] = [];
 	private nbClassifier: NaiveBayesClassifier;
+	// private logisticModel: tf.Sequential = new tf.Sequential();
+	// @ts-ignore
+	private logisticModel:LogisticRegression = new LogisticRegression({
+		alpha: 0.001,
+		iterations: 1000,
+		lambda: 0.0
+	});
 
 	constructor(props: FM_Props) {
 		super(props);
@@ -163,9 +173,11 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 				action: 'get',
 				resource: `dataContext[${this.targetDatasetName}].collection[${this.targetCollectionName}].caseByID[${tUsedCaseIDs[i]}]`
 			});
-			let tClass = tGetCaseResult.values.case.values[this.classAttributeName];
+			let tActualClass = tGetCaseResult.values.case.values[this.classAttributeName];
+			let tPredictedClass = tGetCaseResult.values.case.values[this.targetPredictedLabelAttributeName];
 			let tPhrase = tGetCaseResult.values.case.values[this.targetAttributeName];
-			let tPhraseObjectArray = textToObject(tClass + ' - ' + tPhrase, tFeatures);
+			// let tPhraseObjectArray = textToObject(tActualClass + ' - ' + tPhrase, tFeatures);
+			let tPhraseObjectArray = textToObject(`Predicted = ${tPredictedClass}, Actual = ${tActualClass} - ${tPhrase}`, tFeatures);
 			tItems.push({
 				type: 'list-item',
 				children: tPhraseObjectArray
@@ -248,6 +260,18 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 		)
 			.catch(() => { console.log('Error getting case count')});
 		return tCountResult.values;
+	}
+
+	private async showPredictedLabels() {
+		await codapInterface.sendRequest(
+			{
+				action: 'create',
+				resource:`dataContext[${this.targetDatasetName}].collection[${this.targetCollectionName}].attribute`,
+				values: { name: 'predicted label',
+				formula: 'lookupByKey("clickbait LS Labels", "Predicted", "Document Index", `Document Index`)'}
+			}
+		)
+			.catch(() => { console.log('Error showing predicted labels')});
 	}
 
 	private async getTargetCollectionNames(): Promise<string[]> {
@@ -360,11 +384,13 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 	}
 
 	private async addFeatures( ) {
+		await this.showPredictedLabels();
 		this.targetCaseCount = await this.getCaseCount();
 		let tFeatureMap:any = {},
 				tClassifier = this.nbClassifier,
-				tCategories: string[],
-				tDocuments: {example:string, class:string}[] = [];
+				tCategories: string[] = [],
+				tDocuments: {example:string, class:string, caseID:number}[] = [],
+				tZeroClassName: string;
 		for (let i = 0; i < this.targetCaseCount; i++) {
 			const tGetResult: any = await codapInterface.sendRequest({
 				"action": "get",
@@ -376,44 +402,36 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 
 			let tCaseID = tGetResult.values.case.id,
 				tText: string = tGetResult.values.case.values[this.targetAttributeName],
-				tClass: string = tGetResult.values.case.values[this.classAttributeName],
-				tWords: RegExpMatchArray | [] = tText.toLowerCase().match(/\w+/g) || [];
-			tWords.forEach((aWord) => {
-				if (!tFeatureMap[aWord]) {
-					tFeatureMap[aWord] = {frequency: 1, caseIDs: [tCaseID]};
-				} else {
-					tFeatureMap[aWord].frequency++;
-					tFeatureMap[aWord].caseIDs.push(tCaseID);
-				}
-			});
-			tClassifier.learn(tText, tClass);
-			tDocuments.push({example: tText, class: tClass});
+				tClass: string = tGetResult.values.case.values[this.classAttributeName];
+			// tClassifier.learn(tText, tClass);	// NaiveBayes can learn as we go along
+			tDocuments.push({example: tText, class: tClass, caseID: tCaseID});
 		}
+		tZeroClassName = tDocuments[0].class;
+		// Logistic can't happen until we've isolated the features
 		let oneHotResult = oneHot(tDocuments);
+		oneHotResult.oneHotResult.forEach(iResult=>{
+			iResult.oneHotExample.push( iResult.class === tZeroClassName ? 0 : 1);
+		});
+		// this.logisticModel.add()
 
 		// We wait until now to create the features dataset so that we know the categories
-		tCategories = this.targetCategories = Object.keys(tClassifier.categories);
+		// tCategories = this.targetCategories = Object.keys(tClassifier.categories);
 		await this.createFeatureDataset();
 
-		let tFeaturesValues: any = [],
-				tFeatureCount = 0;
-		Object.keys(tFeatureMap).forEach((aWord: string) => {
-			let aValue = tFeatureMap[aWord];
-			if( aValue.frequency > 4) {
-				let tValues:any = {
-					feature: aWord, type: 'unigram', frequency: aValue.frequency,
-					usages: JSON.stringify(aValue.caseIDs)
-				};
-				tCategories.forEach((aCategory) => {
-					tValues[aCategory] = tClassifier.tokenProbability( aWord, aCategory);
-				});
-				tFeaturesValues.push({
-					values: tValues
-				});
-				tFeatureCount++;
-			}
+		let tFeaturesValues: any = [];
+		oneHotResult.tokenArray.forEach((aToken) => {
+			let tValues: any = {
+				feature: aToken.token, type: 'unigram', frequency: aToken.count,
+				usages: JSON.stringify(aToken.caseIDs)
+			};
+			tCategories.forEach((aCategory) => {
+				tValues[aCategory] = tClassifier.tokenProbability(aToken.token, aCategory);
+			});
+			tFeaturesValues.push({
+				values: tValues
+			});
 		});
-		this.featureCaseCount = tFeatureCount;
+		this.featureCaseCount = oneHotResult.tokenArray.length;
 		await  codapInterface.sendRequest({
 			action: 'create',
 			resource: `dataContext[${this.featureDatasetName}].collection[${this.featureCollectionName}].case`,
@@ -482,7 +500,7 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 			<p>In <b>{this.targetDatasetName}</b> identified {this.featureCaseCount} <b>unigrams </b>
 				in <b>{pluralize(this.targetAttributeName)}</b>.</p>
 			<p>Feature weights were computed by a logistic regression model.</p>
-			<p>Probabilities the features belong in categories were computed by a Naive Bayes model.</p>
+			{/*<p>Probabilities the features belong in categories were computed by a Naive Bayes model.</p>*/}
 		</div>
 	}
 

@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "homepage": ".",
   "dependencies": {
+    "@tensorflow/tfjs": "^2.3.0",
     "@types/jest": "24.0.9",
     "@types/node": "11.9.6",
     "@types/pluralize": "0.0.29",

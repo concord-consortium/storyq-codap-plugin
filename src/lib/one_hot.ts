@@ -17,7 +17,8 @@
 //  limitations under the License.
 // ==========================================================================
 
-import {on} from "cluster";
+//import {on} from "cluster";
+import {SQConstants} from "../storyq_constants";
 
 export const kMaxTokens = 1000;
 
@@ -38,35 +39,54 @@ export const wordTokenizer = ( text:string):string[] => {
  * encoding of those documents consisting of an array representing the presence or absence
  * of each of the "tokens" in the document set.
  */
-export const oneHot = ( documents: { example:string, class:string }[]) => {
+export const oneHot = ( documents: { example:string, class:string, caseID:number }[]) => {
 	// Make a hash of all the tokens with their counts
-	let tokenMap: { [key:string]: { token:string, count:number, index:number } } = {};	// Keeps track of counts of words
+	let tokenMap: { [key:string]: { token:string, count:number, index:number, caseIDs:number[] } } = {};	// Keeps track of counts of words
 	documents.forEach(aDoc=>{
 		let tokens = wordTokenizer(aDoc.example);
 		tokens.forEach(aToken=>{
 			if(!tokenMap[aToken])
-				tokenMap[aToken] = {token: aToken, count: 1, index: -1};
+				tokenMap[aToken] = {token: aToken, count: 1, index: -1, caseIDs: []};
 			else
 				tokenMap[aToken].count++;
+			tokenMap[aToken].caseIDs.push( aDoc.caseID);
 		});
 	});
 	// Convert tokenMap to an array and sort descending
 	let tokenArray = Object.values( tokenMap).sort((aToken1, aToken2)=>{
 		return aToken2.count - aToken1.count;
 	});
-	tokenArray.length = Math.min(tokenArray.length, kMaxTokens);
+	// Only include tokens with a count above specified threshold
+	let tIndexFirstBelowThreshold = -1,
+			tThreshold = SQConstants.featureCountThreshold;
+	while( tIndexFirstBelowThreshold < 0 && tThreshold > 0) {
+		tIndexFirstBelowThreshold = tokenArray.findIndex((aToken) => {
+			return aToken.count <= tThreshold;
+		});
+		tThreshold--;
+	}
+	if( tIndexFirstBelowThreshold < 0)	// There were no very frequent tokens
+		tIndexFirstBelowThreshold = tokenArray.length;
+	tokenArray.length = Math.min(tIndexFirstBelowThreshold, tokenArray.length, kMaxTokens);
 	const kVectorLength = tokenArray.length;
 	// Assign each token an index given its position in the array
 	tokenArray.forEach((aToken, iIndex) => {
 		aToken.index = iIndex;
 	});
+	// Delete the unneeded tokens from tokenMap
+	Object.keys(tokenMap).forEach((aKey)=>{
+		if( tokenMap[aKey].index === -1)
+			delete  tokenMap[aKey];
+	});
 	// Create an array of one-hot vectors corresponding to the original document examples
 	let oneHotArray: { oneHotExample:number[], class:string }[] = documents.map(aDoc=>{
 		let tVector:number[] = Array(kVectorLength).fill(0);
 		wordTokenizer(aDoc.example).forEach(aWord=>{
-			let tWordIndex = tokenMap[aWord].index;
-			if(tWordIndex >= 0 && tWordIndex < kVectorLength)
-				tVector[tWordIndex] = 1;
+			if(tokenMap[aWord]) {
+				let tWordIndex = tokenMap[aWord].index;
+				if (tWordIndex >= 0 && tWordIndex < kVectorLength)
+					tVector[tWordIndex] = 1;
+			}
 		});
 		return { oneHotExample: tVector, class: aDoc.class };
 	});
