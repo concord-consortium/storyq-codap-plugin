@@ -163,11 +163,8 @@ export var LogisticRegression = function(config) {
       }
     }
 
-    this.threshold = this.computeThreshold(X, Y);
-
     return {
       theta: this.theta,
-      threshold: this.threshold,
       cost: this.cost(X, Y, this.theta),
       config: {
         alpha: this.alpha,

@@ -63,9 +63,17 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 	// @ts-ignore
 	private logisticModel:LogisticRegression = new LogisticRegression({
 		alpha: 0.001,
-		iterations: 1000,
-		lambda: 0.0
+		iterations: 30,
+		lambda: 0.0,
+		trace: true,
+		progressCallback: this.handleFittingProgress.bind(this)
 	});
+	private feedbackNames = {
+		dataContextName: 'FittingFeedback',
+		collectionName: 'iterations',
+		iterationName: 'iteration',
+		costName: 'cost'
+	};
 
 	constructor(props: FM_Props) {
 		super(props);
@@ -262,16 +270,160 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 		return tCountResult.values;
 	}
 
-	private async showPredictedLabels() {
+	private async setupFeedbackDataset() {
+		const tContextList:any = await codapInterface.sendRequest( {
+			action: 'get',
+			resource: 'dataContextList'
+		});
+		let tAlreadyPresent = tContextList.values.findIndex((iValue:any)=>{
+						return iValue.name === this.feedbackNames.dataContextName;
+					}) >= 0;
+		if( !tAlreadyPresent) {
+			await codapInterface.sendRequest( {
+				action: 'create',
+				resource: 'dataContext',
+				values: {
+					name: this.feedbackNames.dataContextName,
+					collections: [ {
+						name: this.feedbackNames.collectionName,
+						attrs: [
+							{ name: this.feedbackNames.iterationName},
+							{ name: this.feedbackNames.costName}
+						]
+					}],
+				}
+			});
+		}
+	}
+
+	private async makeFeedbackGraph():Promise<string> {
+		await codapInterface.sendRequest({
+			action: 'create',
+			resource: 'component',
+			values: {
+				type: 'graph',
+				name: 'Fitting Progress',
+				dimensions: {
+					width: 200,
+					height: 150
+				},
+				dataContext: this.feedbackNames.dataContextName,
+				xAttributeName: this.feedbackNames.iterationName,
+				yAttributeName: this.feedbackNames.costName,
+			}
+		});
+		return 'made graph';
+	}
+
+	private async handleFittingProgress (iIteration:number, iCost:number):Promise<string> {
+		if( iIteration === 3) {
+			await this.makeFeedbackGraph();
+		}
+		let tCaseValues:any = {};
+		tCaseValues[this.feedbackNames.iterationName] = iIteration;
+		tCaseValues[this.feedbackNames.costName] = iCost;
+		await codapInterface.sendRequest({
+			action: 'create',
+			resource: `dataContext[${this.feedbackNames.dataContextName}].collection[${this.feedbackNames.collectionName}].case`,
+			values: [{
+				values: tCaseValues
+			}]
+		});
+		return 'case added';
+	}
+
+	private async showPredictedLabels(iTools:{
+		logisticModel: any,
+		threshold: number,
+		oneHotData: number[][],
+		documents: any,
+		classNames: string[]
+	}) {
 		await codapInterface.sendRequest(
 			{
 				action: 'create',
 				resource:`dataContext[${this.targetDatasetName}].collection[${this.targetCollectionName}].attribute`,
-				values: { name: 'predicted label',
-				formula: 'lookupByKey("clickbait LS Labels", "Predicted", "Document Index", `Document Index`)'}
+				values: [
+					{
+						name: this.targetPredictedLabelAttributeName,
+						description: 'The label predicted by the model'
+					},
+					{
+						name: 'probability of ' + iTools.classNames[1],
+						precision: 5,
+						description: 'A computed probability based on the logistic regression model'
+					}
+				]
 			}
 		)
 			.catch(() => { console.log('Error showing predicted labels')});
+
+		// Determine the probability threshold that yields the fewest discrepant classifications
+		let tOneHotLength = iTools.oneHotData[0].length,
+				tPosProbs:number[] = [],
+				tNegProbs:number[] = [];
+		iTools.documents.forEach((aDoc:any, iIndex:number)=>{
+			let tProbability:number = iTools.logisticModel.transform(iTools.oneHotData[iIndex]),
+					tActual = iTools.oneHotData[iIndex][ tOneHotLength - 1];
+			if( tActual)
+				tPosProbs.push(tProbability);
+			else
+				tNegProbs.push(tProbability);
+		});
+		tPosProbs.sort();
+		tNegProbs.sort();
+		let tCurrValue = tPosProbs[0],
+				tNegLength = tNegProbs.length;
+
+		function findNegIndex( iStarting:number, iTargetProb:number):number {
+			while( tNegProbs[iStarting] < iTargetProb && iStarting < tNegLength) {
+				iStarting++;
+			}
+			return iStarting;
+		}
+
+		let tRecord = {
+			posIndex: 0,	// Position at which we testing for discrepancies
+			negIndex: tNegProbs.findIndex((v: number) => {
+				return v > tCurrValue;
+			}),
+			currMinDescrepancies: Number.MAX_VALUE,
+			threshold: tPosProbs[0]
+		};
+		while(tRecord.negIndex < tNegLength) {
+			let tCurrDiscrepancies = tRecord.posIndex + (tNegLength - tRecord.negIndex);
+			if( tCurrDiscrepancies < tRecord.currMinDescrepancies) {
+				tRecord.currMinDescrepancies = tCurrDiscrepancies;
+				tRecord.threshold = tPosProbs[tRecord.posIndex];
+			}
+			tRecord.posIndex++;
+			tRecord.negIndex = findNegIndex( tRecord.negIndex, tPosProbs[tRecord.posIndex]);
+		}
+		let tThreshold = tRecord.threshold,
+				tLabelValues: { id: number, values: any	}[] = [],
+				tPosIndex = 0,
+				tNegIndex = 0;
+		iTools.documents.forEach((aDoc:any, iIndex:number)=>{
+			let tActual:number = iTools.oneHotData[iIndex][tOneHotLength - 1],
+					tProbability:number,
+					tPredictedLabel,
+					// tPredictedLabel = tProbability > iTools.threshold ? iTools.classNames[1] : iTools.classNames[0],
+					tValues:any = {},
+					tProbName = `probability of ${iTools.classNames[1]}`;
+			tProbability = tActual ? tPosProbs[tPosIndex++] : tNegProbs[tNegIndex++];
+			tPredictedLabel = tProbability > tThreshold ? iTools.classNames[1] : iTools.classNames[0];
+			tValues[this.targetPredictedLabelAttributeName] = tPredictedLabel;
+			tValues[tProbName] = tProbability;
+			tLabelValues.push( {
+				id: aDoc.caseID,
+				values: tValues
+			})
+		});
+		await codapInterface.sendRequest( {
+			action: 'update',
+			resource:`dataContext[${this.targetDatasetName}].collection[${this.targetCollectionName}].case`,
+			values: tLabelValues
+		});
 	}
 
 	private async getTargetCollectionNames(): Promise<string[]> {
@@ -315,6 +467,7 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 				}, {
 					name: 'weight',
 					description: 'The weight of the feature in the computed model',
+					precision: 5,
 					formula: 'lookupByKey("Features", "weight", "feature", feature)'
 				}
 				]
@@ -342,8 +495,9 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 					{ name: "type", description: `The kind of feature (unigram, bigram, count, …)` },
 					{ name: "frequency", description: `The number of times the feature appears` },
 					{ name: "usages", hidden: true },
-					{ name: "weight", description: `A computed value that is proportional to the importance of the feature in the logistic regression classification model`,
-						formula: `lookupByKey("clickbait features", "Feature Weight", "Feature", feature)`}
+					{ name: "weight",
+						precision: 5,
+						description: `A computed value that is proportional to the importance of the feature in the logistic regression classification model`}
 				];
 		this.targetCategories.forEach( (aCategory) => {
 			tAttributes.push( { name: aCategory, precision: 5,
@@ -384,13 +538,13 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 	}
 
 	private async addFeatures( ) {
-		await this.showPredictedLabels();
 		this.targetCaseCount = await this.getCaseCount();
 		let tFeatureMap:any = {},
-				tClassifier = this.nbClassifier,
+				// tClassifier = this.nbClassifier,
 				tCategories: string[] = [],
 				tDocuments: {example:string, class:string, caseID:number}[] = [],
-				tZeroClassName: string;
+				tZeroClassName: string,
+				tOneClassName:string;
 		for (let i = 0; i < this.targetCaseCount; i++) {
 			const tGetResult: any = await codapInterface.sendRequest({
 				"action": "get",
@@ -407,36 +561,56 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 			tDocuments.push({example: tText, class: tClass, caseID: tCaseID});
 		}
 		tZeroClassName = tDocuments[0].class;
-		// Logistic can't happen until we've isolated the features
-		let oneHotResult = oneHot(tDocuments);
-		oneHotResult.oneHotResult.forEach(iResult=>{
-			iResult.oneHotExample.push( iResult.class === tZeroClassName ? 0 : 1);
+		let tDocOfOtherClass:any = tDocuments.find(aDoc=>{
+			return aDoc.class !== tZeroClassName;
 		});
-		// this.logisticModel.add()
+		tOneClassName = tDocOfOtherClass.class;
+		// Logistic can't happen until we've isolated the features
+		let tOneHot = oneHot(tDocuments),
+				tData:number[][] = [];
+		tOneHot.oneHotResult.forEach(iResult=>{
+			iResult.oneHotExample.push( iResult.class === tZeroClassName ? 0 : 1);
+			tData.push(iResult.oneHotExample);
+		});
+		await this.setupFeedbackDataset();
+		let tTrainedModel:any = await this.logisticModel.fit(tData);
 
 		// We wait until now to create the features dataset so that we know the categories
 		// tCategories = this.targetCategories = Object.keys(tClassifier.categories);
 		await this.createFeatureDataset();
 
 		let tFeaturesValues: any = [];
-		oneHotResult.tokenArray.forEach((aToken) => {
+		tOneHot.tokenArray.forEach((aToken, iIndex) => {
 			let tValues: any = {
 				feature: aToken.token, type: 'unigram', frequency: aToken.count,
-				usages: JSON.stringify(aToken.caseIDs)
+				usages: JSON.stringify(aToken.caseIDs),
+				weight: tTrainedModel.theta[iIndex]
 			};
+/*
 			tCategories.forEach((aCategory) => {
 				tValues[aCategory] = tClassifier.tokenProbability(aToken.token, aCategory);
 			});
+*/
 			tFeaturesValues.push({
 				values: tValues
 			});
+			tOneHot.tokenMap[aToken.token].weight = tTrainedModel.theta[iIndex];
 		});
-		this.featureCaseCount = oneHotResult.tokenArray.length;
+		this.featureCaseCount = tOneHot.tokenArray.length;
 		await  codapInterface.sendRequest({
 			action: 'create',
 			resource: `dataContext[${this.featureDatasetName}].collection[${this.featureCollectionName}].case`,
 			values: tFeaturesValues
 		});
+
+		let tPredictionTools = {
+			logisticModel: this.logisticModel,
+			threshold: tTrainedModel.threshold,
+			oneHotData: tData,
+			documents: tDocuments,
+			classNames: [tZeroClassName, tOneClassName]
+		}
+		await this.showPredictedLabels(tPredictionTools);
 	}
 
 	private async addTextComponent() {
@@ -495,12 +669,12 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 	}
 
 	private renderForFinishedState() {
-		return <div>
+		return <div className={'sq-output'}>
 			<p>Your analysis is finished!</p>
 			<p>In <b>{this.targetDatasetName}</b> identified {this.featureCaseCount} <b>unigrams </b>
 				in <b>{pluralize(this.targetAttributeName)}</b>.</p>
 			<p>Feature weights were computed by a logistic regression model.</p>
-			{/*<p>Probabilities the features belong in categories were computed by a Naive Bayes model.</p>*/}
+			<p>Threshold = {Math.round(this.logisticModel.threshold * 10000)/10000}</p>
 		</div>
 	}
 

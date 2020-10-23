@@ -38,19 +38,21 @@ export const wordTokenizer = ( text:string):string[] => {
  * This function takes an array of "documents,"" each with a class, and returns a one-hot
  * encoding of those documents consisting of an array representing the presence or absence
  * of each of the "tokens" in the document set.
+ * For StoryQ, with each token we keep track of the document caseIDs in which it occurs.
  */
-export const oneHot = ( documents: { example:string, class:string, caseID:number }[]) => {
+export const oneHot = ( documents: { example:string, class:string, caseID:number, tokens?:string[] }[]) => {
 	// Make a hash of all the tokens with their counts
-	let tokenMap: { [key:string]: { token:string, count:number, index:number, caseIDs:number[] } } = {};	// Keeps track of counts of words
+	let tokenMap: { [key:string]: { token:string, count:number, index:number, caseIDs:number[], weight:number|null } } = {};	// Keeps track of counts of words
 	documents.forEach(aDoc=>{
 		let tokens = wordTokenizer(aDoc.example);
 		tokens.forEach(aToken=>{
 			if(!tokenMap[aToken])
-				tokenMap[aToken] = {token: aToken, count: 1, index: -1, caseIDs: []};
+				tokenMap[aToken] = {token: aToken, count: 1, index: -1, caseIDs: [], weight: null};
 			else
 				tokenMap[aToken].count++;
 			tokenMap[aToken].caseIDs.push( aDoc.caseID);
 		});
+		aDoc.tokens = tokens;
 	});
 	// Convert tokenMap to an array and sort descending
 	let tokenArray = Object.values( tokenMap).sort((aToken1, aToken2)=>{
