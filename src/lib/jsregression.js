@@ -236,11 +236,13 @@ export var LogisticRegression = function(config) {
     for(var i = 0; i < N; ++i){
       var y_i = Y[i];
       var x_i = X[i];
-      sum += - (y_i * Math.log(this.h(x_i, theta)) + (1-y_i) * Math.log(1 - this.h(x_i, theta))) / N;
+      var likelihood = this.h(x_i, theta);
+      sum += - (y_i * Math.log(likelihood) + (1-y_i) * Math.log(1 - likelihood)) / N;
     }
-
-    for(var d = 0; d < this.dim; ++d) {
-      sum += (this.lambda * theta[d] * theta[d]) / (2.0 * N);
+    if( this.lambda !== 0) {
+      for (var d = 0; d < this.dim; ++d) {
+        sum += (this.lambda * theta[d] * theta[d]) / (2.0 * N);
+      }
     }
     return sum;
   };

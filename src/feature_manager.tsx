@@ -62,9 +62,11 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 	// private logisticModel: tf.Sequential = new tf.Sequential();
 	// @ts-ignore
 	private logisticModel:LogisticRegression = new LogisticRegression({
-		alpha: 0.001,
-		iterations: 30,
+		alpha: 0.1,
+		iterations: 1000,
 		lambda: 0.0,
+		threshold: 0.5,
+		accuracy: 0,
 		trace: true,
 		progressCallback: this.handleFittingProgress.bind(this)
 	});
@@ -91,7 +93,6 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 
 	public async componentDidMount() {
 		this.datasetNames = await getDatasetNames();
-		this.setState({count: 1});
 		this.subscriberIndex = codapInterface.on('notify', '*', '', this.handleNotification);
 		this.nbClassifier = new NaiveBayesClassifier();
 	}
@@ -137,7 +138,7 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 	private async handleNotification(iNotification: CODAP_Notification) {
 		if (iNotification.action === 'notify' && iNotification.values.operation === 'dataContextCountChanged') {
 			this.datasetNames = await getDatasetNames();
-			this.setState({count: this.state.count + 1});
+			this.setState({count: this.state.count + 1, status: this.state.status });
 		}
 		else if(iNotification.action === 'notify' && iNotification.values.operation === 'selectCases') {
 			// @ts-ignore
@@ -332,86 +333,86 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 		return 'case added';
 	}
 
+	/**
+	 * Add attributes for predicted label and for probability. Compute and stash values.
+	 * @param iTools
+	 * @private
+	 */
 	private async showPredictedLabels(iTools:{
-		logisticModel: any,
-		threshold: number,
-		oneHotData: number[][],
-		documents: any,
-		classNames: string[]
-	}) {
-		await codapInterface.sendRequest(
-			{
-				action: 'create',
-				resource:`dataContext[${this.targetDatasetName}].collection[${this.targetCollectionName}].attribute`,
-				values: [
-					{
-						name: this.targetPredictedLabelAttributeName,
-						description: 'The label predicted by the model'
-					},
-					{
-						name: 'probability of ' + iTools.classNames[1],
-						precision: 5,
-						description: 'A computed probability based on the logistic regression model'
-					}
-				]
-			}
-		)
-			.catch(() => { console.log('Error showing predicted labels')});
-
-		// Determine the probability threshold that yields the fewest discrepant classifications
+				logisticModel: any,	// Will compute probabilities
+				oneHotData: number[][],
+				documents: any,
+				classNames: string[]
+			})
+	{
 		let tOneHotLength = iTools.oneHotData[0].length,
 				tPosProbs:number[] = [],
-				tNegProbs:number[] = [];
-		iTools.documents.forEach((aDoc:any, iIndex:number)=>{
-			let tProbability:number = iTools.logisticModel.transform(iTools.oneHotData[iIndex]),
+				tNegProbs:number[] = [],
+				tMapFromCaseIDToProbability:any = {};
+
+		function findThreshold(): { threshold:number, accuracy:number } {
+			// Determine the probability threshold that yields the fewest discrepant classifications
+			// First compute the probabilities separating them into two arrays
+			iTools.documents.forEach((aDoc:any, iIndex:number)=>{
+				let tProbability:number = iTools.logisticModel.transform(iTools.oneHotData[iIndex]),
 					tActual = iTools.oneHotData[iIndex][ tOneHotLength - 1];
-			if( tActual)
-				tPosProbs.push(tProbability);
-			else
-				tNegProbs.push(tProbability);
-		});
-		tPosProbs.sort();
-		tNegProbs.sort();
-		let tCurrValue = tPosProbs[0],
+				if( tActual) {
+					tPosProbs.push(tProbability);
+				}
+				else {
+					tNegProbs.push(tProbability);
+				}
+				// We will have to be able to lookup the probability later
+				tMapFromCaseIDToProbability[aDoc.caseID] = tProbability;
+			});
+			tPosProbs.sort();
+			tNegProbs.sort();
+			let tCurrValue = tPosProbs[0],
 				tNegLength = tNegProbs.length;
 
-		function findNegIndex( iStarting:number, iTargetProb:number):number {
-			while( tNegProbs[iStarting] < iTargetProb && iStarting < tNegLength) {
-				iStarting++;
+			// Return the index in tNegPros starting as given for the >= target probability
+			function findNegIndex( iStarting:number, iTargetProb:number):number {
+				while( tNegProbs[iStarting] < iTargetProb && iStarting < tNegLength) {
+					iStarting++;
+				}
+				return iStarting;
 			}
-			return iStarting;
+
+			let tRecord = {
+				posIndex: 0,	// Position at which we testing for discrepancies
+				negIndex: tNegProbs.findIndex((v: number) => {
+					return v > tCurrValue;
+				}),
+				currMinDescrepancies: Number.MAX_VALUE,
+				threshold: tPosProbs[0]
+			};
+			while(tRecord.negIndex < tNegLength) {
+				let tCurrDiscrepancies = tRecord.posIndex + (tNegLength - tRecord.negIndex);
+				if( tCurrDiscrepancies < tRecord.currMinDescrepancies) {
+					tRecord.currMinDescrepancies = tCurrDiscrepancies;
+					tRecord.threshold = tPosProbs[tRecord.posIndex];
+				}
+				tRecord.posIndex++;
+				tRecord.negIndex = findNegIndex( tRecord.negIndex, tPosProbs[tRecord.posIndex]);
+			}
+			let tNumDocs = iTools.documents.length,
+					tAccuracy = (tNumDocs - tRecord.currMinDescrepancies) / tNumDocs;
+			return { threshold: tRecord.threshold,
+								accuracy: tAccuracy };
 		}
 
-		let tRecord = {
-			posIndex: 0,	// Position at which we testing for discrepancies
-			negIndex: tNegProbs.findIndex((v: number) => {
-				return v > tCurrValue;
-			}),
-			currMinDescrepancies: Number.MAX_VALUE,
-			threshold: tPosProbs[0]
-		};
-		while(tRecord.negIndex < tNegLength) {
-			let tCurrDiscrepancies = tRecord.posIndex + (tNegLength - tRecord.negIndex);
-			if( tCurrDiscrepancies < tRecord.currMinDescrepancies) {
-				tRecord.currMinDescrepancies = tCurrDiscrepancies;
-				tRecord.threshold = tPosProbs[tRecord.posIndex];
-			}
-			tRecord.posIndex++;
-			tRecord.negIndex = findNegIndex( tRecord.negIndex, tPosProbs[tRecord.posIndex]);
-		}
-		let tThreshold = tRecord.threshold,
-				tLabelValues: { id: number, values: any	}[] = [],
-				tPosIndex = 0,
-				tNegIndex = 0;
+		// Create values of predicted label and probability for each document
+		let tThresholdResult = findThreshold(),
+				tLabelValues: { id: number, values: any	}[] = [];
+		iTools.logisticModel.threshold = tThresholdResult.threshold;
+		iTools.logisticModel.accuracy = tThresholdResult.accuracy;
 		iTools.documents.forEach((aDoc:any, iIndex:number)=>{
-			let tActual:number = iTools.oneHotData[iIndex][tOneHotLength - 1],
-					tProbability:number,
+			let tProbability:number,
 					tPredictedLabel,
-					// tPredictedLabel = tProbability > iTools.threshold ? iTools.classNames[1] : iTools.classNames[0],
 					tValues:any = {},
 					tProbName = `probability of ${iTools.classNames[1]}`;
-			tProbability = tActual ? tPosProbs[tPosIndex++] : tNegProbs[tNegIndex++];
-			tPredictedLabel = tProbability > tThreshold ? iTools.classNames[1] : iTools.classNames[0];
+			tProbability = tMapFromCaseIDToProbability[aDoc.caseID];
+			tPredictedLabel = tProbability > tThresholdResult.threshold ? iTools.classNames[1] : iTools.classNames[0];
 			tValues[this.targetPredictedLabelAttributeName] = tPredictedLabel;
 			tValues[tProbName] = tProbability;
 			tLabelValues.push( {
@@ -419,6 +420,7 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 				values: tValues
 			})
 		});
+		// Send the values to CODAP
 		await codapInterface.sendRequest( {
 			action: 'update',
 			resource:`dataContext[${this.targetDatasetName}].collection[${this.targetCollectionName}].case`,
@@ -437,43 +439,6 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 		return tListResult.values.map((iValue:{name:string}) => { return iValue.name });
 	}
 
-	/**
-	 * The target dataset is (currently) assumed to be flat at the start with each case containing a target
-	 * phrase. We add a child collection level in which features of selected target phrases are shown, along with
-	 * the number of occurrences and computed weight in the model.
-	 * @return boolean true if successful
-	 */
-	private async setupTargetDataset() {
-		// Create a child collection
-		await codapInterface.sendRequest([{
-			action: 'create',
-			resource: `dataContext[${this.targetDatasetName}].collection`,
-			values: [{
-				name: 'features',
-				title: 'Features of selected phrases',
-				parent: `${this.targetCollectionName}`
-			}]
-		},
-			{
-				action: 'create',
-				resource: `dataContext[${this.targetDatasetName}].collection[features].attribute`,
-				values: [{
-					name: 'feature',
-					description: `A feature of the ${this.targetAttributeName}`
-				}, {
-					name: 'occurrences',
-					description: `The number of times the feature appears in ${this.targetAttributeName}`,
-					formula: `if(feature, patternMatches(toLower(\`${this.targetAttributeName}\`),"(\\\\\\\\W|^)"+feature + "(\\\\\\\\W|$)"),"")`
-				}, {
-					name: 'weight',
-					description: 'The weight of the feature in the computed model',
-					precision: 5,
-					formula: 'lookupByKey("Features", "weight", "feature", feature)'
-				}
-				]
-			}]).catch(reason => console.log(`Error on creating target child collection: ${reason}`));
-	}
-
 	private async getAttributeNameByIndex(iIndex:number): Promise<string> {
 		const tListResult:any = await codapInterface.sendRequest(
 			{
@@ -485,6 +450,29 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 		if( tListResult.values.length > iIndex)
 			return tListResult.values[ iIndex].name;
 		else return '';
+	}
+
+	private async addAttributesToTarget( iPredictionClass:string) {
+		// Add the predicted label and probability attributes to the target collection
+		await codapInterface.sendRequest(
+			{
+				action: 'create',
+				resource:`dataContext[${this.targetDatasetName}].collection[${this.targetCollectionName}].attribute`,
+				values: [
+					{
+						name: this.targetPredictedLabelAttributeName,
+						description: 'The label predicted by the model'
+					},
+					{
+						name: 'probability of ' + iPredictionClass,
+						precision: 5,
+						description: 'A computed probability based on the logistic regression model'
+					}
+				]
+			}
+		)
+			.catch(() => { console.log('Error showing adding target attributes')});
+
 	}
 
 	private async createFeatureDataset() {
@@ -539,12 +527,12 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 
 	private async addFeatures( ) {
 		this.targetCaseCount = await this.getCaseCount();
-		let tFeatureMap:any = {},
-				// tClassifier = this.nbClassifier,
-				tCategories: string[] = [],
+		let // tClassifier = this.nbClassifier,
 				tDocuments: {example:string, class:string, caseID:number}[] = [],
 				tZeroClassName: string,
 				tOneClassName:string;
+		// Grab the strings in the target collection that are the values of the target attribute.
+		// Stash these in an array that can be used to produce a oneHot representation
 		for (let i = 0; i < this.targetCaseCount; i++) {
 			const tGetResult: any = await codapInterface.sendRequest({
 				"action": "get",
@@ -560,25 +548,36 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 			// tClassifier.learn(tText, tClass);	// NaiveBayes can learn as we go along
 			tDocuments.push({example: tText, class: tClass, caseID: tCaseID});
 		}
+		// Arbitrarily assume the first class name represents the "zero" class and the first
+		// different class name represents the "one" class
 		tZeroClassName = tDocuments[0].class;
 		let tDocOfOtherClass:any = tDocuments.find(aDoc=>{
 			return aDoc.class !== tZeroClassName;
 		});
 		tOneClassName = tDocOfOtherClass.class;
-		// Logistic can't happen until we've isolated the features
+
+		// Now that we know the class name we're predicting, we can add attributes to the target dataset
+		await this.addAttributesToTarget( tOneClassName);
+
+		// Logistic can't happen until we've isolated the features and produced a oneHot representation
+		// Also, the logisticModel.fit function requires that the class value (0 or 1) be the
+		// last element of each oneHot.
 		let tOneHot = oneHot(tDocuments),
 				tData:number[][] = [];
 		tOneHot.oneHotResult.forEach(iResult=>{
 			iResult.oneHotExample.push( iResult.class === tZeroClassName ? 0 : 1);
 			tData.push(iResult.oneHotExample);
 		});
-		await this.setupFeedbackDataset();
+
+		// Fit a logistic model to the data
+		if( this.logisticModel.trace) {
+			await this.setupFeedbackDataset(); // So we can display fitting progress as a graph
+		}
 		let tTrainedModel:any = await this.logisticModel.fit(tData);
 
-		// We wait until now to create the features dataset so that we know the categories
-		// tCategories = this.targetCategories = Object.keys(tClassifier.categories);
+		// We wait until now to create the features dataset in order to show frequencies and weights
 		await this.createFeatureDataset();
-
+		// Put together the values that will go in the dataset
 		let tFeaturesValues: any = [];
 		tOneHot.tokenArray.forEach((aToken, iIndex) => {
 			let tValues: any = {
@@ -586,26 +585,24 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 				usages: JSON.stringify(aToken.caseIDs),
 				weight: tTrainedModel.theta[iIndex]
 			};
-/*
-			tCategories.forEach((aCategory) => {
-				tValues[aCategory] = tClassifier.tokenProbability(aToken.token, aCategory);
-			});
-*/
+
 			tFeaturesValues.push({
 				values: tValues
 			});
 			tOneHot.tokenMap[aToken.token].weight = tTrainedModel.theta[iIndex];
 		});
-		this.featureCaseCount = tOneHot.tokenArray.length;
+		this.featureCaseCount = tOneHot.tokenArray.length;	// For feedback to user
+		// Send the data to the feature dataset
 		await  codapInterface.sendRequest({
 			action: 'create',
 			resource: `dataContext[${this.featureDatasetName}].collection[${this.featureCollectionName}].case`,
 			values: tFeaturesValues
 		});
 
+		// In the target dataset we're going to add two attributes: "predicted label" and "probability of clickbait"
+		// We pass along some tools that will be needed
 		let tPredictionTools = {
 			logisticModel: this.logisticModel,
-			threshold: tTrainedModel.threshold,
 			oneHotData: tData,
 			documents: tDocuments,
 			classNames: [tZeroClassName, tOneClassName]
@@ -644,11 +641,10 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 			await this.addFeatures();
 			await this.addTextComponent();
 			this.stashedStatus = '';
-			// await this.setupTargetDataset();
-			this.setState({status: 'finished'});
+			this.setState({count: this.state.count + 1, status: 'finished'});
 		}
 		else {
-			this.setState({status:'error'})
+			this.setState({count: this.state.count + 1, status:'error'})
 		}
 	}
 
@@ -674,6 +670,7 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 			<p>In <b>{this.targetDatasetName}</b> identified {this.featureCaseCount} <b>unigrams </b>
 				in <b>{pluralize(this.targetAttributeName)}</b>.</p>
 			<p>Feature weights were computed by a logistic regression model.</p>
+			<p>Accuracy = {Math.round(this.logisticModel.accuracy * 1000)/1000}</p>
 			<p>Threshold = {Math.round(this.logisticModel.threshold * 10000)/10000}</p>
 		</div>
 	}
