@@ -128,12 +128,15 @@ export var LogisticRegression = function(config) {
     if(!config.lambda) {
       config.lambda = 0;
     }
+    if (!config.trace) { config.trace = false;}
     this.alpha = config.alpha;
     this.lambda = config.lambda;
     this.iterations = config.iterations;
+    this.trace = config.trace;
+    this.progressCallback = config.progressCallback;
   }
 
-  LogisticRegression.prototype.fit = function(data) {
+  LogisticRegression.prototype.fit = async function(data) {
     this.dim = data[0].length;
     var N = data.length;
 
@@ -161,6 +164,12 @@ export var LogisticRegression = function(config) {
       for(var d = 0; d < this.dim; ++d){
         this.theta[d] = this.theta[d] - this.alpha * theta_delta[d];
       }
+      if(this.trace) {
+        var tCost = this.cost(X, Y, this.theta);
+        // console.log(iter, tCost);
+        if( this.progressCallback)
+          await this.progressCallback(iter, tCost);
+      }
     }
 
     return {
@@ -173,19 +182,6 @@ export var LogisticRegression = function(config) {
       }
     }
   };
-
-  LogisticRegression.prototype.computeThreshold = function(X, Y){
-    var threshold=1.0, N = X.length;
-
-    for (var i = 0; i < N; ++i) {
-      var prob = this.transform(X[i]);
-      if(Y[i] == 1 && threshold > prob){
-        threshold = prob;
-      }
-    }
-
-    return threshold;
-  }
 
   LogisticRegression.prototype.grad = function(X, Y, theta) {
     var N = X.length;
