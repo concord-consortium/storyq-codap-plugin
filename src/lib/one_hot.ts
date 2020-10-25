@@ -42,12 +42,13 @@ export const wordTokenizer = ( text:string):string[] => {
  */
 export const oneHot = ( documents: { example:string, class:string, caseID:number, tokens?:string[] }[]) => {
 	// Make a hash of all the tokens with their counts
-	let tokenMap: { [key:string]: { token:string, count:number, index:number, caseIDs:number[], weight:number|null } } = {};	// Keeps track of counts of words
+	let tokenMap: { [key:string]: { token:string, count:number, index:number,
+			caseIDs:number[], weight:number|null, featureCaseID:number|null } } = {};	// Keeps track of counts of words
 	documents.forEach(aDoc=>{
 		let tokens = wordTokenizer(aDoc.example);
 		tokens.forEach(aToken=>{
 			if(!tokenMap[aToken])
-				tokenMap[aToken] = {token: aToken, count: 1, index: -1, caseIDs: [], weight: null};
+				tokenMap[aToken] = {token: aToken, count: 1, index: -1, caseIDs: [], weight: null, featureCaseID: null};
 			else
 				tokenMap[aToken].count++;
 			tokenMap[aToken].caseIDs.push( aDoc.caseID);

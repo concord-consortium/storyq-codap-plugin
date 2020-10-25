@@ -26,7 +26,7 @@ interface StoryqStorage {
 	values: StoryqValues
 }
 
-class Storyq extends Component<{}, { value: string, className:string, mode:string}> {
+class Storyq extends Component<{}, { className:string, mode:string}> {
 	private kPluginName = "StoryQ";
 	private kVersion = "0.6";
 	private kInitialDimensions = {
@@ -42,7 +42,7 @@ class Storyq extends Component<{}, { value: string, className:string, mode:strin
 
 	constructor(props: any) {
 		super(props);
-		this.state = {value: '', className: 'storyText', mode: 'welcome'};
+		this.state = {className: 'storyText', mode: 'welcome'};
 		this.dataManager = new DataManager();
 		this.textManager = new TextManager( this.dataManager);
 
@@ -79,10 +79,10 @@ class Storyq extends Component<{}, { value: string, className:string, mode:strin
 				this.featureManagerRestoreStorage(this.stashedFeatureManagerStorage);
 				this.stashedFeatureManagerStorage = null;
 			}
-			this.setState( {mode: iStorage.mode || 'welcome'});
+			this.setState( { className: this.state.className, mode: iStorage.mode || 'welcome'});
 			if( this.state.mode === 'write') {
 				this.textManager.setIsActive( true);
-				this.textManager.checkStory();
+				await this.textManager.checkStory();
 			}
 			else
 				this.textManager.setIsActive( false);
@@ -94,13 +94,13 @@ class Storyq extends Component<{}, { value: string, className:string, mode:strin
 		this.featureManagerRestoreStorage = iCallbackFuncs.restoreStorageCallback;
 		if( this.stashedFeatureManagerStorage) {
 			this.featureManagerRestoreStorage(this.stashedFeatureManagerStorage);
-			this.stashedFeatureManagerStorage = null;
+			// this.stashedFeatureManagerStorage = null;
 		}
 	}
 
 	async writeStory() {
 		this.textManager.setIsActive( true);
-		this.setState({mode: 'write'});
+		this.setState({className: this.state.className, mode: 'write'});
 		await this.dataManager.createDataContext( kStoryFeaturesContextName);
 		openTable( kStoryFeaturesContextName);
 		let textComponentID = await openStory(kStoryTextComponentName);
@@ -109,7 +109,7 @@ class Storyq extends Component<{}, { value: string, className:string, mode:strin
 
 	async extractFeatures() {
 		this.textManager.setIsActive(false);
-		this.setState({mode: 'extractFeatures'});
+		this.setState({className: this.state.className, mode: 'extractFeatures'});
 	}
 
 	getPane() {
@@ -123,7 +123,8 @@ class Storyq extends Component<{}, { value: string, className:string, mode:strin
 			case 'write':
 				return (<div>Enjoy writing and analyzing your story!</div>);
 			case 'extractFeatures':
-				return <FeatureManager status='active' setStorageCallbacks={this.setFeatureManagerStorageCallbacks}/>;
+				let tStatus = (this.stashedFeatureManagerStorage && this.stashedFeatureManagerStorage.status) || 'active';
+				return <FeatureManager status ={tStatus} setStorageCallbacks={this.setFeatureManagerStorageCallbacks}/>;
 		}
 	}
 

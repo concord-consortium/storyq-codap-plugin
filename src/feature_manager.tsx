@@ -8,7 +8,7 @@ import DropdownButton from 'react-bootstrap/DropdownButton';
 import ButtonGroup from "react-bootstrap/esm/ButtonGroup";
 import 'bootstrap/dist/css/bootstrap.min.css';
 import {textToObject} from "./utilities";
-import {oneHot} from "./lib/one_hot";
+import {oneHot, wordTokenizer} from "./lib/one_hot";
 import './storyq.css';
 import NaiveBayesClassifier from "./lib/NaiveBayesClassifier";
 import {LogisticRegression} from './lib/jsregression';
@@ -36,6 +36,9 @@ interface FMStorage {
 	featureCaseCount: number,
 	textComponentName: string,
 	textComponentID: number,
+	modelAccuracy:number,
+	modelKappa:number,
+	modelThreshold:number,
 	status: string
 
 }
@@ -56,17 +59,19 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 	private textComponentName = 'Selected';
 	private textComponentID = 0;
 	private subscriberIndex:number | null = null;
-	private stashedStatus:string = '';	// Used to circumvent problem getting state.status to stick in restoreStorage
-	private createdTargetChildCases:number[] = [];
 	private nbClassifier: NaiveBayesClassifier;
+	// Some flags to prevent recursion in selecting features or target cases
+	private isSelectingTargetPhrases = false;
+	private isSelectingFeatures = false;
 	// private logisticModel: tf.Sequential = new tf.Sequential();
 	// @ts-ignore
 	private logisticModel:LogisticRegression = new LogisticRegression({
-		alpha: 0.1,
-		iterations: 1000,
+		alpha: 1,
+		iterations: 100,
 		lambda: 0.0,
-		threshold: 0.5,
 		accuracy: 0,
+		kappa: 0,
+		threshold: 0.5,
 		trace: true,
 		progressCallback: this.handleFittingProgress.bind(this)
 	});
@@ -95,6 +100,7 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 		this.datasetNames = await getDatasetNames();
 		this.subscriberIndex = codapInterface.on('notify', '*', '', this.handleNotification);
 		this.nbClassifier = new NaiveBayesClassifier();
+		this.setState({status: this.state.status, count: this.state.count + 1 })
 	}
 
 	public createStorage():FMStorage {
@@ -111,6 +117,9 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 			featureCaseCount: this.featureCaseCount,
 			textComponentName: this.textComponentName,
 			textComponentID: this.textComponentID,
+			modelAccuracy: this.logisticModel.accuracy,
+			modelKappa: this.logisticModel.kappa,
+			modelThreshold: this.logisticModel.threshold,
 			status: this.state.status
 		}
 	}
@@ -125,10 +134,13 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 		this.featureDatasetName = iStorage.featureDatasetName;
 		this.featureDatasetID = iStorage.featureDatasetID;
 		this.featureCollectionName = iStorage.featureCollectionName;
+		this.featureCaseCount = iStorage.featureCaseCount;
 		this.textComponentName = iStorage.textComponentName;
 		this.textComponentID = iStorage.textComponentID;
-		this.stashedStatus = iStorage.status;
-		// this.state.status = iStorage.status;
+		this.logisticModel.accuracy = iStorage.modelAccuracy,
+		this.logisticModel.kappa = iStorage.modelKappa,
+		this.logisticModel.threshold = iStorage.modelThreshold,
+		this.setState({status: iStorage.status || 'active', count: this.state.count})
 	}
 
 	/**
@@ -143,12 +155,16 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 		else if(iNotification.action === 'notify' && iNotification.values.operation === 'selectCases') {
 			// @ts-ignore
 			let tDataContextName:string = iNotification.resource && iNotification.resource.match(/\[(.+)]/)[1];
-			if( tDataContextName === this.featureDatasetName) {
-				this.handleFeatureSelection();
-			}/*
-			else if( tDataContextName === this.targetDatasetName) {
-				this.handleTargetSelection();
-			}*/
+			if( tDataContextName === this.featureDatasetName && !this.isSelectingFeatures) {
+				this.isSelectingTargetPhrases = true;
+				await this.handleFeatureSelection();
+				this.isSelectingTargetPhrases = false;
+			}
+			else if( tDataContextName === this.targetDatasetName && !this.isSelectingTargetPhrases) {
+				this.isSelectingFeatures = true;
+				await this.handleTargetSelection();
+				this.isSelectingFeatures = false;
+			}
 		}
 	}
 
@@ -170,7 +186,7 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 			tFeatures.push(iCase.values.feature);
 		});
 		let tUsedCaseIDs: number[] = Array.from(tUsedIDsSet);
-		codapInterface.sendRequest({
+		await codapInterface.sendRequest({
 			action: 'create',
 			resource: `dataContext[${this.targetDatasetName}].selectionList`,
 			values: tUsedCaseIDs
@@ -212,52 +228,48 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 				}
 			}
 		});
-		// await this.handleTargetSelection();
 	}
 
 	/**
-	 * When one or more cases at the parent level of the target collection are selected, we generate
-	 * child cases for each of the features contained in the parent target phrase.
+	 * For each selected target phrase, select the cases in the Feature dataset that contain the target
+	 * case id.
 	 */
 	private async handleTargetSelection() {
-		// Delete the child-level cases from the target dataset that were previously created
-		let tDeleteRequests:any[] = this.createdTargetChildCases.map(iID => {
-			return { action: 'delete',
-			resource: `dataContext[${this.targetDatasetName}].collection[features].caseByID[${iID}]`};
-		});
-		this.createdTargetChildCases = [];
-		await codapInterface.sendRequest( tDeleteRequests);
-
-		const kMaxSelectedTargetsToExpand = 4;
 		let this_ = this,
-			tSelectedTargetCases = await getSelectedCasesFrom(this.targetDatasetName);
-		let tCasesToRequest:any[] = [],
-				tNumExpanded = 0;
-		tSelectedTargetCases.forEach(iCase=> {
-			if( tNumExpanded < kMaxSelectedTargetsToExpand) {
-				let tTargetPhrase = iCase.values[this_.targetAttributeName];
-				if (tTargetPhrase) {
-					let tTargetWords: RegExpMatchArray | [] = tTargetPhrase.toLowerCase().match(/\w+/g) || [];
-					tTargetWords.forEach(iWord => {
-						tCasesToRequest.push({
-							parent: iCase.id,
-							values: {
-								feature: iWord
+			tSelectedTargetCases:any = await getSelectedCasesFrom(this.targetDatasetName),
+			tIDsOfFeaturesToSelect:number[] = [];
+		tSelectedTargetCases.forEach((iCase:any)=> {
+			let tFeatureIDs:number[] = JSON.parse(iCase.values.featureIDs);
+			tIDsOfFeaturesToSelect = tIDsOfFeaturesToSelect.concat(tFeatureIDs);
+		});
+		await codapInterface.sendRequest({
+			action: 'create',
+			resource: `dataContext[${this.featureDatasetName}].selectionList`,
+			values: tIDsOfFeaturesToSelect
+		});
+		await codapInterface.sendRequest({
+			action: 'update',
+			resource: `component[${this.textComponentID}]`,
+			values: {
+				text: {
+					document: {
+						children: [
+							{
+								type: "paragraph",
+								children: [
+									{
+										text: ""
+									}
+								]
 							}
-						});
-					});
-					tNumExpanded++;
+						],
+						objTypes: {
+							"paragraph": "block"
+						}
+					}
 				}
 			}
 		});
-	 let tCreateResults:any =	await codapInterface.sendRequest({
-			action: 'create',
-			resource: `dataContext[${this.targetDatasetName}].collection[features].case`,
-			values: tCasesToRequest
-		});
-	 this.createdTargetChildCases = tCreateResults.values.map((iValue:any)=> {
-	 		return iValue.id;
-	 });
 	}
 
 	private async getCaseCount(): Promise<number> {
@@ -342,6 +354,7 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 				logisticModel: any,	// Will compute probabilities
 				oneHotData: number[][],
 				documents: any,
+				tokenArray: any,
 				classNames: string[]
 			})
 	{
@@ -350,7 +363,7 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 				tNegProbs:number[] = [],
 				tMapFromCaseIDToProbability:any = {};
 
-		function findThreshold(): { threshold:number, accuracy:number } {
+		function findThreshold(): { threshold:number, accuracy:number, kappa:number } {
 			// Determine the probability threshold that yields the fewest discrepant classifications
 			// First compute the probabilities separating them into two arrays
 			iTools.documents.forEach((aDoc:any, iIndex:number)=>{
@@ -396,9 +409,13 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 				tRecord.negIndex = findNegIndex( tRecord.negIndex, tPosProbs[tRecord.posIndex]);
 			}
 			let tNumDocs = iTools.documents.length,
-					tAccuracy = (tNumDocs - tRecord.currMinDescrepancies) / tNumDocs;
+					tObserved = (tNumDocs - tRecord.currMinDescrepancies),
+					tExpected = (tPosProbs.length * (tRecord.posIndex + tRecord.negIndex) +
+												tNegLength * (tPosProbs.length - tRecord.posIndex + tNegLength - tRecord.negIndex)) / tNumDocs,
+					tKappa = (tObserved - tExpected) / (tNumDocs - tExpected),
+					tAccuracy = tObserved / tNumDocs;
 			return { threshold: tRecord.threshold,
-								accuracy: tAccuracy };
+								accuracy: tAccuracy, kappa: tKappa };
 		}
 
 		// Create values of predicted label and probability for each document
@@ -406,6 +423,7 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 				tLabelValues: { id: number, values: any	}[] = [];
 		iTools.logisticModel.threshold = tThresholdResult.threshold;
 		iTools.logisticModel.accuracy = tThresholdResult.accuracy;
+		iTools.logisticModel.kappa = tThresholdResult.kappa;
 		iTools.documents.forEach((aDoc:any, iIndex:number)=>{
 			let tProbability:number,
 					tPredictedLabel,
@@ -415,6 +433,18 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 			tPredictedLabel = tProbability > tThresholdResult.threshold ? iTools.classNames[1] : iTools.classNames[0];
 			tValues[this.targetPredictedLabelAttributeName] = tPredictedLabel;
 			tValues[tProbName] = tProbability;
+
+			// For each document, stash the case ids of its features so we can link selection
+			let tFeatureIDsForThisDoc:number[] = [];
+			iTools.tokenArray.forEach((aToken:any)=>{
+				if(aDoc.tokens.findIndex((iFeature:any)=>{
+					return iFeature === aToken.token;
+				})>=0) {
+					tFeatureIDsForThisDoc.push(aToken.featureCaseID);
+				}
+			});
+			tValues.featureIDs = JSON.stringify( tFeatureIDsForThisDoc);
+
 			tLabelValues.push( {
 				id: aDoc.caseID,
 				values: tValues
@@ -467,6 +497,10 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 						name: 'probability of ' + iPredictionClass,
 						precision: 5,
 						description: 'A computed probability based on the logistic regression model'
+					},
+					{
+						name: 'featureIDs',
+						hidden: false
 					}
 				]
 			}
@@ -581,7 +615,8 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 		let tFeaturesValues: any = [];
 		tOneHot.tokenArray.forEach((aToken, iIndex) => {
 			let tValues: any = {
-				feature: aToken.token, type: 'unigram', frequency: aToken.count,
+				feature: aToken.token, type: 'unigram',
+				frequency: aToken.count,
 				usages: JSON.stringify(aToken.caseIDs),
 				weight: tTrainedModel.theta[iIndex]
 			};
@@ -589,15 +624,21 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 			tFeaturesValues.push({
 				values: tValues
 			});
-			tOneHot.tokenMap[aToken.token].weight = tTrainedModel.theta[iIndex];
 		});
 		this.featureCaseCount = tOneHot.tokenArray.length;	// For feedback to user
 		// Send the data to the feature dataset
-		await  codapInterface.sendRequest({
+		let tFeatureCaseIDs:any = await  codapInterface.sendRequest({
 			action: 'create',
 			resource: `dataContext[${this.featureDatasetName}].collection[${this.featureCollectionName}].case`,
 			values: tFeaturesValues
 		});
+		tFeatureCaseIDs = tFeatureCaseIDs.values.map((aResult:any)=> {
+			return aResult.id;
+		});
+		// Add these feature case IDs to their corresponding tokens in the tokenArray
+		for(let i = 0; i < tFeatureCaseIDs.length; i++) {
+			tOneHot.tokenArray[i].featureCaseID = tFeatureCaseIDs[i];
+		}
 
 		// In the target dataset we're going to add two attributes: "predicted label" and "probability of clickbait"
 		// We pass along some tools that will be needed
@@ -605,6 +646,7 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 			logisticModel: this.logisticModel,
 			oneHotData: tData,
 			documents: tDocuments,
+			tokenArray: tOneHot.tokenArray,
 			classNames: [tZeroClassName, tOneClassName]
 		}
 		await this.showPredictedLabels(tPredictionTools);
@@ -640,7 +682,6 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 			this.classAttributeName = await this.getAttributeNameByIndex(1);
 			await this.addFeatures();
 			await this.addTextComponent();
-			this.stashedStatus = '';
 			this.setState({count: this.state.count + 1, status: 'finished'});
 		}
 		else {
@@ -671,6 +712,7 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 				in <b>{pluralize(this.targetAttributeName)}</b>.</p>
 			<p>Feature weights were computed by a logistic regression model.</p>
 			<p>Accuracy = {Math.round(this.logisticModel.accuracy * 1000)/1000}</p>
+			<p>Kappa = {Math.round(this.logisticModel.kappa * 1000)/1000}</p>
 			<p>Threshold = {Math.round(this.logisticModel.threshold * 10000)/10000}</p>
 		</div>
 	}
@@ -684,8 +726,7 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 	}
 
 	public render() {
-		let tStatus:string = (this.stashedStatus === '') ? this.state.status : this.stashedStatus;
-		switch (tStatus) {
+		switch (this.state.status) {
 			case 'error':
 				return FeatureManager.renderForErrorState();
 			case 'active':
