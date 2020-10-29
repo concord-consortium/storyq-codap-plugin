@@ -7,8 +7,8 @@ import Dropdown from 'react-bootstrap/Dropdown';
 import DropdownButton from 'react-bootstrap/DropdownButton';
 import ButtonGroup from "react-bootstrap/esm/ButtonGroup";
 import 'bootstrap/dist/css/bootstrap.min.css';
-import {textToObject} from "./utilities";
-import {oneHot, wordTokenizer} from "./lib/one_hot";
+import {textToObject, phraseToFeatures} from "./utilities";
+import {oneHot} from "./lib/one_hot";
 import './storyq.css';
 import NaiveBayesClassifier from "./lib/NaiveBayesClassifier";
 import {LogisticRegression} from './lib/jsregression';
@@ -230,23 +230,7 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 		});
 	}
 
-	/**
-	 * For each selected target phrase, select the cases in the Feature dataset that contain the target
-	 * case id.
-	 */
-	private async handleTargetSelection() {
-		let this_ = this,
-			tSelectedTargetCases:any = await getSelectedCasesFrom(this.targetDatasetName),
-			tIDsOfFeaturesToSelect:number[] = [];
-		tSelectedTargetCases.forEach((iCase:any)=> {
-			let tFeatureIDs:number[] = JSON.parse(iCase.values.featureIDs);
-			tIDsOfFeaturesToSelect = tIDsOfFeaturesToSelect.concat(tFeatureIDs);
-		});
-		await codapInterface.sendRequest({
-			action: 'create',
-			resource: `dataContext[${this.featureDatasetName}].selectionList`,
-			values: tIDsOfFeaturesToSelect
-		});
+	private async clearText() {
 		await codapInterface.sendRequest({
 			action: 'update',
 			resource: `component[${this.textComponentID}]`,
@@ -265,6 +249,65 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 						],
 						objTypes: {
 							"paragraph": "block"
+						}
+					}
+				}
+			}
+		});
+	}
+
+	/**
+	 * First, For each selected target phrase, select the cases in the Feature dataset that contain the target
+	 * case id.
+	 * Second, display each selected target phrase as text with features highlighted and non-features
+	 * 		grayed out
+	 */
+	private async handleTargetSelection() {
+		let this_ = this,
+			tSelectedTargetCases:any = await getSelectedCasesFrom(this.targetDatasetName),
+			tTargetPhrases:string[] = [],
+			tIDsOfFeaturesToSelect:number[] = [];
+		tSelectedTargetCases.forEach((iCase:any)=> {
+			let tFeatureIDs:number[] = JSON.parse(iCase.values.featureIDs);
+			tIDsOfFeaturesToSelect = tIDsOfFeaturesToSelect.concat(tFeatureIDs);
+			tTargetPhrases.push(iCase.values[this_.targetAttributeName]);
+		});
+		// Select the features
+		await codapInterface.sendRequest({
+			action: 'create',
+			resource: `dataContext[${this.featureDatasetName}].selectionList`,
+			values: tIDsOfFeaturesToSelect
+		});
+		// Get the features and stash them in a set
+		let tSelectedFeatureCases:any = await getSelectedCasesFrom(this.featureDatasetName),
+				tFeatures = new Set<string>();
+		tSelectedFeatureCases.forEach((iCase:any)=>{
+			tFeatures.add(iCase.values.feature);
+		});
+		// For each target phrase create an RTE paragraph with highlighted features and other words disabled
+		let tItems:any[] = [];
+		tTargetPhrases.forEach(iPhrase=>{
+			let tPhraseObject = phraseToFeatures(iPhrase, tFeatures);
+			tItems.push({
+				type: 'list-item',
+				children: tPhraseObject
+			});
+		});
+		await codapInterface.sendRequest({
+			action: 'update',
+			resource: `component[${this.textComponentID}]`,
+			values: {
+				text: {
+					document: {
+						children: [
+							{
+								type: "bulleted-list",
+								children: tItems
+							}
+						],
+						objTypes: {
+							'list-item': 'block',
+							'bulleted-list': 'block'
 						}
 					}
 				}
@@ -424,7 +467,7 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 		iTools.logisticModel.threshold = tThresholdResult.threshold;
 		iTools.logisticModel.accuracy = tThresholdResult.accuracy;
 		iTools.logisticModel.kappa = tThresholdResult.kappa;
-		iTools.documents.forEach((aDoc:any, iIndex:number)=>{
+		iTools.documents.forEach((aDoc:any)=>{
 			let tProbability:number,
 					tPredictedLabel,
 					tValues:any = {},

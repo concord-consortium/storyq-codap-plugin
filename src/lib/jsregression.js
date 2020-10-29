@@ -168,7 +168,7 @@ export var LogisticRegression = function(config) {
         var tCost = this.cost(X, Y, this.theta);
         // console.log(iter, tCost);
         if( this.progressCallback)
-          await this.progressCallback(iter, tCost);
+          await this.progressCallback(iter, tCost, this.theta);
       }
     }
 
