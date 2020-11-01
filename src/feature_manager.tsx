@@ -63,6 +63,7 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 	// Some flags to prevent recursion in selecting features or target cases
 	private isSelectingTargetPhrases = false;
 	private isSelectingFeatures = false;
+	private featureTokenArray:any[] = [];	// Used during feedback process
 	// private logisticModel: tf.Sequential = new tf.Sequential();
 	// @ts-ignore
 	private logisticModel:LogisticRegression = new LogisticRegression({
@@ -72,7 +73,7 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 		accuracy: 0,
 		kappa: 0,
 		threshold: 0.5,
-		trace: true,
+		trace: false,
 		progressCallback: this.handleFittingProgress.bind(this)
 	});
 	private feedbackNames = {
@@ -180,9 +181,12 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 		let tFeatures: string[] = [],
 			tUsedIDsSet: Set<number> = new Set();
 		tSelectedCases.forEach((iCase: any) => {
-			(JSON.parse(iCase.values.usages)).forEach((anID: number) => {
-				tUsedIDsSet.add(anID);
-			});
+			var tUsages = iCase.values.usages;
+			if( typeof tUsages === 'string' && tUsages.length > 0) {
+				(JSON.parse( tUsages)).forEach((anID: number) => {
+					tUsedIDsSet.add(anID);
+				});
+			}
 			tFeatures.push(iCase.values.feature);
 		});
 		let tUsedCaseIDs: number[] = Array.from(tUsedIDsSet);
@@ -371,7 +375,7 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 		return 'made graph';
 	}
 
-	private async handleFittingProgress (iIteration:number, iCost:number):Promise<string> {
+	private async handleFittingProgress (iIteration:number, iCost:number, iWeights:number[]):Promise<string> {
 		if( iIteration === 3) {
 			await this.makeFeedbackGraph();
 		}
@@ -385,7 +389,21 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 				values: tCaseValues
 			}]
 		});
-		return 'case added';
+
+		// Add the given weights to the child collection of the Features dataset
+		// iWeights and this.featureTokenArray must be parallel so we can stash the current values of weights in the
+		//		child collection of the Features collection
+		let tCasesToAdd:any[] = [];
+		for( let i = 0; i < iWeights.length && i < this.featureTokenArray.length; i++) {
+			tCasesToAdd.push({ parent: this.featureTokenArray[i].featureCaseID,
+													values: { iteration: iIteration, trialWeight: iWeights[i]}})
+		}
+		await codapInterface.sendRequest({
+			action: 'create',
+			resource: `dataContext[${this.featureDatasetName}].collection[iterations].case`,
+			values: tCasesToAdd
+		});
+		return 'cases added';
 	}
 
 	/**
@@ -552,7 +570,7 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 
 	}
 
-	private async createFeatureDataset() {
+	private async createFeatureDataset( iTokenArray:any[]) {
 		let tFeatureDataSetName = this.featureDatasetName,
 				tFeatureCollectionName = this.featureCollectionName,
 				tAttributes:any[] = [
@@ -583,6 +601,10 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 							pluralCase: "features"
 						},
 						attrs: tAttributes
+					}, {
+						name: 'iterations',
+						parent: tFeatureCollectionName,
+						attrs: [{name: 'iteration'}, {name:'trialWeight'}]
 					}]
 				}
 			})
@@ -600,6 +622,34 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 				dataContext: tFeatureDataSetName
 			}
 		});
+
+		// Put together the values that will go into the features dataset
+		let tFeaturesValues: any = [];
+		iTokenArray.forEach((aToken, iIndex) => {
+			let tValues: any = {
+				feature: aToken.token, type: 'unigram',
+				frequency: aToken.count,
+				usages: JSON.stringify(aToken.caseIDs),
+			};
+
+			tFeaturesValues.push({
+				values: tValues
+			});
+		});
+		this.featureCaseCount = iTokenArray.length;	// For feedback to user
+		// Send the data to the feature dataset
+		let tFeatureCaseIDs:any = await  codapInterface.sendRequest({
+			action: 'create',
+			resource: `dataContext[${this.featureDatasetName}].collection[${this.featureCollectionName}].case`,
+			values: tFeaturesValues
+		});
+		tFeatureCaseIDs = tFeatureCaseIDs.values.map((aResult:any)=> {
+			return aResult.id;
+		});
+		// Add these feature case IDs to their corresponding tokens in the tokenArray
+		for(let i = 0; i < tFeatureCaseIDs.length; i++) {
+			iTokenArray[i].featureCaseID = tFeatureCaseIDs[i];
+		}
 	}
 
 	private async addFeatures( ) {
@@ -646,42 +696,16 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 			tData.push(iResult.oneHotExample);
 		});
 
+		// By creating the features data set now we give the user an indication that something is happening
+		await this.createFeatureDataset( tOneHot.tokenArray);
+		// We have to stash the tokenArray for use in handleFittingProgress which is a callback
+		this.featureTokenArray = tOneHot.tokenArray;
+
 		// Fit a logistic model to the data
 		if( this.logisticModel.trace) {
 			await this.setupFeedbackDataset(); // So we can display fitting progress as a graph
 		}
 		let tTrainedModel:any = await this.logisticModel.fit(tData);
-
-		// We wait until now to create the features dataset in order to show frequencies and weights
-		await this.createFeatureDataset();
-		// Put together the values that will go in the dataset
-		let tFeaturesValues: any = [];
-		tOneHot.tokenArray.forEach((aToken, iIndex) => {
-			let tValues: any = {
-				feature: aToken.token, type: 'unigram',
-				frequency: aToken.count,
-				usages: JSON.stringify(aToken.caseIDs),
-				weight: tTrainedModel.theta[iIndex]
-			};
-
-			tFeaturesValues.push({
-				values: tValues
-			});
-		});
-		this.featureCaseCount = tOneHot.tokenArray.length;	// For feedback to user
-		// Send the data to the feature dataset
-		let tFeatureCaseIDs:any = await  codapInterface.sendRequest({
-			action: 'create',
-			resource: `dataContext[${this.featureDatasetName}].collection[${this.featureCollectionName}].case`,
-			values: tFeaturesValues
-		});
-		tFeatureCaseIDs = tFeatureCaseIDs.values.map((aResult:any)=> {
-			return aResult.id;
-		});
-		// Add these feature case IDs to their corresponding tokens in the tokenArray
-		for(let i = 0; i < tFeatureCaseIDs.length; i++) {
-			tOneHot.tokenArray[i].featureCaseID = tFeatureCaseIDs[i];
-		}
 
 		// In the target dataset we're going to add two attributes: "predicted label" and "probability of clickbait"
 		// We pass along some tools that will be needed
@@ -693,6 +717,9 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 			classNames: [tZeroClassName, tOneClassName]
 		}
 		await this.showPredictedLabels(tPredictionTools);
+
+		// Clean up a bit
+		this.featureTokenArray = [];
 	}
 
 	private async addTextComponent() {
