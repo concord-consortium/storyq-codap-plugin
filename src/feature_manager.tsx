@@ -150,9 +150,9 @@ export class FeatureManager extends Component<FM_Props, {
 		this.featureCaseCount = iStorage.featureCaseCount;
 		this.textComponentName = iStorage.textComponentName;
 		this.textComponentID = iStorage.textComponentID;
-		this.logisticModel.accuracy = iStorage.modelAccuracy,
-		this.logisticModel.kappa = iStorage.modelKappa,
-		this.logisticModel.threshold = iStorage.modelThreshold,
+		this.logisticModel.accuracy = iStorage.modelAccuracy;
+		this.logisticModel.kappa = iStorage.modelKappa;
+		this.logisticModel.threshold = iStorage.modelThreshold;
 		this.setState({status: iStorage.status || 'active', count: this.state.count})
 	}
 
