@@ -1,6 +1,6 @@
 import React, {Component} from 'react';
 import pluralize from 'pluralize';
-import naiveBaseClassifier from './lib/NaiveBayesClassifier';
+//import naiveBaseClassifier from './lib/NaiveBayesClassifier';
 import codapInterface, {CODAP_Notification} from "./lib/CodapInterface";
 import {getDatasetNames, getSelectedCasesFrom} from './lib/codap-helper';
 import Dropdown from 'react-bootstrap/Dropdown';
@@ -43,7 +43,13 @@ interface FMStorage {
 
 }
 
-export class FeatureManager extends Component<FM_Props, { status:string, count:number}> {
+export class FeatureManager extends Component<FM_Props, {
+	status:string,
+	count:number,
+	iterations:number,
+	frequencyThreshold:number,
+	showWeightsGraph:boolean
+}> {
 	private targetDatasetName:string | null = '';
 	private datasetNames:string[] = [];
 	private targetCollectionName = '';
@@ -85,7 +91,13 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 
 	constructor(props: FM_Props) {
 		super(props);
-		this.state = {status: props.status, count: 0};
+		this.state = {
+			status: props.status,
+			count: 0,
+			iterations: 100,
+			frequencyThreshold: 2,
+			showWeightsGraph: false
+		};
 		this.extract = this.extract.bind(this);
 		this.handleNotification = this.handleNotification.bind(this);
 		this.createStorage = this.createStorage.bind(this);
@@ -246,7 +258,7 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 								type: "paragraph",
 								children: [
 									{
-										text: ""
+										text: `This is where selected ${pluralize(this.targetAttributeName)} appear.`
 									}
 								]
 							}
@@ -451,13 +463,15 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 				}
 				return iStarting;
 			}
-
+			let tNegIndex = tNegProbs.findIndex((v: number) => {
+				return v > tCurrValue;
+			});
+			let tCurrMinDiscrepancies = (tNegIndex === -1) ? 0 : Number.MAX_VALUE;
+			tNegIndex = (tNegIndex === -1) ? tNegProbs.length : tNegIndex;
 			let tRecord = {
 				posIndex: 0,	// Position at which we testing for discrepancies
-				negIndex: tNegProbs.findIndex((v: number) => {
-					return v > tCurrValue;
-				}),
-				currMinDescrepancies: Number.MAX_VALUE,
+				negIndex: tNegIndex,
+				currMinDescrepancies: tCurrMinDiscrepancies,
 				threshold: tPosProbs[0]
 			};
 			while(tRecord.negIndex < tNegLength) {
@@ -581,7 +595,20 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 					{ name: "weight",
 						precision: 5,
 						description: `A computed value that is proportional to the importance of the feature in the logistic regression classification model`}
-				];
+				],
+				tCollections = [ {
+					name: tFeatureCollectionName,
+					title: tFeatureCollectionName,
+					parent: '',
+					attrs: tAttributes
+				}];
+		if(this.logisticModel.trace)
+			tCollections.push({
+				name: 'iterations',
+				title: 'iterations',
+				parent: tFeatureCollectionName,
+				attrs: [{name: 'iteration'}, {name:'trialWeight'}]
+			});
 		this.targetCategories.forEach( (aCategory) => {
 			tAttributes.push( { name: aCategory, precision: 5,
 					description: `The probability assigned by a Naive Bayes classification model that the feature belongs to "${aCategory}"`});
@@ -593,19 +620,7 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 				values: {
 					name: tFeatureDataSetName,
 					title: tFeatureDataSetName,
-					collections: [ {
-						name: tFeatureCollectionName,
-						title: tFeatureCollectionName,
-						labels: {
-							singleCase: "feature",
-							pluralCase: "features"
-						},
-						attrs: tAttributes
-					}, {
-						name: 'iterations',
-						parent: tFeatureCollectionName,
-						attrs: [{name: 'iteration'}, {name:'trialWeight'}]
-					}]
+					collections: tCollections
 				}
 			})
 			.catch(() => {
@@ -625,7 +640,7 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 
 		// Put together the values that will go into the features dataset
 		let tFeaturesValues: any = [];
-		iTokenArray.forEach((aToken, iIndex) => {
+		iTokenArray.forEach((aToken) => {
 			let tValues: any = {
 				feature: aToken.token, type: 'unigram',
 				frequency: aToken.count,
@@ -653,6 +668,8 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 	}
 
 	private async addFeatures( ) {
+		this.logisticModel.trace = this.state.showWeightsGraph;
+		this.logisticModel.iterations = this.state.iterations;
 		this.targetCaseCount = await this.getCaseCount();
 		let // tClassifier = this.nbClassifier,
 				tDocuments: {example:string, class:string, caseID:number}[] = [],
@@ -689,7 +706,8 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 		// Logistic can't happen until we've isolated the features and produced a oneHot representation
 		// Also, the logisticModel.fit function requires that the class value (0 or 1) be the
 		// last element of each oneHot.
-		let tOneHot = oneHot(tDocuments),
+		let tOneHot = oneHot({frequencyThreshold: this.state.frequencyThreshold - 1},
+												tDocuments),
 				tData:number[][] = [];
 		tOneHot.oneHotResult.forEach(iResult=>{
 			iResult.oneHotExample.push( iResult.class === tZeroClassName ? 0 : 1);
@@ -705,7 +723,7 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 		if( this.logisticModel.trace) {
 			await this.setupFeedbackDataset(); // So we can display fitting progress as a graph
 		}
-		let tTrainedModel:any = await this.logisticModel.fit(tData);
+		await this.logisticModel.fit(tData);
 
 		// In the target dataset we're going to add two attributes: "predicted label" and "probability of clickbait"
 		// We pass along some tools that will be needed
@@ -739,6 +757,7 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 			}
 		});
 		this.textComponentID = tResult.values.id
+		this.clearText();
 	}
 
 	private async extract(iTargetDatasetName: string | null) {
@@ -760,18 +779,42 @@ export class FeatureManager extends Component<FM_Props, { status:string, count:n
 	}
 
 	private renderForActiveState() {
-		return (<div>
+		return (<div className='sq-options'>
 			<p>Extract features and train model for a dataset.</p>
+			<p> {'Iterations: '}
+				<input
+					className='sq-input'
+					type="text"
+					value={this.state.iterations}
+					onChange={event => this.setState({iterations: Number(event.target.value)})}
+				/>
+			</p>
+			<p> {'Frequency threshold: '}
+				<input
+					className='sq-input'
+					type="text"
+					value={this.state.frequencyThreshold}
+					onChange={event => this.setState({frequencyThreshold: Number(event.target.value)})}
+				/>
+			</p>
+			<p>
+				<input
+					type="checkbox"
+					value=''
+					onChange={event => this.setState({showWeightsGraph: Boolean(event.target.value)})}
+				/>
+				{' Show weights graph'}
+			</p>
 			Dataset:
-			<DropdownButton as={ButtonGroup} key='Secondary'
-											title="Choose One" size="sm" variant="secondary">
-				{this.datasetNames.map((aName, iIndex) => {
-					const tNoneFound = aName.indexOf('--') === 0;
-					return <Dropdown.Item as="button" key={String(iIndex)}
-																eventKey={aName} onSelect={this.extract} disabled={tNoneFound}>
-						{aName}</Dropdown.Item>
-				})}
-			</DropdownButton>
+				<DropdownButton as={ButtonGroup} key='Secondary'
+												title="Choose One" size="sm" variant="secondary">
+					{this.datasetNames.map((aName, iIndex) => {
+						const tNoneFound = aName.indexOf('--') === 0;
+						return <Dropdown.Item as="button" key={String(iIndex)}
+																	eventKey={aName} onSelect={this.extract} disabled={tNoneFound}>
+							{aName}</Dropdown.Item>
+					})}
+				</DropdownButton>
 		</div>)
 	}
 

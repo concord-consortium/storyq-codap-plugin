@@ -18,7 +18,6 @@
 // ==========================================================================
 
 //import {on} from "cluster";
-import {SQConstants} from "../storyq_constants";
 
 export const kMaxTokens = 1000;
 
@@ -40,7 +39,8 @@ export const wordTokenizer = ( text:string):string[] => {
  * of each of the "tokens" in the document set.
  * For StoryQ, with each token we keep track of the document caseIDs in which it occurs.
  */
-export const oneHot = ( documents: { example:string, class:string, caseID:number, tokens?:string[] }[]) => {
+export const oneHot = (config:{frequencyThreshold:number},
+											 documents: { example:string, class:string, caseID:number, tokens?:string[] }[]) => {
 	// Make a hash of all the tokens with their counts
 	let tokenMap: { [key:string]: { token:string, count:number, index:number,
 			caseIDs:number[], weight:number|null, featureCaseID:number|null } } = {};	// Keeps track of counts of words
@@ -61,7 +61,7 @@ export const oneHot = ( documents: { example:string, class:string, caseID:number
 	});
 	// Only include tokens with a count above specified threshold
 	let tIndexFirstBelowThreshold = -1,
-			tThreshold = SQConstants.featureCountThreshold;
+			tThreshold = config.frequencyThreshold;
 	while( tIndexFirstBelowThreshold < 0 && tThreshold > 0) {
 		tIndexFirstBelowThreshold = tokenArray.findIndex((aToken) => {
 			return aToken.count <= tThreshold;

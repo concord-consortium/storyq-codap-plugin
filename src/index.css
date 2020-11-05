@@ -11,3 +11,11 @@ body {
 .sq-output {
   font-size: small;
 }
+
+.sq-options {
+  font-size: small;
+}
+
+.sq-input {
+  width: 20vw;
+}

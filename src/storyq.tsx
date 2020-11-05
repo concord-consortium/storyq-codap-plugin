@@ -28,7 +28,7 @@ interface StoryqStorage {
 
 class Storyq extends Component<{}, { className:string, mode:string}> {
 	private kPluginName = "StoryQ";
-	private kVersion = "0.6";
+	private kVersion = "0.7";
 	private kInitialDimensions = {
 		width: 250,
 		height: 280
@@ -42,7 +42,7 @@ class Storyq extends Component<{}, { className:string, mode:string}> {
 
 	constructor(props: any) {
 		super(props);
-		this.state = {className: 'storyText', mode: 'welcome'};
+		this.state = {className: 'storyText', mode: 'extractFeatures'};
 		this.dataManager = new DataManager();
 		this.textManager = new TextManager( this.dataManager);
 
@@ -107,7 +107,7 @@ class Storyq extends Component<{}, { className:string, mode:string}> {
 		this.textManager.setTextComponentID( textComponentID);
 	}
 
-	async extractFeatures() {
+	extractFeatures() {
 		this.textManager.setIsActive(false);
 		this.setState({className: this.state.className, mode: 'extractFeatures'});
 	}
