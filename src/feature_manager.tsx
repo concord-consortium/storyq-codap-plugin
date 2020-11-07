@@ -817,7 +817,7 @@ export class FeatureManager extends Component<FM_Props, {
 			await this.setupFeedbackDataset(); // So we can display fitting progress as a graph
 		}
 		let tTrainedModel:any = await this.logisticModel.fit(tData);
-		this.updateWeights(tOneHot.tokenArray, tTrainedModel.theta);
+		await this.updateWeights(tOneHot.tokenArray, tTrainedModel.theta);
 
 		// In the target dataset we're going to add two attributes: "predicted label" and "probability of clickbait"
 		// We pass along some tools that will be needed

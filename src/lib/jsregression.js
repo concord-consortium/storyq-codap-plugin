@@ -168,12 +168,13 @@ export var LogisticRegression = function(config) {
         var tCost = this.cost(X, Y, this.theta);
         // console.log(iter, tCost);
         if( this.progressCallback)
-          await this.progressCallback(iter, tCost, this.theta);
+          await this.progressCallback(iter, tCost, this.theta.slice(1));
       }
     }
 
+    // Note that the zeroth element of theta is the weight of the constant term. We slice that off
     return {
-      theta: this.theta,
+      theta: this.theta.slice(1),
       cost: this.cost(X, Y, this.theta),
       config: {
         alpha: this.alpha,
