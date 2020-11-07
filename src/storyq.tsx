@@ -31,7 +31,7 @@ class Storyq extends Component<{}, { className:string, mode:string}> {
 	private kVersion = "0.7";
 	private kInitialDimensions = {
 		width: 250,
-		height: 280
+		height: 300
 	};
 
 	private textManager: TextManager;

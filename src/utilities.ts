@@ -39,13 +39,13 @@ export function textToObject( iText:string, iSelectedWords:any):any {
  * @param {string} iPhrase - the string to be converted to an RTE object with highlighted words
  * @param iFeatures {Set} of feature words to be hilighted
  */
-export function phraseToFeatures( iPhrase:string, iFeatures:Set<string>):any {
+export function phraseToFeatures( iPhrase:string, iFeatures:string[]):any {
 	let tResultArray:any = [];
 	let words:RegExpMatchArray | [] = iPhrase.match(/[^ ]+/g) || [];
 	words.forEach((iWord) => {
 		let tRawWordArray = iWord.match(/\w+/),
 			tRawWord = (tRawWordArray && tRawWordArray.length > 0 ? tRawWordArray[0] : '').toLowerCase();
-		if (iFeatures.has(tRawWord)) {
+		if (iFeatures.indexOf(tRawWord) >= 0) {
 			tResultArray.push({
 				text: iWord, bold: true, underlined: true
 			});

@@ -12,6 +12,8 @@ import {oneHot} from "./lib/one_hot";
 import './storyq.css';
 import NaiveBayesClassifier from "./lib/NaiveBayesClassifier";
 import {LogisticRegression} from './lib/jsregression';
+import {HeadingsManager, PhraseTriple, ClassLabel, HeadingSpec} from "./headings_manager";
+
 // import tf from "@tensorflow/tfjs";
 
 export interface StorageCallbackFuncs {
@@ -88,14 +90,15 @@ export class FeatureManager extends Component<FM_Props, {
 		iterationName: 'iteration',
 		costName: 'cost'
 	};
+	private headingsManager:HeadingsManager | null = null;
 
 	constructor(props: FM_Props) {
 		super(props);
 		this.state = {
 			status: props.status,
 			count: 0,
-			iterations: 100,
-			frequencyThreshold: 2,
+			iterations: 50,
+			frequencyThreshold: 4,
 			showWeightsGraph: false
 		};
 		this.extract = this.extract.bind(this);
@@ -181,12 +184,114 @@ export class FeatureManager extends Component<FM_Props, {
 		}
 	}
 
+	private getHeadingsManager():HeadingsManager {
+		if( !this.headingsManager) {
+			this.headingsManager = new HeadingsManager(this.targetCategories[0], this.targetCategories[1],
+				'Actual', 'Predicted');
+		}
+		return this.headingsManager;
+	}
+
+	/**
+	 * Cause the text component to display phrases with the feature highlighting determined by
+	 * 	given function
+	 * @param iPhraseTriples
+	 * @private
+	 */
+	private async composeText(iPhraseTriples: PhraseTriple[], iFeatures: string[], iHighlightFunc: Function) {
+		const kHeadingsManager = this.getHeadingsManager();
+		const kProps = ['negNeg', 'negPos', 'posNeg', 'posPos'];
+		// @ts-ignore
+		const kHeadings: HeadingSpec = kHeadingsManager.headings;
+		let tClassItems = {
+				negNeg: [],
+				negPos: [],
+				posNeg: [],
+				posPos: []
+			},
+			tItems: any = [];
+
+
+		function addOnePhrase(iTriple: PhraseTriple) {
+			// @ts-ignore
+			const kLabels: ClassLabel = kHeadingsManager.classLabels;
+
+			let tGroup: string;
+			switch (iTriple.actual) {
+				case kLabels.negLabel:
+					switch (iTriple.predicted) {
+						case kLabels.negLabel:
+							tGroup = 'negNeg';
+							break;
+						case kLabels.posLabel:
+							tGroup = 'negPos';
+					}
+					break;
+				case kLabels.posLabel:
+					switch (iTriple.predicted) {
+						case kLabels.negLabel:
+							tGroup = 'posNeg';
+							break;
+						case kLabels.posLabel:
+							tGroup = 'posPos';
+					}
+			}
+			// @ts-ignore
+			tClassItems[tGroup].push({
+				type: 'list-item',
+				children: iHighlightFunc(iTriple.phrase, iFeatures)
+			});
+		}
+
+		iPhraseTriples.forEach(iTriple => {
+			addOnePhrase(iTriple);
+		});
+
+		// The phrases are all in their groups. Create the array of group objects
+		kProps.forEach(iProp => {
+			// @ts-ignore
+			let tPhrases = tClassItems[iProp];
+			if (tPhrases.length !== 0) {
+				let tHeadingItems = [
+					// @ts-ignore
+					kHeadings[iProp],
+					{
+						type: 'bulleted-list',
+						// @ts-ignore
+						children: tClassItems[iProp]
+					}];
+				tItems = tItems.concat(tHeadingItems);
+			}
+		});
+		if (tItems.length === 0)
+			this.clearText();
+		else {
+			// Send it all off to the text object
+			await codapInterface.sendRequest({
+				action: 'update',
+				resource: `component[${this.textComponentID}]`,
+				values: {
+					text: {
+						document: {
+							children: tItems,
+							objTypes: {
+								'list-item': 'block',
+								'bulleted-list': 'block',
+								'paragraph': 'block'
+							}
+						}
+					}
+				}
+			});
+		}
+
+	}
+
 	/**
 	 * If the Features dataset has cases selected, for each selected case
 	 * 	- Pull out the array of 'usages' - the the case IDs of the cases in the dataset being analyzed
 	 * 	- Select these cases in that dataset
 	 * 	- Pull the phrase from the target case
-	 * 	- Cause the text component to display these phrases with the selected features highlighted
 	 */
 	private async handleFeatureSelection() {
 		let tSelectedCases = await getSelectedCasesFrom(this.featureDatasetName);
@@ -207,8 +312,9 @@ export class FeatureManager extends Component<FM_Props, {
 			resource: `dataContext[${this.targetDatasetName}].selectionList`,
 			values: tUsedCaseIDs
 		});
-		let tItems: any = [];
+		let tTriples:{ actual:string, predicted:string, phrase:string}[] = [];
 		const tTargetPhrasesToShow = Math.min( tUsedCaseIDs.length, 20);
+		// Here is where we put the contents of the text component together
 		for (let i = 0; i < tTargetPhrasesToShow; i++) {
 			let tGetCaseResult: any = await codapInterface.sendRequest({
 				action: 'get',
@@ -217,33 +323,9 @@ export class FeatureManager extends Component<FM_Props, {
 			let tActualClass = tGetCaseResult.values.case.values[this.classAttributeName];
 			let tPredictedClass = tGetCaseResult.values.case.values[this.targetPredictedLabelAttributeName];
 			let tPhrase = tGetCaseResult.values.case.values[this.targetAttributeName];
-			// let tPhraseObjectArray = textToObject(tActualClass + ' - ' + tPhrase, tFeatures);
-			let tPhraseObjectArray = textToObject(`Predicted = ${tPredictedClass}, Actual = ${tActualClass} - ${tPhrase}`, tFeatures);
-			tItems.push({
-				type: 'list-item',
-				children: tPhraseObjectArray
-			})
+			tTriples.push({actual: tActualClass, predicted: tPredictedClass, phrase: tPhrase});
 		}
-		await codapInterface.sendRequest({
-			action: 'update',
-			resource: `component[${this.textComponentID}]`,
-			values: {
-				text: {
-					document: {
-						children: [
-							{
-								type: "bulleted-list",
-								children: tItems
-							}
-						],
-						objTypes: {
-							'list-item': 'block',
-							'bulleted-list': 'block'
-						}
-					}
-				}
-			}
-		});
+		await this.composeText(tTriples, tFeatures, textToObject);
 	}
 
 	private async clearText() {
@@ -275,18 +357,22 @@ export class FeatureManager extends Component<FM_Props, {
 	/**
 	 * First, For each selected target phrase, select the cases in the Feature dataset that contain the target
 	 * case id.
-	 * Second, display each selected target phrase as text with features highlighted and non-features
-	 * 		grayed out
+	 * Second, under headings for the classification, display each selected target phrase as text with
+	 * features highlighted and non-features grayed out
 	 */
 	private async handleTargetSelection() {
 		let this_ = this,
 			tSelectedTargetCases:any = await getSelectedCasesFrom(this.targetDatasetName),
-			tTargetPhrases:string[] = [],
+			tTargetTriples:PhraseTriple[] = [],
 			tIDsOfFeaturesToSelect:number[] = [];
 		tSelectedTargetCases.forEach((iCase:any)=> {
 			let tFeatureIDs:number[] = JSON.parse(iCase.values.featureIDs);
 			tIDsOfFeaturesToSelect = tIDsOfFeaturesToSelect.concat(tFeatureIDs);
-			tTargetPhrases.push(iCase.values[this_.targetAttributeName]);
+			tTargetTriples.push({
+				actual: iCase.values[this_.classAttributeName],
+				predicted: iCase.values[this_.targetPredictedLabelAttributeName],
+				phrase: iCase.values[this_.targetAttributeName]
+			});
 		});
 		// Select the features
 		await codapInterface.sendRequest({
@@ -296,39 +382,15 @@ export class FeatureManager extends Component<FM_Props, {
 		});
 		// Get the features and stash them in a set
 		let tSelectedFeatureCases:any = await getSelectedCasesFrom(this.featureDatasetName),
-				tFeatures = new Set<string>();
+				tFeatures = new Set<string>(),
+				tFeaturesArray:string[] = [];
 		tSelectedFeatureCases.forEach((iCase:any)=>{
 			tFeatures.add(iCase.values.feature);
 		});
-		// For each target phrase create an RTE paragraph with highlighted features and other words disabled
-		let tItems:any[] = [];
-		tTargetPhrases.forEach(iPhrase=>{
-			let tPhraseObject = phraseToFeatures(iPhrase, tFeatures);
-			tItems.push({
-				type: 'list-item',
-				children: tPhraseObject
-			});
+		tFeatures.forEach(iFeature=>{
+			tFeaturesArray.push(iFeature);
 		});
-		await codapInterface.sendRequest({
-			action: 'update',
-			resource: `component[${this.textComponentID}]`,
-			values: {
-				text: {
-					document: {
-						children: [
-							{
-								type: "bulleted-list",
-								children: tItems
-							}
-						],
-						objTypes: {
-							'list-item': 'block',
-							'bulleted-list': 'block'
-						}
-					}
-				}
-			}
-		});
+		this.composeText( tTargetTriples, tFeaturesArray, phraseToFeatures);
 	}
 
 	private async getCaseCount(): Promise<number> {
@@ -368,28 +430,45 @@ export class FeatureManager extends Component<FM_Props, {
 		}
 	}
 
-	private async makeFeedbackGraph():Promise<string> {
-		await codapInterface.sendRequest({
-			action: 'create',
-			resource: 'component',
-			values: {
-				type: 'graph',
-				name: 'Fitting Progress',
-				dimensions: {
-					width: 200,
-					height: 150
-				},
-				dataContext: this.feedbackNames.dataContextName,
-				xAttributeName: this.feedbackNames.iterationName,
-				yAttributeName: this.feedbackNames.costName,
+	private async makeFeedbackGraphs():Promise<string> {
+		await codapInterface.sendRequest([
+			{
+				action: 'create',
+				resource: 'component',
+				values: {
+					type: 'graph',
+					name: 'Fitting Progress',
+					dimensions: {
+						width: 200,
+						height: 200
+					},
+					dataContext: this.feedbackNames.dataContextName,
+					xAttributeName: this.feedbackNames.iterationName,
+					yAttributeName: this.feedbackNames.costName,
+				}
+			},
+			{
+				action: 'create',
+				resource: 'component',
+				values: {
+					type: 'graph',
+					name: 'Trial Weights by iteration',
+					dimensions: {
+						width: 200,
+						height: 250
+					},
+					dataContext: this.featureDatasetName,
+					xAttributeName: 'iteration',
+					yAttributeName: 'trialWeight',
+				}
 			}
-		});
+		]);
 		return 'made graph';
 	}
 
 	private async handleFittingProgress (iIteration:number, iCost:number, iWeights:number[]):Promise<string> {
 		if( iIteration === 3) {
-			await this.makeFeedbackGraph();
+			await this.makeFeedbackGraphs();
 		}
 		let tCaseValues:any = {};
 		tCaseValues[this.feedbackNames.iterationName] = iIteration;
@@ -505,7 +584,7 @@ export class FeatureManager extends Component<FM_Props, {
 					tValues:any = {},
 					tProbName = `probability of ${iTools.classNames[1]}`;
 			tProbability = tMapFromCaseIDToProbability[aDoc.caseID];
-			tPredictedLabel = tProbability > tThresholdResult.threshold ? iTools.classNames[1] : iTools.classNames[0];
+			tPredictedLabel = tProbability >= tThresholdResult.threshold ? iTools.classNames[1] : iTools.classNames[0];
 			tValues[this.targetPredictedLabelAttributeName] = tPredictedLabel;
 			tValues[tProbName] = tProbability;
 
@@ -575,7 +654,7 @@ export class FeatureManager extends Component<FM_Props, {
 					},
 					{
 						name: 'featureIDs',
-						hidden: false
+						hidden: true
 					}
 				]
 			}
@@ -609,10 +688,6 @@ export class FeatureManager extends Component<FM_Props, {
 				parent: tFeatureCollectionName,
 				attrs: [{name: 'iteration'}, {name:'trialWeight'}]
 			});
-		this.targetCategories.forEach( (aCategory) => {
-			tAttributes.push( { name: aCategory, precision: 5,
-					description: `The probability assigned by a Naive Bayes classification model that the feature belongs to "${aCategory}"`});
-		});
 		const tResult: any = await codapInterface.sendRequest(
 			{
 				action: "create",
@@ -667,6 +742,24 @@ export class FeatureManager extends Component<FM_Props, {
 		}
 	}
 
+	private async updateWeights( iTokens:any, iWeights:number[]) {
+		let tFeaturesValues:any[] = [];
+		iTokens.forEach((aToken:any, iIndex:number) => {
+			let tOneFeatureUpdate: any = {
+				id: aToken.featureCaseID,
+				values: {
+					weight: iWeights[iIndex]
+				}
+			};
+			tFeaturesValues.push( tOneFeatureUpdate);
+		});
+		codapInterface.sendRequest({
+			action: 'update',
+			resource: `dataContext[${this.featureDatasetName}].collection[${this.featureCollectionName}].case`,
+			values: tFeaturesValues
+		});
+	}
+
 	private async addFeatures( ) {
 		this.logisticModel.trace = this.state.showWeightsGraph;
 		this.logisticModel.iterations = this.state.iterations;
@@ -694,11 +787,11 @@ export class FeatureManager extends Component<FM_Props, {
 		}
 		// Arbitrarily assume the first class name represents the "zero" class and the first
 		// different class name represents the "one" class
-		tZeroClassName = tDocuments[0].class;
+		this.targetCategories[0] = tZeroClassName = tDocuments[0].class;
 		let tDocOfOtherClass:any = tDocuments.find(aDoc=>{
 			return aDoc.class !== tZeroClassName;
 		});
-		tOneClassName = tDocOfOtherClass.class;
+		this.targetCategories[1] = tOneClassName = tDocOfOtherClass.class;
 
 		// Now that we know the class name we're predicting, we can add attributes to the target dataset
 		await this.addAttributesToTarget( tOneClassName);
@@ -723,7 +816,8 @@ export class FeatureManager extends Component<FM_Props, {
 		if( this.logisticModel.trace) {
 			await this.setupFeedbackDataset(); // So we can display fitting progress as a graph
 		}
-		await this.logisticModel.fit(tData);
+		let tTrainedModel:any = await this.logisticModel.fit(tData);
+		this.updateWeights(tOneHot.tokenArray, tTrainedModel.theta);
 
 		// In the target dataset we're going to add two attributes: "predicted label" and "probability of clickbait"
 		// We pass along some tools that will be needed
@@ -801,9 +895,10 @@ export class FeatureManager extends Component<FM_Props, {
 				<input
 					type="checkbox"
 					value=''
-					onChange={event => this.setState({showWeightsGraph: Boolean(event.target.value)})}
+					onChange={event =>
+						this.setState({showWeightsGraph: event.target.checked})}
 				/>
-				{' Show weights graph'}
+				{' Show progress graphs'}
 			</p>
 			Dataset:
 				<DropdownButton as={ButtonGroup} key='Secondary'
