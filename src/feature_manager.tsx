@@ -195,10 +195,13 @@ export class FeatureManager extends Component<FM_Props, {
 	/**
 	 * Cause the text component to display phrases with the feature highlighting determined by
 	 * 	given function
-	 * @param iPhraseTriples
+	 * @param iPhraseTriples  Specifications for the phrases to be displayed
+	 * @param iFeatures {string[]}	The features to be highlighted
+	 * @param iHighlightFunc {Function}	Function called to do the highlighting
 	 * @private
 	 */
 	private async composeText(iPhraseTriples: PhraseTriple[], iFeatures: string[], iHighlightFunc: Function) {
+		let this_ = this;
 		const kHeadingsManager = this.getHeadingsManager();
 		const kProps = ['negNeg', 'negPos', 'posNeg', 'posPos'];
 		// @ts-ignore
@@ -216,30 +219,43 @@ export class FeatureManager extends Component<FM_Props, {
 			// @ts-ignore
 			const kLabels: ClassLabel = kHeadingsManager.classLabels;
 
-			let tGroup: string;
+			let tGroup: string,
+					tColor:string = '';
 			switch (iTriple.actual) {
 				case kLabels.negLabel:
 					switch (iTriple.predicted) {
 						case kLabels.negLabel:
 							tGroup = 'negNeg';
+							// @ts-ignore
+							tColor = this_.headingsManager.colors.green;
 							break;
 						case kLabels.posLabel:
 							tGroup = 'negPos';
+							// @ts-ignore
+							tColor = this_.headingsManager.colors.red;
 					}
 					break;
 				case kLabels.posLabel:
 					switch (iTriple.predicted) {
 						case kLabels.negLabel:
 							tGroup = 'posNeg';
+							// @ts-ignore
+							tColor = this_.headingsManager.colors.red;
 							break;
 						case kLabels.posLabel:
 							tGroup = 'posPos';
+							// @ts-ignore
+							tColor = this_.headingsManager.colors.green;
 					}
+			}
+			const tSquare = {
+				text: '■ ',
+				color: tColor
 			}
 			// @ts-ignore
 			tClassItems[tGroup].push({
 				type: 'list-item',
-				children: iHighlightFunc(iTriple.phrase, iFeatures)
+				children: [tSquare].concat(iHighlightFunc(iTriple.phrase, iFeatures))
 			});
 		}
 
