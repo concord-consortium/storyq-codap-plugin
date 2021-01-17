@@ -437,8 +437,10 @@ export class FeatureManager extends Component<FM_Props, {
 					collections: [ {
 						name: this.feedbackNames.collectionName,
 						attrs: [
-							{ name: this.feedbackNames.iterationName},
-							{ name: this.feedbackNames.costName}
+							{ name: this.feedbackNames.iterationName,
+							description: 'For each iteration a new set of weights is computed with the intent of improving the fit as measured by the cost.'},
+							{ name: this.feedbackNames.costName,
+							description: 'The cost is a measure of how how poorly the model fits the data. Lower cost means better fit.'}
 						]
 					}],
 				}
@@ -549,7 +551,9 @@ export class FeatureManager extends Component<FM_Props, {
 			tPosProbs.sort();
 			tNegProbs.sort();
 			let tCurrValue = tPosProbs[0],
-				tNegLength = tNegProbs.length;
+				tNegLength = tNegProbs.length,
+				tCurrMinDiscrepancies:number,
+				tStartingThreshold:number;
 
 			// Return the index in tNegPros starting as given for the >= target probability
 			function findNegIndex( iStarting:number, iTargetProb:number):number {
@@ -561,13 +565,22 @@ export class FeatureManager extends Component<FM_Props, {
 			let tNegIndex = tNegProbs.findIndex((v: number) => {
 				return v > tCurrValue;
 			});
-			let tCurrMinDiscrepancies = (tNegIndex === -1) ? 0 : Number.MAX_VALUE;
-			tNegIndex = (tNegIndex === -1) ? tNegProbs.length : tNegIndex;
+			if(tNegIndex === -1) {
+				// Negative and Positive probabilities don't overlap
+				tCurrMinDiscrepancies = 0;
+				tNegIndex = tNegLength;
+				tStartingThreshold = (tNegProbs[tNegLength - 1] + tPosProbs[0]) / 2; // halfway
+			}
+			else {
+				tCurrMinDiscrepancies = Number.MAX_VALUE;
+				tStartingThreshold = tPosProbs[0];
+			}
+			tNegIndex = (tNegIndex === -1) ? tNegLength : tNegIndex;
 			let tRecord = {
-				posIndex: 0,	// Position at which we testing for discrepancies
+				posIndex: 0,	// Position at which we start testing for discrepancies
 				negIndex: tNegIndex,
 				currMinDescrepancies: tCurrMinDiscrepancies,
-				threshold: tPosProbs[0]
+				threshold: tStartingThreshold
 			};
 			while(tRecord.negIndex < tNegLength) {
 				let tCurrDiscrepancies = tRecord.posIndex + (tNegLength - tRecord.negIndex);
@@ -702,7 +715,11 @@ export class FeatureManager extends Component<FM_Props, {
 				name: 'iterations',
 				title: 'iterations',
 				parent: tFeatureCollectionName,
-				attrs: [{name: 'iteration'}, {name:'trialWeight'}]
+				attrs: [{name: 'iteration',
+								description: 'In each iteration of improving the model\'s fit to the data new weights for the features are computed.'},
+								{name:'trialWeight',
+								description: 'In each iteration each feature is assigned a new trialWeight to improve the model\'s fit.',
+								precision: 5}]
 			});
 		const tResult: any = await codapInterface.sendRequest(
 			{
@@ -889,6 +906,33 @@ export class FeatureManager extends Component<FM_Props, {
 	}
 
 	private renderForActiveState() {
+		let dataSetControl:any,
+				tNumNames = this.datasetNames.length;
+		if( tNumNames === 0) {
+			dataSetControl = <p>-- No datasets found --</p>
+		}
+		else if (tNumNames === 1) {
+			let this_ = this,
+					tName = this.datasetNames[0];
+			dataSetControl =
+				<button
+					className= 'sq-button'
+					onClick={() => {
+						this_.extract(tName);
+					}}
+				>Analyze {tName}
+				</button>
+		}
+		else {
+			dataSetControl = <DropdownButton as={ButtonGroup} key='Secondary'
+																			 title="Choose One" size="sm" variant="secondary">
+				{this.datasetNames.map((aName, iIndex) => {
+					return <Dropdown.Item as="button" key={String(iIndex)}
+																eventKey={aName} onSelect={this.extract}>
+						{aName}</Dropdown.Item>
+				})}
+			</DropdownButton>
+		}
 		return (<div className='sq-options'>
 			<p>Extract features and train model for a dataset.</p>
 			<p> {'Iterations: '}
@@ -916,16 +960,8 @@ export class FeatureManager extends Component<FM_Props, {
 				/>
 				{' Show progress graphs'}
 			</p>
-			Dataset:
-				<DropdownButton as={ButtonGroup} key='Secondary'
-												title="Choose One" size="sm" variant="secondary">
-					{this.datasetNames.map((aName, iIndex) => {
-						const tNoneFound = aName.indexOf('--') === 0;
-						return <Dropdown.Item as="button" key={String(iIndex)}
-																	eventKey={aName} onSelect={this.extract} disabled={tNoneFound}>
-							{aName}</Dropdown.Item>
-					})}
-				</DropdownButton>
+			Dataset: {dataSetControl}
+
 		</div>)
 	}
 
@@ -933,8 +969,10 @@ export class FeatureManager extends Component<FM_Props, {
 		return <div className={'sq-output'}>
 			<p>Your analysis is finished!</p>
 			<p>In <b>{this.targetDatasetName}</b> identified {this.featureCaseCount} <b>unigrams </b>
-				in <b>{pluralize(this.targetAttributeName)}</b>.</p>
+				in <b>{this.targetCaseCount} {pluralize(this.targetAttributeName)}</b>.</p>
 			<p>Feature weights were computed by a logistic regression model.</p>
+			<p>Iterations = {this.state.iterations}</p>
+			<p>Frequency threshold = {this.state.frequencyThreshold}</p>
 			<p>Accuracy = {Math.round(this.logisticModel.accuracy * 1000)/1000}</p>
 			<p>Kappa = {Math.round(this.logisticModel.kappa * 1000)/1000}</p>
 			<p>Threshold = {Math.round(this.logisticModel.threshold * 10000)/10000}</p>

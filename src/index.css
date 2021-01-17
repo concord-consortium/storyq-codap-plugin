@@ -19,3 +19,9 @@ body {
 .sq-input {
   width: 20vw;
 }
+
+.sq-button {
+  border-radius: 6px;
+  background-color: white;
+  border-width: thin;
+}

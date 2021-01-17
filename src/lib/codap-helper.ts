@@ -66,8 +66,6 @@ export async function getDatasetNames(): Promise<any[]> {
 		if( aValue.title.indexOf('features') < 0 && aValue.title.indexOf('Labels') < 0)
 			tDropDownItems.push( aValue.title);
 	});
-	if (tDropDownItems.length === 0)
-		tDropDownItems.push('--No Datasets Found--');
 	return tDropDownItems;
 }
 
