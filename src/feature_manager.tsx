@@ -32,9 +32,11 @@ interface FMStorage {
 	targetCaseCount: number,
 	targetCategories: string[],
 	classAttributeName: string,
-	featureDatasetName: string,
-	featureDatasetID: number,
+	modelsDatasetName: string,
+	modelsDatasetID: number,
 	featureCollectionName: string,
+	modelCurrentParentCaseID: number,
+	modelCollectionName: string,
 	featureCaseCount: number,
 	textComponentName: string,
 	textComponentID: number,
@@ -60,8 +62,10 @@ export class FeatureManager extends Component<FM_Props, {
 	private classAttributeName = '';
 	private targetCaseCount = 0;
 	private targetCategories:string[] = [];
-	private featureDatasetName = 'Features';
-	private featureDatasetID = 0;
+	private modelsDatasetName = 'Models';
+	private modelsDatasetID = 0;
+	private modelCollectionName = 'models';
+	private modelCurrentParentCaseID = 0;
 	private featureCollectionName = 'features';
 	private featureCaseCount = 0;
 	private textComponentName = 'Selected';
@@ -105,6 +109,7 @@ export class FeatureManager extends Component<FM_Props, {
 		this.handleNotification = this.handleNotification.bind(this);
 		this.createStorage = this.createStorage.bind(this);
 		this.restoreStorage = this.restoreStorage.bind(this);
+		this.createFeatureDataset = this.createFeatureDataset.bind(this);
 		props.setStorageCallbacks( {
 			createStorageCallback: this.createStorage,
 			restoreStorageCallback: this.restoreStorage
@@ -127,8 +132,10 @@ export class FeatureManager extends Component<FM_Props, {
 			targetCaseCount: this.targetCaseCount,
 			targetCategories: this.targetCategories,
 			classAttributeName: this.classAttributeName,
-			featureDatasetName: this.featureDatasetName,
-			featureDatasetID: this.featureDatasetID,
+			modelsDatasetName: this.modelsDatasetName,
+			modelsDatasetID: this.modelsDatasetID,
+			modelCollectionName: this.modelCollectionName,
+			modelCurrentParentCaseID: this.modelCurrentParentCaseID,
 			featureCollectionName: this.featureCollectionName,
 			featureCaseCount: this.featureCaseCount,
 			textComponentName: this.textComponentName,
@@ -147,8 +154,10 @@ export class FeatureManager extends Component<FM_Props, {
 		this.targetCaseCount = iStorage.targetCaseCount;
 		this.targetCategories = iStorage.targetCategories;
 		this.classAttributeName = iStorage.classAttributeName;
-		this.featureDatasetName = iStorage.featureDatasetName;
-		this.featureDatasetID = iStorage.featureDatasetID;
+		this.modelsDatasetName = iStorage.modelsDatasetName;
+		this.modelsDatasetID = iStorage.modelsDatasetID;
+		this.modelCollectionName = iStorage.modelCollectionName;
+		this.modelCurrentParentCaseID = iStorage.modelCurrentParentCaseID;
 		this.featureCollectionName = iStorage.featureCollectionName;
 		this.featureCaseCount = iStorage.featureCaseCount;
 		this.textComponentName = iStorage.textComponentName;
@@ -171,7 +180,7 @@ export class FeatureManager extends Component<FM_Props, {
 		else if(iNotification.action === 'notify' && iNotification.values.operation === 'selectCases') {
 			// @ts-ignore
 			let tDataContextName:string = iNotification.resource && iNotification.resource.match(/\[(.+)]/)[1];
-			if( tDataContextName === this.featureDatasetName && !this.isSelectingFeatures) {
+			if( tDataContextName === this.modelsDatasetName && !this.isSelectingFeatures) {
 				this.isSelectingTargetPhrases = true;
 				await this.handleFeatureSelection();
 				this.isSelectingTargetPhrases = false;
@@ -310,7 +319,7 @@ export class FeatureManager extends Component<FM_Props, {
 	 * 	- Pull the phrase from the target case
 	 */
 	private async handleFeatureSelection() {
-		let tSelectedCases = await getSelectedCasesFrom(this.featureDatasetName);
+		let tSelectedCases = await getSelectedCasesFrom(this.modelsDatasetName);
 		let tFeatures: string[] = [],
 			tUsedIDsSet: Set<number> = new Set();
 		tSelectedCases.forEach((iCase: any) => {
@@ -393,11 +402,11 @@ export class FeatureManager extends Component<FM_Props, {
 		// Select the features
 		await codapInterface.sendRequest({
 			action: 'create',
-			resource: `dataContext[${this.featureDatasetName}].selectionList`,
+			resource: `dataContext[${this.modelsDatasetName}].selectionList`,
 			values: tIDsOfFeaturesToSelect
 		});
 		// Get the features and stash them in a set
-		let tSelectedFeatureCases:any = await getSelectedCasesFrom(this.featureDatasetName),
+		let tSelectedFeatureCases:any = await getSelectedCasesFrom(this.modelsDatasetName),
 				tFeatures = new Set<string>(),
 				tFeaturesArray:string[] = [];
 		tSelectedFeatureCases.forEach((iCase:any)=>{
@@ -475,7 +484,7 @@ export class FeatureManager extends Component<FM_Props, {
 						width: 200,
 						height: 250
 					},
-					dataContext: this.featureDatasetName,
+					dataContext: this.modelsDatasetName,
 					xAttributeName: 'iteration',
 					yAttributeName: 'trialWeight',
 				}
@@ -509,7 +518,7 @@ export class FeatureManager extends Component<FM_Props, {
 		}
 		await codapInterface.sendRequest({
 			action: 'create',
-			resource: `dataContext[${this.featureDatasetName}].collection[iterations].case`,
+			resource: `dataContext[${this.modelsDatasetName}].collection[iterations].case`,
 			values: tCasesToAdd
 		});
 		return 'cases added';
@@ -641,6 +650,8 @@ export class FeatureManager extends Component<FM_Props, {
 		});
 	}
 
+
+
 	private async getTargetCollectionNames(): Promise<string[]> {
 		const tListResult:any = await codapInterface.sendRequest(
 			{
@@ -693,9 +704,22 @@ export class FeatureManager extends Component<FM_Props, {
 	}
 
 	private async createFeatureDataset( iTokenArray:any[]) {
-		let tFeatureDataSetName = this.featureDatasetName,
+		let tModelsDataSetName = this.modelsDatasetName,
+				tModelsCollectionName = this.modelCollectionName,
+				tModelAttributes = [
+					{ name: 'Model', description: 'Name of model. Can be edited.'},
+					{ name: 'Training Set', editable: false, description: 'Name of dataset used for training'},
+					{ name: 'Iterations', editable: false, description: 'Number of iterations used in training'},
+					{ name: 'Frequency Threshold', editable: false, description: 'Number of times something has to appear to be counted as a feature'},
+					{ name: 'Accuracy', editable: false, precision: 3,
+						description: 'Proportion of correct labels predicted during training'},
+					{ name: 'Kappa', editable: false, precision: 3,
+						description: 'Proportion of correctly predicted labels accounting for chance'},
+					{ name: 'Threshold', editable: false, precision: 4,
+						description: 'Probability at which a case is labeled positively'}
+				],
 				tFeatureCollectionName = this.featureCollectionName,
-				tAttributes:any[] = [
+				tFeatureAttributes = [
 					{ name: "feature", description: `A feature is something that comes from the ${this.targetAttributeName} that can help in the classification process` },
 					{ name: "type", description: `The kind of feature (unigram, bigram, count, …)` },
 					{ name: "frequency", description: `The number of times the feature appears` },
@@ -705,10 +729,16 @@ export class FeatureManager extends Component<FM_Props, {
 						description: `A computed value that is proportional to the importance of the feature in the logistic regression classification model`}
 				],
 				tCollections = [ {
+					name: tModelsCollectionName,
+					title: tModelsCollectionName,
+					parent: '',
+					attrs: tModelAttributes
+				},
+					{
 					name: tFeatureCollectionName,
 					title: tFeatureCollectionName,
-					parent: '',
-					attrs: tAttributes
+					parent: tModelsCollectionName,
+					attrs: tFeatureAttributes
 				}];
 		if(this.logisticModel.trace)
 			tCollections.push({
@@ -726,23 +756,39 @@ export class FeatureManager extends Component<FM_Props, {
 				action: "create",
 				resource: "dataContext",
 				values: {
-					name: tFeatureDataSetName,
-					title: tFeatureDataSetName,
+					name: tModelsDataSetName,
+					title: tModelsDataSetName,
 					collections: tCollections
 				}
 			})
 			.catch(() => {
 				console.log(`Error creating feature dataset`);
 			});
-		this.featureDatasetID = tResult.values.id;
+		this.modelsDatasetID = tResult.values.id;
+
+		const tParentCaseResult: any = await codapInterface.sendRequest(
+			{
+				action: "create",
+				resource: `dataContext[${tModelsDataSetName}].collection[${tModelsCollectionName}].case`,
+				values: [{
+					values: {
+						Model: 'Model 1'
+					}
+				}]
+			}
+		)
+			.catch((() => {
+				console.log('Error creating parent model case')
+			}));
+		this.modelCurrentParentCaseID = tParentCaseResult.values[0].id;
 
 		await codapInterface.sendRequest({
 			action: 'create',
 			resource: 'component',
 			values: {
 				type: 'caseTable',
-				name: tFeatureDataSetName,
-				dataContext: tFeatureDataSetName
+				name: tModelsDataSetName,
+				dataContext: tModelsDataSetName
 			}
 		});
 
@@ -756,6 +802,7 @@ export class FeatureManager extends Component<FM_Props, {
 			};
 
 			tFeaturesValues.push({
+				parent: this.modelCurrentParentCaseID,
 				values: tValues
 			});
 		});
@@ -763,7 +810,7 @@ export class FeatureManager extends Component<FM_Props, {
 		// Send the data to the feature dataset
 		let tFeatureCaseIDs:any = await  codapInterface.sendRequest({
 			action: 'create',
-			resource: `dataContext[${this.featureDatasetName}].collection[${this.featureCollectionName}].case`,
+			resource: `dataContext[${this.modelsDatasetName}].collection[${this.featureCollectionName}].case`,
 			values: tFeaturesValues
 		});
 		tFeatureCaseIDs = tFeatureCaseIDs.values.map((aResult:any)=> {
@@ -788,9 +835,36 @@ export class FeatureManager extends Component<FM_Props, {
 		});
 		codapInterface.sendRequest({
 			action: 'update',
-			resource: `dataContext[${this.featureDatasetName}].collection[${this.featureCollectionName}].case`,
+			resource: `dataContext[${this.modelsDatasetName}].collection[${this.featureCollectionName}].case`,
 			values: tFeaturesValues
 		});
+	}
+
+	/**
+	 * Once we've completed training we can stash model information at the top level of the Models dataset
+	 * @private
+	 */
+	private async updateModelTopLevelInfo() {
+		const tModelsDataSetName = this.modelsDatasetName,
+					tModelsCollectionName = this.modelCollectionName;
+		await codapInterface.sendRequest( {
+			action: "update",
+			resource: `dataContext[${tModelsDataSetName}].collection[${tModelsCollectionName}].case`,
+			values: [{
+				id: this.modelCurrentParentCaseID,
+				values: {
+					"Training Set": this.targetDatasetName,
+					"Iterations": this.state.iterations,
+					"Frequency Threshold": this.state.frequencyThreshold,
+					"Accuracy": this.logisticModel.accuracy,
+					"Kappa": this.logisticModel.kappa,
+					"Threshold": this.logisticModel.threshold
+				}
+			}]
+		})
+			.catch(() => {
+				console.log('Error updating current model parent case')
+			});
 	}
 
 	private async addFeatures( ) {
@@ -862,6 +936,8 @@ export class FeatureManager extends Component<FM_Props, {
 			classNames: [tZeroClassName, tOneClassName]
 		}
 		await this.showPredictedLabels(tPredictionTools);
+
+		await this.updateModelTopLevelInfo();
 
 		// Clean up a bit
 		this.featureTokenArray = [];
