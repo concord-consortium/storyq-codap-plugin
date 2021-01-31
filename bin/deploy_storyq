@@ -1,4 +1,4 @@
 npm run build
-rm -rf storyq_v7
-mv build storyq_v7
-rsync -av storyq_v7 codap-server.concord.org:public_html
+rm -rf storyq_v8
+mv build storyq_v8
+rsync -av storyq_v8 codap-server.concord.org:public_html

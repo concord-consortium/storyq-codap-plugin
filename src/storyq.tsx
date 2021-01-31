@@ -1,4 +1,6 @@
 import React, {Component} from 'react';
+import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
+import {faArrowLeft} from '@fortawesome/free-solid-svg-icons'
 import codapInterface from "./lib/CodapInterface";
 import Button from 'react-bootstrap/Button';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -12,6 +14,7 @@ import './storyq.css';
 import {TextManager, kStoryFeaturesContextName, kStoryTextComponentName} from './text_manager';
 import DataManager from './data_manager';
 import {FeatureManager, StorageCallbackFuncs} from './feature_manager';
+
 // import {string} from "prop-types";
 
 interface StoryqValues {
@@ -26,9 +29,9 @@ interface StoryqStorage {
 	values: StoryqValues
 }
 
-class Storyq extends Component<{}, { className:string, mode:string}> {
+class Storyq extends Component<{}, { className: string, mode: string }> {
 	private kPluginName = "StoryQ";
-	private kVersion = "0.71";
+	private kVersion = "0.8";
 	private kInitialDimensions = {
 		width: 250,
 		height: 300
@@ -36,18 +39,19 @@ class Storyq extends Component<{}, { className:string, mode:string}> {
 
 	private textManager: TextManager;
 	private dataManager: DataManager;
-	private featureManagerCreateStorage:any;
-	private featureManagerRestoreStorage:any;
-	private stashedFeatureManagerStorage:any;
+	private featureManagerCreateStorage: any;
+	private featureManagerRestoreStorage: any;
+	private stashedFeatureManagerStorage: any;
 
 	constructor(props: any) {
 		super(props);
-		this.state = {className: 'storyText', mode: 'extractFeatures'};
+		this.state = {className: 'storyText', mode: 'welcome'};
 		this.dataManager = new DataManager();
-		this.textManager = new TextManager( this.dataManager);
+		this.textManager = new TextManager(this.dataManager);
 
 		this.writeStory = this.writeStory.bind(this);
 		this.extractFeatures = this.extractFeatures.bind(this);
+		this.classify = this.classify.bind(this);
 		this.restorePluginState = this.restorePluginState.bind(this);
 		this.getPluginState = this.getPluginState.bind(this);
 		this.setFeatureManagerStorageCallbacks = this.setFeatureManagerStorageCallbacks.bind(this);
@@ -58,7 +62,7 @@ class Storyq extends Component<{}, { className:string, mode:string}> {
 			.then(() => registerObservers());
 	}
 
-	getPluginState():StoryqStorage {
+	getPluginState(): StoryqStorage {
 		return {
 			success: true,
 			values: {
@@ -71,40 +75,39 @@ class Storyq extends Component<{}, { className:string, mode:string}> {
 	}
 
 	async restorePluginState(iStorage: StoryqValues) {
-		if( iStorage) {
+		if (iStorage) {
 			this.textManager.restoreFromStorage(iStorage.textManagerStorage);
 			await this.dataManager.restoreFromStorage(iStorage.dataManagerStorage);
 			this.stashedFeatureManagerStorage = iStorage.featureManagerStorage;
-			if( this.featureManagerRestoreStorage && this.stashedFeatureManagerStorage) {
+			if (this.featureManagerRestoreStorage && this.stashedFeatureManagerStorage) {
 				this.featureManagerRestoreStorage(this.stashedFeatureManagerStorage);
 				this.stashedFeatureManagerStorage = null;
 			}
-			this.setState( { className: this.state.className, mode: iStorage.mode || 'welcome'});
-			if( this.state.mode === 'write') {
-				this.textManager.setIsActive( true);
+			this.setState({className: this.state.className, mode: iStorage.mode || 'welcome'});
+			if (this.state.mode === 'write') {
+				this.textManager.setIsActive(true);
 				await this.textManager.checkStory();
-			}
-			else
-				this.textManager.setIsActive( false);
+			} else
+				this.textManager.setIsActive(false);
 		}
 	}
 
-	public setFeatureManagerStorageCallbacks(iCallbackFuncs:StorageCallbackFuncs) {
+	public setFeatureManagerStorageCallbacks(iCallbackFuncs: StorageCallbackFuncs) {
 		this.featureManagerCreateStorage = iCallbackFuncs.createStorageCallback;
 		this.featureManagerRestoreStorage = iCallbackFuncs.restoreStorageCallback;
-		if( this.stashedFeatureManagerStorage) {
+		if (this.stashedFeatureManagerStorage) {
 			this.featureManagerRestoreStorage(this.stashedFeatureManagerStorage);
 			// this.stashedFeatureManagerStorage = null;
 		}
 	}
 
 	async writeStory() {
-		this.textManager.setIsActive( true);
+		this.textManager.setIsActive(true);
 		this.setState({className: this.state.className, mode: 'write'});
-		await this.dataManager.createDataContext( kStoryFeaturesContextName);
-		openTable( kStoryFeaturesContextName);
+		await this.dataManager.createDataContext(kStoryFeaturesContextName);
+		openTable(kStoryFeaturesContextName);
 		let textComponentID = await openStory(kStoryTextComponentName);
-		this.textManager.setTextComponentID( textComponentID);
+		this.textManager.setTextComponentID(textComponentID);
 	}
 
 	extractFeatures() {
@@ -112,28 +115,72 @@ class Storyq extends Component<{}, { className:string, mode:string}> {
 		this.setState({className: this.state.className, mode: 'extractFeatures'});
 	}
 
+	classify() {
+		this.textManager.setIsActive(false);
+		this.setState({className: this.state.className, mode: 'classify'});
+	}
+
+	backArrow() {
+		return (
+			<div className="back-arrow"
+					 onClick={() => this.setState({mode: 'welcome'})}
+					 title="Back Home">
+				<FontAwesomeIcon icon={faArrowLeft}/>
+			</div>
+		);
+	}
+
+	welcome(includeBackArrow: boolean) {
+		const arrow = includeBackArrow ? this.backArrow() : "";
+		return (
+			<div>
+				{arrow}
+				<div className="title">
+					<p>Welcome to StoryQ</p>
+				</div>
+			</div>
+		);
+	}
+
 	getPane() {
 		switch (this.state.mode) {
 			case 'welcome':
-				return (<div className="button-list">
-					<Button onClick={this.writeStory} variant="outline-primary">Write and Analyze a Story</Button>
-					<br/><br/>
-					<Button onClick={this.extractFeatures} variant="outline-primary">Analyze Phrases</Button>
-				</div>);
+				return (
+					<div>
+						{this.welcome(false)}
+						<div className="button-list">
+							<Button onClick={this.writeStory} variant="outline-primary">Write and Analyze a Story</Button>
+							<br/><br/>
+							<Button onClick={this.extractFeatures} variant="outline-primary">Analyze Phrases</Button>
+							<br/><br/>
+							<Button onClick={this.classify} variant="outline-primary">Classify Phrases</Button>
+						</div>
+					</div>
+				)
 			case 'write':
-				return (<div>Enjoy writing and analyzing your story!</div>);
+				return (<div>
+					{this.welcome(true)}
+					<p>Enjoy writing and analyzing your story!</p>
+				</div>);
 			case 'extractFeatures':
 				let tStatus = (this.stashedFeatureManagerStorage && this.stashedFeatureManagerStorage.status) || 'active';
-				return <FeatureManager status ={tStatus} setStorageCallbacks={this.setFeatureManagerStorageCallbacks}/>;
+				return (
+					<div>
+						{this.welcome(true)}
+						<FeatureManager status={tStatus} setStorageCallbacks={this.setFeatureManagerStorageCallbacks}/>
+					</div>);
+			case 'classify':
+				return (
+					<div>
+						{this.welcome(true)}
+					</div>);
+
 		}
 	}
 
 	public render() {
-				return (
+		return (
 			<div className="storyq">
-				<div className="title">
-					Welcome to StoryQ
-				</div>
 				{this.getPane()}
 			</div>
 		);
