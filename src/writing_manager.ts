@@ -1,3 +1,9 @@
+/**
+ * The WritingManager handles user activities in the "Write and Analyze a Story" phase.
+ * As the user types in the text component, features are extracted and listed in the
+ * "Story Measuresments" dataset.
+ */
+
 import codapInterface, {CODAP_Notification} from "./lib/CodapInterface";
 import DataManager from './data_manager';
 import {textToObject} from "./utilities";
@@ -5,7 +11,7 @@ import {textToObject} from "./utilities";
 export const kStoryFeaturesContextName = "Story Measurements";
 export const kStoryTextComponentName = 'A New Story';
 
-export class TextManager {
+export class WritingManager {
 
 	private textComponentID:number | undefined;
 	private dataManager:DataManager;

@@ -2,7 +2,13 @@ import React, {Component} from 'react';
 import pluralize from 'pluralize';
 //import naiveBaseClassifier from './lib/NaiveBayesClassifier';
 import codapInterface, {CODAP_Notification} from "./lib/CodapInterface";
-import {getDatasetNames, getSelectedCasesFrom} from './lib/codap-helper';
+import {
+	addAttributesToTarget,
+	getAttributeNameByIndex,
+	getCaseCount,
+	getDatasetNamesWithFilter,
+	getSelectedCasesFrom
+} from './lib/codap-helper';
 import Dropdown from 'react-bootstrap/Dropdown';
 import DropdownButton from 'react-bootstrap/DropdownButton';
 import ButtonGroup from "react-bootstrap/esm/ButtonGroup";
@@ -10,19 +16,20 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import {textToObject, phraseToFeatures} from "./utilities";
 import {oneHot} from "./lib/one_hot";
 import './storyq.css';
-import NaiveBayesClassifier from "./lib/NaiveBayesClassifier";
+// import NaiveBayesClassifier from "./lib/NaiveBayesClassifier";
 import {LogisticRegression} from './lib/jsregression';
-import {HeadingsManager, PhraseTriple, ClassLabel, HeadingSpec} from "./headings_manager";
+import TextFeedbackManager from "./text_feedback_manager";
+import {PhraseTriple} from "./headings_manager";
 
 // import tf from "@tensorflow/tfjs";
 
-export interface StorageCallbackFuncs {
+export interface FM_StorageCallbackFuncs {
 	createStorageCallback: ()=> any,
 	restoreStorageCallback: ( iStorage:any)=> void
 }
 
 export interface FM_Props {
-	status:string, setStorageCallbacks:(iCallbacks: StorageCallbackFuncs)=>void
+	status:string, setStorageCallbacks:(iCallbacks: FM_StorageCallbackFuncs)=>void
 }
 
 interface FMStorage {
@@ -70,8 +77,8 @@ export class FeatureManager extends Component<FM_Props, {
 	private featureCaseCount = 0;
 	private textComponentName = 'Selected';
 	private textComponentID = 0;
-	private subscriberIndex:number | null = null;
-	private nbClassifier: NaiveBayesClassifier;
+	private subscriberIndex:number = -1;
+	// private nbClassifier: NaiveBayesClassifier;
 	// Some flags to prevent recursion in selecting features or target cases
 	private isSelectingTargetPhrases = false;
 	private isSelectingFeatures = false;
@@ -94,7 +101,7 @@ export class FeatureManager extends Component<FM_Props, {
 		iterationName: 'iteration',
 		costName: 'cost'
 	};
-	private headingsManager:HeadingsManager | null = null;
+	private textFeedbackManager:TextFeedbackManager | null = null;
 
 	constructor(props: FM_Props) {
 		super(props);
@@ -109,19 +116,28 @@ export class FeatureManager extends Component<FM_Props, {
 		this.handleNotification = this.handleNotification.bind(this);
 		this.createStorage = this.createStorage.bind(this);
 		this.restoreStorage = this.restoreStorage.bind(this);
-		this.createFeatureDataset = this.createFeatureDataset.bind(this);
-		props.setStorageCallbacks( {
-			createStorageCallback: this.createStorage,
-			restoreStorageCallback: this.restoreStorage
-		});
+		this.createModelsDataset = this.createModelsDataset.bind(this);
 
 	}
 
+	private static notAModel(iValue:any):boolean {
+		return iValue.title.toLowerCase().indexOf('model') < 0;
+	}
+
 	public async componentDidMount() {
-		this.datasetNames = await getDatasetNames();
+		this.props.setStorageCallbacks( {
+			createStorageCallback: this.createStorage,
+			restoreStorageCallback: this.restoreStorage
+		});
+		this.datasetNames = await getDatasetNamesWithFilter(FeatureManager.notAModel);
 		this.subscriberIndex = codapInterface.on('notify', '*', '', this.handleNotification);
-		this.nbClassifier = new NaiveBayesClassifier();
+		// this.nbClassifier = new NaiveBayesClassifier();
 		this.setState({status: this.state.status, count: this.state.count + 1 })
+	}
+
+	public componentWillUnmount() {
+		codapInterface.off( this.subscriberIndex);
+		this.featureTokenArray = [];
 	}
 
 	public createStorage():FMStorage {
@@ -174,7 +190,7 @@ export class FeatureManager extends Component<FM_Props, {
 	 */
 	private async handleNotification(iNotification: CODAP_Notification) {
 		if (iNotification.action === 'notify' && iNotification.values.operation === 'dataContextCountChanged') {
-			this.datasetNames = await getDatasetNames();
+			this.datasetNames = await getDatasetNamesWithFilter(FeatureManager.notAModel);
 			this.setState({count: this.state.count + 1, status: this.state.status });
 		}
 		else if(iNotification.action === 'notify' && iNotification.values.operation === 'selectCases') {
@@ -193,123 +209,11 @@ export class FeatureManager extends Component<FM_Props, {
 		}
 	}
 
-	private getHeadingsManager():HeadingsManager {
-		if( !this.headingsManager) {
-			this.headingsManager = new HeadingsManager(this.targetCategories[0], this.targetCategories[1],
-				'Actual', 'Predicted');
+	private getTextFeedbackManager():TextFeedbackManager {
+		if( !this.textFeedbackManager) {
+			this.textFeedbackManager = new TextFeedbackManager(this.targetCategories, this.targetAttributeName);
 		}
-		return this.headingsManager;
-	}
-
-	/**
-	 * Cause the text component to display phrases with the feature highlighting determined by
-	 * 	given function
-	 * @param iPhraseTriples  Specifications for the phrases to be displayed
-	 * @param iFeatures {string[]}	The features to be highlighted
-	 * @param iHighlightFunc {Function}	Function called to do the highlighting
-	 * @private
-	 */
-	private async composeText(iPhraseTriples: PhraseTriple[], iFeatures: string[], iHighlightFunc: Function) {
-		let this_ = this;
-		const kHeadingsManager = this.getHeadingsManager();
-		const kProps = ['negNeg', 'negPos', 'posNeg', 'posPos'];
-		// @ts-ignore
-		const kHeadings: HeadingSpec = kHeadingsManager.headings;
-		let tClassItems = {
-				negNeg: [],
-				negPos: [],
-				posNeg: [],
-				posPos: []
-			},
-			tItems: any = [];
-
-
-		function addOnePhrase(iTriple: PhraseTriple) {
-			// @ts-ignore
-			const kLabels: ClassLabel = kHeadingsManager.classLabels;
-
-			let tGroup: string,
-					tColor:string = '';
-			switch (iTriple.actual) {
-				case kLabels.negLabel:
-					switch (iTriple.predicted) {
-						case kLabels.negLabel:
-							tGroup = 'negNeg';
-							// @ts-ignore
-							tColor = this_.headingsManager.colors.green;
-							break;
-						case kLabels.posLabel:
-							tGroup = 'negPos';
-							// @ts-ignore
-							tColor = this_.headingsManager.colors.red;
-					}
-					break;
-				case kLabels.posLabel:
-					switch (iTriple.predicted) {
-						case kLabels.negLabel:
-							tGroup = 'posNeg';
-							// @ts-ignore
-							tColor = this_.headingsManager.colors.red;
-							break;
-						case kLabels.posLabel:
-							tGroup = 'posPos';
-							// @ts-ignore
-							tColor = this_.headingsManager.colors.green;
-					}
-			}
-			const tSquare = {
-				text: '■ ',
-				color: tColor
-			}
-			// @ts-ignore
-			tClassItems[tGroup].push({
-				type: 'list-item',
-				children: [tSquare].concat(iHighlightFunc(iTriple.phrase, iFeatures))
-			});
-		}
-
-		iPhraseTriples.forEach(iTriple => {
-			addOnePhrase(iTriple);
-		});
-
-		// The phrases are all in their groups. Create the array of group objects
-		kProps.forEach(iProp => {
-			// @ts-ignore
-			let tPhrases = tClassItems[iProp];
-			if (tPhrases.length !== 0) {
-				let tHeadingItems = [
-					// @ts-ignore
-					kHeadings[iProp],
-					{
-						type: 'bulleted-list',
-						// @ts-ignore
-						children: tClassItems[iProp]
-					}];
-				tItems = tItems.concat(tHeadingItems);
-			}
-		});
-		if (tItems.length === 0)
-			this.clearText();
-		else {
-			// Send it all off to the text object
-			await codapInterface.sendRequest({
-				action: 'update',
-				resource: `component[${this.textComponentID}]`,
-				values: {
-					text: {
-						document: {
-							children: tItems,
-							objTypes: {
-								'list-item': 'block',
-								'bulleted-list': 'block',
-								'paragraph': 'block'
-							}
-						}
-					}
-				}
-			});
-		}
-
+		return this.textFeedbackManager;
 	}
 
 	/**
@@ -323,7 +227,7 @@ export class FeatureManager extends Component<FM_Props, {
 		let tFeatures: string[] = [],
 			tUsedIDsSet: Set<number> = new Set();
 		tSelectedCases.forEach((iCase: any) => {
-			var tUsages = iCase.values.usages;
+			let tUsages = iCase.values.usages;
 			if( typeof tUsages === 'string' && tUsages.length > 0) {
 				(JSON.parse( tUsages)).forEach((anID: number) => {
 					tUsedIDsSet.add(anID);
@@ -350,33 +254,7 @@ export class FeatureManager extends Component<FM_Props, {
 			let tPhrase = tGetCaseResult.values.case.values[this.targetAttributeName];
 			tTriples.push({actual: tActualClass, predicted: tPredictedClass, phrase: tPhrase});
 		}
-		await this.composeText(tTriples, tFeatures, textToObject);
-	}
-
-	private async clearText() {
-		await codapInterface.sendRequest({
-			action: 'update',
-			resource: `component[${this.textComponentID}]`,
-			values: {
-				text: {
-					document: {
-						children: [
-							{
-								type: "paragraph",
-								children: [
-									{
-										text: `This is where selected ${pluralize(this.targetAttributeName)} appear.`
-									}
-								]
-							}
-						],
-						objTypes: {
-							"paragraph": "block"
-						}
-					}
-				}
-			}
-		});
+		await this.getTextFeedbackManager().composeText(tTriples, tFeatures, textToObject);
 	}
 
 	/**
@@ -415,18 +293,7 @@ export class FeatureManager extends Component<FM_Props, {
 		tFeatures.forEach(iFeature=>{
 			tFeaturesArray.push(iFeature);
 		});
-		this.composeText( tTargetTriples, tFeaturesArray, phraseToFeatures);
-	}
-
-	private async getCaseCount(): Promise<number> {
-		const tCountResult:any = await codapInterface.sendRequest(
-			{
-				action: 'get',
-				resource:`dataContext[${this.targetDatasetName}].collection[${this.targetCollectionName}].caseCount`
-			}
-		)
-			.catch(() => { console.log('Error getting case count')});
-		return tCountResult.values;
+		await this.getTextFeedbackManager().composeText( tTargetTriples, tFeaturesArray, phraseToFeatures);
 	}
 
 	private async setupFeedbackDataset() {
@@ -663,54 +530,16 @@ export class FeatureManager extends Component<FM_Props, {
 		return tListResult.values.map((iValue:{name:string}) => { return iValue.name });
 	}
 
-	private async getAttributeNameByIndex(iIndex:number): Promise<string> {
-		const tListResult:any = await codapInterface.sendRequest(
-			{
-				action: 'get',
-				resource:`dataContext[${this.targetDatasetName}].collection[${this.targetCollectionName}].attributeList`
-			}
-		)
-			.catch(() => { console.log('Error getting attribute list')});
-		if( tListResult.values.length > iIndex)
-			return tListResult.values[ iIndex].name;
-		else return '';
-	}
-
-	private async addAttributesToTarget( iPredictionClass:string) {
-		// Add the predicted label and probability attributes to the target collection
-		await codapInterface.sendRequest(
-			{
-				action: 'create',
-				resource:`dataContext[${this.targetDatasetName}].collection[${this.targetCollectionName}].attribute`,
-				values: [
-					{
-						name: this.targetPredictedLabelAttributeName,
-						description: 'The label predicted by the model'
-					},
-					{
-						name: 'probability of ' + iPredictionClass,
-						precision: 5,
-						description: 'A computed probability based on the logistic regression model'
-					},
-					{
-						name: 'featureIDs',
-						hidden: true
-					}
-				]
-			}
-		)
-			.catch(() => { console.log('Error showing adding target attributes')});
-
-	}
-
-	private async createFeatureDataset( iTokenArray:any[]) {
+	private async createModelsDataset( iTokenArray:any[]) {
 		let tModelsDataSetName = this.modelsDatasetName,
 				tModelsCollectionName = this.modelCollectionName,
 				tModelAttributes = [
 					{ name: 'Model', description: 'Name of model. Can be edited.'},
 					{ name: 'Training Set', editable: false, description: 'Name of dataset used for training'},
 					{ name: 'Iterations', editable: false, description: 'Number of iterations used in training'},
+					{ name: 'Classes', editable: true, description: 'The two classification labels'},
 					{ name: 'Frequency Threshold', editable: false, description: 'Number of times something has to appear to be counted as a feature'},
+					{ name: 'Constant Weight', editable: false, description: 'The computed weight of the constant term in the model'},
 					{ name: 'Accuracy', editable: false, precision: 3,
 						description: 'Proportion of correct labels predicted during training'},
 					{ name: 'Kappa', editable: false, precision: 3,
@@ -788,7 +617,8 @@ export class FeatureManager extends Component<FM_Props, {
 			values: {
 				type: 'caseTable',
 				name: tModelsDataSetName,
-				dataContext: tModelsDataSetName
+				dataContext: tModelsDataSetName,
+				horizontalScrollOffset: 1000
 			}
 		});
 
@@ -833,7 +663,7 @@ export class FeatureManager extends Component<FM_Props, {
 			};
 			tFeaturesValues.push( tOneFeatureUpdate);
 		});
-		codapInterface.sendRequest({
+		await codapInterface.sendRequest({
 			action: 'update',
 			resource: `dataContext[${this.modelsDatasetName}].collection[${this.featureCollectionName}].case`,
 			values: tFeaturesValues
@@ -856,6 +686,8 @@ export class FeatureManager extends Component<FM_Props, {
 					"Training Set": this.targetDatasetName,
 					"Iterations": this.state.iterations,
 					"Frequency Threshold": this.state.frequencyThreshold,
+					"Classes": JSON.stringify(this.targetCategories),
+					"Constant Weight": this.logisticModel.theta[0],
 					"Accuracy": this.logisticModel.accuracy,
 					"Kappa": this.logisticModel.kappa,
 					"Threshold": this.logisticModel.threshold
@@ -870,7 +702,7 @@ export class FeatureManager extends Component<FM_Props, {
 	private async addFeatures( ) {
 		this.logisticModel.trace = this.state.showWeightsGraph;
 		this.logisticModel.iterations = this.state.iterations;
-		this.targetCaseCount = await this.getCaseCount();
+		this.targetCaseCount = await getCaseCount( this.targetDatasetName, this.targetCollectionName);
 		let // tClassifier = this.nbClassifier,
 				tDocuments: {example:string, class:string, caseID:number}[] = [],
 				tZeroClassName: string,
@@ -901,7 +733,8 @@ export class FeatureManager extends Component<FM_Props, {
 		this.targetCategories[1] = tOneClassName = tDocOfOtherClass.class;
 
 		// Now that we know the class name we're predicting, we can add attributes to the target dataset
-		await this.addAttributesToTarget( tOneClassName);
+		await addAttributesToTarget( tOneClassName, this.targetDatasetName || '',
+			this.targetCollectionName, this.targetPredictedLabelAttributeName);
 
 		// Logistic can't happen until we've isolated the features and produced a oneHot representation
 		// Also, the logisticModel.fit function requires that the class value (0 or 1) be the
@@ -915,7 +748,7 @@ export class FeatureManager extends Component<FM_Props, {
 		});
 
 		// By creating the features data set now we give the user an indication that something is happening
-		await this.createFeatureDataset( tOneHot.tokenArray);
+		await this.createModelsDataset( tOneHot.tokenArray);
 		// We have to stash the tokenArray for use in handleFittingProgress which is a callback
 		this.featureTokenArray = tOneHot.tokenArray;
 
@@ -943,26 +776,6 @@ export class FeatureManager extends Component<FM_Props, {
 		this.featureTokenArray = [];
 	}
 
-	private async addTextComponent() {
-		this.textComponentName = 'Selected ' + pluralize(this.targetAttributeName);
-		let tResult:any = await codapInterface.sendRequest( {
-			action: 'create',
-			resource: 'component',
-			values: {
-				type: 'text',
-				name: this.textComponentName,
-				title: this.textComponentName,
-				dimensions: {
-					width: 500,
-					height: 150
-				},
-				position: 'top'
-			}
-		});
-		this.textComponentID = tResult.values.id
-		this.clearText();
-	}
-
 	private async extract(iTargetDatasetName: string | null) {
 		this.targetDatasetName = iTargetDatasetName;
 		let tCollectionNames = await this.getTargetCollectionNames();
@@ -970,10 +783,12 @@ export class FeatureManager extends Component<FM_Props, {
 		if( tCollectionNames.length === 1) {
 			this.targetCollectionName = tCollectionNames[0];
 			// todo: arbitrary assumption of column positions!
-			this.targetAttributeName = await this.getAttributeNameByIndex(0);
-			this.classAttributeName = await this.getAttributeNameByIndex(1);
+			this.targetAttributeName = await getAttributeNameByIndex( this.targetDatasetName || '',
+				this.targetCollectionName, 0);
+			this.classAttributeName = await getAttributeNameByIndex(this.targetDatasetName || '',
+				this.targetCollectionName, 1);
 			await this.addFeatures();
-			await this.addTextComponent();
+			await this.getTextFeedbackManager().addTextComponent();
 			this.setState({count: this.state.count + 1, status: 'finished'});
 		}
 		else {

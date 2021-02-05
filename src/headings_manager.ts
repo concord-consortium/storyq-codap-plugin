@@ -1,3 +1,7 @@
+/**
+ * Utility for use in constructing headings to show in text component for each kind of statement.
+ */
+
 export interface PhraseTriple {
 	actual:string, predicted:string, phrase:string
 }

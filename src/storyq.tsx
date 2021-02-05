@@ -11,9 +11,10 @@ import {
 	registerObservers
 } from './lib/codap-helper';
 import './storyq.css';
-import {TextManager, kStoryFeaturesContextName, kStoryTextComponentName} from './text_manager';
+import {WritingManager, kStoryFeaturesContextName, kStoryTextComponentName} from './writing_manager';
 import DataManager from './data_manager';
-import {FeatureManager, StorageCallbackFuncs} from './feature_manager';
+import {FeatureManager, FM_StorageCallbackFuncs} from './feature_manager';
+import {ClassificationManager, Classification_StorageCallbackFuncs} from './classification_manager';
 
 // import {string} from "prop-types";
 
@@ -37,17 +38,20 @@ class Storyq extends Component<{}, { className: string, mode: string }> {
 		height: 300
 	};
 
-	private textManager: TextManager;
+	private textManager: WritingManager;
 	private dataManager: DataManager;
 	private featureManagerCreateStorage: any;
 	private featureManagerRestoreStorage: any;
 	private stashedFeatureManagerStorage: any;
+	private classificationManagerCreateStorage: any;
+	private classificationManagerRestoreStorage: any;
+	private stashedClassificationManagerStorage: any;
 
 	constructor(props: any) {
 		super(props);
 		this.state = {className: 'storyText', mode: 'welcome'};
 		this.dataManager = new DataManager();
-		this.textManager = new TextManager(this.dataManager);
+		this.textManager = new WritingManager(this.dataManager);
 
 		this.writeStory = this.writeStory.bind(this);
 		this.extractFeatures = this.extractFeatures.bind(this);
@@ -55,6 +59,7 @@ class Storyq extends Component<{}, { className: string, mode: string }> {
 		this.restorePluginState = this.restorePluginState.bind(this);
 		this.getPluginState = this.getPluginState.bind(this);
 		this.setFeatureManagerStorageCallbacks = this.setFeatureManagerStorageCallbacks.bind(this);
+		this.setClassificationManagerStorageCallbacks = this.setClassificationManagerStorageCallbacks.bind(this);
 
 		codapInterface.on('update', 'interactiveState', '', this.restorePluginState);
 		codapInterface.on('get', 'interactiveState', '', this.getPluginState);
@@ -83,6 +88,10 @@ class Storyq extends Component<{}, { className: string, mode: string }> {
 				this.featureManagerRestoreStorage(this.stashedFeatureManagerStorage);
 				this.stashedFeatureManagerStorage = null;
 			}
+			if (this.classificationManagerCreateStorage && this.stashedClassificationManagerStorage) {
+				this.classificationManagerRestoreStorage(this.stashedClassificationManagerStorage);
+				this.stashedClassificationManagerStorage = null;
+			}
 			this.setState({className: this.state.className, mode: iStorage.mode || 'welcome'});
 			if (this.state.mode === 'write') {
 				this.textManager.setIsActive(true);
@@ -92,11 +101,20 @@ class Storyq extends Component<{}, { className: string, mode: string }> {
 		}
 	}
 
-	public setFeatureManagerStorageCallbacks(iCallbackFuncs: StorageCallbackFuncs) {
+	public setFeatureManagerStorageCallbacks(iCallbackFuncs: FM_StorageCallbackFuncs) {
 		this.featureManagerCreateStorage = iCallbackFuncs.createStorageCallback;
 		this.featureManagerRestoreStorage = iCallbackFuncs.restoreStorageCallback;
 		if (this.stashedFeatureManagerStorage) {
 			this.featureManagerRestoreStorage(this.stashedFeatureManagerStorage);
+			// this.stashedFeatureManagerStorage = null;
+		}
+	}
+
+	public setClassificationManagerStorageCallbacks(iCallbackFuncs: Classification_StorageCallbackFuncs) {
+		this.classificationManagerCreateStorage = iCallbackFuncs.createStorageCallback;
+		this.classificationManagerRestoreStorage = iCallbackFuncs.restoreStorageCallback;
+		if (this.stashedClassificationManagerStorage) {
+			this.classificationManagerRestoreStorage(this.stashedClassificationManagerStorage);
 			// this.stashedFeatureManagerStorage = null;
 		}
 	}
@@ -163,16 +181,20 @@ class Storyq extends Component<{}, { className: string, mode: string }> {
 					<p>Enjoy writing and analyzing your story!</p>
 				</div>);
 			case 'extractFeatures':
-				let tStatus = (this.stashedFeatureManagerStorage && this.stashedFeatureManagerStorage.status) || 'active';
+				let tFMStatus = (this.stashedFeatureManagerStorage && this.stashedFeatureManagerStorage.status) || 'active';
 				return (
 					<div>
 						{this.welcome(true)}
-						<FeatureManager status={tStatus} setStorageCallbacks={this.setFeatureManagerStorageCallbacks}/>
+						<FeatureManager status={tFMStatus} setStorageCallbacks={this.setFeatureManagerStorageCallbacks}/>
 					</div>);
 			case 'classify':
+				let tClassificationStatus = (this.stashedClassificationManagerStorage &&
+					this.stashedClassificationManagerStorage.status) || 'active';
 				return (
 					<div>
 						{this.welcome(true)}
+						<ClassificationManager status={tClassificationStatus}
+																	 setStorageCallbacks={this.setClassificationManagerStorageCallbacks}/>
 					</div>);
 
 		}
