@@ -7,19 +7,17 @@ import {
 	getAttributeNameByIndex,
 	getCaseCount,
 	getDatasetNamesWithFilter,
-	getSelectedCasesFrom
+	isNotAModel
 } from './lib/codap-helper';
 import Dropdown from 'react-bootstrap/Dropdown';
 import DropdownButton from 'react-bootstrap/DropdownButton';
 import ButtonGroup from "react-bootstrap/esm/ButtonGroup";
 import 'bootstrap/dist/css/bootstrap.min.css';
-import {textToObject, phraseToFeatures} from "./utilities";
 import {oneHot} from "./lib/one_hot";
 import './storyq.css';
 // import NaiveBayesClassifier from "./lib/NaiveBayesClassifier";
 import {LogisticRegression} from './lib/jsregression';
 import TextFeedbackManager from "./text_feedback_manager";
-import {PhraseTriple} from "./headings_manager";
 
 // import tf from "@tensorflow/tfjs";
 
@@ -61,15 +59,15 @@ export class FeatureManager extends Component<FM_Props, {
 	frequencyThreshold:number,
 	showWeightsGraph:boolean
 }> {
-	private targetDatasetName:string | null = '';
+	public targetDatasetName:string | null = '';
 	private datasetNames:string[] = [];
-	private targetCollectionName = '';
-	private targetAttributeName = '';
-	private targetPredictedLabelAttributeName = 'predicted label';
-	private classAttributeName = '';
+	public targetCollectionName = '';
+	public targetAttributeName = '';
+	public targetPredictedLabelAttributeName = 'predicted label';
+	public classAttributeName = '';
 	private targetCaseCount = 0;
 	private targetCategories:string[] = [];
-	private modelsDatasetName = 'Models';
+	public modelsDatasetName = 'Models';
 	private modelsDatasetID = 0;
 	private modelCollectionName = 'models';
 	private modelCurrentParentCaseID = 0;
@@ -120,24 +118,21 @@ export class FeatureManager extends Component<FM_Props, {
 
 	}
 
-	private static notAModel(iValue:any):boolean {
-		return iValue.title.toLowerCase().indexOf('model') < 0;
-	}
-
 	public async componentDidMount() {
 		this.props.setStorageCallbacks( {
 			createStorageCallback: this.createStorage,
 			restoreStorageCallback: this.restoreStorage
 		});
-		this.datasetNames = await getDatasetNamesWithFilter(FeatureManager.notAModel);
+		this.datasetNames = await getDatasetNamesWithFilter(isNotAModel);
 		this.subscriberIndex = codapInterface.on('notify', '*', '', this.handleNotification);
 		// this.nbClassifier = new NaiveBayesClassifier();
 		this.setState({status: this.state.status, count: this.state.count + 1 })
 	}
 
-	public componentWillUnmount() {
+	public async componentWillUnmount() {
 		codapInterface.off( this.subscriberIndex);
 		this.featureTokenArray = [];
+		this.getTextFeedbackManager().closeTextComponent();
 	}
 
 	public createStorage():FMStorage {
@@ -190,7 +185,7 @@ export class FeatureManager extends Component<FM_Props, {
 	 */
 	private async handleNotification(iNotification: CODAP_Notification) {
 		if (iNotification.action === 'notify' && iNotification.values.operation === 'dataContextCountChanged') {
-			this.datasetNames = await getDatasetNamesWithFilter(FeatureManager.notAModel);
+			this.datasetNames = await getDatasetNamesWithFilter(isNotAModel);
 			this.setState({count: this.state.count + 1, status: this.state.status });
 		}
 		else if(iNotification.action === 'notify' && iNotification.values.operation === 'selectCases') {
@@ -198,12 +193,12 @@ export class FeatureManager extends Component<FM_Props, {
 			let tDataContextName:string = iNotification.resource && iNotification.resource.match(/\[(.+)]/)[1];
 			if( tDataContextName === this.modelsDatasetName && !this.isSelectingFeatures) {
 				this.isSelectingTargetPhrases = true;
-				await this.handleFeatureSelection();
+				await this.getTextFeedbackManager().handleFeatureSelection( this);
 				this.isSelectingTargetPhrases = false;
 			}
 			else if( tDataContextName === this.targetDatasetName && !this.isSelectingTargetPhrases) {
 				this.isSelectingFeatures = true;
-				await this.handleTargetSelection();
+				await this.getTextFeedbackManager().handleTargetSelection( this);
 				this.isSelectingFeatures = false;
 			}
 		}
@@ -214,86 +209,6 @@ export class FeatureManager extends Component<FM_Props, {
 			this.textFeedbackManager = new TextFeedbackManager(this.targetCategories, this.targetAttributeName);
 		}
 		return this.textFeedbackManager;
-	}
-
-	/**
-	 * If the Features dataset has cases selected, for each selected case
-	 * 	- Pull out the array of 'usages' - the the case IDs of the cases in the dataset being analyzed
-	 * 	- Select these cases in that dataset
-	 * 	- Pull the phrase from the target case
-	 */
-	private async handleFeatureSelection() {
-		let tSelectedCases = await getSelectedCasesFrom(this.modelsDatasetName);
-		let tFeatures: string[] = [],
-			tUsedIDsSet: Set<number> = new Set();
-		tSelectedCases.forEach((iCase: any) => {
-			let tUsages = iCase.values.usages;
-			if( typeof tUsages === 'string' && tUsages.length > 0) {
-				(JSON.parse( tUsages)).forEach((anID: number) => {
-					tUsedIDsSet.add(anID);
-				});
-			}
-			tFeatures.push(iCase.values.feature);
-		});
-		let tUsedCaseIDs: number[] = Array.from(tUsedIDsSet);
-		await codapInterface.sendRequest({
-			action: 'create',
-			resource: `dataContext[${this.targetDatasetName}].selectionList`,
-			values: tUsedCaseIDs
-		});
-		let tTriples:{ actual:string, predicted:string, phrase:string}[] = [];
-		const tTargetPhrasesToShow = Math.min( tUsedCaseIDs.length, 20);
-		// Here is where we put the contents of the text component together
-		for (let i = 0; i < tTargetPhrasesToShow; i++) {
-			let tGetCaseResult: any = await codapInterface.sendRequest({
-				action: 'get',
-				resource: `dataContext[${this.targetDatasetName}].collection[${this.targetCollectionName}].caseByID[${tUsedCaseIDs[i]}]`
-			});
-			let tActualClass = tGetCaseResult.values.case.values[this.classAttributeName];
-			let tPredictedClass = tGetCaseResult.values.case.values[this.targetPredictedLabelAttributeName];
-			let tPhrase = tGetCaseResult.values.case.values[this.targetAttributeName];
-			tTriples.push({actual: tActualClass, predicted: tPredictedClass, phrase: tPhrase});
-		}
-		await this.getTextFeedbackManager().composeText(tTriples, tFeatures, textToObject);
-	}
-
-	/**
-	 * First, For each selected target phrase, select the cases in the Feature dataset that contain the target
-	 * case id.
-	 * Second, under headings for the classification, display each selected target phrase as text with
-	 * features highlighted and non-features grayed out
-	 */
-	private async handleTargetSelection() {
-		let this_ = this,
-			tSelectedTargetCases:any = await getSelectedCasesFrom(this.targetDatasetName),
-			tTargetTriples:PhraseTriple[] = [],
-			tIDsOfFeaturesToSelect:number[] = [];
-		tSelectedTargetCases.forEach((iCase:any)=> {
-			let tFeatureIDs:number[] = JSON.parse(iCase.values.featureIDs);
-			tIDsOfFeaturesToSelect = tIDsOfFeaturesToSelect.concat(tFeatureIDs);
-			tTargetTriples.push({
-				actual: iCase.values[this_.classAttributeName],
-				predicted: iCase.values[this_.targetPredictedLabelAttributeName],
-				phrase: iCase.values[this_.targetAttributeName]
-			});
-		});
-		// Select the features
-		await codapInterface.sendRequest({
-			action: 'create',
-			resource: `dataContext[${this.modelsDatasetName}].selectionList`,
-			values: tIDsOfFeaturesToSelect
-		});
-		// Get the features and stash them in a set
-		let tSelectedFeatureCases:any = await getSelectedCasesFrom(this.modelsDatasetName),
-				tFeatures = new Set<string>(),
-				tFeaturesArray:string[] = [];
-		tSelectedFeatureCases.forEach((iCase:any)=>{
-			tFeatures.add(iCase.values.feature);
-		});
-		tFeatures.forEach(iFeature=>{
-			tFeaturesArray.push(iFeature);
-		});
-		await this.getTextFeedbackManager().composeText( tTargetTriples, tFeaturesArray, phraseToFeatures);
 	}
 
 	private async setupFeedbackDataset() {

@@ -54,6 +54,19 @@ export async function openStory(iTextComponentName: string): Promise<number> {
 	return theResult.values.id;
 }
 
+export function isNotAModel(iValue:any):boolean {
+	return iValue.title.toLowerCase().indexOf('model') < 0;
+}
+
+/**
+ * Used to determine if an dataset name qualifies the dataset as containing one or more models.
+ * @param iValue
+ * @private
+ */
+export function isAModel(iValue: any): boolean {
+	return iValue.title.toLowerCase().indexOf('model') >= 0;
+}
+
 /**
  * Return the names of datasets that pass the given filter
  * @param iFilter
@@ -68,7 +81,7 @@ export async function getDatasetNamesWithFilter(iFilter: (value: any) => boolean
 	});
 	tContextListResult.values.forEach((aValue: any) => {
 		if (iFilter(aValue))
-			tDropDownItems.push(aValue.title);
+			tDropDownItems.push(aValue.name);
 	});
 	return tDropDownItems;
 }

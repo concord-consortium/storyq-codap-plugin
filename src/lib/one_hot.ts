@@ -26,10 +26,12 @@ export const kMaxTokens = 1000;
  */
 export const wordTokenizer = ( text:string):string[] => {
 	let tokens:string[] = [];
-	let tWords: RegExpMatchArray | [] = text.toLowerCase().match(/\w+/g) || [];
-	tWords.forEach((aWord) => {
-		tokens.push(aWord);
-	});
+	if(text) {
+		let tWords: RegExpMatchArray | [] = text.toLowerCase().match(/\w+/g) || [];
+		tWords.forEach((aWord) => {
+			tokens.push(aWord);
+		});
+	}
 	return tokens;
 }
 

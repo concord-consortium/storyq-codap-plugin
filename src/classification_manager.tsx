@@ -9,17 +9,15 @@ import React, {Component} from 'react';
 import codapInterface, {CODAP_Notification} from "./lib/CodapInterface";
 import {
 	getCaseCount, getCollectionNames,
-	getDatasetNamesWithFilter, getSelectedCasesFrom, getAttributeNameByIndex
+	getDatasetNamesWithFilter, getAttributeNameByIndex, isAModel, isNotAModel
 } from './lib/codap-helper';
 import Dropdown from 'react-bootstrap/Dropdown';
 import DropdownButton from 'react-bootstrap/DropdownButton';
 import ButtonGroup from "react-bootstrap/esm/ButtonGroup";
 import 'bootstrap/dist/css/bootstrap.min.css';
-import {textToObject, phraseToFeatures} from "./utilities";
 import {wordTokenizer} from "./lib/one_hot";
 import './storyq.css';
 import {LogitPrediction} from './lib/logit_prediction';
-import {PhraseTriple} from "./headings_manager";
 import TextFeedbackManager from "./text_feedback_manager";
 import Button from "react-bootstrap/Button";
 
@@ -37,7 +35,7 @@ export interface Classification_Props {
 
 interface ClassificationStorage {
 	modelDatasetID: number,
-	modelDatasetName: string,
+	modelsDatasetName: string,
 	modelCollectionName: string,
 	modelCategories: string[],
 	targetDatasetID: number,
@@ -51,14 +49,16 @@ interface ClassificationStorage {
 interface ClassificationModel {
 	features: string[],
 	weights: number[],
+	caseIDs: number[],
+	usages: number[][],
 	labels: string[],
 	threshold: number,
 	constantWeightTerm: number,
 	predictor: any
 }
 
-const kClassificationAttributeName = 'classification';
 const kProbabilityAttributeName = 'prob of positive';
+const kFeatureIDsAttributeName = 'featureIDs';
 
 export class ClassificationManager extends Component<Classification_Props, {
 	status: string,
@@ -68,15 +68,15 @@ export class ClassificationManager extends Component<Classification_Props, {
 
 	private modelDatasetNames: string[] = [];
 	private modelDatasetID = 0;
-	private modelDatasetName: string = '';
+	public modelsDatasetName: string = '';
 	private modelCollectionName = 'models';
 	private modelCategories: string[] = [];
 	private targetDatasetNames: string[] = [];
 	private targetDatasetID = -1
-	private targetDatasetName: string = '';
-	private targetCollectionName = '';
+	public targetDatasetName: string = '';
+	public targetCollectionName = '';
 	private targetAttributeName = '';
-	private textComponentName = 'Selected';
+	public targetPredictedLabelAttributeName = 'classification';
 	private textComponentID = 0;
 	private subscriberIndex: number = -1;
 	private textFeedbackManager: TextFeedbackManager | null = null;
@@ -97,35 +97,22 @@ export class ClassificationManager extends Component<Classification_Props, {
 
 	}
 
-	/**
-	 * Used to determine if an dataset name qualifies the dataset as containing one or more models.
-	 * @param iValue
-	 * @private
-	 */
-	private static isAModel(iValue: any): boolean {
-		return iValue.title.toLowerCase().indexOf('model') >= 0;
-	}
-
-	private static isNotAModel(iValue: any): boolean {
-		return iValue.title.toLowerCase().indexOf('model') < 0;
-	}
-
 	public async componentDidMount() {
-
-		this.modelDatasetNames = await getDatasetNamesWithFilter(ClassificationManager.isAModel);
-		this.targetDatasetNames = await getDatasetNamesWithFilter(ClassificationManager.isNotAModel);
+		this.modelDatasetNames = await getDatasetNamesWithFilter(isAModel);
+		this.targetDatasetNames = await getDatasetNamesWithFilter(isNotAModel);
 		this.subscriberIndex = codapInterface.on('notify', '*', '', this.handleNotification);
 		this.setState({status: this.state.status, count: this.state.count + 1})
 	}
 
 	public componentWillUnmount() {
 		codapInterface.off(this.subscriberIndex);
+		this.getTextFeedbackManager().closeTextComponent();
 	}
 
 	public createStorage(): ClassificationStorage {
 		return {
 			modelDatasetID: this.modelDatasetID,
-			modelDatasetName: this.modelDatasetName,
+			modelsDatasetName: this.modelsDatasetName,
 			modelCollectionName: this.modelCollectionName,
 			modelCategories: this.modelCategories,
 			targetDatasetID: this.targetDatasetID,
@@ -139,7 +126,7 @@ export class ClassificationManager extends Component<Classification_Props, {
 
 	public restoreStorage(iStorage: ClassificationStorage) {
 		this.modelDatasetID = iStorage.modelDatasetID;
-		this.modelDatasetName = iStorage.modelDatasetName;
+		this.modelsDatasetName = iStorage.modelsDatasetName;
 		this.modelCollectionName = iStorage.modelCollectionName;
 		this.modelCategories = iStorage.modelCategories;
 		this.targetDatasetID = iStorage.targetDatasetID;
@@ -163,106 +150,23 @@ export class ClassificationManager extends Component<Classification_Props, {
 	 */
 	private async handleNotification(iNotification: CODAP_Notification) {
 		if (iNotification.action === 'notify' && iNotification.values.operation === 'dataContextCountChanged') {
-			this.modelDatasetNames = await getDatasetNamesWithFilter(this.isAModel);
-			this.targetDatasetNames = await getDatasetNamesWithFilter(this.isNotAModel)
+			this.modelDatasetNames = await getDatasetNamesWithFilter(isAModel);
+			this.targetDatasetNames = await getDatasetNamesWithFilter(isNotAModel)
 			this.setState({count: this.state.count + 1, status: this.state.status});
 		}
-		/*
-				else if(iNotification.action === 'notify' && iNotification.values.operation === 'selectCases') {
-					// @ts-ignore
-					let tDataContextName:string = iNotification.resource && iNotification.resource.match(/\[(.+)]/)[1];
-					if( tDataContextName === this.modelsDatasetName && !this.isSelectingFeatures) {
-						this.isSelectingTargetPhrases = true;
-						await this.handleFeatureSelection();
-						this.isSelectingTargetPhrases = false;
-					}
-					else if( tDataContextName === this.targetDatasetName && !this.isSelectingTargetPhrases) {
-						this.isSelectingFeatures = true;
-						await this.handleTargetSelection();
-						this.isSelectingFeatures = false;
-					}
-				}
-		*/
-	}
-
-	/**
-	 * If the Features dataset has cases selected, for each selected case
-	 * 	- Pull out the array of 'usages' - the the case IDs of the cases in the dataset being analyzed
-	 * 	- Select these cases in that dataset
-	 * 	- Pull the phrase from the target case
-	 */
-	private async handleFeatureSelection() {
-		let tSelectedCases = await getSelectedCasesFrom(this.modelDatasetName);
-		let tFeatures: string[] = [],
-			tUsedIDsSet: Set<number> = new Set();
-		tSelectedCases.forEach((iCase: any) => {
-			let tUsages = iCase.values.usages;
-			if (typeof tUsages === 'string' && tUsages.length > 0) {
-				(JSON.parse(tUsages)).forEach((anID: number) => {
-					tUsedIDsSet.add(anID);
-				});
+		else if (iNotification.action === 'notify' && iNotification.values.operation === 'selectCases') {
+			// @ts-ignore
+			let tDataContextName: string = iNotification.resource && iNotification.resource.match(/\[(.+)]/)[1];
+			if (tDataContextName === this.modelsDatasetName && !this.isSelectingFeatures) {
+				this.isSelectingTargetPhrases = true;
+				await this.getTextFeedbackManager().handleFeatureSelection( this);
+				this.isSelectingTargetPhrases = false;
+			} else if (tDataContextName === this.targetDatasetName && !this.isSelectingTargetPhrases) {
+				this.isSelectingFeatures = true;
+				await this.getTextFeedbackManager().handleTargetSelection( this);
+				this.isSelectingFeatures = false;
 			}
-			tFeatures.push(iCase.values.feature);
-		});
-		let tUsedCaseIDs: number[] = Array.from(tUsedIDsSet);
-		await codapInterface.sendRequest({
-			action: 'create',
-			resource: `dataContext[${this.targetDatasetName}].selectionList`,
-			values: tUsedCaseIDs
-		});
-		let tTriples: { actual: string, predicted: string, phrase: string }[] = [];
-		const tTargetPhrasesToShow = Math.min(tUsedCaseIDs.length, 20);
-		// Here is where we put the contents of the text component together
-		for (let i = 0; i < tTargetPhrasesToShow; i++) {
-			let tGetCaseResult: any = await codapInterface.sendRequest({
-				action: 'get',
-				resource: `dataContext[${this.targetDatasetName}].collection[${this.targetCollectionName}].caseByID[${tUsedCaseIDs[i]}]`
-			});
-			let tPhrase = tGetCaseResult.values.case.values[this.targetAttributeName];
-			// tTriples.push({actual: tActualClass, predicted: tPredictedClass, phrase: tPhrase});
 		}
-		await this.getTextFeedbackManager().composeText(tTriples, tFeatures, textToObject);
-	}
-
-	/**
-	 * First, For each selected target phrase, select the cases in the Feature dataset that contain the target
-	 * case id.
-	 * Second, under headings for the classification, display each selected target phrase as text with
-	 * features highlighted and non-features grayed out
-	 */
-	private async handleTargetSelection() {
-		let this_ = this,
-			tSelectedTargetCases: any = await getSelectedCasesFrom(this.targetDatasetName),
-			tTargetTriples: PhraseTriple[] = [],
-			tIDsOfFeaturesToSelect: number[] = [];
-		tSelectedTargetCases.forEach((iCase: any) => {
-			let tFeatureIDs: number[] = JSON.parse(iCase.values.featureIDs);
-			tIDsOfFeaturesToSelect = tIDsOfFeaturesToSelect.concat(tFeatureIDs);
-			/*
-						tTargetTriples.push({
-							actual: iCase.values[this_.classAttributeName],
-							predicted: iCase.values[this_.targetPredictedLabelAttributeName],
-							phrase: iCase.values[this_.targetAttributeName]
-						});
-			*/
-		});
-		// Select the features
-		await codapInterface.sendRequest({
-			action: 'create',
-			resource: `dataContext[${this.modelDatasetName}].selectionList`,
-			values: tIDsOfFeaturesToSelect
-		});
-		// Get the features and stash them in a set
-		let tSelectedFeatureCases: any = await getSelectedCasesFrom(this.modelDatasetName),
-			tFeatures = new Set<string>(),
-			tFeaturesArray: string[] = [];
-		tSelectedFeatureCases.forEach((iCase: any) => {
-			tFeatures.add(iCase.values.feature);
-		});
-		tFeatures.forEach(iFeature => {
-			tFeaturesArray.push(iFeature);
-		});
-		await this.getTextFeedbackManager().composeText(tTargetTriples, tFeaturesArray, phraseToFeatures);
 	}
 
 	private async addAttributesToTarget() {
@@ -273,7 +177,7 @@ export class ClassificationManager extends Component<Classification_Props, {
 				resource: `dataContext[${this.targetDatasetName}].collection[${this.targetCollectionName}].attribute`,
 				values: [
 					{
-						name: kClassificationAttributeName,
+						name: this.targetPredictedLabelAttributeName,
 						description: 'The label predicted by the model'
 					},
 					{
@@ -282,7 +186,7 @@ export class ClassificationManager extends Component<Classification_Props, {
 						precision: 5
 					},
 					{
-						name: 'featureIDs',
+						name: kFeatureIDsAttributeName,
 						hidden: true
 					}
 				]
@@ -303,22 +207,24 @@ export class ClassificationManager extends Component<Classification_Props, {
 			tModel: ClassificationModel = {
 				features: [],
 				weights: [],
+				caseIDs: [],
 				labels: [],
+				usages: [],
 				threshold: 0.5,
 				constantWeightTerm: 0,
 				predictor: null
 			},
-			tLabelValues: { id: number, values: any	}[] = [];
+			tLabelValues: { id: number, values: any }[] = [];
 
 		async function buildModelFromDataset() {
-			let tModelCollectionNames = await getCollectionNames(this_.modelDatasetName),
-					tModelParentCollectionName = tModelCollectionNames[0];
+			let tModelCollectionNames = await getCollectionNames(this_.modelsDatasetName),
+				tModelParentCollectionName = tModelCollectionNames[0];
 			this_.modelCollectionName = tModelCollectionNames.pop() || 'cases';
-			let tCaseCount = await getCaseCount(this_.modelDatasetName, this_.modelCollectionName);
+			let tCaseCount = await getCaseCount(this_.modelsDatasetName, this_.modelCollectionName);
 			for (let i = 0; i < tCaseCount; i++) {
 				const tGetResult: any = await codapInterface.sendRequest({
 					"action": "get",
-					"resource": `dataContext[${this_.modelDatasetName}].collection[${this_.modelCollectionName}].caseByIndex[${i}]`
+					"resource": `dataContext[${this_.modelsDatasetName}].collection[${this_.modelCollectionName}].caseByIndex[${i}]`
 				})
 					.catch(() => {
 						console.log('unable to get feature');
@@ -326,19 +232,37 @@ export class ClassificationManager extends Component<Classification_Props, {
 
 				tModel.features.push(tGetResult.values.case.values['feature']);
 				tModel.weights.push(tGetResult.values.case.values['weight']);
+				tModel.caseIDs.push(tGetResult.values.case.id);
+				tModel.usages.push([]);
 			}
-			const tParentCaseResult: any = await codapInterface.sendRequest( {
+			const tParentCaseResult: any = await codapInterface.sendRequest({
 				"action": "get",
-				"resource": `dataContext[${this_.modelDatasetName}].collection[${tModelParentCollectionName}].caseByIndex[0]`
+				"resource": `dataContext[${this_.modelsDatasetName}].collection[${tModelParentCollectionName}].caseByIndex[0]`
 			})
 				.catch((e) => {
 					console.log(`Error ${e} while getting parent case`);
 				});
 			let tLabels = tParentCaseResult.values.case.values['Classes'] || `["negative", "positive"]`;
 			tModel.labels = JSON.parse(tLabels);
+			this_.modelCategories = tModel.labels;	// Needed to pass to TextFeedbackManager
 			tModel.threshold = tParentCaseResult.values.case.values['Threshold'];
 			tModel.constantWeightTerm = tParentCaseResult.values.case.values['Constant Weight'];
-			tModel.predictor = new LogitPrediction( tModel.constantWeightTerm, tModel.weights, tModel.threshold);
+			tModel.predictor = new LogitPrediction(tModel.constantWeightTerm, tModel.weights, tModel.threshold);
+		}
+
+		async function addUsagesAttributeToModelDataset() {
+			await codapInterface.sendRequest({
+					action: 'create',
+					resource: `dataContext[${this_.modelsDatasetName}].collection[${this_.modelCollectionName}].attribute`,
+					values: [
+						{
+							name: 'usages',
+							description: 'IDs of cases with phrase that use this feature',
+							hidden: true
+						}
+					]
+				}
+			)
 		}
 
 		async function classifyEachPhrase() {
@@ -351,39 +275,62 @@ export class ClassificationManager extends Component<Classification_Props, {
 					.catch(() => {
 						console.log('unable to get target phrase');
 					});
-				let tPhrase = tGetResult.values.case.values[this_.targetAttributeName],
-						tGiven = Array(tModel.features.length).fill(0);
+				let tPhraseID = tGetResult.values.case.id,
+					tPhrase = tGetResult.values.case.values[this_.targetAttributeName],
+					tGiven = Array(tModel.features.length).fill(0),
+					tFeatureIDs: number[] = [];
 				// Find the index of each feature the phrase
 				wordTokenizer(tPhrase).forEach((iFeature) => {
 					let tIndex = tModel.features.indexOf(iFeature);
-					if( tIndex >= 0)
+					if (tIndex >= 0) {	// We've found a feature
+						// Mark it in the array
 						tGiven[tIndex] = 1;
+						// Add the case ID to the list of featureIDs for this phrase
+						tFeatureIDs.push(tModel.caseIDs[tIndex]);
+						tModel.usages[tIndex].push(tPhraseID);
+					}
 				});
-				let tCaseValues:{[key: string]: string} = {},
-						tPrediction = tModel.predictor.predict( tGiven);
-				tCaseValues[kClassificationAttributeName] = tPrediction.class ?
+				let tCaseValues: { [key: string]: string } = {},
+					tPrediction = tModel.predictor.predict(tGiven);
+				tCaseValues[this_.targetPredictedLabelAttributeName] = tPrediction.class ?
 					tModel.labels[1] : tModel.labels[0];
 				tCaseValues[kProbabilityAttributeName] = tPrediction.probability;
+				tCaseValues[kFeatureIDsAttributeName] = JSON.stringify(tFeatureIDs);
 				tLabelValues.push({
 					id: tGetResult.values.case.id,
 					values: tCaseValues
-				}) ;
+				});
 			}
 			// Send the values to CODAP
-			await codapInterface.sendRequest( {
+			await codapInterface.sendRequest({
 				action: 'update',
-				resource:`dataContext[${this_.targetDatasetName}].collection[${this_.targetCollectionName}].case`,
+				resource: `dataContext[${this_.targetDatasetName}].collection[${this_.targetCollectionName}].case`,
 				values: tLabelValues
 			});
+			// Add the usages to each feature case
+			let tFeatureUpdates = tModel.caseIDs.map((iID, iIndex) => {
+				return {
+					id: iID,
+					values: { usages: JSON.stringify(tModel.usages[iIndex])}
+				}
+			});
+			await codapInterface.sendRequest({
+				action: 'update',
+				resource: `dataContext[${this_.modelsDatasetName}].collection[${this_.modelCollectionName}].case`,
+				values: tFeatureUpdates
+			})
 		}
 
 		this.targetCollectionName = (await getCollectionNames(this.targetDatasetName)).pop() || 'cases';
-		this.targetAttributeName = await getAttributeNameByIndex( this.targetDatasetName || '',
+		this.targetAttributeName = await getAttributeNameByIndex(this.targetDatasetName || '',
 			this.targetCollectionName, 0);
 
 		await buildModelFromDataset();
+		await addUsagesAttributeToModelDataset();
 		await this.addAttributesToTarget();
 		await classifyEachPhrase();
+		await this.getTextFeedbackManager().closeTextComponent();
+		await this.getTextFeedbackManager().addTextComponent();
 	}
 
 	private renderForActiveState() {
@@ -421,7 +368,7 @@ export class ClassificationManager extends Component<Classification_Props, {
 		}
 
 		function modelControl() {
-			return propertyControl(this_.modelDatasetNames, 'modelDatasetName', 'Model to use: ',
+			return propertyControl(this_.modelDatasetNames, 'modelsDatasetName', 'Model to use: ',
 				kNoModels);
 		}
 
@@ -437,7 +384,7 @@ export class ClassificationManager extends Component<Classification_Props, {
 						<p>Cannot classify without phrases.</p>
 					</div>
 				);
-			} else if (this_.modelDatasetName === '') {
+			} else if (this_.modelsDatasetName === '') {
 				return (
 					<div>
 						<p>Cannot classify without a model.</p>
