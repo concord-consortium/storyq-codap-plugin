@@ -72,7 +72,7 @@ export function isAModel(iValue: any): boolean {
  * @param iFilter
  */
 export async function getDatasetNamesWithFilter(iFilter: (value: any) => boolean): Promise<string[]> {
-	let tDropDownItems: string[] = [];
+	let tDatasetNames: string[] = [];
 	let tContextListResult: any = await codapInterface.sendRequest({
 		"action": "get",
 		"resource": "dataContextList"
@@ -81,9 +81,9 @@ export async function getDatasetNamesWithFilter(iFilter: (value: any) => boolean
 	});
 	tContextListResult.values.forEach((aValue: any) => {
 		if (iFilter(aValue))
-			tDropDownItems.push(aValue.name);
+			tDatasetNames.push(aValue.name);
 	});
-	return tDropDownItems;
+	return tDatasetNames;
 }
 
 export async function getSelectedCasesFrom(iDatasetName: string | null): Promise<any[]> {

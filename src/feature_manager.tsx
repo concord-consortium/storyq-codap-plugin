@@ -6,7 +6,7 @@ import {
 	addAttributesToTarget,
 	getAttributeNameByIndex,
 	getCaseCount,
-	getDatasetNamesWithFilter,
+	getDatasetNamesWithFilter, isAModel,
 	isNotAModel
 } from './lib/codap-helper';
 import Dropdown from 'react-bootstrap/Dropdown';
@@ -445,10 +445,17 @@ export class FeatureManager extends Component<FM_Props, {
 		return tListResult.values.map((iValue:{name:string}) => { return iValue.name });
 	}
 
+	/**
+	 * There may already be a models dataset. If so, we want to create a new one with toplevel info in the "models"
+	 * collection with features children of that case
+	 * @param iTokenArray
+	 * @private
+	 */
 	private async createModelsDataset( iTokenArray:any[]) {
-		let tModelsDataSetName = this.modelsDatasetName,
-				tModelsCollectionName = this.modelCollectionName,
-				tModelAttributes = [
+		let this_ = this;
+
+		async function createNewDataset() {
+			let tModelAttributes = [
 					{ name: 'Model', description: 'Name of model. Can be edited.'},
 					{ name: 'Training Set', editable: false, description: 'Name of dataset used for training'},
 					{ name: 'Iterations', editable: false, description: 'Number of iterations used in training'},
@@ -462,9 +469,9 @@ export class FeatureManager extends Component<FM_Props, {
 					{ name: 'Threshold', editable: false, precision: 4,
 						description: 'Probability at which a case is labeled positively'}
 				],
-				tFeatureCollectionName = this.featureCollectionName,
+				tFeatureCollectionName = this_.featureCollectionName,
 				tFeatureAttributes = [
-					{ name: "feature", description: `A feature is something that comes from the ${this.targetAttributeName} that can help in the classification process` },
+					{ name: "feature", description: `A feature is something that comes from the ${this_.targetAttributeName} that can help in the classification process` },
 					{ name: "type", description: `The kind of feature (unigram, bigram, count, …)` },
 					{ name: "frequency", description: `The number of times the feature appears` },
 					{ name: "usages", hidden: true },
@@ -479,36 +486,61 @@ export class FeatureManager extends Component<FM_Props, {
 					attrs: tModelAttributes
 				},
 					{
-					name: tFeatureCollectionName,
-					title: tFeatureCollectionName,
-					parent: tModelsCollectionName,
-					attrs: tFeatureAttributes
-				}];
-		if(this.logisticModel.trace)
-			tCollections.push({
-				name: 'iterations',
-				title: 'iterations',
-				parent: tFeatureCollectionName,
-				attrs: [{name: 'iteration',
-								description: 'In each iteration of improving the model\'s fit to the data new weights for the features are computed.'},
-								{name:'trialWeight',
-								description: 'In each iteration each feature is assigned a new trialWeight to improve the model\'s fit.',
-								precision: 5}]
-			});
-		const tResult: any = await codapInterface.sendRequest(
-			{
-				action: "create",
-				resource: "dataContext",
+						name: tFeatureCollectionName,
+						title: tFeatureCollectionName,
+						parent: tModelsCollectionName,
+						attrs: tFeatureAttributes
+					}];
+			if(this_.logisticModel.trace)
+				tCollections.push({
+					name: 'iterations',
+					title: 'iterations',
+					parent: tFeatureCollectionName,
+					attrs: [{name: 'iteration',
+						description: 'In each iteration of improving the model\'s fit to the data new weights for the features are computed.'},
+						{name:'trialWeight',
+							description: 'In each iteration each feature is assigned a new trialWeight to improve the model\'s fit.',
+							precision: 5}]
+				});
+			const tResult: any = await codapInterface.sendRequest(
+				{
+					action: "create",
+					resource: "dataContext",
+					values: {
+						name: tModelsDataSetName,
+						title: tModelsDataSetName,
+						collections: tCollections
+					}
+				})
+				.catch(() => {
+					console.log(`Error creating feature dataset`);
+				});
+			this_.modelsDatasetID = tResult.values.id;
+
+			await codapInterface.sendRequest({
+				action: 'create',
+				resource: 'component',
 				values: {
+					type: 'caseTable',
 					name: tModelsDataSetName,
-					title: tModelsDataSetName,
-					collections: tCollections
+					dataContext: tModelsDataSetName,
+					horizontalScrollOffset: 1000
 				}
-			})
-			.catch(() => {
-				console.log(`Error creating feature dataset`);
 			});
-		this.modelsDatasetID = tResult.values.id;
+		}
+
+		let tModelsDataContextNames = await getDatasetNamesWithFilter(isAModel),
+				tModelsDataSetName = this.modelsDatasetName,
+				tModelsCollectionName = this.modelCollectionName,
+				tModelDatasetAlreadyExists = tModelsDataContextNames.indexOf(tModelsDataSetName) >= 0,
+				tNumPreexistingModels = 0;
+
+		if(tModelDatasetAlreadyExists) {
+			tNumPreexistingModels = await getCaseCount(tModelsDataSetName, tModelsCollectionName);
+		}
+		else {
+			await createNewDataset();
+		}
 
 		const tParentCaseResult: any = await codapInterface.sendRequest(
 			{
@@ -516,7 +548,7 @@ export class FeatureManager extends Component<FM_Props, {
 				resource: `dataContext[${tModelsDataSetName}].collection[${tModelsCollectionName}].case`,
 				values: [{
 					values: {
-						Model: 'Model 1'
+						Model: `Model ${tNumPreexistingModels + 1}`
 					}
 				}]
 			}
@@ -524,18 +556,7 @@ export class FeatureManager extends Component<FM_Props, {
 			.catch((() => {
 				console.log('Error creating parent model case')
 			}));
-		this.modelCurrentParentCaseID = tParentCaseResult.values[0].id;
-
-		await codapInterface.sendRequest({
-			action: 'create',
-			resource: 'component',
-			values: {
-				type: 'caseTable',
-				name: tModelsDataSetName,
-				dataContext: tModelsDataSetName,
-				horizontalScrollOffset: 1000
-			}
-		});
+		this_.modelCurrentParentCaseID = tParentCaseResult.values[0].id;
 
 		// Put together the values that will go into the features dataset
 		let tFeaturesValues: any = [];
