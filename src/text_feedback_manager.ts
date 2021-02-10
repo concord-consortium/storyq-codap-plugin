@@ -60,7 +60,7 @@ export default class TextFeedbackManager {
 				action: 'get',
 				resource: `dataContext[${aManager.targetDatasetName}].collection[${aManager.targetCollectionName}].caseByID[${tUsedCaseIDs[i]}]`
 			});
-			let tActualClass = tGetCaseResult.values.case.values[aManager.classAttributeName];
+			let tActualClass = tGetCaseResult.values.case.values[aManager.targetClassAttributeName];
 			let tPredictedClass = tGetCaseResult.values.case.values[aManager.targetPredictedLabelAttributeName];
 			let tPhrase = tGetCaseResult.values.case.values[this.targetAttributeName];
 			tTriples.push({actual: tActualClass, predicted: tPredictedClass, phrase: tPhrase});
@@ -82,7 +82,7 @@ export default class TextFeedbackManager {
 			let tFeatureIDs:number[] = JSON.parse(iCase.values.featureIDs);
 			tIDsOfFeaturesToSelect = tIDsOfFeaturesToSelect.concat(tFeatureIDs);
 			tTargetTriples.push({
-				actual: iCase.values[aManager.classAttributeName],
+				actual: iCase.values[aManager.targetClassAttributeName],
 				predicted: iCase.values[aManager.targetPredictedLabelAttributeName],
 				phrase: iCase.values[aManager.targetAttributeName]
 			});

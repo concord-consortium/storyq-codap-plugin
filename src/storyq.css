@@ -36,3 +36,21 @@ p {
 .back-arrow:hover {
   font-size: large;
 }
+
+.sq-progress-bar-container {
+  width: 100%;
+  height: 20px;
+  background-color: black;
+  margin: 0 !important;
+}
+
+.sq-progress-bar {
+  height: 100%;
+  background-color: aqua;
+  margin: 0 !important;
+}
+
+.sq-pb-label {
+  color: black;
+  text-align: right;
+}

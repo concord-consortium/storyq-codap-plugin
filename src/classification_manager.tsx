@@ -36,12 +36,14 @@ export interface Classification_Props {
 interface ClassificationStorage {
 	modelDatasetID: number,
 	modelsDatasetName: string,
+	modelCaseID: number,
 	modelCollectionName: string,
 	modelCategories: string[],
 	targetDatasetID: number,
 	targetDatasetName: string,
 	targetCollectionName: string,
 	targetAttributeName: string,
+	targetClassAttributeName: string,
 	textComponentID: number,
 	status: string
 }
@@ -64,11 +66,12 @@ export class ClassificationManager extends Component<Classification_Props, {
 	status: string,
 	count: number
 }> {
-	[index: string]: any;
+	[indexindex: string]: any;
 
 	private modelDatasetNames: string[] = [];
 	private modelDatasetID = 0;
 	public modelsDatasetName: string = '';
+	public modelCaseID: number = 0;
 	private modelCollectionName = 'models';
 	private modelCategories: string[] = [];
 	private targetDatasetNames: string[] = [];
@@ -76,6 +79,7 @@ export class ClassificationManager extends Component<Classification_Props, {
 	public targetDatasetName: string = '';
 	public targetCollectionName = '';
 	private targetAttributeName = '';
+	public targetClassAttributeName = '';
 	public targetPredictedLabelAttributeName = 'classification';
 	private textComponentID = 0;
 	private subscriberIndex: number = -1;
@@ -97,11 +101,15 @@ export class ClassificationManager extends Component<Classification_Props, {
 
 	}
 
+	private getModelNames() {
+
+	}
+
 	public async componentDidMount() {
 		this.modelDatasetNames = await getDatasetNamesWithFilter(isAModel);
 		this.targetDatasetNames = await getDatasetNamesWithFilter(isNotAModel);
 		this.subscriberIndex = codapInterface.on('notify', '*', '', this.handleNotification);
-		this.setState({status: this.state.status, count: this.state.count + 1})
+		this.setState({count: this.state.count + 1})
 	}
 
 	public componentWillUnmount() {
@@ -113,12 +121,14 @@ export class ClassificationManager extends Component<Classification_Props, {
 		return {
 			modelDatasetID: this.modelDatasetID,
 			modelsDatasetName: this.modelsDatasetName,
+			modelCaseID: this.modelCaseID,
 			modelCollectionName: this.modelCollectionName,
 			modelCategories: this.modelCategories,
 			targetDatasetID: this.targetDatasetID,
 			targetDatasetName: this.targetDatasetName,
 			targetCollectionName: this.targetCollectionName,
 			targetAttributeName: this.targetAttributeName,
+			targetClassAttributeName: this.targetClassAttributeName,
 			textComponentID: this.textComponentID,
 			status: this.state.status
 		}
@@ -127,14 +137,16 @@ export class ClassificationManager extends Component<Classification_Props, {
 	public restoreStorage(iStorage: ClassificationStorage) {
 		this.modelDatasetID = iStorage.modelDatasetID;
 		this.modelsDatasetName = iStorage.modelsDatasetName;
+		this.modelCaseID = iStorage.modelCaseID;
 		this.modelCollectionName = iStorage.modelCollectionName;
 		this.modelCategories = iStorage.modelCategories;
 		this.targetDatasetID = iStorage.targetDatasetID;
 		this.targetDatasetName = iStorage.targetDatasetName;
 		this.targetCollectionName = iStorage.targetCollectionName;
 		this.targetAttributeName = iStorage.targetAttributeName;
+		this.targetClassAttributeName = iStorage.targetClassAttributeName;
 		this.textComponentID = iStorage.textComponentID;
-		this.setState({status: iStorage.status || 'active', count: this.state.count})
+		this.setState({status: iStorage.status || 'testing'})
 	}
 
 	private getTextFeedbackManager(): TextFeedbackManager {
@@ -144,6 +156,20 @@ export class ClassificationManager extends Component<Classification_Props, {
 		return this.textFeedbackManager;
 	}
 
+/*
+	private async getModelNames():Promise<string[]> {
+		let this_ = this,
+				tModelDatasetNames = await getDatasetNamesWithFilter(isAModel),
+				tModelNames:string[] = [];
+		tModelDatasetNames.forEach((iDatasetName) =>{
+			let tCollectionNames = await codapInterface.sendRequest({
+
+			})
+		});
+		return tModelNames;
+	}
+
+*/
 	/**
 	 *
 	 * @param iNotification    (from CODAP)
@@ -152,7 +178,7 @@ export class ClassificationManager extends Component<Classification_Props, {
 		if (iNotification.action === 'notify' && iNotification.values.operation === 'dataContextCountChanged') {
 			this.modelDatasetNames = await getDatasetNamesWithFilter(isAModel);
 			this.targetDatasetNames = await getDatasetNamesWithFilter(isNotAModel)
-			this.setState({count: this.state.count + 1, status: this.state.status});
+			this.setState({count: this.state.count + 1});
 		}
 		else if (iNotification.action === 'notify' && iNotification.values.operation === 'selectCases') {
 			// @ts-ignore
@@ -324,6 +350,10 @@ export class ClassificationManager extends Component<Classification_Props, {
 		this.targetCollectionName = (await getCollectionNames(this.targetDatasetName)).pop() || 'cases';
 		this.targetAttributeName = await getAttributeNameByIndex(this.targetDatasetName || '',
 			this.targetCollectionName, 0);
+		if( this.state.status === 'testing') {
+			this.targetClassAttributeName = await getAttributeNameByIndex(this.targetDatasetName || '',
+				this.targetCollectionName, 1);
+		}
 
 		await buildModelFromDataset();
 		await addUsagesAttributeToModelDataset();
@@ -335,7 +365,8 @@ export class ClassificationManager extends Component<Classification_Props, {
 
 	private renderForActiveState() {
 		const kNoModels = 'No models to choose from',
-			kNoTargets = 'No phrases to classify found';
+			kNoTargets = 'No phrases to classify found',
+			kHeading = this.state.status === 'using' ? 'Use a Model for Classification' : 'Test a Trained Model';
 		let this_ = this;
 
 		function propertyControl(listOfNames: string[], propName: string, prompt: string, noneFoundPrompt: string) {
@@ -378,7 +409,13 @@ export class ClassificationManager extends Component<Classification_Props, {
 		}
 
 		function doItButton() {
-			if (this_.targetDatasetName === '') {
+			if (this_.targetDatasetName === '' && this_.modelsDatasetName === '') {
+				return (
+					<div>
+						<p>Cannot classify without both a model and phrases.</p>
+					</div>
+				);
+			} else 			if (this_.targetDatasetName === '') {
 				return (
 					<div>
 						<p>Cannot classify without phrases.</p>
@@ -404,7 +441,7 @@ export class ClassificationManager extends Component<Classification_Props, {
 		}
 
 		return (<div className='sq-options'>
-			<p><strong>Classification</strong></p>
+			<p><strong>{kHeading}</strong></p>
 			{targetControl()}
 			{modelControl()}
 			{doItButton()}

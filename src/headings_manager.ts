@@ -30,6 +30,9 @@ export class HeadingsManager {
 					"italic": true,
 					"bold": true
 				}, 
+				{
+					"text": ", "
+				}, 
 			`,
 				tSecondPhrase = `
 					{

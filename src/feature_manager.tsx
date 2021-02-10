@@ -18,16 +18,19 @@ import './storyq.css';
 // import NaiveBayesClassifier from "./lib/NaiveBayesClassifier";
 import {LogisticRegression} from './lib/jsregression';
 import TextFeedbackManager from "./text_feedback_manager";
+import {ProgressBar} from "./progress_bar";
+import Button from "react-bootstrap/Button";
 
 // import tf from "@tensorflow/tfjs";
 
 export interface FM_StorageCallbackFuncs {
-	createStorageCallback: ()=> any,
-	restoreStorageCallback: ( iStorage:any)=> void
+	createStorageCallback: () => any,
+	restoreStorageCallback: (iStorage: any) => void
 }
 
 export interface FM_Props {
-	status:string, setStorageCallbacks:(iCallbacks: FM_StorageCallbackFuncs)=>void
+	status: string,
+	setStorageCallbacks: (iCallbacks: FM_StorageCallbackFuncs) => void
 }
 
 interface FMStorage {
@@ -36,7 +39,7 @@ interface FMStorage {
 	targetAttributeName: string,
 	targetCaseCount: number,
 	targetCategories: string[],
-	classAttributeName: string,
+	targetClassAttributeName: string,
 	modelsDatasetName: string,
 	modelsDatasetID: number,
 	featureCollectionName: string,
@@ -45,28 +48,32 @@ interface FMStorage {
 	featureCaseCount: number,
 	textComponentName: string,
 	textComponentID: number,
-	modelAccuracy:number,
-	modelKappa:number,
-	modelThreshold:number,
+	modelAccuracy: number,
+	modelKappa: number,
+	modelThreshold: number,
 	status: string
 
 }
 
 export class FeatureManager extends Component<FM_Props, {
-	status:string,
-	count:number,
-	iterations:number,
-	frequencyThreshold:number,
-	showWeightsGraph:boolean
+	status: string,
+	count: number,
+	iterations: number,
+	currentIteration: number,
+	frequencyThreshold: number,
+	showWeightsGraph: boolean
 }> {
-	public targetDatasetName:string | null = '';
-	private datasetNames:string[] = [];
+	[indexindex: string]: any;
+
+	private updatePercentageFunc: ((p:number) => void) | null;
+	public targetDatasetName: string | null = '';
+	private datasetNames: string[] = [];
 	public targetCollectionName = '';
 	public targetAttributeName = '';
 	public targetPredictedLabelAttributeName = 'predicted label';
-	public classAttributeName = '';
+	public targetClassAttributeName = '';
 	private targetCaseCount = 0;
-	private targetCategories:string[] = [];
+	private targetCategories: string[] = [];
 	public modelsDatasetName = 'Models';
 	private modelsDatasetID = 0;
 	private modelCollectionName = 'models';
@@ -75,15 +82,15 @@ export class FeatureManager extends Component<FM_Props, {
 	private featureCaseCount = 0;
 	private textComponentName = 'Selected';
 	private textComponentID = 0;
-	private subscriberIndex:number = -1;
+	private subscriberIndex: number = -1;
 	// private nbClassifier: NaiveBayesClassifier;
 	// Some flags to prevent recursion in selecting features or target cases
 	private isSelectingTargetPhrases = false;
 	private isSelectingFeatures = false;
-	private featureTokenArray:any[] = [];	// Used during feedback process
+	private featureTokenArray: any[] = [];	// Used during feedback process
 	// private logisticModel: tf.Sequential = new tf.Sequential();
 	// @ts-ignore
-	private logisticModel:LogisticRegression = new LogisticRegression({
+	private logisticModel: LogisticRegression = new LogisticRegression({
 		alpha: 1,
 		iterations: 100,
 		lambda: 0.0,
@@ -91,7 +98,8 @@ export class FeatureManager extends Component<FM_Props, {
 		kappa: 0,
 		threshold: 0.5,
 		trace: false,
-		progressCallback: this.handleFittingProgress.bind(this)
+		progressCallback: this.progressBar.bind(this),
+		feedbackCallback: this.handleFittingProgress.bind(this)
 	});
 	private feedbackNames = {
 		dataContextName: 'FittingFeedback',
@@ -99,7 +107,7 @@ export class FeatureManager extends Component<FM_Props, {
 		iterationName: 'iteration',
 		costName: 'cost'
 	};
-	private textFeedbackManager:TextFeedbackManager | null = null;
+	private textFeedbackManager: TextFeedbackManager | null = null;
 
 	constructor(props: FM_Props) {
 		super(props);
@@ -107,42 +115,45 @@ export class FeatureManager extends Component<FM_Props, {
 			status: props.status,
 			count: 0,
 			iterations: 50,
+			currentIteration: 0,
 			frequencyThreshold: 4,
 			showWeightsGraph: false
 		};
+		this.updatePercentageFunc = null;
 		this.extract = this.extract.bind(this);
 		this.handleNotification = this.handleNotification.bind(this);
 		this.createStorage = this.createStorage.bind(this);
 		this.restoreStorage = this.restoreStorage.bind(this);
 		this.createModelsDataset = this.createModelsDataset.bind(this);
+		this.setUpdatePercentageFunc = this.setUpdatePercentageFunc.bind(this);
 
 	}
 
 	public async componentDidMount() {
-		this.props.setStorageCallbacks( {
+		this.props.setStorageCallbacks({
 			createStorageCallback: this.createStorage,
 			restoreStorageCallback: this.restoreStorage
 		});
 		this.datasetNames = await getDatasetNamesWithFilter(isNotAModel);
 		this.subscriberIndex = codapInterface.on('notify', '*', '', this.handleNotification);
 		// this.nbClassifier = new NaiveBayesClassifier();
-		this.setState({status: this.state.status, count: this.state.count + 1 })
+		this.setState({count: this.state.count + 1})
 	}
 
 	public async componentWillUnmount() {
-		codapInterface.off( this.subscriberIndex);
+		codapInterface.off(this.subscriberIndex);
 		this.featureTokenArray = [];
 		this.getTextFeedbackManager().closeTextComponent();
 	}
 
-	public createStorage():FMStorage {
+	public createStorage(): FMStorage {
 		return {
 			datasetName: this.targetDatasetName,
 			collectionName: this.targetCollectionName,
 			targetAttributeName: this.targetAttributeName,
 			targetCaseCount: this.targetCaseCount,
 			targetCategories: this.targetCategories,
-			classAttributeName: this.classAttributeName,
+			targetClassAttributeName: this.targetClassAttributeName,
 			modelsDatasetName: this.modelsDatasetName,
 			modelsDatasetID: this.modelsDatasetID,
 			modelCollectionName: this.modelCollectionName,
@@ -158,13 +169,13 @@ export class FeatureManager extends Component<FM_Props, {
 		}
 	}
 
-	public restoreStorage( iStorage:FMStorage) {
+	public restoreStorage(iStorage: FMStorage) {
 		this.targetDatasetName = iStorage.datasetName;
 		this.targetCollectionName = iStorage.collectionName;
 		this.targetAttributeName = iStorage.targetAttributeName;
 		this.targetCaseCount = iStorage.targetCaseCount;
 		this.targetCategories = iStorage.targetCategories;
-		this.classAttributeName = iStorage.classAttributeName;
+		this.targetClassAttributeName = iStorage.targetClassAttributeName;
 		this.modelsDatasetName = iStorage.modelsDatasetName;
 		this.modelsDatasetID = iStorage.modelsDatasetID;
 		this.modelCollectionName = iStorage.modelCollectionName;
@@ -186,52 +197,54 @@ export class FeatureManager extends Component<FM_Props, {
 	private async handleNotification(iNotification: CODAP_Notification) {
 		if (iNotification.action === 'notify' && iNotification.values.operation === 'dataContextCountChanged') {
 			this.datasetNames = await getDatasetNamesWithFilter(isNotAModel);
-			this.setState({count: this.state.count + 1, status: this.state.status });
-		}
-		else if(iNotification.action === 'notify' && iNotification.values.operation === 'selectCases') {
+			this.setState({count: this.state.count + 1});
+		} else if (iNotification.action === 'notify' && iNotification.values.operation === 'selectCases') {
 			// @ts-ignore
-			let tDataContextName:string = iNotification.resource && iNotification.resource.match(/\[(.+)]/)[1];
-			if( tDataContextName === this.modelsDatasetName && !this.isSelectingFeatures) {
+			let tDataContextName: string = iNotification.resource && iNotification.resource.match(/\[(.+)]/)[1];
+			if (tDataContextName === this.modelsDatasetName && !this.isSelectingFeatures) {
 				this.isSelectingTargetPhrases = true;
-				await this.getTextFeedbackManager().handleFeatureSelection( this);
+				await this.getTextFeedbackManager().handleFeatureSelection(this);
 				this.isSelectingTargetPhrases = false;
-			}
-			else if( tDataContextName === this.targetDatasetName && !this.isSelectingTargetPhrases) {
+			} else if (tDataContextName === this.targetDatasetName && !this.isSelectingTargetPhrases) {
 				this.isSelectingFeatures = true;
-				await this.getTextFeedbackManager().handleTargetSelection( this);
+				await this.getTextFeedbackManager().handleTargetSelection(this);
 				this.isSelectingFeatures = false;
 			}
 		}
 	}
 
-	private getTextFeedbackManager():TextFeedbackManager {
-		if( !this.textFeedbackManager) {
+	private getTextFeedbackManager(): TextFeedbackManager {
+		if (!this.textFeedbackManager) {
 			this.textFeedbackManager = new TextFeedbackManager(this.targetCategories, this.targetAttributeName);
 		}
 		return this.textFeedbackManager;
 	}
 
 	private async setupFeedbackDataset() {
-		const tContextList:any = await codapInterface.sendRequest( {
+		const tContextList: any = await codapInterface.sendRequest({
 			action: 'get',
 			resource: 'dataContextList'
 		});
-		let tAlreadyPresent = tContextList.values.findIndex((iValue:any)=>{
-						return iValue.name === this.feedbackNames.dataContextName;
-					}) >= 0;
-		if( !tAlreadyPresent) {
-			await codapInterface.sendRequest( {
+		let tAlreadyPresent = tContextList.values.findIndex((iValue: any) => {
+			return iValue.name === this.feedbackNames.dataContextName;
+		}) >= 0;
+		if (!tAlreadyPresent) {
+			await codapInterface.sendRequest({
 				action: 'create',
 				resource: 'dataContext',
 				values: {
 					name: this.feedbackNames.dataContextName,
-					collections: [ {
+					collections: [{
 						name: this.feedbackNames.collectionName,
 						attrs: [
-							{ name: this.feedbackNames.iterationName,
-							description: 'For each iteration a new set of weights is computed with the intent of improving the fit as measured by the cost.'},
-							{ name: this.feedbackNames.costName,
-							description: 'The cost is a measure of how how poorly the model fits the data. Lower cost means better fit.'}
+							{
+								name: this.feedbackNames.iterationName,
+								description: 'For each iteration a new set of weights is computed with the intent of improving the fit as measured by the cost.'
+							},
+							{
+								name: this.feedbackNames.costName,
+								description: 'The cost is a measure of how how poorly the model fits the data. Lower cost means better fit.'
+							}
 						]
 					}],
 				}
@@ -239,7 +252,7 @@ export class FeatureManager extends Component<FM_Props, {
 		}
 	}
 
-	private async makeFeedbackGraphs():Promise<string> {
+	private async makeFeedbackGraphs(): Promise<string> {
 		await codapInterface.sendRequest([
 			{
 				action: 'create',
@@ -275,35 +288,50 @@ export class FeatureManager extends Component<FM_Props, {
 		return 'made graph';
 	}
 
-	private async handleFittingProgress (iIteration:number, iCost:number, iWeights:number[]):Promise<string> {
-		if( iIteration === 3) {
-			await this.makeFeedbackGraphs();
+	private progressBar(iIteration: number) {
+		let tPercentDone = Math.round(100 * iIteration / this.state.iterations);
+		if( this.updatePercentageFunc)
+			this.updatePercentageFunc(tPercentDone);
+		this.setState({currentIteration: iIteration});
+		console.log(iIteration, tPercentDone);
+		if( iIteration >= this.state.iterations) {
+			this.showResults();
 		}
-		let tCaseValues:any = {};
-		tCaseValues[this.feedbackNames.iterationName] = iIteration;
-		tCaseValues[this.feedbackNames.costName] = iCost;
-		await codapInterface.sendRequest({
-			action: 'create',
-			resource: `dataContext[${this.feedbackNames.dataContextName}].collection[${this.feedbackNames.collectionName}].case`,
-			values: [{
-				values: tCaseValues
-			}]
-		});
+	}
 
-		// Add the given weights to the child collection of the Features dataset
-		// iWeights and this.featureTokenArray must be parallel so we can stash the current values of weights in the
-		//		child collection of the Features collection
-		let tCasesToAdd:any[] = [];
-		for( let i = 0; i < iWeights.length && i < this.featureTokenArray.length; i++) {
-			tCasesToAdd.push({ parent: this.featureTokenArray[i].featureCaseID,
-													values: { iteration: iIteration, trialWeight: iWeights[i]}})
+	private async handleFittingProgress(iIteration: number, iCost: number, iWeights: number[]): Promise<string> {
+		if (this.state.showWeightsGraph) {
+			if (iIteration === 3) {
+				await this.makeFeedbackGraphs();
+			}
+			let tCaseValues: any = {};
+			tCaseValues[this.feedbackNames.iterationName] = iIteration;
+			tCaseValues[this.feedbackNames.costName] = iCost;
+			await codapInterface.sendRequest({
+				action: 'create',
+				resource: `dataContext[${this.feedbackNames.dataContextName}].collection[${this.feedbackNames.collectionName}].case`,
+				values: [{
+					values: tCaseValues
+				}]
+			});
+
+			// Add the given weights to the child collection of the Features dataset
+			// iWeights and this.featureTokenArray must be parallel so we can stash the current values of weights in the
+			//		child collection of the Features collection
+			let tCasesToAdd: any[] = [];
+			for (let i = 0; i < iWeights.length && i < this.featureTokenArray.length; i++) {
+				tCasesToAdd.push({
+					parent: this.featureTokenArray[i].featureCaseID,
+					values: {iteration: iIteration, trialWeight: iWeights[i]}
+				})
+			}
+			await codapInterface.sendRequest({
+				action: 'create',
+				resource: `dataContext[${this.modelsDatasetName}].collection[iterations].case`,
+				values: tCasesToAdd
+			});
 		}
-		await codapInterface.sendRequest({
-			action: 'create',
-			resource: `dataContext[${this.modelsDatasetName}].collection[iterations].case`,
-			values: tCasesToAdd
-		});
-		return 'cases added';
+		return `iteration: ${iIteration}`;
 	}
 
 	/**
@@ -311,29 +339,27 @@ export class FeatureManager extends Component<FM_Props, {
 	 * @param iTools
 	 * @private
 	 */
-	private async showPredictedLabels(iTools:{
-				logisticModel: any,	// Will compute probabilities
-				oneHotData: number[][],
-				documents: any,
-				tokenArray: any,
-				classNames: string[]
-			})
-	{
+	private async showPredictedLabels(iTools: {
+		logisticModel: any,	// Will compute probabilities
+		oneHotData: number[][],
+		documents: any,
+		tokenArray: any,
+		classNames: string[]
+	}) {
 		let tOneHotLength = iTools.oneHotData[0].length,
-				tPosProbs:number[] = [],
-				tNegProbs:number[] = [],
-				tMapFromCaseIDToProbability:any = {};
+			tPosProbs: number[] = [],
+			tNegProbs: number[] = [],
+			tMapFromCaseIDToProbability: any = {};
 
-		function findThreshold(): { threshold:number, accuracy:number, kappa:number } {
+		function findThreshold(): { threshold: number, accuracy: number, kappa: number } {
 			// Determine the probability threshold that yields the fewest discrepant classifications
 			// First compute the probabilities separating them into two arrays
-			iTools.documents.forEach((aDoc:any, iIndex:number)=>{
-				let tProbability:number = iTools.logisticModel.transform(iTools.oneHotData[iIndex]),
-					tActual = iTools.oneHotData[iIndex][ tOneHotLength - 1];
-				if( tActual) {
+			iTools.documents.forEach((aDoc: any, iIndex: number) => {
+				let tProbability: number = iTools.logisticModel.transform(iTools.oneHotData[iIndex]),
+					tActual = iTools.oneHotData[iIndex][tOneHotLength - 1];
+				if (tActual) {
 					tPosProbs.push(tProbability);
-				}
-				else {
+				} else {
 					tNegProbs.push(tProbability);
 				}
 				// We will have to be able to lookup the probability later
@@ -343,26 +369,26 @@ export class FeatureManager extends Component<FM_Props, {
 			tNegProbs.sort();
 			let tCurrValue = tPosProbs[0],
 				tNegLength = tNegProbs.length,
-				tCurrMinDiscrepancies:number,
-				tStartingThreshold:number;
+				tCurrMinDiscrepancies: number,
+				tStartingThreshold: number;
 
 			// Return the index in tNegPros starting as given for the >= target probability
-			function findNegIndex( iStarting:number, iTargetProb:number):number {
-				while( tNegProbs[iStarting] < iTargetProb && iStarting < tNegLength) {
+			function findNegIndex(iStarting: number, iTargetProb: number): number {
+				while (tNegProbs[iStarting] < iTargetProb && iStarting < tNegLength) {
 					iStarting++;
 				}
 				return iStarting;
 			}
+
 			let tNegIndex = tNegProbs.findIndex((v: number) => {
 				return v > tCurrValue;
 			});
-			if(tNegIndex === -1) {
+			if (tNegIndex === -1) {
 				// Negative and Positive probabilities don't overlap
 				tCurrMinDiscrepancies = 0;
 				tNegIndex = tNegLength;
 				tStartingThreshold = (tNegProbs[tNegLength - 1] + tPosProbs[0]) / 2; // halfway
-			}
-			else {
+			} else {
 				tCurrMinDiscrepancies = Number.MAX_VALUE;
 				tStartingThreshold = tPosProbs[0];
 			}
@@ -373,76 +399,81 @@ export class FeatureManager extends Component<FM_Props, {
 				currMinDescrepancies: tCurrMinDiscrepancies,
 				threshold: tStartingThreshold
 			};
-			while(tRecord.negIndex < tNegLength) {
+			while (tRecord.negIndex < tNegLength) {
 				let tCurrDiscrepancies = tRecord.posIndex + (tNegLength - tRecord.negIndex);
-				if( tCurrDiscrepancies < tRecord.currMinDescrepancies) {
+				if (tCurrDiscrepancies < tRecord.currMinDescrepancies) {
 					tRecord.currMinDescrepancies = tCurrDiscrepancies;
 					tRecord.threshold = tPosProbs[tRecord.posIndex];
 				}
 				tRecord.posIndex++;
-				tRecord.negIndex = findNegIndex( tRecord.negIndex, tPosProbs[tRecord.posIndex]);
+				tRecord.negIndex = findNegIndex(tRecord.negIndex, tPosProbs[tRecord.posIndex]);
 			}
 			let tNumDocs = iTools.documents.length,
-					tObserved = (tNumDocs - tRecord.currMinDescrepancies),
-					tExpected = (tPosProbs.length * (tRecord.posIndex + tRecord.negIndex) +
-												tNegLength * (tPosProbs.length - tRecord.posIndex + tNegLength - tRecord.negIndex)) / tNumDocs,
-					tKappa = (tObserved - tExpected) / (tNumDocs - tExpected),
-					tAccuracy = tObserved / tNumDocs;
-			return { threshold: tRecord.threshold,
-								accuracy: tAccuracy, kappa: tKappa };
+				tObserved = (tNumDocs - tRecord.currMinDescrepancies),
+				tExpected = (tPosProbs.length * (tRecord.posIndex + tRecord.negIndex) +
+					tNegLength * (tPosProbs.length - tRecord.posIndex + tNegLength - tRecord.negIndex)) / tNumDocs,
+				tKappa = (tObserved - tExpected) / (tNumDocs - tExpected),
+				tAccuracy = tObserved / tNumDocs;
+			return {
+				threshold: tRecord.threshold,
+				accuracy: tAccuracy, kappa: tKappa
+			};
 		}
 
 		// Create values of predicted label and probability for each document
 		let tThresholdResult = findThreshold(),
-				tLabelValues: { id: number, values: any	}[] = [];
+			tLabelValues: { id: number, values: any }[] = [];
 		iTools.logisticModel.threshold = tThresholdResult.threshold;
 		iTools.logisticModel.accuracy = tThresholdResult.accuracy;
 		iTools.logisticModel.kappa = tThresholdResult.kappa;
-		iTools.documents.forEach((aDoc:any)=>{
-			let tProbability:number,
-					tPredictedLabel,
-					tValues:any = {},
-					tProbName = `probability of ${iTools.classNames[1]}`;
+		iTools.documents.forEach((aDoc: any) => {
+			let tProbability: number,
+				tPredictedLabel,
+				tValues: any = {},
+				tProbName = `probability of ${iTools.classNames[1]}`;
 			tProbability = tMapFromCaseIDToProbability[aDoc.caseID];
 			tPredictedLabel = tProbability >= tThresholdResult.threshold ? iTools.classNames[1] : iTools.classNames[0];
 			tValues[this.targetPredictedLabelAttributeName] = tPredictedLabel;
 			tValues[tProbName] = tProbability;
 
 			// For each document, stash the case ids of its features so we can link selection
-			let tFeatureIDsForThisDoc:number[] = [];
-			iTools.tokenArray.forEach((aToken:any)=>{
-				if(aDoc.tokens.findIndex((iFeature:any)=>{
+			let tFeatureIDsForThisDoc: number[] = [];
+			iTools.tokenArray.forEach((aToken: any) => {
+				if (aDoc.tokens.findIndex((iFeature: any) => {
 					return iFeature === aToken.token;
-				})>=0) {
+				}) >= 0) {
 					tFeatureIDsForThisDoc.push(aToken.featureCaseID);
 				}
 			});
-			tValues.featureIDs = JSON.stringify( tFeatureIDsForThisDoc);
+			tValues.featureIDs = JSON.stringify(tFeatureIDsForThisDoc);
 
-			tLabelValues.push( {
+			tLabelValues.push({
 				id: aDoc.caseID,
 				values: tValues
 			})
 		});
 		// Send the values to CODAP
-		await codapInterface.sendRequest( {
+		await codapInterface.sendRequest({
 			action: 'update',
-			resource:`dataContext[${this.targetDatasetName}].collection[${this.targetCollectionName}].case`,
+			resource: `dataContext[${this.targetDatasetName}].collection[${this.targetCollectionName}].case`,
 			values: tLabelValues
 		});
 	}
 
 
-
 	private async getTargetCollectionNames(): Promise<string[]> {
-		const tListResult:any = await codapInterface.sendRequest(
+		const tListResult: any = await codapInterface.sendRequest(
 			{
 				action: 'get',
-				resource:`dataContext[${this.targetDatasetName}].collectionList`
+				resource: `dataContext[${this.targetDatasetName}].collectionList`
 			}
 		)
-			.catch(() => { console.log('Error getting collection name')});
-		return tListResult.values.map((iValue:{name:string}) => { return iValue.name });
+			.catch(() => {
+				console.log('Error getting collection name')
+			});
+		return tListResult.values.map((iValue: { name: string }) => {
+			return iValue.name
+		});
 	}
 
 	/**
@@ -451,35 +482,54 @@ export class FeatureManager extends Component<FM_Props, {
 	 * @param iTokenArray
 	 * @private
 	 */
-	private async createModelsDataset( iTokenArray:any[]) {
+	private async createModelsDataset(iTokenArray: any[]) {
 		let this_ = this;
 
 		async function createNewDataset() {
 			let tModelAttributes = [
-					{ name: 'Model', description: 'Name of model. Can be edited.'},
-					{ name: 'Training Set', editable: false, description: 'Name of dataset used for training'},
-					{ name: 'Iterations', editable: false, description: 'Number of iterations used in training'},
-					{ name: 'Classes', editable: true, description: 'The two classification labels'},
-					{ name: 'Frequency Threshold', editable: false, description: 'Number of times something has to appear to be counted as a feature'},
-					{ name: 'Constant Weight', editable: false, description: 'The computed weight of the constant term in the model'},
-					{ name: 'Accuracy', editable: false, precision: 3,
-						description: 'Proportion of correct labels predicted during training'},
-					{ name: 'Kappa', editable: false, precision: 3,
-						description: 'Proportion of correctly predicted labels accounting for chance'},
-					{ name: 'Threshold', editable: false, precision: 4,
-						description: 'Probability at which a case is labeled positively'}
+					{name: 'Model', description: 'Name of model. Can be edited.'},
+					{name: 'Training Set', editable: false, description: 'Name of dataset used for training'},
+					{name: 'Iterations', editable: false, description: 'Number of iterations used in training'},
+					{name: 'Classes', editable: true, description: 'The two classification labels'},
+					{
+						name: 'Frequency Threshold',
+						editable: false,
+						description: 'Number of times something has to appear to be counted as a feature'
+					},
+					{
+						name: 'Constant Weight',
+						editable: false,
+						description: 'The computed weight of the constant term in the model'
+					},
+					{
+						name: 'Accuracy', editable: false, precision: 3,
+						description: 'Proportion of correct labels predicted during training'
+					},
+					{
+						name: 'Kappa', editable: false, precision: 3,
+						description: 'Proportion of correctly predicted labels accounting for chance'
+					},
+					{
+						name: 'Threshold', editable: false, precision: 4,
+						description: 'Probability at which a case is labeled positively'
+					}
 				],
 				tFeatureCollectionName = this_.featureCollectionName,
 				tFeatureAttributes = [
-					{ name: "feature", description: `A feature is something that comes from the ${this_.targetAttributeName} that can help in the classification process` },
-					{ name: "type", description: `The kind of feature (unigram, bigram, count, …)` },
-					{ name: "frequency", description: `The number of times the feature appears` },
-					{ name: "usages", hidden: true },
-					{ name: "weight",
+					{
+						name: "feature",
+						description: `A feature is something that comes from the ${this_.targetAttributeName} that can help in the classification process`
+					},
+					{name: "type", description: `The kind of feature (unigram, bigram, count, …)`},
+					{name: "frequency", description: `The number of times the feature appears`},
+					{name: "usages", hidden: true},
+					{
+						name: "weight",
 						precision: 5,
-						description: `A computed value that is proportional to the importance of the feature in the logistic regression classification model`}
+						description: `A computed value that is proportional to the importance of the feature in the logistic regression classification model`
+					}
 				],
-				tCollections = [ {
+				tCollections = [{
 					name: tModelsCollectionName,
 					title: tModelsCollectionName,
 					parent: '',
@@ -491,16 +541,20 @@ export class FeatureManager extends Component<FM_Props, {
 						parent: tModelsCollectionName,
 						attrs: tFeatureAttributes
 					}];
-			if(this_.logisticModel.trace)
+			if (this_.state.showWeightsGraph)
 				tCollections.push({
 					name: 'iterations',
 					title: 'iterations',
 					parent: tFeatureCollectionName,
-					attrs: [{name: 'iteration',
-						description: 'In each iteration of improving the model\'s fit to the data new weights for the features are computed.'},
-						{name:'trialWeight',
+					attrs: [{
+						name: 'iteration',
+						description: 'In each iteration of improving the model\'s fit to the data new weights for the features are computed.'
+					},
+						{
+							name: 'trialWeight',
 							description: 'In each iteration each feature is assigned a new trialWeight to improve the model\'s fit.',
-							precision: 5}]
+							precision: 5
+						}]
 				});
 			const tResult: any = await codapInterface.sendRequest(
 				{
@@ -530,15 +584,14 @@ export class FeatureManager extends Component<FM_Props, {
 		}
 
 		let tModelsDataContextNames = await getDatasetNamesWithFilter(isAModel),
-				tModelsDataSetName = this.modelsDatasetName,
-				tModelsCollectionName = this.modelCollectionName,
-				tModelDatasetAlreadyExists = tModelsDataContextNames.indexOf(tModelsDataSetName) >= 0,
-				tNumPreexistingModels = 0;
+			tModelsDataSetName = this.modelsDatasetName,
+			tModelsCollectionName = this.modelCollectionName,
+			tModelDatasetAlreadyExists = tModelsDataContextNames.indexOf(tModelsDataSetName) >= 0,
+			tNumPreexistingModels = 0;
 
-		if(tModelDatasetAlreadyExists) {
+		if (tModelDatasetAlreadyExists) {
 			tNumPreexistingModels = await getCaseCount(tModelsDataSetName, tModelsCollectionName);
-		}
-		else {
+		} else {
 			await createNewDataset();
 		}
 
@@ -574,30 +627,30 @@ export class FeatureManager extends Component<FM_Props, {
 		});
 		this.featureCaseCount = iTokenArray.length;	// For feedback to user
 		// Send the data to the feature dataset
-		let tFeatureCaseIDs:any = await  codapInterface.sendRequest({
+		let tFeatureCaseIDs: any = await codapInterface.sendRequest({
 			action: 'create',
 			resource: `dataContext[${this.modelsDatasetName}].collection[${this.featureCollectionName}].case`,
 			values: tFeaturesValues
 		});
-		tFeatureCaseIDs = tFeatureCaseIDs.values.map((aResult:any)=> {
+		tFeatureCaseIDs = tFeatureCaseIDs.values.map((aResult: any) => {
 			return aResult.id;
 		});
 		// Add these feature case IDs to their corresponding tokens in the tokenArray
-		for(let i = 0; i < tFeatureCaseIDs.length; i++) {
+		for (let i = 0; i < tFeatureCaseIDs.length; i++) {
 			iTokenArray[i].featureCaseID = tFeatureCaseIDs[i];
 		}
 	}
 
-	private async updateWeights( iTokens:any, iWeights:number[]) {
-		let tFeaturesValues:any[] = [];
-		iTokens.forEach((aToken:any, iIndex:number) => {
+	private async updateWeights(iTokens: any, iWeights: number[]) {
+		let tFeaturesValues: any[] = [];
+		iTokens.forEach((aToken: any, iIndex: number) => {
 			let tOneFeatureUpdate: any = {
 				id: aToken.featureCaseID,
 				values: {
 					weight: iWeights[iIndex]
 				}
 			};
-			tFeaturesValues.push( tOneFeatureUpdate);
+			tFeaturesValues.push(tOneFeatureUpdate);
 		});
 		await codapInterface.sendRequest({
 			action: 'update',
@@ -612,8 +665,8 @@ export class FeatureManager extends Component<FM_Props, {
 	 */
 	private async updateModelTopLevelInfo() {
 		const tModelsDataSetName = this.modelsDatasetName,
-					tModelsCollectionName = this.modelCollectionName;
-		await codapInterface.sendRequest( {
+			tModelsCollectionName = this.modelCollectionName;
+		await codapInterface.sendRequest({
 			action: "update",
 			resource: `dataContext[${tModelsDataSetName}].collection[${tModelsCollectionName}].case`,
 			values: [{
@@ -635,14 +688,13 @@ export class FeatureManager extends Component<FM_Props, {
 			});
 	}
 
-	private async addFeatures( ) {
-		this.logisticModel.trace = this.state.showWeightsGraph;
+	private async buildModel() {
 		this.logisticModel.iterations = this.state.iterations;
-		this.targetCaseCount = await getCaseCount( this.targetDatasetName, this.targetCollectionName);
+		this.targetCaseCount = await getCaseCount(this.targetDatasetName, this.targetCollectionName);
 		let // tClassifier = this.nbClassifier,
-				tDocuments: {example:string, class:string, caseID:number}[] = [],
-				tZeroClassName: string,
-				tOneClassName:string;
+			tDocuments: { example: string, class: string, caseID: number }[] = [],
+			tZeroClassName: string,
+			tOneClassName: string;
 		// Grab the strings in the target collection that are the values of the target attribute.
 		// Stash these in an array that can be used to produce a oneHot representation
 		for (let i = 0; i < this.targetCaseCount; i++) {
@@ -656,43 +708,59 @@ export class FeatureManager extends Component<FM_Props, {
 
 			let tCaseID = tGetResult.values.case.id,
 				tText: string = tGetResult.values.case.values[this.targetAttributeName],
-				tClass: string = tGetResult.values.case.values[this.classAttributeName];
+				tClass: string = tGetResult.values.case.values[this.targetClassAttributeName];
 			// tClassifier.learn(tText, tClass);	// NaiveBayes can learn as we go along
 			tDocuments.push({example: tText, class: tClass, caseID: tCaseID});
 		}
 		// Arbitrarily assume the first class name represents the "zero" class and the first
 		// different class name represents the "one" class
 		this.targetCategories[0] = tZeroClassName = tDocuments[0].class;
-		let tDocOfOtherClass:any = tDocuments.find(aDoc=>{
+		let tDocOfOtherClass: any = tDocuments.find(aDoc => {
 			return aDoc.class !== tZeroClassName;
 		});
 		this.targetCategories[1] = tOneClassName = tDocOfOtherClass.class;
 
 		// Now that we know the class name we're predicting, we can add attributes to the target dataset
-		await addAttributesToTarget( tOneClassName, this.targetDatasetName || '',
+		await addAttributesToTarget(tOneClassName, this.targetDatasetName || '',
 			this.targetCollectionName, this.targetPredictedLabelAttributeName);
 
 		// Logistic can't happen until we've isolated the features and produced a oneHot representation
 		// Also, the logisticModel.fit function requires that the class value (0 or 1) be the
 		// last element of each oneHot.
 		let tOneHot = oneHot({frequencyThreshold: this.state.frequencyThreshold - 1},
-												tDocuments),
-				tData:number[][] = [];
-		tOneHot.oneHotResult.forEach(iResult=>{
-			iResult.oneHotExample.push( iResult.class === tZeroClassName ? 0 : 1);
+			tDocuments),
+			tData: number[][] = [];
+		tOneHot.oneHotResult.forEach(iResult => {
+			iResult.oneHotExample.push(iResult.class === tZeroClassName ? 0 : 1);
 			tData.push(iResult.oneHotExample);
 		});
 
 		// By creating the features data set now we give the user an indication that something is happening
-		await this.createModelsDataset( tOneHot.tokenArray);
+		await this.createModelsDataset(tOneHot.tokenArray);
 		// We have to stash the tokenArray for use in handleFittingProgress which is a callback
 		this.featureTokenArray = tOneHot.tokenArray;
 
 		// Fit a logistic model to the data
-		if( this.logisticModel.trace) {
+		if (this.state.showWeightsGraph) {
 			await this.setupFeedbackDataset(); // So we can display fitting progress as a graph
 		}
-		let tTrainedModel:any = await this.logisticModel.fit(tData);
+
+		// The fitting process is asynchronous so we fire it off here
+		this.logisticModel.fit(tData);
+		this.logisticModel._data = tData;
+		this.logisticModel._oneHot = tOneHot;
+		this.logisticModel._documents = tDocuments;
+	}
+
+	/**
+	 * We get here from progressBar when we detect that the iterations are completed
+	 * @private
+	 */
+	private async showResults() {
+		let tTrainedModel = this.logisticModel.fitResult,
+				tData = this.logisticModel._data,
+				tOneHot = this.logisticModel._oneHot,
+				tDocuments = this.logisticModel._documents;
 		await this.updateWeights(tOneHot.tokenArray, tTrainedModel.theta);
 
 		// In the target dataset we're going to add two attributes: "predicted label" and "probability of clickbait"
@@ -702,64 +770,111 @@ export class FeatureManager extends Component<FM_Props, {
 			oneHotData: tData,
 			documents: tDocuments,
 			tokenArray: tOneHot.tokenArray,
-			classNames: [tZeroClassName, tOneClassName]
+			classNames: this.targetCategories
 		}
 		await this.showPredictedLabels(tPredictionTools);
 
 		await this.updateModelTopLevelInfo();
 
 		// Clean up a bit
+		delete this.logisticModel._data;
+		delete this.logisticModel._oneHot;
+		delete this.logisticModel._documents;
 		this.featureTokenArray = [];
+		await this.getTextFeedbackManager().addTextComponent();
+		this.setState({status: 'finished'});
 	}
 
 	private async extract(iTargetDatasetName: string | null) {
+		this.setState({status: 'inProgress'});
+		this.logisticModel.trace = this.state.showWeightsGraph;
 		this.targetDatasetName = iTargetDatasetName;
 		let tCollectionNames = await this.getTargetCollectionNames();
 		// todo: arbitrary assumption that target dataset is initially flat
-		if( tCollectionNames.length === 1) {
+		if (tCollectionNames.length === 1) {
 			this.targetCollectionName = tCollectionNames[0];
 			// todo: arbitrary assumption of column positions!
-			this.targetAttributeName = await getAttributeNameByIndex( this.targetDatasetName || '',
+			this.targetAttributeName = await getAttributeNameByIndex(this.targetDatasetName || '',
 				this.targetCollectionName, 0);
-			this.classAttributeName = await getAttributeNameByIndex(this.targetDatasetName || '',
+			this.targetClassAttributeName = await getAttributeNameByIndex(this.targetDatasetName || '',
 				this.targetCollectionName, 1);
-			await this.addFeatures();
-			await this.getTextFeedbackManager().addTextComponent();
-			this.setState({count: this.state.count + 1, status: 'finished'});
-		}
-		else {
-			this.setState({count: this.state.count + 1, status:'error'})
+			await this.buildModel();
+		} else {
+			this.setState({count: this.state.count + 1, status: 'error'})
 		}
 	}
 
+	private setUpdatePercentageFunc( iFunc: (p:number) => void) {
+		this.updatePercentageFunc = iFunc;
+	}
+
 	private renderForActiveState() {
-		let dataSetControl:any,
-				tNumNames = this.datasetNames.length;
-		if( tNumNames === 0) {
-			dataSetControl = <p>-- No datasets found --</p>
+		let this_ = this,
+			dataSetControl: any,
+			tInProgress = this.state.status === 'inProgress',
+			progressIndicator = tInProgress ?
+				<div>
+					<ProgressBar
+						percentComplete={Math.round(100*this.state.currentIteration/this.state.iterations)}
+						setUpdatePercentage={this.setUpdatePercentageFunc}
+					/>
+				</div>
+				: ''
+		;
+
+		function propertyControl(listOfNames: string[], propName: string, prompt: string, noneFoundPrompt: string) {
+			if (listOfNames.length === 1)
+				this_[propName] = listOfNames[0];
+			if (this_[propName] !== '') {
+				return (
+					<p>{prompt}<strong>{this_[propName]}</strong></p>
+				);
+			} else if (listOfNames.length === 0) {
+				return (
+					<p>{prompt}<em>{noneFoundPrompt}</em></p>
+				)
+			} else {
+				return (
+					<DropdownButton as={ButtonGroup} key='Secondary'
+													title="Choose One" size="sm" variant="secondary">
+						{listOfNames.map((aName, iIndex) => {
+							return <Dropdown.Item as="button" key={String(iIndex)}
+																		eventKey={aName} onSelect={(iName: any) => {
+								this_[propName] = iName;
+								this_.setState({count: this_.state.count + 1})
+							}
+							}>
+								{aName}</Dropdown.Item>
+						})}
+					</DropdownButton>
+				);
+			}
 		}
-		else if (tNumNames === 1) {
-			let this_ = this,
-					tName = this.datasetNames[0];
-			dataSetControl =
-				<button
-					className= 'sq-button'
-					onClick={() => {
-						this_.extract(tName);
-					}}
-				>Analyze {tName}
-				</button>
+
+		dataSetControl = propertyControl(this.datasetNames,
+			'targetDatasetName', 'Training set: ',
+			'No training set found');
+
+		function doItButton() {
+			if (this_.targetDatasetName === '') {
+				return (
+					<div>
+						<p>Cannot train a model without a training set.</p>
+					</div>
+				);
+			} else {
+				return (
+					<div>
+						<br/><br/>
+						<Button onClick={() => {
+							this_.extract(this_.targetDatasetName);
+						}} variant="outline-primary">Train using {this_.targetDatasetName}</Button>
+					</div>
+				);
+			}
+
 		}
-		else {
-			dataSetControl = <DropdownButton as={ButtonGroup} key='Secondary'
-																			 title="Choose One" size="sm" variant="secondary">
-				{this.datasetNames.map((aName, iIndex) => {
-					return <Dropdown.Item as="button" key={String(iIndex)}
-																eventKey={aName} onSelect={this.extract}>
-						{aName}</Dropdown.Item>
-				})}
-			</DropdownButton>
-		}
+
 		return (<div className='sq-options'>
 			<p>Extract features and train model for a dataset.</p>
 			<p> {'Iterations: '}
@@ -787,8 +902,9 @@ export class FeatureManager extends Component<FM_Props, {
 				/>
 				{' Show progress graphs'}
 			</p>
-			Dataset: {dataSetControl}
-
+			{dataSetControl}
+			{doItButton()}
+			{progressIndicator}
 		</div>)
 	}
 
@@ -800,9 +916,9 @@ export class FeatureManager extends Component<FM_Props, {
 			<p>Feature weights were computed by a logistic regression model.</p>
 			<p>Iterations = {this.state.iterations}</p>
 			<p>Frequency threshold = {this.state.frequencyThreshold}</p>
-			<p>Accuracy = {Math.round(this.logisticModel.accuracy * 1000)/1000}</p>
-			<p>Kappa = {Math.round(this.logisticModel.kappa * 1000)/1000}</p>
-			<p>Threshold = {Math.round(this.logisticModel.threshold * 10000)/10000}</p>
+			<p>Accuracy = {Math.round(this.logisticModel.accuracy * 1000) / 1000}</p>
+			<p>Kappa = {Math.round(this.logisticModel.kappa * 1000) / 1000}</p>
+			<p>Threshold = {Math.round(this.logisticModel.threshold * 10000) / 10000}</p>
 		</div>
 	}
 
@@ -810,7 +926,7 @@ export class FeatureManager extends Component<FM_Props, {
 		return <div>
 			<p>Sorry but something isn't set up correctly.</p>
 			<p>Currently we can only handle text analysis with a flat dataset with the text in the first
-			column.</p>
+				column.</p>
 		</div>
 	}
 
@@ -819,6 +935,7 @@ export class FeatureManager extends Component<FM_Props, {
 			case 'error':
 				return FeatureManager.renderForErrorState();
 			case 'active':
+			case 'inProgress':
 				return this.renderForActiveState();
 			case 'finished':
 			default:

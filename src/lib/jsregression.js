@@ -134,9 +134,11 @@ export var LogisticRegression = function(config) {
     this.iterations = config.iterations;
     this.trace = config.trace;
     this.progressCallback = config.progressCallback;
+    this.feedbackCallback = config.feedbackCallback;
   }
 
   LogisticRegression.prototype.fit = async function(data) {
+    var this_ = this;
     this.dim = data[0].length;
     var N = data.length;
 
@@ -159,29 +161,40 @@ export var LogisticRegression = function(config) {
       this.theta.push(0.0);
     }
 
-    for(var iter = 0; iter < this.iterations; ++iter){
-      var theta_delta = this.grad(X, Y, this.theta);
-      for(var d = 0; d < this.dim; ++d){
-        this.theta[d] = this.theta[d] - this.alpha * theta_delta[d];
+    async function oneIteration(iIteration) {
+      if( iIteration < this_.iterations) {
+        var theta_delta = this_.grad(X, Y, this_.theta);
+        for(var d = 0; d < this_.dim; ++d){
+          this_.theta[d] = this_.theta[d] - this_.alpha * theta_delta[d];
+        }
+        if( this_.progressCallback)
+          await this_.progressCallback(iIteration);
+        if(this_.trace) {
+          var tCost = this_.cost(X, Y, this_.theta);
+          if( this_.feedbackCallback)
+            await this_.feedbackCallback(iIteration, tCost, this_.theta.slice(1));
+        }
+        setTimeout(function() {
+          oneIteration(iIteration + 1);
+        },10);
       }
-      if(this.trace) {
-        var tCost = this.cost(X, Y, this.theta);
-        // console.log(iter, tCost);
-        if( this.progressCallback)
-          await this.progressCallback(iter, tCost, this.theta.slice(1));
+      else {
+        // Note that the zeroth element of theta is the weight of the constant term. We slice that off
+        this_.fitResult = {
+          theta: this_.theta.slice(1),
+          cost: this_.cost(X, Y, this_.theta),
+          config: {
+            alpha: this_.alpha,
+            lambda: this_.lambda,
+            iterations: this_.iterations
+          }
+        }
+        if( this_.progressCallback(iIteration));
       }
     }
 
-    // Note that the zeroth element of theta is the weight of the constant term. We slice that off
-    return {
-      theta: this.theta.slice(1),
-      cost: this.cost(X, Y, this.theta),
-      config: {
-        alpha: this.alpha,
-        lambda: this.lambda,
-        iterations: this.iterations
-      }
-    }
+    oneIteration(0);
+
   };
 
   LogisticRegression.prototype.grad = function(X, Y, theta) {
