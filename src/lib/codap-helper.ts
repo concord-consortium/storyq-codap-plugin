@@ -109,6 +109,18 @@ export async function getSelectedCasesFrom(iDatasetName: string | null): Promise
 	return tSelectedCases;
 }
 
+/**
+ * Deselect all cases
+ * @param iDatasetName
+ */
+export async function deselectAllCasesIn(iDatasetName:string | null) {
+	await codapInterface.sendRequest({
+		action: 'update',
+		resource: `dataContext[${iDatasetName}].selectionList`,
+		values: []
+	});
+}
+
 export async function getCaseCount(iDatasetName: string | null, iCollectionName: string | null): Promise<number> {
 	const tCountResult: any = await codapInterface.sendRequest(
 		{

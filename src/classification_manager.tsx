@@ -9,7 +9,7 @@ import React, {Component} from 'react';
 import codapInterface, {CODAP_Notification} from "./lib/CodapInterface";
 import {
 	getCaseCount, getCollectionNames,
-	getDatasetNamesWithFilter, getAttributeNameByIndex, isAModel, isNotAModel
+	getDatasetNamesWithFilter, getAttributeNameByIndex, isAModel, isNotAModel, deselectAllCasesIn
 } from './lib/codap-helper';
 import Dropdown from 'react-bootstrap/Dropdown';
 import DropdownButton from 'react-bootstrap/DropdownButton';
@@ -149,6 +149,9 @@ export class ClassificationManager extends Component<Classification_Props, {
 		this.setState({status: iStorage.status || 'testing'})
 	}
 
+	/**
+	 * Lazy instantiation since we can't properly initizlize until we've chosen a model and dataset of phrases
+	 */
 	private getTextFeedbackManager(): TextFeedbackManager {
 		if (!this.textFeedbackManager) {
 			this.textFeedbackManager = new TextFeedbackManager(this.modelCategories, this.targetAttributeName);
@@ -156,20 +159,6 @@ export class ClassificationManager extends Component<Classification_Props, {
 		return this.textFeedbackManager;
 	}
 
-/*
-	private async getModelNames():Promise<string[]> {
-		let this_ = this,
-				tModelDatasetNames = await getDatasetNamesWithFilter(isAModel),
-				tModelNames:string[] = [];
-		tModelDatasetNames.forEach((iDatasetName) =>{
-			let tCollectionNames = await codapInterface.sendRequest({
-
-			})
-		});
-		return tModelNames;
-	}
-
-*/
 	/**
 	 *
 	 * @param iNotification    (from CODAP)
@@ -177,7 +166,10 @@ export class ClassificationManager extends Component<Classification_Props, {
 	private async handleNotification(iNotification: CODAP_Notification) {
 		if (iNotification.action === 'notify' && iNotification.values.operation === 'dataContextCountChanged') {
 			this.modelDatasetNames = await getDatasetNamesWithFilter(isAModel);
-			this.targetDatasetNames = await getDatasetNamesWithFilter(isNotAModel)
+			this.targetDatasetNames = await getDatasetNamesWithFilter(isNotAModel);
+			// Force next render to allow choices if they exist
+			this.modelsDatasetName = '';
+			this.targetDatasetName = '';
 			this.setState({count: this.state.count + 1});
 		}
 		else if (iNotification.action === 'notify' && iNotification.values.operation === 'selectCases') {
@@ -355,6 +347,8 @@ export class ClassificationManager extends Component<Classification_Props, {
 				this.targetCollectionName, 1);
 		}
 
+		deselectAllCasesIn(this.targetDatasetName);
+		deselectAllCasesIn(this.modelsDatasetName);
 		await buildModelFromDataset();
 		await addUsagesAttributeToModelDataset();
 		await this.addAttributesToTarget();
@@ -383,7 +377,7 @@ export class ClassificationManager extends Component<Classification_Props, {
 			} else {
 				return (
 					<DropdownButton as={ButtonGroup} key='Secondary'
-													title="Choose One" size="sm" variant="secondary">
+													title={prompt} size="sm" variant="secondary">
 						{listOfNames.map((aName, iIndex) => {
 							return <Dropdown.Item as="button" key={String(iIndex)}
 																		eventKey={aName} onSelect={(iName: any) => {
@@ -412,13 +406,13 @@ export class ClassificationManager extends Component<Classification_Props, {
 			if (this_.targetDatasetName === '' && this_.modelsDatasetName === '') {
 				return (
 					<div>
-						<p>Cannot classify without both a model and phrases.</p>
+						<p>Cannot classify without both a model and phrases to classify.</p>
 					</div>
 				);
 			} else 			if (this_.targetDatasetName === '') {
 				return (
 					<div>
-						<p>Cannot classify without phrases.</p>
+						<p>Cannot classify without phrases to classify.</p>
 					</div>
 				);
 			} else if (this_.modelsDatasetName === '') {

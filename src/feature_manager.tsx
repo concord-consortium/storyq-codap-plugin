@@ -3,7 +3,7 @@ import pluralize from 'pluralize';
 //import naiveBaseClassifier from './lib/NaiveBayesClassifier';
 import codapInterface, {CODAP_Notification} from "./lib/CodapInterface";
 import {
-	addAttributesToTarget,
+	addAttributesToTarget, deselectAllCasesIn,
 	getAttributeNameByIndex,
 	getCaseCount,
 	getDatasetNamesWithFilter, isAModel,
@@ -197,7 +197,10 @@ export class FeatureManager extends Component<FM_Props, {
 	private async handleNotification(iNotification: CODAP_Notification) {
 		if (iNotification.action === 'notify' && iNotification.values.operation === 'dataContextCountChanged') {
 			this.datasetNames = await getDatasetNamesWithFilter(isNotAModel);
-			this.setState({count: this.state.count + 1});
+			if( this.state.status !== 'inProgress') {
+				this.targetDatasetName = '';	// So on next render we'll get a list
+				this.setState({count: this.state.count + 1});
+			}
 		} else if (iNotification.action === 'notify' && iNotification.values.operation === 'selectCases') {
 			// @ts-ignore
 			let tDataContextName: string = iNotification.resource && iNotification.resource.match(/\[(.+)]/)[1];
@@ -798,6 +801,7 @@ export class FeatureManager extends Component<FM_Props, {
 				this.targetCollectionName, 0);
 			this.targetClassAttributeName = await getAttributeNameByIndex(this.targetDatasetName || '',
 				this.targetCollectionName, 1);
+			await deselectAllCasesIn(this.targetDatasetName);
 			await this.buildModel();
 		} else {
 			this.setState({count: this.state.count + 1, status: 'error'})
@@ -836,7 +840,7 @@ export class FeatureManager extends Component<FM_Props, {
 			} else {
 				return (
 					<DropdownButton as={ButtonGroup} key='Secondary'
-													title="Choose One" size="sm" variant="secondary">
+													title={prompt} size="sm" variant="secondary">
 						{listOfNames.map((aName, iIndex) => {
 							return <Dropdown.Item as="button" key={String(iIndex)}
 																		eventKey={aName} onSelect={(iName: any) => {
@@ -851,12 +855,17 @@ export class FeatureManager extends Component<FM_Props, {
 			}
 		}
 
-		dataSetControl = propertyControl(this.datasetNames,
+		dataSetControl = tInProgress ?
+			(<p>Training with <strong>{this.targetDatasetName}</strong></p>)
+			:
+			propertyControl(this.datasetNames,
 			'targetDatasetName', 'Training set: ',
 			'No training set found');
 
 		function doItButton() {
-			if (this_.targetDatasetName === '') {
+			if(tInProgress)
+				return '';
+			else if (this_.targetDatasetName === '') {
 				return (
 					<div>
 						<p>Cannot train a model without a training set.</p>
