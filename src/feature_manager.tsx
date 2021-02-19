@@ -17,7 +17,7 @@ import {oneHot} from "./lib/one_hot";
 import './storyq.css';
 // import NaiveBayesClassifier from "./lib/NaiveBayesClassifier";
 import {LogisticRegression} from './lib/jsregression';
-import TextFeedbackManager from "./text_feedback_manager";
+import TextFeedbackManager, {TFMStorage} from "./text_feedback_manager";
 import {ProgressBar} from "./progress_bar";
 import Button from "react-bootstrap/Button";
 
@@ -34,6 +34,7 @@ export interface FM_Props {
 }
 
 interface FMStorage {
+	textFeedbackManagerStorage: TFMStorage | null,
 	datasetName: string | null,
 	collectionName: string,
 	targetAttributeName: string,
@@ -46,11 +47,10 @@ interface FMStorage {
 	modelCurrentParentCaseID: number,
 	modelCollectionName: string,
 	featureCaseCount: number,
-	textComponentName: string,
-	textComponentID: number,
 	modelAccuracy: number,
 	modelKappa: number,
 	modelThreshold: number,
+	lockIntercept: boolean,
 	status: string
 
 }
@@ -61,6 +61,7 @@ export class FeatureManager extends Component<FM_Props, {
 	iterations: number,
 	currentIteration: number,
 	frequencyThreshold: number,
+	lockIntercept:boolean,
 	showWeightsGraph: boolean
 }> {
 	[indexindex: string]: any;
@@ -80,8 +81,6 @@ export class FeatureManager extends Component<FM_Props, {
 	private modelCurrentParentCaseID = 0;
 	private featureCollectionName = 'features';
 	private featureCaseCount = 0;
-	private textComponentName = 'Selected';
-	private textComponentID = 0;
 	private subscriberIndex: number = -1;
 	// private nbClassifier: NaiveBayesClassifier;
 	// Some flags to prevent recursion in selecting features or target cases
@@ -117,6 +116,7 @@ export class FeatureManager extends Component<FM_Props, {
 			iterations: 50,
 			currentIteration: 0,
 			frequencyThreshold: 4,
+			lockIntercept: false,
 			showWeightsGraph: false
 		};
 		this.updatePercentageFunc = null;
@@ -148,6 +148,7 @@ export class FeatureManager extends Component<FM_Props, {
 
 	public createStorage(): FMStorage {
 		return {
+			textFeedbackManagerStorage: this.textFeedbackManager ? this.textFeedbackManager.createStorage() : null,
 			datasetName: this.targetDatasetName,
 			collectionName: this.targetCollectionName,
 			targetAttributeName: this.targetAttributeName,
@@ -160,11 +161,10 @@ export class FeatureManager extends Component<FM_Props, {
 			modelCurrentParentCaseID: this.modelCurrentParentCaseID,
 			featureCollectionName: this.featureCollectionName,
 			featureCaseCount: this.featureCaseCount,
-			textComponentName: this.textComponentName,
-			textComponentID: this.textComponentID,
 			modelAccuracy: this.logisticModel.accuracy,
 			modelKappa: this.logisticModel.kappa,
 			modelThreshold: this.logisticModel.threshold,
+			lockIntercept: this.state.lockIntercept,
 			status: this.state.status
 		}
 	}
@@ -182,12 +182,12 @@ export class FeatureManager extends Component<FM_Props, {
 		this.modelCurrentParentCaseID = iStorage.modelCurrentParentCaseID;
 		this.featureCollectionName = iStorage.featureCollectionName;
 		this.featureCaseCount = iStorage.featureCaseCount;
-		this.textComponentName = iStorage.textComponentName;
-		this.textComponentID = iStorage.textComponentID;
 		this.logisticModel.accuracy = iStorage.modelAccuracy;
 		this.logisticModel.kappa = iStorage.modelKappa;
 		this.logisticModel.threshold = iStorage.modelThreshold;
-		this.setState({status: iStorage.status || 'active', count: this.state.count})
+		this.getTextFeedbackManager().restoreStorage(iStorage.textFeedbackManagerStorage);
+		this.setState({lockIntercept: iStorage.lockIntercept || false});
+		this.setState({status: iStorage.status || 'active'});
 	}
 
 	/**
@@ -296,7 +296,6 @@ export class FeatureManager extends Component<FM_Props, {
 		if( this.updatePercentageFunc)
 			this.updatePercentageFunc(tPercentDone);
 		this.setState({currentIteration: iIteration});
-		console.log(iIteration, tPercentDone);
 		if( iIteration >= this.state.iterations) {
 			this.showResults();
 		}
@@ -678,6 +677,7 @@ export class FeatureManager extends Component<FM_Props, {
 					"Training Set": this.targetDatasetName,
 					"Iterations": this.state.iterations,
 					"Frequency Threshold": this.state.frequencyThreshold,
+					"Lock Intercept": this.state.lockIntercept,
 					"Classes": JSON.stringify(this.targetCategories),
 					"Constant Weight": this.logisticModel.theta[0],
 					"Accuracy": this.logisticModel.accuracy,
@@ -693,6 +693,7 @@ export class FeatureManager extends Component<FM_Props, {
 
 	private async buildModel() {
 		this.logisticModel.iterations = this.state.iterations;
+		this.logisticModel.lockIntercept = this.state.lockIntercept;
 		this.targetCaseCount = await getCaseCount(this.targetDatasetName, this.targetCollectionName);
 		let // tClassifier = this.nbClassifier,
 			tDocuments: { example: string, class: string, caseID: number }[] = [],
@@ -717,6 +718,7 @@ export class FeatureManager extends Component<FM_Props, {
 		}
 		// Arbitrarily assume the first class name represents the "zero" class and the first
 		// different class name represents the "one" class
+		// Todo: Give user control over which is which
 		this.targetCategories[0] = tZeroClassName = tDocuments[0].class;
 		let tDocOfOtherClass: any = tDocuments.find(aDoc => {
 			return aDoc.class !== tZeroClassName;
@@ -910,6 +912,16 @@ export class FeatureManager extends Component<FM_Props, {
 						this.setState({showWeightsGraph: event.target.checked})}
 				/>
 				{' Show progress graphs'}
+			</p>
+			<p>
+				<input
+					type="checkbox"
+					value=''
+					checked={this.state.lockIntercept}
+					onChange={event =>
+						this.setState({lockIntercept: event.target.checked})}
+				/>
+				{' Lock intercept at zero'}
 			</p>
 			{dataSetControl}
 			{doItButton()}

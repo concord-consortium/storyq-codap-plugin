@@ -11,6 +11,11 @@ import {phraseToFeatures, textToObject} from "./utilities";
 import {ClassificationManager} from "./classification_manager";
 import {FeatureManager} from "./feature_manager";
 
+export interface TFMStorage {
+	textComponentName:string,
+	textComponentID:number
+}
+
 export default class TextFeedbackManager {
 
 	public textComponentName:string = '';
@@ -25,6 +30,20 @@ export default class TextFeedbackManager {
 		this.targetAttributeName = iTargetAttributeName;
 		this.headingsManager = new HeadingsManager(this.targetCategories[0], this.targetCategories[1],
 			'','Actual', 'Predicted');
+	}
+
+	public createStorage():TFMStorage {
+		return {
+			textComponentName: this.textComponentName,
+			textComponentID: this.textComponentID
+		}
+	}
+
+	public restoreStorage( iStorage:TFMStorage | null) {
+		if( iStorage) {
+			this.textComponentName = iStorage.textComponentName;
+			this.textComponentID = iStorage.textComponentID;
+		}
 	}
 
 	/**
@@ -112,18 +131,19 @@ export default class TextFeedbackManager {
 			resource: `component[${this.textComponentID}]`,
 			values: {
 				text: {
-					document: {
-						children: [
+					"object": "value",
+					"document": {
+						"children": [
 							{
-								type: "paragraph",
-								children: [
+								"type": "paragraph",
+								"children": [
 									{
-										text: `This is where selected ${pluralize(this.targetAttributeName)} appear.`
+										"text": `This is where selected ${pluralize(this.targetAttributeName)} appear.`
 									}
 								]
 							}
 						],
-						objTypes: {
+						"objTypes": {
 							"paragraph": "block"
 						}
 					}

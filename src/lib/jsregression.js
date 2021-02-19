@@ -129,6 +129,7 @@ export var LogisticRegression = function(config) {
       config.lambda = 0;
     }
     if (!config.trace) { config.trace = false;}
+    this.lockIntercept = config.lockIntercept;
     this.alpha = config.alpha;
     this.lambda = config.lambda;
     this.iterations = config.iterations;
@@ -144,11 +145,12 @@ export var LogisticRegression = function(config) {
 
     var X = [];
     var Y = [];
+    var constant = this.lockIntercept ? 0 : 1;
     for(var i=0; i < N; ++i){
       var row = data[i];
       var x_i = [];
       var y_i = row[row.length-1];
-      x_i.push(1.0);
+      x_i.push(constant);
       for(var j=0; j < row.length-1; ++j){
         x_i.push(row[j]);
       }
