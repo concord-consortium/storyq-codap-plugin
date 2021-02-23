@@ -289,6 +289,7 @@ export default class TextFeedbackManager {
 				resource: `component[${this.textComponentID}]`,
 				values: {
 					text: {
+						"object": "value",
 						document: {
 							children: tItems,
 							objTypes: {
