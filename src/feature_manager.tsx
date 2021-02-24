@@ -51,6 +51,7 @@ interface FMStorage {
 	modelKappa: number,
 	modelThreshold: number,
 	lockIntercept: boolean,
+	lockProbThreshold:boolean,
 	status: string
 
 }
@@ -62,6 +63,7 @@ export class FeatureManager extends Component<FM_Props, {
 	currentIteration: number,
 	frequencyThreshold: number,
 	lockIntercept:boolean,
+	lockProbThreshold:boolean,
 	showWeightsGraph: boolean
 }> {
 	[indexindex: string]: any;
@@ -117,6 +119,7 @@ export class FeatureManager extends Component<FM_Props, {
 			currentIteration: 0,
 			frequencyThreshold: 4,
 			lockIntercept: false,
+			lockProbThreshold: false,
 			showWeightsGraph: false
 		};
 		this.updatePercentageFunc = null;
@@ -165,6 +168,7 @@ export class FeatureManager extends Component<FM_Props, {
 			modelKappa: this.logisticModel.kappa,
 			modelThreshold: this.logisticModel.threshold,
 			lockIntercept: this.state.lockIntercept,
+			lockProbThreshold: this.state.lockProbThreshold,
 			status: this.state.status
 		}
 	}
@@ -187,6 +191,7 @@ export class FeatureManager extends Component<FM_Props, {
 		this.logisticModel.threshold = iStorage.modelThreshold;
 		this.getTextFeedbackManager().restoreStorage(iStorage.textFeedbackManagerStorage);
 		this.setState({lockIntercept: iStorage.lockIntercept || false});
+		this.setState({lockProbThreshold: iStorage.lockProbThreshold || false});
 		this.setState({status: iStorage.status || 'active'});
 	}
 
@@ -346,7 +351,8 @@ export class FeatureManager extends Component<FM_Props, {
 		oneHotData: number[][],
 		documents: any,
 		tokenArray: any,
-		classNames: string[]
+		classNames: string[],
+		lockProbThreshold:boolean
 	}) {
 		let tOneHotLength = iTools.oneHotData[0].length,
 			tPosProbs: number[] = [],
@@ -382,33 +388,56 @@ export class FeatureManager extends Component<FM_Props, {
 				return iStarting;
 			}
 
-			let tNegIndex = tNegProbs.findIndex((v: number) => {
-				return v > tCurrValue;
-			});
-			if (tNegIndex === -1) {
-				// Negative and Positive probabilities don't overlap
-				tCurrMinDiscrepancies = 0;
-				tNegIndex = tNegLength;
-				tStartingThreshold = (tNegProbs[tNegLength - 1] + tPosProbs[0]) / 2; // halfway
-			} else {
-				tCurrMinDiscrepancies = Number.MAX_VALUE;
-				tStartingThreshold = tPosProbs[0];
-			}
-			tNegIndex = (tNegIndex === -1) ? tNegLength : tNegIndex;
-			let tRecord = {
-				posIndex: 0,	// Position at which we start testing for discrepancies
-				negIndex: tNegIndex,
-				currMinDescrepancies: tCurrMinDiscrepancies,
-				threshold: tStartingThreshold
+			let tRecord:{
+				posIndex:number,	// Position at which we start testing for discrepancies
+				negIndex:number,
+				currMinDescrepancies:number,
+				threshold:number
 			};
-			while (tRecord.negIndex < tNegLength) {
-				let tCurrDiscrepancies = tRecord.posIndex + (tNegLength - tRecord.negIndex);
-				if (tCurrDiscrepancies < tRecord.currMinDescrepancies) {
-					tRecord.currMinDescrepancies = tCurrDiscrepancies;
-					tRecord.threshold = tPosProbs[tRecord.posIndex];
+			if( iTools.lockProbThreshold) {
+				let tPosIndex = tPosProbs.findIndex( ( iProb)=> {
+							return iProb > 0.5;
+						}),
+						tNegIndex = tNegProbs.findIndex( ( iProb)=> {
+							return iProb > 0.5;
+						});
+				tRecord = {
+					posIndex: tPosIndex,
+					negIndex: tNegIndex,
+					currMinDescrepancies: tPosIndex + (tNegLength - tNegIndex),
+					threshold: 0.5
 				}
-				tRecord.posIndex++;
-				tRecord.negIndex = findNegIndex(tRecord.negIndex, tPosProbs[tRecord.posIndex]);
+			}
+			else {
+				let tNegIndex = tNegProbs.findIndex((v: number) => {
+					return v > tCurrValue;
+				});
+				if (tNegIndex === -1) {
+					// Negative and Positive probabilities don't overlap
+					tCurrMinDiscrepancies = 0;
+					tNegIndex = tNegLength;
+					tStartingThreshold = (tNegProbs[tNegLength - 1] + tPosProbs[0]) / 2; // halfway
+				} else {
+					tCurrMinDiscrepancies = Number.MAX_VALUE;
+					tStartingThreshold = tPosProbs[0];
+				}
+
+				tNegIndex = (tNegIndex === -1) ? tNegLength : tNegIndex;
+				tRecord = {
+					posIndex: 0,	// Position at which we start testing for discrepancies
+					negIndex: tNegIndex,
+					currMinDescrepancies: tCurrMinDiscrepancies,
+					threshold: tStartingThreshold
+				};
+				while (tRecord.negIndex < tNegLength) {
+					let tCurrDiscrepancies = tRecord.posIndex + (tNegLength - tRecord.negIndex);
+					if (tCurrDiscrepancies < tRecord.currMinDescrepancies) {
+						tRecord.currMinDescrepancies = tCurrDiscrepancies;
+						tRecord.threshold = tPosProbs[tRecord.posIndex];
+					}
+					tRecord.posIndex++;
+					tRecord.negIndex = findNegIndex(tRecord.negIndex, tPosProbs[tRecord.posIndex]);
+				}
 			}
 			let tNumDocs = iTools.documents.length,
 				tObserved = (tNumDocs - tRecord.currMinDescrepancies),
@@ -775,7 +804,8 @@ export class FeatureManager extends Component<FM_Props, {
 			oneHotData: tData,
 			documents: tDocuments,
 			tokenArray: tOneHot.tokenArray,
-			classNames: this.targetCategories
+			classNames: this.targetCategories,
+			lockProbThreshold: this.state.lockProbThreshold
 		}
 		await this.showPredictedLabels(tPredictionTools);
 
@@ -876,7 +906,7 @@ export class FeatureManager extends Component<FM_Props, {
 			} else {
 				return (
 					<div>
-						<br/><br/>
+						<br/>
 						<Button onClick={() => {
 							this_.extract(this_.targetDatasetName);
 						}} variant="outline-primary">Train using {this_.targetDatasetName}</Button>
@@ -922,6 +952,16 @@ export class FeatureManager extends Component<FM_Props, {
 						this.setState({lockIntercept: event.target.checked})}
 				/>
 				{' Lock intercept at zero'}
+			</p>
+			<p>
+				<input
+					type="checkbox"
+					value=''
+					checked={this.state.lockProbThreshold}
+					onChange={event =>
+						this.setState({lockProbThreshold: event.target.checked})}
+				/>
+				{' Use 0.5 as probability threshold'}
 			</p>
 			{dataSetControl}
 			{doItButton()}

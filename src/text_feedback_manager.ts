@@ -165,7 +165,8 @@ export default class TextFeedbackManager {
 					width: 500,
 					height: 150
 				},
-				position: 'top'
+				position: 'top',
+				cannotClose: true
 			}
 		});
 		this.textComponentID = tResult.values.id
