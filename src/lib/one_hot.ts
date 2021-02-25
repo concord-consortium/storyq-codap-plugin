@@ -19,17 +19,20 @@
 
 //import {on} from "cluster";
 
+import {stopWords} from "./stop_words";
+
 export const kMaxTokens = 1000;
 
 /**
  * Convert the given string into an array of lowercase words.
  */
-export const wordTokenizer = ( text:string):string[] => {
+export const wordTokenizer = ( text:string, ignoreStopWords:boolean):string[] => {
 	let tokens:string[] = [];
 	if(text) {
-		let tWords: RegExpMatchArray | [] = text.toLowerCase().match(/\w+/g) || [];
+		let tWords: RegExpMatchArray | [] = text.toLowerCase().match(/\w+['’]{0,1}\w+/g) || [];
 		tWords.forEach((aWord) => {
-			tokens.push(aWord);
+			if( !ignoreStopWords || !stopWords[aWord])
+				tokens.push(aWord);
 		});
 	}
 	return tokens;
@@ -42,12 +45,13 @@ export const wordTokenizer = ( text:string):string[] => {
  * For StoryQ, with each token we keep track of the document caseIDs in which it occurs.
  */
 export const oneHot = (config:{frequencyThreshold:number},
-											 documents: { example:string, class:string, caseID:number, tokens?:string[] }[]) => {
+											 documents: { example:string, class:string, caseID:number, tokens?:string[] }[],
+											 ignoreStopWords:boolean) => {
 	// Make a hash of all the tokens with their counts
 	let tokenMap: { [key:string]: { token:string, count:number, index:number,
 			caseIDs:number[], weight:number|null, featureCaseID:number|null } } = {};	// Keeps track of counts of words
 	documents.forEach(aDoc=>{
-		let tokens = new Set(wordTokenizer(aDoc.example));
+		let tokens = new Set(wordTokenizer(aDoc.example, ignoreStopWords));
 		tokens.forEach(aToken=>{
 			if(!tokenMap[aToken])
 				tokenMap[aToken] = {token: aToken, count: 1, index: -1, caseIDs: [], weight: null, featureCaseID: null};
@@ -86,7 +90,7 @@ export const oneHot = (config:{frequencyThreshold:number},
 	// Create an array of one-hot vectors corresponding to the original document examples
 	let oneHotArray: { oneHotExample:number[], class:string }[] = documents.map(aDoc=>{
 		let tVector:number[] = Array(kVectorLength).fill(0);
-		wordTokenizer(aDoc.example).forEach(aWord=>{
+		wordTokenizer(aDoc.example, ignoreStopWords).forEach(aWord=>{
 			if(tokenMap[aWord]) {
 				let tWordIndex = tokenMap[aWord].index;
 				if (tWordIndex >= 0 && tWordIndex < kVectorLength)

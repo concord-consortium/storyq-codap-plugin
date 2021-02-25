@@ -50,6 +50,7 @@ interface FMStorage {
 	modelAccuracy: number,
 	modelKappa: number,
 	modelThreshold: number,
+	ignoreStopWords: boolean,
 	lockIntercept: boolean,
 	lockProbThreshold:boolean,
 	status: string
@@ -62,6 +63,7 @@ export class FeatureManager extends Component<FM_Props, {
 	iterations: number,
 	currentIteration: number,
 	frequencyThreshold: number,
+	ignoreStopWords: boolean,
 	lockIntercept:boolean,
 	lockProbThreshold:boolean,
 	showWeightsGraph: boolean
@@ -118,6 +120,7 @@ export class FeatureManager extends Component<FM_Props, {
 			iterations: 50,
 			currentIteration: 0,
 			frequencyThreshold: 4,
+			ignoreStopWords: false,
 			lockIntercept: false,
 			lockProbThreshold: false,
 			showWeightsGraph: false
@@ -167,6 +170,7 @@ export class FeatureManager extends Component<FM_Props, {
 			modelAccuracy: this.logisticModel.accuracy,
 			modelKappa: this.logisticModel.kappa,
 			modelThreshold: this.logisticModel.threshold,
+			ignoreStopWords: this.state.ignoreStopWords,
 			lockIntercept: this.state.lockIntercept,
 			lockProbThreshold: this.state.lockProbThreshold,
 			status: this.state.status
@@ -190,6 +194,7 @@ export class FeatureManager extends Component<FM_Props, {
 		this.logisticModel.kappa = iStorage.modelKappa;
 		this.logisticModel.threshold = iStorage.modelThreshold;
 		this.getTextFeedbackManager().restoreStorage(iStorage.textFeedbackManagerStorage);
+		this.setState({ignoreStopWords: iStorage.ignoreStopWords || false});
 		this.setState({lockIntercept: iStorage.lockIntercept || false});
 		this.setState({lockProbThreshold: iStorage.lockProbThreshold || false});
 		this.setState({status: iStorage.status || 'active'});
@@ -377,6 +382,7 @@ export class FeatureManager extends Component<FM_Props, {
 			tNegProbs.sort();
 			let tCurrValue = tPosProbs[0],
 				tNegLength = tNegProbs.length,
+				tPosLength = tPosProbs.length,
 				tCurrMinDiscrepancies: number,
 				tStartingThreshold: number;
 
@@ -429,7 +435,7 @@ export class FeatureManager extends Component<FM_Props, {
 					currMinDescrepancies: tCurrMinDiscrepancies,
 					threshold: tStartingThreshold
 				};
-				while (tRecord.negIndex < tNegLength) {
+				while (tRecord.negIndex < tNegLength && tRecord.posIndex < tPosLength) {
 					let tCurrDiscrepancies = tRecord.posIndex + (tNegLength - tRecord.negIndex);
 					if (tCurrDiscrepancies < tRecord.currMinDescrepancies) {
 						tRecord.currMinDescrepancies = tCurrDiscrepancies;
@@ -526,6 +532,11 @@ export class FeatureManager extends Component<FM_Props, {
 						name: 'Frequency Threshold',
 						editable: false,
 						description: 'Number of times something has to appear to be counted as a feature'
+					},
+					{
+						name: 'Ignore Stop Words',
+						editable: false,
+						description: 'Will very common words be excluded from the model'
 					},
 					{
 						name: 'Constant Weight',
@@ -706,7 +717,7 @@ export class FeatureManager extends Component<FM_Props, {
 					"Training Set": this.targetDatasetName,
 					"Iterations": this.state.iterations,
 					"Frequency Threshold": this.state.frequencyThreshold,
-					"Lock Intercept": this.state.lockIntercept,
+					"Ignore Stop Words": this.state.ignoreStopWords,
 					"Classes": JSON.stringify(this.targetCategories),
 					"Constant Weight": this.logisticModel.theta[0],
 					"Accuracy": this.logisticModel.accuracy,
@@ -762,7 +773,7 @@ export class FeatureManager extends Component<FM_Props, {
 		// Also, the logisticModel.fit function requires that the class value (0 or 1) be the
 		// last element of each oneHot.
 		let tOneHot = oneHot({frequencyThreshold: this.state.frequencyThreshold - 1},
-			tDocuments),
+			tDocuments, this.state.ignoreStopWords),
 			tData: number[][] = [];
 		tOneHot.oneHotResult.forEach(iResult => {
 			iResult.oneHotExample.push(iResult.class === tZeroClassName ? 0 : 1);
@@ -933,6 +944,16 @@ export class FeatureManager extends Component<FM_Props, {
 					value={this.state.frequencyThreshold}
 					onChange={event => this.setState({frequencyThreshold: Number(event.target.value)})}
 				/>
+			</p>
+			<p>
+				<input
+					type="checkbox"
+					value=''
+					checked={this.state.ignoreStopWords}
+					onChange={event =>
+						this.setState({ignoreStopWords: event.target.checked})}
+				/>
+				{' Ignore stop words'}
 			</p>
 			<p>
 				<input

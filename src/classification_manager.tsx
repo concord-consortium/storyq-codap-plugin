@@ -298,7 +298,7 @@ export class ClassificationManager extends Component<Classification_Props, {
 					tGiven = Array(tModel.features.length).fill(0),
 					tFeatureIDs: number[] = [];
 				// Find the index of each feature the phrase
-				wordTokenizer(tPhrase).forEach((iFeature) => {
+				wordTokenizer(tPhrase, false).forEach((iFeature) => {
 					let tIndex = tModel.features.indexOf(iFeature);
 					if (tIndex >= 0) {	// We've found a feature
 						// Mark it in the array

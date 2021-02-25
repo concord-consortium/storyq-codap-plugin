@@ -8,7 +8,7 @@ import {wordTokenizer} from "./lib/one_hot";
 export function textToObject( iText:string, iSelectedWords:any):any {
 	let segment = '';
 	let tResultArray:any = [];
-	let words:string[] = wordTokenizer(iText);
+	let words:string[] = wordTokenizer(iText, false);
 	words.forEach((iWord) => {
 		let tRawWord = iWord.toLowerCase();
 		if (iSelectedWords.indexOf(tRawWord) >= 0) {
