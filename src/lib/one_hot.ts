@@ -47,7 +47,7 @@ export const oneHot = (config:{frequencyThreshold:number},
 	let tokenMap: { [key:string]: { token:string, count:number, index:number,
 			caseIDs:number[], weight:number|null, featureCaseID:number|null } } = {};	// Keeps track of counts of words
 	documents.forEach(aDoc=>{
-		let tokens = wordTokenizer(aDoc.example);
+		let tokens = new Set(wordTokenizer(aDoc.example));
 		tokens.forEach(aToken=>{
 			if(!tokenMap[aToken])
 				tokenMap[aToken] = {token: aToken, count: 1, index: -1, caseIDs: [], weight: null, featureCaseID: null};
@@ -55,7 +55,7 @@ export const oneHot = (config:{frequencyThreshold:number},
 				tokenMap[aToken].count++;
 			tokenMap[aToken].caseIDs.push( aDoc.caseID);
 		});
-		aDoc.tokens = tokens;
+		aDoc.tokens = Array.from(tokens);
 	});
 	// Convert tokenMap to an array and sort descending
 	let tokenArray = Object.values( tokenMap).sort((aToken1, aToken2)=>{
