@@ -52,7 +52,7 @@ interface FMStorage {
 	modelThreshold: number,
 	ignoreStopWords: boolean,
 	lockIntercept: boolean,
-	lockProbThreshold:boolean,
+	lockProbThreshold: boolean,
 	status: string
 
 }
@@ -60,17 +60,19 @@ interface FMStorage {
 export class FeatureManager extends Component<FM_Props, {
 	status: string,
 	count: number,
+	unigrams: boolean,
+	columnFeatures: boolean,
 	iterations: number,
 	currentIteration: number,
 	frequencyThreshold: number,
 	ignoreStopWords: boolean,
-	lockIntercept:boolean,
-	lockProbThreshold:boolean,
+	lockIntercept: boolean,
+	lockProbThreshold: boolean,
 	showWeightsGraph: boolean
 }> {
 	[indexindex: string]: any;
 
-	private updatePercentageFunc: ((p:number) => void) | null;
+	private updatePercentageFunc: ((p: number) => void) | null;
 	public targetDatasetName: string | null = '';
 	private datasetNames: string[] = [];
 	public targetCollectionName = '';
@@ -118,6 +120,8 @@ export class FeatureManager extends Component<FM_Props, {
 			status: props.status,
 			count: 0,
 			iterations: 50,
+			unigrams: true,
+			columnFeatures: false,
 			currentIteration: 0,
 			frequencyThreshold: 4,
 			ignoreStopWords: false,
@@ -207,7 +211,7 @@ export class FeatureManager extends Component<FM_Props, {
 	private async handleNotification(iNotification: CODAP_Notification) {
 		if (iNotification.action === 'notify' && iNotification.values.operation === 'dataContextCountChanged') {
 			this.datasetNames = await getDatasetNamesWithFilter(isNotAModel);
-			if( this.state.status !== 'inProgress') {
+			if (this.state.status !== 'inProgress') {
 				this.targetDatasetName = '';	// So on next render we'll get a list
 				this.setState({count: this.state.count + 1});
 			}
@@ -303,10 +307,10 @@ export class FeatureManager extends Component<FM_Props, {
 
 	private progressBar(iIteration: number) {
 		let tPercentDone = Math.round(100 * iIteration / this.state.iterations);
-		if( this.updatePercentageFunc)
+		if (this.updatePercentageFunc)
 			this.updatePercentageFunc(tPercentDone);
 		this.setState({currentIteration: iIteration});
-		if( iIteration >= this.state.iterations) {
+		if (iIteration >= this.state.iterations) {
 			this.showResults();
 		}
 	}
@@ -357,7 +361,7 @@ export class FeatureManager extends Component<FM_Props, {
 		documents: any,
 		tokenArray: any,
 		classNames: string[],
-		lockProbThreshold:boolean
+		lockProbThreshold: boolean
 	}) {
 		let tOneHotLength = iTools.oneHotData[0].length,
 			tPosProbs: number[] = [],
@@ -394,27 +398,26 @@ export class FeatureManager extends Component<FM_Props, {
 				return iStarting;
 			}
 
-			let tRecord:{
-				posIndex:number,	// Position at which we start testing for discrepancies
-				negIndex:number,
-				currMinDescrepancies:number,
-				threshold:number
+			let tRecord: {
+				posIndex: number,	// Position at which we start testing for discrepancies
+				negIndex: number,
+				currMinDescrepancies: number,
+				threshold: number
 			};
-			if( iTools.lockProbThreshold) {
-				let tPosIndex = tPosProbs.findIndex( ( iProb)=> {
-							return iProb > 0.5;
-						}),
-						tNegIndex = tNegProbs.findIndex( ( iProb)=> {
-							return iProb > 0.5;
-						});
+			if (iTools.lockProbThreshold) {
+				let tPosIndex = tPosProbs.findIndex((iProb) => {
+						return iProb > 0.5;
+					}),
+					tNegIndex = tNegProbs.findIndex((iProb) => {
+						return iProb > 0.5;
+					});
 				tRecord = {
 					posIndex: tPosIndex,
 					negIndex: tNegIndex,
 					currMinDescrepancies: tPosIndex + (tNegLength - tNegIndex),
 					threshold: 0.5
 				}
-			}
-			else {
+			} else {
 				let tNegIndex = tNegProbs.findIndex((v: number) => {
 					return v > tCurrValue;
 				});
@@ -803,9 +806,9 @@ export class FeatureManager extends Component<FM_Props, {
 	 */
 	private async showResults() {
 		let tTrainedModel = this.logisticModel.fitResult,
-				tData = this.logisticModel._data,
-				tOneHot = this.logisticModel._oneHot,
-				tDocuments = this.logisticModel._documents;
+			tData = this.logisticModel._data,
+			tOneHot = this.logisticModel._oneHot,
+			tDocuments = this.logisticModel._documents;
 		await this.updateWeights(tOneHot.tokenArray, tTrainedModel.theta);
 
 		// In the target dataset we're going to add two attributes: "predicted label" and "probability of clickbait"
@@ -851,7 +854,7 @@ export class FeatureManager extends Component<FM_Props, {
 		}
 	}
 
-	private setUpdatePercentageFunc( iFunc: (p:number) => void) {
+	private setUpdatePercentageFunc(iFunc: (p: number) => void) {
 		this.updatePercentageFunc = iFunc;
 	}
 
@@ -862,7 +865,7 @@ export class FeatureManager extends Component<FM_Props, {
 			progressIndicator = tInProgress ?
 				<div>
 					<ProgressBar
-						percentComplete={Math.round(100*this.state.currentIteration/this.state.iterations)}
+						percentComplete={Math.round(100 * this.state.currentIteration / this.state.iterations)}
 						setUpdatePercentage={this.setUpdatePercentageFunc}
 					/>
 				</div>
@@ -902,11 +905,11 @@ export class FeatureManager extends Component<FM_Props, {
 			(<p>Training with <strong>{this.targetDatasetName}</strong></p>)
 			:
 			propertyControl(this.datasetNames,
-			'targetDatasetName', 'Training set: ',
-			'No training set found');
+				'targetDatasetName', 'Training set: ',
+				'No training set found');
 
 		function doItButton() {
-			if(tInProgress)
+			if (tInProgress)
 				return '';
 			else if (this_.targetDatasetName === '') {
 				return (
@@ -927,63 +930,88 @@ export class FeatureManager extends Component<FM_Props, {
 
 		}
 
+		function checkBox(label: string, checked: any, setProp: any) {
+			return (
+				<p>
+					<input
+						type="checkbox"
+						checked={checked()}
+						onChange={event => setProp(event.target.checked)}
+					/>
+					{label}
+				</p>);
+		}
+
+		function numericInput(label: string, get: any, set: any) {
+			return (
+				<p> {label}
+					<input
+						className='sq-input'
+						type="text"
+						value={get()}
+						onChange={event => set(Number(event.target.value))}
+					/>
+				</p>);
+		}
+
 		return (<div className='sq-options'>
-			<p>Extract features and train model for a dataset.</p>
-			<p> {'Iterations: '}
-				<input
-					className='sq-input'
-					type="text"
-					value={this.state.iterations}
-					onChange={event => this.setState({iterations: Number(event.target.value)})}
-				/>
-			</p>
-			<p> {'Frequency threshold: '}
-				<input
-					className='sq-input'
-					type="text"
-					value={this.state.frequencyThreshold}
-					onChange={event => this.setState({frequencyThreshold: Number(event.target.value)})}
-				/>
-			</p>
-			<p>
-				<input
-					type="checkbox"
-					value=''
-					checked={this.state.ignoreStopWords}
-					onChange={event =>
-						this.setState({ignoreStopWords: event.target.checked})}
-				/>
-				{' Ignore stop words'}
-			</p>
-			<p>
-				<input
-					type="checkbox"
-					value=''
-					onChange={event =>
-						this.setState({showWeightsGraph: event.target.checked})}
-				/>
-				{' Show progress graphs'}
-			</p>
-			<p>
-				<input
-					type="checkbox"
-					value=''
-					checked={this.state.lockIntercept}
-					onChange={event =>
-						this.setState({lockIntercept: event.target.checked})}
-				/>
-				{' Lock intercept at zero'}
-			</p>
-			<p>
-				<input
-					type="checkbox"
-					value=''
-					checked={this.state.lockProbThreshold}
-					onChange={event =>
-						this.setState({lockProbThreshold: event.target.checked})}
-				/>
-				{' Use 0.5 as probability threshold'}
-			</p>
+			<h1>Extraction</h1>
+			<h2>Setup</h2>
+			<div>
+				<p><i>Training set: </i><u>Clickbait training</u></p>
+				<p><i>Column to train on: </i><u>headline</u></p>
+				<p><i>Column with labels: </i><u>actual label</u></p>
+				<p><i>Positive label: </i><u>clickbait</u></p>
+			</div>
+			<h2>Features</h2>
+			<div>
+				{checkBox(' Unigrams',
+					() => this.state.unigrams,
+					(newValue: boolean) => {
+						this.setState({unigrams: newValue})
+					})}
+				{checkBox(' Column features',
+					() => this.state.columnFeatures,
+					(newValue: boolean) => {
+						this.setState({columnFeatures: newValue})
+					})}
+			</div>
+			<h2>Settings</h2>
+			<div>
+				{numericInput('Frequency threshold',
+					() => this.state.frequencyThreshold,
+					(newValue: number) => {
+						this.setState({frequencyThreshold: newValue})
+					})}
+				{checkBox(' Ignore stop words',
+					() => this.state.ignoreStopWords,
+					(newValue: boolean) => {
+						this.setState({ignoreStopWords: newValue})
+					})}
+			</div>
+			<h1>Model Setup</h1>
+			<div>
+				{numericInput('Iterations: ',
+					() => this.state.iterations,
+					(newValue: number) => {
+						this.setState({iterations: newValue})
+					})}
+				{checkBox(' Lock intercept at zero',
+					() => this.state.lockIntercept,
+					(newValue: boolean) => {
+						this.setState({lockIntercept: newValue})
+					})}
+				{checkBox(' Use 0.5 as probability threshold',
+					() => this.state.lockProbThreshold,
+					(newValue: boolean) => {
+						this.setState({lockProbThreshold: newValue})
+					})}
+				{checkBox(' Show progress graphs',
+					() => this.state.showWeightsGraph,
+					(newValue: boolean) => {
+						this.setState({showWeightsGraph: newValue})
+					})}
+			</div>
 			{dataSetControl}
 			{doItButton()}
 			{progressIndicator}

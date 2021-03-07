@@ -18,7 +18,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import {wordTokenizer} from "./lib/one_hot";
 import './storyq.css';
 import {LogitPrediction} from './lib/logit_prediction';
-import TextFeedbackManager from "./text_feedback_manager";
+import TextFeedbackManager, {TFMStorage} from "./text_feedback_manager";
 import Button from "react-bootstrap/Button";
 
 // import tf from "@tensorflow/tfjs";
@@ -34,18 +34,16 @@ export interface Classification_Props {
 }
 
 interface ClassificationStorage {
-	modelDatasetID: number,
 	modelsDatasetName: string,
 	modelCaseID: number,
 	modelCollectionName: string,
 	modelCategories: string[],
-	targetDatasetID: number,
 	targetDatasetName: string,
 	targetCollectionName: string,
 	targetAttributeName: string,
 	targetClassAttributeName: string,
-	textComponentID: number,
 	status: string
+	textFeedbackManagerStorage:TFMStorage
 }
 
 interface ClassificationModel {
@@ -69,21 +67,19 @@ export class ClassificationManager extends Component<Classification_Props, {
 	[indexindex: string]: any;
 
 	private modelDatasetNames: string[] = [];
-	private modelDatasetID = 0;
 	public modelsDatasetName: string = '';
 	public modelCaseID: number = 0;
 	private modelCollectionName = 'models';
 	private modelCategories: string[] = [];
 	private targetDatasetNames: string[] = [];
-	private targetDatasetID = -1
 	public targetDatasetName: string = '';
 	public targetCollectionName = '';
 	private targetAttributeName = '';
 	public targetClassAttributeName = '';
 	public targetPredictedLabelAttributeName = 'classification';
-	private textComponentID = 0;
 	private subscriberIndex: number = -1;
 	private textFeedbackManager: TextFeedbackManager | null = null;
+	private restoredStatus:string = '';
 
 	constructor(props: Classification_Props) {
 		super(props);
@@ -106,10 +102,16 @@ export class ClassificationManager extends Component<Classification_Props, {
 	}
 
 	public async componentDidMount() {
+		this.props.setStorageCallbacks({
+			createStorageCallback: this.createStorage,
+			restoreStorageCallback: this.restoreStorage
+		});
 		this.modelDatasetNames = await getDatasetNamesWithFilter(isAModel);
 		this.targetDatasetNames = await getDatasetNamesWithFilter(isNotAModel);
 		this.subscriberIndex = codapInterface.on('notify', '*', '', this.handleNotification);
-		this.setState({count: this.state.count + 1})
+		this.setState({count: this.state.count + 1});
+		if( this.restoredStatus !== '')
+			this.setState({ status: this.restoredStatus});
 	}
 
 	public componentWillUnmount() {
@@ -119,34 +121,31 @@ export class ClassificationManager extends Component<Classification_Props, {
 
 	public createStorage(): ClassificationStorage {
 		return {
-			modelDatasetID: this.modelDatasetID,
 			modelsDatasetName: this.modelsDatasetName,
 			modelCaseID: this.modelCaseID,
 			modelCollectionName: this.modelCollectionName,
 			modelCategories: this.modelCategories,
-			targetDatasetID: this.targetDatasetID,
 			targetDatasetName: this.targetDatasetName,
 			targetCollectionName: this.targetCollectionName,
 			targetAttributeName: this.targetAttributeName,
 			targetClassAttributeName: this.targetClassAttributeName,
-			textComponentID: this.textComponentID,
-			status: this.state.status
+			status: this.state.status,
+			textFeedbackManagerStorage: this.getTextFeedbackManager().createStorage()
 		}
 	}
 
 	public restoreStorage(iStorage: ClassificationStorage) {
-		this.modelDatasetID = iStorage.modelDatasetID;
 		this.modelsDatasetName = iStorage.modelsDatasetName;
 		this.modelCaseID = iStorage.modelCaseID;
 		this.modelCollectionName = iStorage.modelCollectionName;
 		this.modelCategories = iStorage.modelCategories;
-		this.targetDatasetID = iStorage.targetDatasetID;
 		this.targetDatasetName = iStorage.targetDatasetName;
 		this.targetCollectionName = iStorage.targetCollectionName;
 		this.targetAttributeName = iStorage.targetAttributeName;
 		this.targetClassAttributeName = iStorage.targetClassAttributeName;
-		this.textComponentID = iStorage.textComponentID;
-		this.setState({status: iStorage.status || 'testing'})
+		// this.setState({status: iStorage.status || 'testing'});
+		this.restoredStatus = iStorage.status || 'testing';
+		this.getTextFeedbackManager().restoreStorage(iStorage.textFeedbackManagerStorage);
 	}
 
 	/**
@@ -164,6 +163,12 @@ export class ClassificationManager extends Component<Classification_Props, {
 	 * @param iNotification    (from CODAP)
 	 */
 	private async handleNotification(iNotification: CODAP_Notification) {
+
+		async function classifyCase( iCaseID:number) {
+
+		}
+
+		console.log(iNotification.values.operation);
 		if (iNotification.action === 'notify' && iNotification.values.operation === 'dataContextCountChanged') {
 			this.modelDatasetNames = await getDatasetNamesWithFilter(isAModel);
 			this.targetDatasetNames = await getDatasetNamesWithFilter(isNotAModel);
@@ -184,6 +189,10 @@ export class ClassificationManager extends Component<Classification_Props, {
 				await this.getTextFeedbackManager().handleTargetSelection( this);
 				this.isSelectingFeatures = false;
 			}
+		}
+		else if( iNotification.action === 'notify' && iNotification.resource === `dataContextChangeNotice[${this.targetDatasetName}]` &&
+				iNotification.values.operation === 'createCases') {
+			await this.classify();
 		}
 	}
 
@@ -353,7 +362,6 @@ export class ClassificationManager extends Component<Classification_Props, {
 		await addUsagesAttributeToModelDataset();
 		await this.addAttributesToTarget();
 		await classifyEachPhrase();
-		await this.getTextFeedbackManager().closeTextComponent();
 		await this.getTextFeedbackManager().addTextComponent();
 	}
 

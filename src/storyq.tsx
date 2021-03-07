@@ -22,7 +22,8 @@ interface StoryqValues {
 	mode: string,
 	textManagerStorage: any,
 	dataManagerStorage: any,
-	featureManagerStorage: any
+	featureManagerStorage: any,
+	classificationManagerStorage: any
 }
 
 interface StoryqStorage {
@@ -32,10 +33,10 @@ interface StoryqStorage {
 
 class Storyq extends Component<{}, { className: string, mode: string }> {
 	private kPluginName = "StoryQ";
-	private kVersion = "0.86";
+	private kVersion = "0.90";
 	private kInitialDimensions = {
-		width: 250,
-		height: 325
+		width: 280,
+		height: 400
 	};
 
 	private writingManager: WritingManager;
@@ -74,7 +75,8 @@ class Storyq extends Component<{}, { className: string, mode: string }> {
 				mode: this.state.mode,
 				textManagerStorage: this.writingManager.createStorage(),
 				dataManagerStorage: this.dataManager.createStorage(),
-				featureManagerStorage: this.featureManagerCreateStorage ? this.featureManagerCreateStorage() : null
+				featureManagerStorage: this.featureManagerCreateStorage ? this.featureManagerCreateStorage() : null,
+				classificationManagerStorage: this.classificationManagerCreateStorage ? this.classificationManagerCreateStorage() : null
 			}
 		};
 	}
@@ -88,7 +90,8 @@ class Storyq extends Component<{}, { className: string, mode: string }> {
 				this.featureManagerRestoreStorage(this.stashedFeatureManagerStorage);
 				this.stashedFeatureManagerStorage = null;
 			}
-			if (this.classificationManagerCreateStorage && this.stashedClassificationManagerStorage) {
+			this.stashedClassificationManagerStorage = iStorage.classificationManagerStorage;
+			if (this.classificationManagerRestoreStorage && this.stashedClassificationManagerStorage) {
 				this.classificationManagerRestoreStorage(this.stashedClassificationManagerStorage);
 				this.stashedClassificationManagerStorage = null;
 			}
@@ -151,13 +154,13 @@ class Storyq extends Component<{}, { className: string, mode: string }> {
 		);
 	}
 
-	welcome(includeBackArrow: boolean) {
+	welcome(heading:string, includeBackArrow: boolean) {
 		const arrow = includeBackArrow ? this.backArrow() : "";
 		return (
 			<div>
 				{arrow}
 				<div className="title">
-					<p>Welcome to StoryQ</p>
+					<p>{heading}</p>
 				</div>
 			</div>
 		);
@@ -168,7 +171,7 @@ class Storyq extends Component<{}, { className: string, mode: string }> {
 			case 'welcome':
 				return (
 					<div>
-						{this.welcome(false)}
+						{this.welcome('Welcome to StoryQ',false)}
 						<div className="button-list">
 							<Button onClick={this.writeStory} variant="outline-primary">Write and Analyze a Story</Button>
 							<br/><br/>
@@ -182,14 +185,14 @@ class Storyq extends Component<{}, { className: string, mode: string }> {
 				)
 			case 'write':
 				return (<div>
-					{this.welcome(true)}
+					{this.welcome('Write and Analyze a Story',true)}
 					<p>Enjoy writing and analyzing your story!</p>
 				</div>);
 			case 'extractFeatures':
 				let tFMStatus = (this.stashedFeatureManagerStorage && this.stashedFeatureManagerStorage.status) || 'active';
 				return (
 					<div>
-						{this.welcome(true)}
+						{this.welcome('Train a Model',true)}
 						<FeatureManager status={tFMStatus} setStorageCallbacks={this.setFeatureManagerStorageCallbacks}/>
 					</div>);
 			case 'testing':
@@ -197,7 +200,7 @@ class Storyq extends Component<{}, { className: string, mode: string }> {
 				let tClassificationStatus = this.state.mode;
 				return (
 					<div>
-						{this.welcome(true)}
+						{this.welcome('Classify using a Model',true)}
 						<ClassificationManager status={tClassificationStatus}
 																	 setStorageCallbacks={this.setClassificationManagerStorageCallbacks}/>
 					</div>);

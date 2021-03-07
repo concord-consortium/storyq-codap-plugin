@@ -194,3 +194,23 @@ if( tListResult.values.length > iIndex)
 else return '';
 }
 
+export async function getComponentByTypeAndTitle(iType:string, iTitle: string): Promise<number> {
+	const tListResult:any = await codapInterface.sendRequest(
+	{
+		action: 'get',
+		resource:`componentList`
+	}
+)
+	.catch(() => { console.log('Error getting component list')});
+
+	let tID = -1;
+	if( tListResult.success) {
+	  let tFoundValue =	tListResult.values.find((iValue:any) => {
+			return iValue.type === 'text' && iValue.title === iTitle;
+		});
+	  if( tFoundValue)
+	  	tID = tFoundValue.id;
+	}
+	return tID;
+}
+

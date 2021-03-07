@@ -1,4 +1,5 @@
 import codapInterface from "./lib/CodapInterface";
+import {wordTokenizer} from "./lib/one_hot";
 
 export default class DataManager {
 
@@ -82,7 +83,7 @@ export default class DataManager {
 					'this', 'that', 'with'];
 		*/
 		let words = this.wordMap,
-			splitText: RegExpMatchArray | [] = iText.toLowerCase().match(/\w+/g) || [],
+			splitText: string[] = wordTokenizer(iText, false),
 			itemsToCreate: { word:string, count:number }[] = [],
 			itemsToDelete: string[] = [],
 			itemsToUpdate: { ID:number, count:number }[] = [],

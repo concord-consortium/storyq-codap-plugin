@@ -6,7 +6,7 @@
 import codapInterface from "./lib/CodapInterface";
 import {ClassLabel, HeadingsManager, HeadingSpec, PhraseTriple} from "./headings_manager";
 import pluralize from "pluralize";
-import {getSelectedCasesFrom} from "./lib/codap-helper";
+import {getComponentByTypeAndTitle, getSelectedCasesFrom} from "./lib/codap-helper";
 import {phraseToFeatures, textToObject} from "./utilities";
 import {ClassificationManager} from "./classification_manager";
 import {FeatureManager} from "./feature_manager";
@@ -98,13 +98,15 @@ export default class TextFeedbackManager {
 			tTargetTriples:PhraseTriple[] = [],
 			tIDsOfFeaturesToSelect:number[] = [];
 		tSelectedTargetCases.forEach((iCase:any)=> {
-			let tFeatureIDs:number[] = JSON.parse(iCase.values.featureIDs);
-			tIDsOfFeaturesToSelect = tIDsOfFeaturesToSelect.concat(tFeatureIDs);
-			tTargetTriples.push({
-				actual: iCase.values[aManager.targetClassAttributeName],
-				predicted: iCase.values[aManager.targetPredictedLabelAttributeName],
-				phrase: iCase.values[aManager.targetAttributeName]
-			});
+			if( iCase) {
+				let tFeatureIDs: number[] = JSON.parse(iCase.values.featureIDs);
+				tIDsOfFeaturesToSelect = tIDsOfFeaturesToSelect.concat(tFeatureIDs);
+				tTargetTriples.push({
+					actual: iCase.values[aManager.targetClassAttributeName],
+					predicted: iCase.values[aManager.targetPredictedLabelAttributeName],
+					phrase: iCase.values[aManager.targetAttributeName]
+				});
+			}
 		});
 		// Select the features
 		await codapInterface.sendRequest({
@@ -152,25 +154,31 @@ export default class TextFeedbackManager {
 		});
 	}
 
+	/**
+	 * Only add a text component if one with the designated name does not already exist.
+	 */
 	public async addTextComponent() {
 		this.textComponentName = 'Selected ' + pluralize(this.targetAttributeName);
-		let tResult:any = await codapInterface.sendRequest( {
-			action: 'create',
-			resource: 'component',
-			values: {
-				type: 'text',
-				name: this.textComponentName,
-				title: this.textComponentName,
-				dimensions: {
-					width: 500,
-					height: 150
-				},
-				position: 'top',
-				cannotClose: true
-			}
-		});
-		this.textComponentID = tResult.values.id
-		this.clearText();
+		let tFoundTextID = await getComponentByTypeAndTitle('text', this.textComponentName);
+		if( tFoundTextID === -1) {
+			let tResult: any = await codapInterface.sendRequest({
+				action: 'create',
+				resource: 'component',
+				values: {
+					type: 'text',
+					name: this.textComponentName,
+					title: this.textComponentName,
+					dimensions: {
+						width: 500,
+						height: 150
+					},
+					position: 'top',
+					cannotClose: true
+				}
+			});
+			this.textComponentID = tResult.values.id
+			this.clearText();
+		}
 	}
 
 	public async closeTextComponent() {
