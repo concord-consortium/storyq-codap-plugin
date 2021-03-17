@@ -1,4 +1,6 @@
 import React, {Component} from 'react';
+import 'devextreme/dist/css/dx.common.css';
+import 'devextreme/dist/css/dx.light.compact.css';
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
 import {faArrowLeft} from '@fortawesome/free-solid-svg-icons'
 import codapInterface from "./lib/CodapInterface";
@@ -33,10 +35,10 @@ interface StoryqStorage {
 
 class Storyq extends Component<{}, { className: string, mode: string }> {
 	private kPluginName = "StoryQ";
-	private kVersion = "0.90";
+	private kVersion = "0.91";
 	private kInitialDimensions = {
 		width: 280,
-		height: 400
+		height: 450
 	};
 
 	private writingManager: WritingManager;

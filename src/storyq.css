@@ -23,7 +23,7 @@ h2 {
 }
 
 .storyq div {
-  margin: 5px;
+  margin: 0;
 }
 
 .button-list {
@@ -63,4 +63,28 @@ p {
 .sq-pb-label {
   color: black;
   text-align: right;
+}
+
+.dx-item-content label {
+  display: flex;
+}
+
+.dx-item-content span {
+  flex-shrink: 0;
+  padding-right: 3px;
+  padding-top: 5px;
+}
+
+.dx-dropdowneditor-field-clickable {
+  flex-shrink: 1;
+}
+
+.dx-button-mode-contained {
+  border-color: #aaa;
+  box-shadow: 2px 2px lightgray;
+  margin-left: 20px!important;
+}
+
+.dx-button .dx-button-content {
+  padding: 10px;
 }
