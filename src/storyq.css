@@ -65,6 +65,10 @@ p {
   text-align: right;
 }
 
+.sq-checkboxes {
+  margin-left: 30px!important;
+}
+
 .dx-item-content label {
   display: flex;
 }

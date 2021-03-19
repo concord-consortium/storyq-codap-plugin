@@ -4,7 +4,6 @@ import pluralize from 'pluralize';
 import codapInterface, {CODAP_Notification} from "./lib/CodapInterface";
 import {
 	addAttributesToTarget, deselectAllCasesIn,
-	getAttributeNameByIndex,
 	getCaseCount,
 	getDatasetNamesWithFilter, isAModel,
 	isNotAModel
@@ -12,9 +11,6 @@ import {
 import Button from 'devextreme-react/button';
 import {Accordion, Item} from 'devextreme-react/accordion';
 import {SelectBox} from 'devextreme-react/select-box';
-import Dropdown from 'react-bootstrap/Dropdown';
-import DropdownButton from 'react-bootstrap/DropdownButton';
-import ButtonGroup from "react-bootstrap/esm/ButtonGroup";
 import 'bootstrap/dist/css/bootstrap.min.css';
 import {oneHot} from "./lib/one_hot";
 import './storyq.css';
@@ -22,7 +18,8 @@ import './storyq.css';
 import {LogisticRegression} from './lib/jsregression';
 import TextFeedbackManager, {TFMStorage} from "./text_feedback_manager";
 import {ProgressBar} from "./progress_bar";
-// import Button from "react-bootstrap/Button";
+import {CheckBox} from "devextreme-react";
+import {NumericInput} from "./numeric_input";
 
 // import tf from "@tensorflow/tfjs";
 
@@ -47,6 +44,7 @@ interface FMStorage {
 	targetCaseCount: number,
 	targetPositiveCategory: string,
 	targetCategories: string[],
+	targetColumnFeatureNames: string[],
 	targetClassAttributeName: string,
 	modelsDatasetName: string,
 	modelsDatasetID: number,
@@ -57,6 +55,8 @@ interface FMStorage {
 	modelAccuracy: number,
 	modelKappa: number,
 	modelThreshold: number,
+	unigrams: boolean,
+	useColumnFeatures: boolean,
 	ignoreStopWords: boolean,
 	lockIntercept: boolean,
 	lockProbThreshold: boolean,
@@ -68,10 +68,10 @@ export class FeatureManager extends Component<FM_Props, {
 	status: string,
 	count: number,
 	unigrams: boolean,
-	columnFeatures: boolean,
 	iterations: number,
 	currentIteration: number,
 	frequencyThreshold: number,
+	useColumnFeatures: boolean,
 	ignoreStopWords: boolean,
 	lockIntercept: boolean,
 	lockProbThreshold: boolean,
@@ -91,6 +91,7 @@ export class FeatureManager extends Component<FM_Props, {
 	private targetCaseCount = 0;
 	private targetPositiveCategory = '';
 	private targetCategories: string[] = [];
+	private targetColumnFeatureNames: string[] = [];
 	public modelsDatasetName = 'Models';
 	private modelsDatasetID = 0;
 	private modelCollectionName = 'models';
@@ -131,9 +132,9 @@ export class FeatureManager extends Component<FM_Props, {
 			count: 0,
 			iterations: 50,
 			unigrams: true,
-			columnFeatures: false,
 			currentIteration: 0,
 			frequencyThreshold: 4,
+			useColumnFeatures: false,
 			ignoreStopWords: false,
 			lockIntercept: false,
 			lockProbThreshold: false,
@@ -178,6 +179,7 @@ export class FeatureManager extends Component<FM_Props, {
 			targetCaseCount: this.targetCaseCount,
 			targetPositiveCategory: this.targetPositiveCategory,
 			targetCategories: this.targetCategories,
+			targetColumnFeatureNames: this.targetColumnFeatureNames,
 			targetClassAttributeName: this.targetClassAttributeName,
 			modelsDatasetName: this.modelsDatasetName,
 			modelsDatasetID: this.modelsDatasetID,
@@ -188,6 +190,8 @@ export class FeatureManager extends Component<FM_Props, {
 			modelAccuracy: this.logisticModel.accuracy,
 			modelKappa: this.logisticModel.kappa,
 			modelThreshold: this.logisticModel.threshold,
+			unigrams: this.state.unigrams,
+			useColumnFeatures: this.state.useColumnFeatures,
 			ignoreStopWords: this.state.ignoreStopWords,
 			lockIntercept: this.state.lockIntercept,
 			lockProbThreshold: this.state.lockProbThreshold,
@@ -199,12 +203,13 @@ export class FeatureManager extends Component<FM_Props, {
 		this.targetDatasetName = iStorage.datasetName;
 		this.datasetNames = iStorage.datasetNames || [];
 		this.targetCollectionName = iStorage.targetCollectionName;
-		this.targetCollectionNames = iStorage.targetCollectionNames;
+		this.targetCollectionNames = iStorage.targetCollectionNames || [];
 		this.targetAttributeName = iStorage.targetAttributeName;
-		this.targetAttributeNames = iStorage.targetAttributeNames;
+		this.targetAttributeNames = iStorage.targetAttributeNames || [];
 		this.targetCaseCount = iStorage.targetCaseCount;
 		this.targetPositiveCategory = iStorage.targetPositiveCategory;
 		this.targetCategories = iStorage.targetCategories;
+		this.targetColumnFeatureNames = iStorage.targetColumnFeatureNames || [];
 		this.targetClassAttributeName = iStorage.targetClassAttributeName;
 		this.modelsDatasetName = iStorage.modelsDatasetName;
 		this.modelsDatasetID = iStorage.modelsDatasetID;
@@ -216,6 +221,8 @@ export class FeatureManager extends Component<FM_Props, {
 		this.logisticModel.kappa = iStorage.modelKappa;
 		this.logisticModel.threshold = iStorage.modelThreshold;
 		this.getTextFeedbackManager().restoreStorage(iStorage.textFeedbackManagerStorage);
+		this.setState({unigrams: iStorage.unigrams});
+		this.setState({useColumnFeatures: iStorage.useColumnFeatures || false});
 		this.setState({ignoreStopWords: iStorage.ignoreStopWords || false});
 		this.setState({lockIntercept: iStorage.lockIntercept || false});
 		this.setState({lockProbThreshold: iStorage.lockProbThreshold || false});
@@ -230,7 +237,7 @@ export class FeatureManager extends Component<FM_Props, {
 		if (iNotification.action === 'notify' && iNotification.values.operation === 'dataContextCountChanged') {
 			this.datasetNames = await getDatasetNamesWithFilter(isNotAModel);
 			if (this.state.status !== 'inProgress') {
-				this.targetDatasetName = '';	// So on next render we'll get a list
+				await this.updateTargetNames();
 				this.setState({count: this.state.count + 1});
 			}
 		} else if (iNotification.action === 'notify' && iNotification.values.operation === 'selectCases') {
@@ -491,7 +498,7 @@ export class FeatureManager extends Component<FM_Props, {
 				tValues: any = {},
 				tProbName = `probability of ${iTools.positiveClassName}`;
 			tProbability = tMapFromCaseIDToProbability[aDoc.caseID];
-			tPredictedLabel = tProbability >= tThresholdResult.threshold ? iTools.positiveClassName : iTools.negativeClassName;
+			tPredictedLabel = tProbability > tThresholdResult.threshold ? iTools.positiveClassName : iTools.negativeClassName;
 			tValues[this.targetPredictedLabelAttributeName] = tPredictedLabel;
 			tValues[tProbName] = tProbability;
 
@@ -524,19 +531,16 @@ export class FeatureManager extends Component<FM_Props, {
 	 * @private
 	 */
 	private async updateTargetNames() {
+		this.datasetNames = await getDatasetNamesWithFilter(isNotAModel);
 		if (this.targetDatasetName === '') {
-			if (this.datasetNames.length === 0)
-				this.datasetNames = await getDatasetNamesWithFilter(isNotAModel);
-			if (this.datasetNames.length === 1)
+			if (this.datasetNames.length > 0)
 				this.targetDatasetName = this.datasetNames[0];
 		}
 		if (this.targetDatasetName !== '') {
-			if (this.targetCollectionNames.length === 0)
-				this.targetCollectionNames = await this.getTargetCollectionNames();
+			this.targetCollectionNames = await this.getTargetCollectionNames();
 			if (this.targetCollectionName === '' && this.targetCollectionNames.length > 0)
 				this.targetCollectionName = this.targetCollectionNames[this.targetCollectionNames.length - 1];
-			if (this.targetAttributeNames.length === 0)
-				this.targetAttributeNames = await this.getTargetAttributeNames();
+			this.targetAttributeNames = await this.getTargetAttributeNames();
 			if (this.targetAttributeName === '' && this.targetAttributeNames.length > 0)
 				this.targetAttributeName = this.targetAttributeNames[0];
 			if (this.targetClassAttributeName === '' && this.targetAttributeNames.length > 1)
@@ -625,8 +629,9 @@ export class FeatureManager extends Component<FM_Props, {
 					{name: 'Model', description: 'Name of model. Can be edited.'},
 					{name: 'Training Set', editable: false, description: 'Name of dataset used for training'},
 					{name: 'Iterations', editable: false, description: 'Number of iterations used in training'},
-					{name: 'Classes', editable: true, description: 'The two classification labels'},
-					{name: 'Positive Class', editable: true, description: 'The classification label regarded as positive'},
+					{name: 'Classes', editable: false, description: 'The two classification labels'},
+					{name: 'Positive Class', editable: false, description: 'The classification label regarded as positive'},
+					{name: 'Column Features', editable: false, description: 'Names of columns treated as model features'},
 					{
 						name: 'Frequency Threshold',
 						editable: false,
@@ -819,6 +824,7 @@ export class FeatureManager extends Component<FM_Props, {
 					"Ignore Stop Words": this.state.ignoreStopWords,
 					"Classes": JSON.stringify(this.targetCategories),
 					"Positive Class": this.targetPositiveCategory,
+					"Column Features": this.targetColumnFeatureNames.join(', '),
 					"Constant Weight": this.logisticModel.theta[0],
 					"Accuracy": this.logisticModel.accuracy,
 					"Kappa": this.logisticModel.kappa,
@@ -835,9 +841,8 @@ export class FeatureManager extends Component<FM_Props, {
 		this.logisticModel.iterations = this.state.iterations;
 		this.logisticModel.lockIntercept = this.state.lockIntercept;
 		this.targetCaseCount = await getCaseCount(this.targetDatasetName, this.targetCollectionName);
-		let // tClassifier = this.nbClassifier,
-			tDocuments: { example: string, class: string, caseID: number }[] = [],
-			tPositiveClassName: string;
+		let	tDocuments: { example: string, class: string, caseID: number, columnFeatures:object }[] = [],
+				tPositiveClassName: string;
 		// Grab the strings in the target collection that are the values of the target attribute.
 		// Stash these in an array that can be used to produce a oneHot representation
 		for (let i = 0; i < this.targetCaseCount; i++) {
@@ -851,9 +856,15 @@ export class FeatureManager extends Component<FM_Props, {
 
 			let tCaseID = tGetResult.values.case.id,
 				tText: string = tGetResult.values.case.values[this.targetAttributeName],
-				tClass: string = tGetResult.values.case.values[this.targetClassAttributeName];
-			// tClassifier.learn(tText, tClass);	// NaiveBayes can learn as we go along
-			tDocuments.push({example: tText, class: tClass, caseID: tCaseID});
+				tClass: string = tGetResult.values.case.values[this.targetClassAttributeName],
+				// We're going to put column features into each document as well so one-hot can include them in the vector
+				tColumnFeatures:{[key:string]:number} = {};
+			this.targetColumnFeatureNames.forEach((aName)=>{
+				let tValue = tGetResult.values.case.values[aName];
+				if( tValue)
+					tColumnFeatures[aName] = Number(tValue);
+			});
+			tDocuments.push({example: tText, class: tClass, caseID: tCaseID, columnFeatures: tColumnFeatures});
 		}
 		tPositiveClassName = this.targetPositiveCategory;
 
@@ -862,11 +873,16 @@ export class FeatureManager extends Component<FM_Props, {
 			this.targetCollectionName, this.targetPredictedLabelAttributeName);
 
 		// Logistic can't happen until we've isolated the features and produced a oneHot representation
-		// Also, the logisticModel.fit function requires that the class value (0 or 1) be the
-		// last element of each oneHot.
-		let tOneHot = oneHot({frequencyThreshold: this.state.frequencyThreshold - 1},
-			tDocuments, this.state.ignoreStopWords),
+		let tOneHot = oneHot({frequencyThreshold: this.state.frequencyThreshold - 1,
+															ignoreStopWords: this.state.ignoreStopWords,
+															includeUnigrams: this.state.unigrams},
+			tDocuments),
 			tData: number[][] = [];
+
+		// Column feature results get pushed on after unigrams
+
+		// The logisticModel.fit function requires that the class value (0 or 1) be the
+		// last element of each oneHot.
 		tOneHot.oneHotResult.forEach(iResult => {
 			iResult.oneHotExample.push(iResult.class === tPositiveClassName ? 1 : 0);
 			tData.push(iResult.oneHotExample);
@@ -931,20 +947,8 @@ export class FeatureManager extends Component<FM_Props, {
 		this.setState({status: 'inProgress'});
 		this.logisticModel.trace = this.state.showWeightsGraph;
 		this.targetDatasetName = iTargetDatasetName;
-		let tCollectionNames = await this.getTargetCollectionNames();
-		// todo: arbitrary assumption that target dataset is initially flat
-		if (tCollectionNames.length === 1) {
-			this.targetCollectionName = tCollectionNames[0];
-			// todo: arbitrary assumption of column positions!
-			this.targetAttributeName = await getAttributeNameByIndex(this.targetDatasetName || '',
-				this.targetCollectionName, 0);
-			this.targetClassAttributeName = await getAttributeNameByIndex(this.targetDatasetName || '',
-				this.targetCollectionName, 1);
-			await deselectAllCasesIn(this.targetDatasetName);
-			await this.buildModel();
-		} else {
-			this.setState({count: this.state.count + 1, status: 'error'})
-		}
+		await deselectAllCasesIn(this.targetDatasetName);
+		await this.buildModel();
 	}
 
 	private setUpdatePercentageFunc(iFunc: (p: number) => void) {
@@ -1041,28 +1045,64 @@ export class FeatureManager extends Component<FM_Props, {
 
 		}
 
-		function checkBox(label: string, checked: any, setProp: any) {
+		function checkBox(label: string, checked: boolean, setProp: any, key?:number) {
 			return (
-				<p>
-					<input
-						type="checkbox"
-						checked={checked()}
-						onChange={event => setProp(event.target.checked)}
+				<div key={key}>
+					<CheckBox
+						text={label}
+						value={checked}
+						onValueChange={
+							e => setProp(e)
+						}
 					/>
-					{label}
-				</p>);
+				</div>
+			)
 		}
 
-		function numericInput(label: string, get: any, set: any) {
+		function numericInput(label: string, min: number, max: number, get: any, set: any) {
 			return (
-				<p> {label}
-					<input
-						className='sq-input'
-						type="text"
-						value={get()}
-						onChange={event => set(Number(event.target.value))}
-					/>
-				</p>);
+				<NumericInput
+					label={label}
+					min={min}
+					max={max}
+					getter={get}
+					setter={set}
+				/>
+			);
+		}
+
+		function columnFeatureCheckboxes() {
+			if (!this_.state.useColumnFeatures)
+				return '';
+			let tCheckboxes: any[] = [];
+			this_.targetAttributeNames.forEach((iName,iIndex) => {
+				if ([this_.targetAttributeName,
+					this_.targetClassAttributeName,
+					this_.targetPredictedLabelAttributeName].indexOf(iName) < 0) {
+					tCheckboxes.push(checkBox(
+						iName,
+						this_.targetColumnFeatureNames.indexOf(iName) >= 0,
+						(newValue: boolean) => {
+							if (newValue) {
+								this_.targetColumnFeatureNames.push(iName);
+							} else {
+								let tIndex = this_.targetColumnFeatureNames.indexOf(iName);
+								if (tIndex >= 0)
+									this_.targetColumnFeatureNames.splice(tIndex, 1);
+							}
+							this_.setState({count: this_.state.count + 1})
+						},
+						iIndex
+						)
+					)
+				}
+			});
+			if( tCheckboxes.length > 0)
+				return (
+					<div className='sq-checkboxes'>
+						{tCheckboxes}
+					</div>);
+			else return '';
 		}
 
 		return (
@@ -1086,27 +1126,29 @@ export class FeatureManager extends Component<FM_Props, {
 								title='Features'>
 								<div>
 									{checkBox(' Unigrams',
-										() => this.state.unigrams,
+										this.state.unigrams,
 										(newValue: boolean) => {
 											this.setState({unigrams: newValue})
 										})}
 									{checkBox(' Column features',
-										() => this.state.columnFeatures,
+										this.state.useColumnFeatures,
 										(newValue: boolean) => {
-											this.setState({columnFeatures: newValue})
+											this.setState({useColumnFeatures: newValue})
 										})}
+									{columnFeatureCheckboxes()}
 								</div>
 							</Item>
 							<Item
 								title='Settings'>
 								<div>
 									{numericInput('Frequency threshold',
+										1, 20,
 										() => this.state.frequencyThreshold,
 										(newValue: number) => {
 											this.setState({frequencyThreshold: newValue})
 										})}
 									{checkBox(' Ignore stop words',
-										() => this.state.ignoreStopWords,
+										this.state.ignoreStopWords,
 										(newValue: boolean) => {
 											this.setState({ignoreStopWords: newValue})
 										})}
@@ -1118,22 +1160,23 @@ export class FeatureManager extends Component<FM_Props, {
 						title='Model Setup'>
 						<div>
 							{numericInput('Iterations: ',
+								20, 2000,
 								() => this.state.iterations,
 								(newValue: number) => {
 									this.setState({iterations: newValue})
 								})}
 							{checkBox(' Lock intercept at zero',
-								() => this.state.lockIntercept,
+								this.state.lockIntercept,
 								(newValue: boolean) => {
 									this.setState({lockIntercept: newValue})
 								})}
 							{checkBox(' Use 0.5 as probability threshold',
-								() => this.state.lockProbThreshold,
+								this.state.lockProbThreshold,
 								(newValue: boolean) => {
 									this.setState({lockProbThreshold: newValue})
 								})}
 							{checkBox(' Show progress graphs',
-								() => this.state.showWeightsGraph,
+								this.state.showWeightsGraph,
 								(newValue: boolean) => {
 									this.setState({showWeightsGraph: newValue})
 								})}

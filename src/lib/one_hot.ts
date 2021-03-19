@@ -43,15 +43,29 @@ export const wordTokenizer = ( text:string, ignoreStopWords:boolean):string[] =>
  * encoding of those documents consisting of an array representing the presence or absence
  * of each of the "tokens" in the document set.
  * For StoryQ, with each token we keep track of the document caseIDs in which it occurs.
+ * @result
+ * {
+ *   oneHotResult:{ oneHotExample:number[], class:string }[],
+ *   tokenMap: [key:string]: { token:string, count:number, index:number,
+ *			caseIDs:number[], weight:number|null, featureCaseID:number|null },
+ *	 tokenArray: { token:string, count:number, index:number,
+ *	 		caseIDs:number[], weight:number|null, featureCaseID:number}[]
+ * }
  */
-export const oneHot = (config:{frequencyThreshold:number},
-											 documents: { example:string, class:string, caseID:number, tokens?:string[] }[],
-											 ignoreStopWords:boolean) => {
+export const oneHot = (config:{includeUnigrams:boolean, frequencyThreshold:number, ignoreStopWords:boolean},
+											 documents: { example:string, class:string, caseID:number,
+												 						columnFeatures:object, tokens?:string[] }[]
+											 ) => {
 	// Make a hash of all the tokens with their counts
 	let tokenMap: { [key:string]: { token:string, count:number, index:number,
 			caseIDs:number[], weight:number|null, featureCaseID:number|null } } = {};	// Keeps track of counts of words
+	// Tokens are unigrams found in document examples. Column features are tokens, too!
 	documents.forEach(aDoc=>{
-		let tokens = new Set(wordTokenizer(aDoc.example, ignoreStopWords));
+		let tText = config.includeUnigrams ? aDoc.example : '',
+				tokens = new Set(wordTokenizer(tText, config.ignoreStopWords));
+		// Add the column features as tokens as well
+		Object.keys( aDoc.columnFeatures).forEach( aFeature => tokens.add(aFeature));
+
 		tokens.forEach(aToken=>{
 			if(!tokenMap[aToken])
 				tokenMap[aToken] = {token: aToken, count: 1, index: -1, caseIDs: [], weight: null, featureCaseID: null};
@@ -88,15 +102,20 @@ export const oneHot = (config:{frequencyThreshold:number},
 			delete  tokenMap[aKey];
 	});
 	// Create an array of one-hot vectors corresponding to the original document examples
+	// We have to do both the tokens in the example and the column features
 	let oneHotArray: { oneHotExample:number[], class:string }[] = documents.map(aDoc=>{
-		let tVector:number[] = Array(kVectorLength).fill(0);
-		wordTokenizer(aDoc.example, ignoreStopWords).forEach(aWord=>{
+		let tText = config.includeUnigrams ? aDoc.example : '',
+				tokens:string[] = wordTokenizer(tText, config.ignoreStopWords),
+				tVector:number[] = Array(kVectorLength).fill(0);
+		Object.keys( aDoc.columnFeatures).forEach( aFeature => tokens.push(aFeature));
+		tokens.forEach(aWord=>{
 			if(tokenMap[aWord]) {
 				let tWordIndex = tokenMap[aWord].index;
 				if (tWordIndex >= 0 && tWordIndex < kVectorLength)
 					tVector[tWordIndex] = 1;
 			}
 		});
+
 		return { oneHotExample: tVector, class: aDoc.class };
 	});
 	return {
@@ -105,4 +124,5 @@ export const oneHot = (config:{frequencyThreshold:number},
 		tokenArray: tokenArray
 	};
 };
+
 

@@ -53,7 +53,9 @@ export default class TextFeedbackManager {
 	 * 	- Pull the phrase from the target case
 	 */
 	public async handleFeatureSelection(aManager:ClassificationManager | FeatureManager) {
-		let tSelectedCases = await getSelectedCasesFrom(aManager.modelsDatasetName);
+		const kMaxStatementsToDisplay = 40;
+		let tEndPhrase:string,
+			tSelectedCases = await getSelectedCasesFrom(aManager.modelsDatasetName);
 		let tFeatures: string[] = [],
 			tUsedIDsSet: Set<number> = new Set();
 		tSelectedCases.forEach((iCase: any) => {
@@ -72,7 +74,8 @@ export default class TextFeedbackManager {
 			values: tUsedCaseIDs
 		});
 		let tTriples:{ actual:string, predicted:string, phrase:string}[] = [];
-		const tTargetPhrasesToShow = Math.min( tUsedCaseIDs.length, 20);
+		tEndPhrase = (tUsedCaseIDs.length > kMaxStatementsToDisplay) ? 'Not all statements could be displayed': '';
+		const tTargetPhrasesToShow = Math.min( tUsedCaseIDs.length, kMaxStatementsToDisplay);
 		// Here is where we put the contents of the text component together
 		for (let i = 0; i < tTargetPhrasesToShow; i++) {
 			let tGetCaseResult: any = await codapInterface.sendRequest({
@@ -84,7 +87,7 @@ export default class TextFeedbackManager {
 			let tPhrase = tGetCaseResult.values.case.values[this.targetAttributeName];
 			tTriples.push({actual: tActualClass, predicted: tPredictedClass, phrase: tPhrase});
 		}
-		await this.composeText(tTriples, tFeatures, textToObject);
+		await this.composeText(tTriples, tFeatures, textToObject, aManager.targetColumnFeatureNames, tEndPhrase);
 	}
 
 	/**
@@ -124,7 +127,7 @@ export default class TextFeedbackManager {
 		tFeatures.forEach(iFeature=>{
 			tFeaturesArray.push(iFeature);
 		});
-		await this.composeText( tTargetTriples, tFeaturesArray, phraseToFeatures);
+		await this.composeText( tTargetTriples, tFeaturesArray, phraseToFeatures, aManager.targetColumnFeatureNames);
 	}
 
 	private async clearText() {
@@ -195,9 +198,13 @@ export default class TextFeedbackManager {
 	 * @param iPhraseTriples  Specifications for the phrases to be displayed
 	 * @param iFeatures {string[]}	The features to be highlighted
 	 * @param iHighlightFunc {Function}	Function called to do the highlighting
+	 * @param iSpecialFeatures {string[]} Typically "column features" true of the phrase, but the strings
+	 * 					themselves do not appear in the phrase
+	 * @param iEndPhrase {string} The text to display at the bottom of the list of phrases
 	 * @public
 	 */
-	public async composeText(iPhraseTriples: PhraseTriple[], iFeatures: string[], iHighlightFunc: Function) {
+	public async composeText(iPhraseTriples: PhraseTriple[], iFeatures: string[], iHighlightFunc: Function,
+													 iSpecialFeatures:string[], iEndPhrase?:string) {
 		let this_ = this;
 		const kHeadingsManager = this.headingsManager;
 		const kProps = ['negNeg', 'negPos', 'posNeg', 'posPos', 'blankNeg', 'blankPos'];
@@ -265,7 +272,7 @@ export default class TextFeedbackManager {
 			// @ts-ignore
 			tClassItems[tGroup].push({
 				type: 'list-item',
-				children: [tSquare].concat(iHighlightFunc(iTriple.phrase, iFeatures))
+				children: [tSquare].concat(iHighlightFunc(iTriple.phrase, iFeatures, iSpecialFeatures))
 			});
 		}
 
@@ -289,6 +296,16 @@ export default class TextFeedbackManager {
 				tItems = tItems.concat(tHeadingItems);
 			}
 		});
+		if( iEndPhrase && iEndPhrase !== '') {
+			tItems.push({
+				"type": "paragraph",
+				"children": [
+					{
+						"text": iEndPhrase
+					}
+				]
+			})
+		}
 		if (tItems.length === 0)
 			this.clearText();
 		else {

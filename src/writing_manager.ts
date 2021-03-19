@@ -124,7 +124,7 @@ export class WritingManager {
 				});
 			}
 			else if (iChild.text) {
-				textToObject(iChild.text, tSelectedWords).forEach((anObject: any) => {
+				textToObject(iChild.text, tSelectedWords, []).forEach((anObject: any) => {
 					top.push(anObject);
 				});
 			}

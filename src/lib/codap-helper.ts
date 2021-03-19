@@ -81,7 +81,7 @@ export async function getDatasetNamesWithFilter(iFilter: (value: any) => boolean
 	});
 	tContextListResult.values.forEach((aValue: any) => {
 		if (iFilter(aValue))
-			tDatasetNames.push(aValue.name);
+			tDatasetNames.push(aValue.title);
 	});
 	return tDatasetNames;
 }
