@@ -11,12 +11,13 @@ export interface HeadingSpec {negNeg:any, negPos:any, blankNeg:any, posNeg:any, 
 export class HeadingsManager {
 
 
-	public classLabels: ClassLabel;
-	public headings:HeadingSpec;
+	public classLabels: ClassLabel = { negLabel: '', posLabel: '', blankLabel: ''};
+	public headings:HeadingSpec = {negNeg:null, negPos: null, blankNeg: null,
+		posNeg: null, posPos: null, blankPos: null};
 	public colors = {green: '#04ab04', red: '#ca0303', blue: '#0000ff', orange: '#ff7700'}
 
-	constructor(iNegLabel:string, iPosLabel:string, iBlankLabel:string, iActual:string | null, iPredicted:string | null) {
-
+	public setupHeadings(iNegLabel:string, iPosLabel:string, iBlankLabel:string,
+											 iActual:string | null, iPredicted:string | null) {
 		function fillInHeading( iFirst:string | null, iSecond:string, iColor:string) {
 			let tFirstPhrase = !iFirst ? '{},{},' : `
 				{

@@ -4,8 +4,7 @@ import 'devextreme/dist/css/dx.light.compact.css';
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
 import {faArrowLeft} from '@fortawesome/free-solid-svg-icons'
 import codapInterface from "./lib/CodapInterface";
-import Button from 'react-bootstrap/Button';
-import 'bootstrap/dist/css/bootstrap.min.css';
+import Button from 'devextreme-react/button';
 import {
 	initializePlugin,
 	openStory,
@@ -35,7 +34,7 @@ interface StoryqStorage {
 
 class Storyq extends Component<{}, { className: string, mode: string }> {
 	private kPluginName = "StoryQ";
-	private kVersion = "0.91";
+	private kVersion = "0.92";
 	private kInitialDimensions = {
 		width: 280,
 		height: 450
@@ -175,13 +174,11 @@ class Storyq extends Component<{}, { className: string, mode: string }> {
 					<div>
 						{this.welcome('Welcome to StoryQ',false)}
 						<div className="button-list">
-							<Button onClick={this.writeStory} variant="outline-primary">Write and Analyze a Story</Button>
+							<Button onClick={this.writeStory} >Write and Analyze a Story</Button>
 							<br/><br/>
-							<Button onClick={this.extractFeatures} variant="outline-primary">Train a Model</Button>
+							<Button onClick={this.extractFeatures} >Train a Model</Button>
 							<br/><br/>
-							<Button onClick={()=>this.classify('testing')} variant="outline-primary">Test a Model</Button>
-							<br/><br/>
-							<Button onClick={()=>this.classify('using')} variant="outline-primary">Use a Model</Button>
+							<Button onClick={()=>this.classify('using')} >Use a Model</Button>
 						</div>
 					</div>
 				)
@@ -197,7 +194,6 @@ class Storyq extends Component<{}, { className: string, mode: string }> {
 						{this.welcome('Train a Model',true)}
 						<FeatureManager status={tFMStatus} setStorageCallbacks={this.setFeatureManagerStorageCallbacks}/>
 					</div>);
-			case 'testing':
 			case 'using':
 				let tClassificationStatus = this.state.mode;
 				return (

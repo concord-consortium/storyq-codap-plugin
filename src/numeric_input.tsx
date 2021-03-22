@@ -1,5 +1,5 @@
 import React, {Component} from 'react';
-import {NumberBox} from "devextreme-react";
+import {NumberBox} from "devextreme-react/number-box";
 
 export interface NumericInputProps {
 	label:string,

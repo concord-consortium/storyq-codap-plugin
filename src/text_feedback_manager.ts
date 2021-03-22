@@ -22,14 +22,13 @@ export default class TextFeedbackManager {
 	public textComponentID:number = -1;
 
 	private headingsManager:HeadingsManager;
-	private targetCategories:string[];
-	private targetAttributeName:string;
+	public targetCategories:string[];
+	public targetAttributeName:string;
 
 	constructor( iTargetCategories:string[], iTargetAttributeName:string) {
 		this.targetCategories = iTargetCategories;
 		this.targetAttributeName = iTargetAttributeName;
-		this.headingsManager = new HeadingsManager(this.targetCategories[0], this.targetCategories[1],
-			'','Actual', 'Predicted');
+		this.headingsManager = new HeadingsManager();
 	}
 
 	public createStorage():TFMStorage {
@@ -44,6 +43,15 @@ export default class TextFeedbackManager {
 			this.textComponentName = iStorage.textComponentName;
 			this.textComponentID = iStorage.textComponentID;
 		}
+	}
+
+	getHeadingsManager():HeadingsManager {
+		if(!this.headingsManager) {
+			this.headingsManager = new HeadingsManager();
+		}
+		this.headingsManager.setupHeadings(this.targetCategories[0], this.targetCategories[1],
+			'','Actual', 'Predicted')
+		return this.headingsManager;
 	}
 
 	/**
@@ -205,8 +213,7 @@ export default class TextFeedbackManager {
 	 */
 	public async composeText(iPhraseTriples: PhraseTriple[], iFeatures: string[], iHighlightFunc: Function,
 													 iSpecialFeatures:string[], iEndPhrase?:string) {
-		let this_ = this;
-		const kHeadingsManager = this.headingsManager;
+		const kHeadingsManager = this.getHeadingsManager();
 		const kProps = ['negNeg', 'negPos', 'posNeg', 'posPos', 'blankNeg', 'blankPos'];
 		// @ts-ignore
 		const kHeadings: HeadingSpec = kHeadingsManager.headings;
@@ -233,12 +240,12 @@ export default class TextFeedbackManager {
 						case kLabels.negLabel:
 							tGroup = 'negNeg';
 							// @ts-ignore
-							tColor = this_.headingsManager.colors.green;
+							tColor = kHeadingsManager.colors.green;
 							break;
 						case kLabels.posLabel:
 							tGroup = 'negPos';
 							// @ts-ignore
-							tColor = this_.headingsManager.colors.red;
+							tColor = kHeadingsManager.colors.red;
 					}
 					break;
 				case kLabels.posLabel:
@@ -246,23 +253,23 @@ export default class TextFeedbackManager {
 						case kLabels.negLabel:
 							tGroup = 'posNeg';
 							// @ts-ignore
-							tColor = this_.headingsManager.colors.red;
+							tColor = kHeadingsManager.colors.red;
 							break;
 						case kLabels.posLabel:
 							tGroup = 'posPos';
 							// @ts-ignore
-							tColor = this_.headingsManager.colors.green;
+							tColor = kHeadingsManager.colors.green;
 					}
 					break;
 				default:
 					switch (iTriple.predicted) {
 						case kLabels.negLabel:
 							tGroup = 'blankNeg';
-							tColor = this_.headingsManager.colors.orange;
+							tColor = kHeadingsManager.colors.orange;
 							break;
 						case kLabels.posLabel:
 							tGroup = 'blankPos';
-							tColor = this_.headingsManager.colors.blue;
+							tColor = kHeadingsManager.colors.blue;
 					}
 			}
 			const tSquare = {

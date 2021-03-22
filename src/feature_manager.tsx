@@ -1,24 +1,21 @@
 import React, {Component} from 'react';
 import pluralize from 'pluralize';
-//import naiveBaseClassifier from './lib/NaiveBayesClassifier';
 import codapInterface, {CODAP_Notification} from "./lib/CodapInterface";
 import {
 	addAttributesToTarget, deselectAllCasesIn,
-	getCaseCount,
+	getCaseCount, getCollectionNames,
 	getDatasetNamesWithFilter, isAModel,
 	isNotAModel
 } from './lib/codap-helper';
 import Button from 'devextreme-react/button';
 import {Accordion, Item} from 'devextreme-react/accordion';
 import {SelectBox} from 'devextreme-react/select-box';
-import 'bootstrap/dist/css/bootstrap.min.css';
 import {oneHot} from "./lib/one_hot";
 import './storyq.css';
-// import NaiveBayesClassifier from "./lib/NaiveBayesClassifier";
 import {LogisticRegression} from './lib/jsregression';
 import TextFeedbackManager, {TFMStorage} from "./text_feedback_manager";
 import {ProgressBar} from "./progress_bar";
-import {CheckBox} from "devextreme-react";
+import {CheckBox} from "devextreme-react/check-box";
 import {NumericInput} from "./numeric_input";
 
 // import tf from "@tensorflow/tfjs";
@@ -124,6 +121,8 @@ export class FeatureManager extends Component<FM_Props, {
 		costName: 'cost'
 	};
 	private textFeedbackManager: TextFeedbackManager | null = null;
+
+	private kProbPredAttrNamePrefix = 'probability of ';
 
 	constructor(props: FM_Props) {
 		super(props);
@@ -496,7 +495,7 @@ export class FeatureManager extends Component<FM_Props, {
 			let tProbability: number,
 				tPredictedLabel,
 				tValues: any = {},
-				tProbName = `probability of ${iTools.positiveClassName}`;
+				tProbName = `${this.kProbPredAttrNamePrefix}${iTools.positiveClassName}`;
 			tProbability = tMapFromCaseIDToProbability[aDoc.caseID];
 			tPredictedLabel = tProbability > tThresholdResult.threshold ? iTools.positiveClassName : iTools.negativeClassName;
 			tValues[this.targetPredictedLabelAttributeName] = tPredictedLabel;
@@ -553,19 +552,21 @@ export class FeatureManager extends Component<FM_Props, {
 		}
 	}
 
-	private async getTargetCollectionNames(): Promise<string[]> {
-		const tListResult: any = await codapInterface.sendRequest(
-			{
-				action: 'get',
-				resource: `dataContext[${this.targetDatasetName}].collectionList`
+	private getPossibleColumnFeatureNames(): string[] {
+		let tResult: string[] = [];
+		this.targetAttributeNames.forEach((iName) => {
+			if ([this.targetAttributeName,
+					this.targetClassAttributeName,
+					this.targetPredictedLabelAttributeName].indexOf(iName) < 0 &&
+				!iName.startsWith(this.kProbPredAttrNamePrefix)) {
+				tResult.push(iName)
 			}
-		)
-			.catch(() => {
-				console.log('Error getting collection name')
-			});
-		return tListResult.values.map((iValue: { name: string }) => {
-			return iValue.name
 		});
+		return tResult;
+	}
+
+	private async getTargetCollectionNames(): Promise<string[]> {
+		return await getCollectionNames(this.targetDatasetName);
 	}
 
 	private async getTargetAttributeNames(): Promise<string[]> {
@@ -841,8 +842,8 @@ export class FeatureManager extends Component<FM_Props, {
 		this.logisticModel.iterations = this.state.iterations;
 		this.logisticModel.lockIntercept = this.state.lockIntercept;
 		this.targetCaseCount = await getCaseCount(this.targetDatasetName, this.targetCollectionName);
-		let	tDocuments: { example: string, class: string, caseID: number, columnFeatures:object }[] = [],
-				tPositiveClassName: string;
+		let tDocuments: { example: string, class: string, caseID: number, columnFeatures: object }[] = [],
+			tPositiveClassName: string;
 		// Grab the strings in the target collection that are the values of the target attribute.
 		// Stash these in an array that can be used to produce a oneHot representation
 		for (let i = 0; i < this.targetCaseCount; i++) {
@@ -858,10 +859,10 @@ export class FeatureManager extends Component<FM_Props, {
 				tText: string = tGetResult.values.case.values[this.targetAttributeName],
 				tClass: string = tGetResult.values.case.values[this.targetClassAttributeName],
 				// We're going to put column features into each document as well so one-hot can include them in the vector
-				tColumnFeatures:{[key:string]:number} = {};
-			this.targetColumnFeatureNames.forEach((aName)=>{
+				tColumnFeatures: { [key: string]: number } = {};
+			this.targetColumnFeatureNames.forEach((aName) => {
 				let tValue = tGetResult.values.case.values[aName];
-				if( tValue)
+				if (tValue)
 					tColumnFeatures[aName] = Number(tValue);
 			});
 			tDocuments.push({example: tText, class: tClass, caseID: tCaseID, columnFeatures: tColumnFeatures});
@@ -873,9 +874,11 @@ export class FeatureManager extends Component<FM_Props, {
 			this.targetCollectionName, this.targetPredictedLabelAttributeName);
 
 		// Logistic can't happen until we've isolated the features and produced a oneHot representation
-		let tOneHot = oneHot({frequencyThreshold: this.state.frequencyThreshold - 1,
-															ignoreStopWords: this.state.ignoreStopWords,
-															includeUnigrams: this.state.unigrams},
+		let tOneHot = oneHot({
+				frequencyThreshold: this.state.frequencyThreshold - 1,
+				ignoreStopWords: this.state.ignoreStopWords,
+				includeUnigrams: this.state.unigrams
+			},
 			tDocuments),
 			tData: number[][] = [];
 
@@ -1038,19 +1041,20 @@ export class FeatureManager extends Component<FM_Props, {
 						<br/>
 						<Button onClick={() => {
 							this_.extract(this_.targetDatasetName);
-						}} /*variant="outline-primary"*/>Train using {this_.targetDatasetName}</Button>
+						}} >Train using {this_.targetDatasetName}</Button>
 					</div>
 				);
 			}
 
 		}
 
-		function checkBox(label: string, checked: boolean, setProp: any, key?:number) {
+		function checkBox(label: string, checked: boolean, disabled:boolean, setProp: any, key?: number) {
 			return (
 				<div key={key}>
 					<CheckBox
 						text={label}
-						value={checked}
+						value={checked && !disabled}
+						disabled={disabled}
 						onValueChange={
 							e => setProp(e)
 						}
@@ -1075,13 +1079,11 @@ export class FeatureManager extends Component<FM_Props, {
 			if (!this_.state.useColumnFeatures)
 				return '';
 			let tCheckboxes: any[] = [];
-			this_.targetAttributeNames.forEach((iName,iIndex) => {
-				if ([this_.targetAttributeName,
-					this_.targetClassAttributeName,
-					this_.targetPredictedLabelAttributeName].indexOf(iName) < 0) {
+			this_.getPossibleColumnFeatureNames().forEach((iName, iIndex) => {
 					tCheckboxes.push(checkBox(
 						iName,
 						this_.targetColumnFeatureNames.indexOf(iName) >= 0,
+						false,
 						(newValue: boolean) => {
 							if (newValue) {
 								this_.targetColumnFeatureNames.push(iName);
@@ -1096,8 +1098,8 @@ export class FeatureManager extends Component<FM_Props, {
 						)
 					)
 				}
-			});
-			if( tCheckboxes.length > 0)
+			);
+			if (tCheckboxes.length > 0)
 				return (
 					<div className='sq-checkboxes'>
 						{tCheckboxes}
@@ -1127,11 +1129,13 @@ export class FeatureManager extends Component<FM_Props, {
 								<div>
 									{checkBox(' Unigrams',
 										this.state.unigrams,
+										false,
 										(newValue: boolean) => {
 											this.setState({unigrams: newValue})
 										})}
 									{checkBox(' Column features',
 										this.state.useColumnFeatures,
+										this.getPossibleColumnFeatureNames().length === 0,
 										(newValue: boolean) => {
 											this.setState({useColumnFeatures: newValue})
 										})}
@@ -1149,6 +1153,7 @@ export class FeatureManager extends Component<FM_Props, {
 										})}
 									{checkBox(' Ignore stop words',
 										this.state.ignoreStopWords,
+										false,
 										(newValue: boolean) => {
 											this.setState({ignoreStopWords: newValue})
 										})}
@@ -1167,16 +1172,19 @@ export class FeatureManager extends Component<FM_Props, {
 								})}
 							{checkBox(' Lock intercept at zero',
 								this.state.lockIntercept,
+								false,
 								(newValue: boolean) => {
 									this.setState({lockIntercept: newValue})
 								})}
 							{checkBox(' Use 0.5 as probability threshold',
 								this.state.lockProbThreshold,
+								false,
 								(newValue: boolean) => {
 									this.setState({lockProbThreshold: newValue})
 								})}
 							{checkBox(' Show progress graphs',
 								this.state.showWeightsGraph,
+								false,
 								(newValue: boolean) => {
 									this.setState({showWeightsGraph: newValue})
 								})}
