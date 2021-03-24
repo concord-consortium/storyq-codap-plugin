@@ -46,7 +46,7 @@ export const wordTokenizer = ( text:string, ignoreStopWords:boolean):string[] =>
  * @result
  * {
  *   oneHotResult:{ oneHotExample:number[], class:string }[],
- *   tokenMap: [key:string]: { token:string, count:number, index:number,
+ *   tokenMap: [key:string]: { token:string, type:string, count:number, index:number,
  *			caseIDs:number[], weight:number|null, featureCaseID:number|null },
  *	 tokenArray: { token:string, count:number, index:number,
  *	 		caseIDs:number[], weight:number|null, featureCaseID:number}[]
@@ -54,10 +54,10 @@ export const wordTokenizer = ( text:string, ignoreStopWords:boolean):string[] =>
  */
 export const oneHot = (config:{includeUnigrams:boolean, frequencyThreshold:number, ignoreStopWords:boolean},
 											 documents: { example:string, class:string, caseID:number,
-												 						columnFeatures:object, tokens?:string[] }[]
+												 						columnFeatures:{[key:string]:number | boolean}, tokens?:string[] }[]
 											 ) => {
 	// Make a hash of all the tokens with their counts
-	let tokenMap: { [key:string]: { token:string, count:number, index:number,
+	let tokenMap: { [key:string]: { token:string, type:string, count:number, index:number,
 			caseIDs:number[], weight:number|null, featureCaseID:number|null } } = {};	// Keeps track of counts of words
 	// Tokens are unigrams found in document examples. Column features are tokens, too!
 	documents.forEach(aDoc=>{
@@ -67,8 +67,11 @@ export const oneHot = (config:{includeUnigrams:boolean, frequencyThreshold:numbe
 		Object.keys( aDoc.columnFeatures).forEach( aFeature => tokens.add(aFeature));
 
 		tokens.forEach(aToken=>{
-			if(!tokenMap[aToken])
-				tokenMap[aToken] = {token: aToken, count: 1, index: -1, caseIDs: [], weight: null, featureCaseID: null};
+			if(!tokenMap[aToken]) {
+				let tType = aDoc.columnFeatures[aToken] ? 'column feature' : 'unigram';
+				tokenMap[aToken] = {token: aToken, type: tType, count: 1, index: -1,
+					caseIDs: [], weight: null, featureCaseID: null};
+			}
 			else
 				tokenMap[aToken].count++;
 			tokenMap[aToken].caseIDs.push( aDoc.caseID);

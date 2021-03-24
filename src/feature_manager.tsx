@@ -794,6 +794,7 @@ export class FeatureManager extends Component<FM_Props, {
 			let tOneFeatureUpdate: any = {
 				id: aToken.featureCaseID,
 				values: {
+					type: aToken.type,
 					weight: iWeights[iIndex]
 				}
 			};
@@ -842,7 +843,8 @@ export class FeatureManager extends Component<FM_Props, {
 		this.logisticModel.iterations = this.state.iterations;
 		this.logisticModel.lockIntercept = this.state.lockIntercept;
 		this.targetCaseCount = await getCaseCount(this.targetDatasetName, this.targetCollectionName);
-		let tDocuments: { example: string, class: string, caseID: number, columnFeatures: object }[] = [],
+		let tDocuments: { example: string, class: string, caseID: number,
+				columnFeatures: {[key:string]:number | boolean} }[] = [],
 			tPositiveClassName: string;
 		// Grab the strings in the target collection that are the values of the target attribute.
 		// Stash these in an array that can be used to produce a oneHot representation
@@ -859,7 +861,7 @@ export class FeatureManager extends Component<FM_Props, {
 				tText: string = tGetResult.values.case.values[this.targetAttributeName],
 				tClass: string = tGetResult.values.case.values[this.targetClassAttributeName],
 				// We're going to put column features into each document as well so one-hot can include them in the vector
-				tColumnFeatures: { [key: string]: number } = {};
+				tColumnFeatures: { [key: string]: number | boolean } = {};
 			this.targetColumnFeatureNames.forEach((aName) => {
 				let tValue = tGetResult.values.case.values[aName];
 				if (tValue)
