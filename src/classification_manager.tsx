@@ -34,6 +34,7 @@ interface ClassificationStorage {
 	modelCaseIndex: number,
 	modelCollectionName: string,
 	modelCategories: string[],
+	modelColumnFeatures: string[],
 	targetDatasetName: string,
 	targetCollectionName: string,
 	targetAttributeName: string,
@@ -48,6 +49,7 @@ interface ClassificationModel {
 	caseIDs: number[],
 	usages: number[][],
 	labels: string[],
+	modelColumnFeatures: string[],
 	threshold: number,
 	constantWeightTerm: number,
 	predictor: any
@@ -69,6 +71,7 @@ export class ClassificationManager extends Component<Classification_Props, {
 	private modelCaseIndex: number = 0;
 	private modelCollectionName = 'models';
 	private modelCategories: string[] = [];
+	private modelColumnFeatures: string[] = [];
 	private targetDatasetNames: string[] = [];
 	private targetDatasetName: string = '';
 	private targetCollectionNames: string[] = [];
@@ -122,6 +125,7 @@ export class ClassificationManager extends Component<Classification_Props, {
 			modelCaseIndex: this.modelCaseIndex,
 			modelCollectionName: this.modelCollectionName,
 			modelCategories: this.modelCategories,
+			modelColumnFeatures: this.modelColumnFeatures,
 			targetDatasetName: this.targetDatasetName,
 			targetCollectionName: this.targetCollectionName,
 			targetAttributeName: this.targetAttributeName,
@@ -137,6 +141,7 @@ export class ClassificationManager extends Component<Classification_Props, {
 		this.modelCaseIndex = iStorage.modelCaseIndex;
 		this.modelCollectionName = iStorage.modelCollectionName || '';
 		this.modelCategories = iStorage.modelCategories || [];
+		this.modelColumnFeatures = iStorage.modelColumnFeatures || [];
 		this.targetDatasetName = iStorage.targetDatasetName || '';
 		this.targetCollectionName = iStorage.targetCollectionName || '';
 		this.targetAttributeName = iStorage.targetAttributeName || '';
@@ -303,6 +308,7 @@ export class ClassificationManager extends Component<Classification_Props, {
 				weights: [],
 				caseIDs: [],
 				labels: [],
+				modelColumnFeatures: [],
 				usages: [],
 				threshold: 0.5,
 				constantWeightTerm: 0,
@@ -340,6 +346,9 @@ export class ClassificationManager extends Component<Classification_Props, {
 			let tLabels = tParentCaseResult.values.case.values['Classes'] || `["negative", "positive"]`;
 			tModel.labels = JSON.parse(tLabels);
 			this_.modelCategories = tModel.labels;	// Needed to pass to TextFeedbackManager
+			let tColumnFeatures = tParentCaseResult.values.case.values['Column Features'] || `[]`;
+			tModel.modelColumnFeatures = tColumnFeatures.split(',');
+			this_.modelColumnFeatures = tModel.modelColumnFeatures;	// So they get saved
 			tModel.threshold = tParentCaseResult.values.case.values['Threshold'];
 			tModel.constantWeightTerm = tParentCaseResult.values.case.values['Constant Weight'];
 			tModel.predictor = new LogitPrediction(tModel.constantWeightTerm, tModel.weights, tModel.threshold);
@@ -383,6 +392,19 @@ export class ClassificationManager extends Component<Classification_Props, {
 						// Add the case ID to the list of featureIDs for this phrase
 						tFeatureIDs.push(tModel.caseIDs[tIndex]);
 						tModel.usages[tIndex].push(tPhraseID);
+					}
+				});
+				// The column features are names of attributes we expect to find having values true or false
+				tModel.modelColumnFeatures.forEach(iFeature=>{
+					if( tGetResult.values.case.values[iFeature]) {
+						let tIndex = tModel.features.indexOf(iFeature);
+						if( tIndex >= 0) {
+							// Mark it in the array
+							tGiven[tIndex] = 1;
+							// Add the case ID to the list of featureIDs for this phrase
+							tFeatureIDs.push(tModel.caseIDs[tIndex]);
+							tModel.usages[tIndex].push(tPhraseID);
+						}
 					}
 				});
 				let tCaseValues: { [key: string]: string } = {},
