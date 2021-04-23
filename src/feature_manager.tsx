@@ -822,11 +822,11 @@ export class FeatureManager extends Component<FM_Props, {
 				values: {
 					"Training Set": this.targetDatasetName,
 					"Iterations": this.state.iterations,
-					"Frequency Threshold": this.state.frequencyThreshold,
-					"Ignore Stop Words": this.state.ignoreStopWords,
+					"Frequency Threshold": this.state.unigrams ? this.state.frequencyThreshold : '',
+					"Ignore Stop Words": this.state.unigrams ? this.state.ignoreStopWords : '',
 					"Classes": JSON.stringify(this.targetCategories),
 					"Positive Class": this.targetPositiveCategory,
-					"Column Features": this.targetColumnFeatureNames.join(', '),
+					"Column Features": this.state.useColumnFeatures ? this.targetColumnFeatureNames.join(', ') : '',
 					"Constant Weight": this.logisticModel.theta[0],
 					"Accuracy": this.logisticModel.accuracy,
 					"Kappa": this.logisticModel.kappa,
@@ -860,13 +860,15 @@ export class FeatureManager extends Component<FM_Props, {
 			let tCaseID = tGetResult.values.case.id,
 				tText: string = tGetResult.values.case.values[this.targetAttributeName],
 				tClass: string = tGetResult.values.case.values[this.targetClassAttributeName],
-				// We're going to put column features into each document as well so one-hot can include them in the vector
 				tColumnFeatures: { [key: string]: number | boolean } = {};
-			this.targetColumnFeatureNames.forEach((aName) => {
-				let tValue = tGetResult.values.case.values[aName];
-				if (tValue)
-					tColumnFeatures[aName] = Number(tValue);
-			});
+				// We're going to put column features into each document as well so one-hot can include them in the vector
+			if( this.state.useColumnFeatures) {
+				this.targetColumnFeatureNames.forEach((aName) => {
+					let tValue = tGetResult.values.case.values[aName];
+					if (tValue)
+						tColumnFeatures[aName] = Number(tValue);
+				});
+			}
 			tDocuments.push({example: tText, class: tClass, caseID: tCaseID, columnFeatures: tColumnFeatures});
 		}
 		tPositiveClassName = this.targetPositiveCategory;
