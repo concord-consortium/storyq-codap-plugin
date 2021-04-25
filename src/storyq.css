@@ -69,6 +69,29 @@ p {
   margin-left: 30px!important;
 }
 
+.sq-feature-constructor {
+
+}
+
+.sq-feature-template {
+  background-color: lightcyan;
+  border: 2px solid gray;
+  padding: 5px;
+}
+
+.sq-new-feature {
+}
+
+.sq-new-feature-item {
+  flex: 1 0 auto;
+}
+
+.dx-dropdowneditor-button.dx-button-mode-contained,
+.dx-dropdowneditor-button.dx-button-mode-outlined,
+.dx-dropdowneditor-button.dx-button-mode-text {
+  margin-left: 0!important;
+}
+
 .dx-item-content label {
   display: flex;
 }

@@ -34,7 +34,7 @@ interface StoryqStorage {
 
 class Storyq extends Component<{}, { className: string, mode: string }> {
 	private kPluginName = "StoryQ";
-	private kVersion = "0.92";
+	private kVersion = "0.94";
 	private kInitialDimensions = {
 		width: 280,
 		height: 450
@@ -77,7 +77,7 @@ class Storyq extends Component<{}, { className: string, mode: string }> {
 				textManagerStorage: this.writingManager.createStorage(),
 				dataManagerStorage: this.dataManager.createStorage(),
 				featureManagerStorage: this.featureManagerCreateStorage ? this.featureManagerCreateStorage() : null,
-				classificationManagerStorage: this.classificationManagerCreateStorage ? this.classificationManagerCreateStorage() : null
+				classificationManagerStorage: this.classificationManagerCreateStorage ? this.classificationManagerCreateStorage() : null,
 			}
 		};
 	}
@@ -110,7 +110,6 @@ class Storyq extends Component<{}, { className: string, mode: string }> {
 		this.featureManagerRestoreStorage = iCallbackFuncs.restoreStorageCallback;
 		if (this.stashedFeatureManagerStorage) {
 			this.featureManagerRestoreStorage(this.stashedFeatureManagerStorage);
-			// this.stashedFeatureManagerStorage = null;
 		}
 	}
 
@@ -119,7 +118,6 @@ class Storyq extends Component<{}, { className: string, mode: string }> {
 		this.classificationManagerRestoreStorage = iCallbackFuncs.restoreStorageCallback;
 		if (this.stashedClassificationManagerStorage) {
 			this.classificationManagerRestoreStorage(this.stashedClassificationManagerStorage);
-			// this.stashedFeatureManagerStorage = null;
 		}
 	}
 

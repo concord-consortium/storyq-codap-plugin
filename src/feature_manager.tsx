@@ -17,6 +17,7 @@ import TextFeedbackManager, {TFMStorage} from "./text_feedback_manager";
 import {ProgressBar} from "./progress_bar";
 import {CheckBox} from "devextreme-react/check-box";
 import {NumericInput} from "./numeric_input";
+import {FC_StorageCallbackFuncs, FCState, FeatureConstructor} from "./feature_constructor";
 
 // import tf from "@tensorflow/tfjs";
 
@@ -32,6 +33,7 @@ export interface FM_Props {
 
 interface FMStorage {
 	textFeedbackManagerStorage: TFMStorage | null,
+	featureConstructorStorage: FCState | null,
 	datasetName: string | null,
 	datasetNames: string[] | null,
 	targetCollectionName: string,
@@ -57,13 +59,15 @@ interface FMStorage {
 	ignoreStopWords: boolean,
 	lockIntercept: boolean,
 	lockProbThreshold: boolean,
+	accordianSelection: Record<string, number>,
 	status: string
-
 }
-
+const outerNames = ['Extraction', 'Model Setup'],
+			innerNames = ['Setup', 'Features', 'Settings'];
 export class FeatureManager extends Component<FM_Props, {
 	status: string,
 	count: number,
+	accordianSelection: Record<string, number>,
 	unigrams: boolean,
 	iterations: number,
 	currentIteration: number,
@@ -96,6 +100,9 @@ export class FeatureManager extends Component<FM_Props, {
 	private featureCollectionName = 'features';
 	private featureCaseCount = 0;
 	private subscriberIndex: number = -1;
+	private featureConstructorCreateStorage: any;
+	private featureConstructorRestoreStorage: any;
+	private stashedFeatureConstructorStorage: any;
 	// private nbClassifier: NaiveBayesClassifier;
 	// Some flags to prevent recursion in selecting features or target cases
 	private isSelectingTargetPhrases = false;
@@ -129,6 +136,7 @@ export class FeatureManager extends Component<FM_Props, {
 		this.state = {
 			status: props.status,
 			count: 0,
+			accordianSelection: {outer: 0, inner: 1},
 			iterations: 50,
 			unigrams: true,
 			currentIteration: 0,
@@ -146,7 +154,7 @@ export class FeatureManager extends Component<FM_Props, {
 		this.restoreStorage = this.restoreStorage.bind(this);
 		this.createModelsDataset = this.createModelsDataset.bind(this);
 		this.setUpdatePercentageFunc = this.setUpdatePercentageFunc.bind(this);
-
+		this.setFeatureConstructorStorageCallbacks = this.setFeatureConstructorStorageCallbacks.bind(this);
 	}
 
 	public async componentDidMount() {
@@ -169,6 +177,7 @@ export class FeatureManager extends Component<FM_Props, {
 	public createStorage(): FMStorage {
 		return {
 			textFeedbackManagerStorage: this.textFeedbackManager ? this.textFeedbackManager.createStorage() : null,
+			featureConstructorStorage: this.featureConstructorCreateStorage ? this.featureConstructorCreateStorage() : null,
 			datasetName: this.targetDatasetName,
 			datasetNames: this.datasetNames,
 			targetCollectionName: this.targetCollectionName,
@@ -194,6 +203,7 @@ export class FeatureManager extends Component<FM_Props, {
 			ignoreStopWords: this.state.ignoreStopWords,
 			lockIntercept: this.state.lockIntercept,
 			lockProbThreshold: this.state.lockProbThreshold,
+			accordianSelection: this.state.accordianSelection,
 			status: this.state.status
 		}
 	}
@@ -220,12 +230,26 @@ export class FeatureManager extends Component<FM_Props, {
 		this.logisticModel.kappa = iStorage.modelKappa;
 		this.logisticModel.threshold = iStorage.modelThreshold;
 		this.getTextFeedbackManager().restoreStorage(iStorage.textFeedbackManagerStorage);
+		this.stashedFeatureConstructorStorage = iStorage.featureConstructorStorage;
+		if (this.featureConstructorRestoreStorage && this.stashedFeatureConstructorStorage) {
+			this.featureConstructorRestoreStorage(this.stashedFeatureConstructorStorage);
+			this.stashedClassificationManagerStorage = null;
+		}
 		this.setState({unigrams: iStorage.unigrams});
 		this.setState({useColumnFeatures: iStorage.useColumnFeatures || false});
 		this.setState({ignoreStopWords: iStorage.ignoreStopWords || false});
 		this.setState({lockIntercept: iStorage.lockIntercept || false});
 		this.setState({lockProbThreshold: iStorage.lockProbThreshold || false});
+		this.setState({accordianSelection: iStorage.accordianSelection || {inner: 0, outer: 0}});
 		this.setState({status: iStorage.status || 'active'});
+	}
+
+	public setFeatureConstructorStorageCallbacks(iCallbackFuncs: FC_StorageCallbackFuncs) {
+		this.featureConstructorCreateStorage = iCallbackFuncs.createStorageCallback;
+		this.featureConstructorRestoreStorage = iCallbackFuncs.restoreStorageCallback;
+		if (this.stashedFeatureConstructorStorage) {
+			this.featureConstructorRestoreStorage(this.stashedFeatureConstructorStorage);
+		}
 	}
 
 	/**
@@ -1111,14 +1135,61 @@ export class FeatureManager extends Component<FM_Props, {
 			else return '';
 		}
 
+		function constructedFeatureCheckboxes() {
+			let tCheckboxes: any[] = [],
+					tConstructedFeatureList:any[] = this_.getConstructedFeaturesList ? this_.getConstructedFeaturesList() : [];
+			tConstructedFeatureList.forEach((iFeature, iIndex) => {
+					tCheckboxes.push(checkBox(
+						iFeature.name,
+						iFeature.checked,
+						false,
+						(newValue: boolean) => {
+							iFeature.checked = newValue;
+							},
+						iIndex
+						)
+					)
+				}
+			);
+			if (tCheckboxes.length > 0)
+				return (
+					<div className='sq-checkboxes'>
+						{tCheckboxes}
+					</div>);
+			else return '';
+		}
+
+		function handleSelectionChanged(obj:any, key:string, names:string[]) {
+			const addedItems = obj.addedItems,
+				addedItem = addedItems.length > 0 ? addedItems[0] : null,
+				addedItemTitle = addedItem ? addedItem.title : '',
+				addedItemIndex = names.indexOf(addedItemTitle);
+			let newAccordionState = Object.assign({}, this_.state.accordianSelection);
+			newAccordionState[key] = addedItemIndex;
+			this_.setState({ accordianSelection: newAccordionState});
+		}
+
+		function outerSelectionChanged(obj:any) {
+			handleSelectionChanged(obj,'outer', outerNames);
+		}
+
+		function innerSelectionChanged(obj:any) {
+			handleSelectionChanged(obj,'inner', innerNames);
+		}
+
 		return (
 			<div className='sq-options'>
 				<Accordion
-					collapsible={true} multiple={true}>
+					collapsible={true} multiple={false}
+					onSelectionChanged={ outerSelectionChanged}
+					selectedIndex={this.state.accordianSelection.outer}
+				>
 					<Item
 						title='Extraction'>
 						<Accordion
-							collapsible={true} multiple={true}>
+							collapsible={true} multiple={false}
+							onSelectionChanged={ innerSelectionChanged}
+							selectedIndex={this.state.accordianSelection.inner}>
 							<Item
 								title='Setup'>
 								<div>
@@ -1144,6 +1215,10 @@ export class FeatureManager extends Component<FM_Props, {
 											this.setState({useColumnFeatures: newValue})
 										})}
 									{columnFeatureCheckboxes()}
+									<FeatureConstructor
+										setStorageCallbacks={this.setFeatureConstructorStorageCallbacks}
+									/>
+									{constructedFeatureCheckboxes()}
 								</div>
 							</Item>
 							<Item
