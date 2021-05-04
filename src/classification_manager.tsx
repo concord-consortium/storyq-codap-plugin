@@ -7,7 +7,7 @@ import React, {Component} from 'react';
 import codapInterface, {CODAP_Notification} from "./lib/CodapInterface";
 import {
 	getCaseCount, getCollectionNames,
-	getDatasetNamesWithFilter, getAttributeNameByIndex, isAModel, isNotAModel, deselectAllCasesIn
+	getDatasetNamesWithFilter, isAModel, isNotAModel, deselectAllCasesIn
 } from './lib/codap-helper';
 import {wordTokenizer} from "./lib/one_hot";
 import './storyq.css';
@@ -179,7 +179,6 @@ export class ClassificationManager extends Component<Classification_Props, {
 	}
 
 	private async getTargetAttributeNames(): Promise<string[]> {
-		let this_ = this;
 		if (this.targetCollectionName === '') {
 			const tCollNames = await this.getTargetCollectionNames();
 			if (tCollNames.length === 0)
@@ -198,6 +197,10 @@ export class ClassificationManager extends Component<Classification_Props, {
 		return tListResult.values.map((iValue: any) => {
 			return iValue.name;
 		});
+	}
+
+	public getConstructedFeatureNames():string[] {
+		return [];
 	}
 
 	/**
@@ -654,7 +657,6 @@ export class ClassificationManager extends Component<Classification_Props, {
 			if (this_.results.targetName === '')
 				return '';
 			else {
-				let tHasActual = this_.targetClassAttributeName !== '';
 				return (
 					<div>
 						<br/>

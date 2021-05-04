@@ -54,7 +54,7 @@ export async function openStory(iTextComponentName: string): Promise<number> {
 	return theResult.values.id;
 }
 
-export function isNotAModel(iValue:any):boolean {
+export function isNotAModel(iValue: any): boolean {
 	return iValue.title.toLowerCase().indexOf('model') < 0;
 }
 
@@ -113,7 +113,7 @@ export async function getSelectedCasesFrom(iDatasetName: string | null): Promise
  * Deselect all cases
  * @param iDatasetName
  */
-export async function deselectAllCasesIn(iDatasetName:string | null) {
+export async function deselectAllCasesIn(iDatasetName: string | null) {
 	await codapInterface.sendRequest({
 		action: 'update',
 		resource: `dataContext[${iDatasetName}].selectionList`,
@@ -148,18 +148,18 @@ export async function getCollectionNames(iDatasetName: string | null): Promise<s
 		.catch(() => {
 			console.log('Error getting collection list')
 		});
-	return tListResult.values.map((aCollection:any)=> {
+	return tListResult.values.map((aCollection: any) => {
 		return aCollection.name;
 	});
 }
 
-export async function addAttributesToTarget( iPredictionClass:string, iDatasetName:string,
-																						 iCollectionName:string, iAttributeName:string) {
+export async function addAttributesToTarget(iPredictionClass: string, iDatasetName: string,
+																						iCollectionName: string, iAttributeName: string) {
 	// Add the predicted label and probability attributes to the target collection
 	await codapInterface.sendRequest(
 		{
 			action: 'create',
-			resource:`dataContext[${iDatasetName}].collection[${iCollectionName}].attribute`,
+			resource: `dataContext[${iDatasetName}].collection[${iCollectionName}].attribute`,
 			values: [
 				{
 					name: iAttributeName,
@@ -177,40 +177,86 @@ export async function addAttributesToTarget( iPredictionClass:string, iDatasetNa
 			]
 		}
 	)
-		.catch(() => { console.log('Error showing adding target attributes')});
+		.catch(() => {
+			console.log('Error showing adding target attributes')
+		});
 
 }
 
-export async function getAttributeNameByIndex(iDatasetName:string, iCollectionName:string, iIndex:number): Promise<string> {
-	const tListResult:any = await codapInterface.sendRequest(
-	{
-		action: 'get',
-		resource:`dataContext[${iDatasetName}].collection[${iCollectionName}].attributeList`
-	}
-)
-	.catch(() => { console.log('Error getting attribute list')});
-if( tListResult.values.length > iIndex)
-	return tListResult.values[ iIndex].name;
-else return '';
+export async function getAttributeNameByIndex(iDatasetName: string, iCollectionName: string, iIndex: number): Promise<string> {
+	const tListResult: any = await codapInterface.sendRequest(
+		{
+			action: 'get',
+			resource: `dataContext[${iDatasetName}].collection[${iCollectionName}].attributeList`
+		}
+	)
+		.catch(() => {
+			console.log('Error getting attribute list')
+		});
+	if (tListResult.values.length > iIndex)
+		return tListResult.values[iIndex].name;
+	else return '';
 }
 
-export async function getComponentByTypeAndTitle(iType:string, iTitle: string): Promise<number> {
-	const tListResult:any = await codapInterface.sendRequest(
-	{
-		action: 'get',
-		resource:`componentList`
-	}
-)
-	.catch(() => { console.log('Error getting component list')});
+export async function getComponentByTypeAndTitle(iType: string, iTitle: string): Promise<number> {
+	const tListResult: any = await codapInterface.sendRequest(
+		{
+			action: 'get',
+			resource: `componentList`
+		}
+	)
+		.catch(() => {
+			console.log('Error getting component list')
+		});
 
 	let tID = -1;
-	if( tListResult.success) {
-	  let tFoundValue =	tListResult.values.find((iValue:any) => {
+	if (tListResult.success) {
+		let tFoundValue = tListResult.values.find((iValue: any) => {
 			return iValue.type === 'text' && iValue.title === iTitle;
 		});
-	  if( tFoundValue)
-	  	tID = tFoundValue.id;
+		if (tFoundValue)
+			tID = tFoundValue.id;
 	}
 	return tID;
+}
+
+export async function getNameOfCaseTableForDataContext(iDataContextName: string): Promise<string> {
+	const tListResult: any = await codapInterface.sendRequest(
+		{
+			action: 'get',
+			resource: `componentList`
+		}
+	)
+		.catch(() => {
+			console.log('Error getting component list')
+		});
+
+	let tCaseTableName;
+	if (tListResult.success) {
+		console.log( tListResult);
+		let tFoundValue = tListResult.values.find((iValue: any) => {
+			return iValue.type === 'caseTable' && iValue.title === iDataContextName;
+		});
+		if (tFoundValue)
+			tCaseTableName = tFoundValue.title;
+	}
+	return tCaseTableName;
+}
+
+export async function scrollCaseTableToRight(iDataContextName: string): Promise<boolean> {
+	const tCaseTableName = await getNameOfCaseTableForDataContext(iDataContextName);
+	let tScrollResult: any;
+	if (tCaseTableName) {
+		tScrollResult = await codapInterface.sendRequest({
+			action: 'update',
+			resource: `component[${tCaseTableName}]`,
+			values: {
+				horizontalScrollOffset: 10000	// all the way
+			}
+		})
+			.catch(() => console.log('error scrolling case table'));
+		return tScrollResult.success;
+	}
+	return false;
 }
 

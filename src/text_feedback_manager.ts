@@ -95,7 +95,8 @@ export default class TextFeedbackManager {
 			let tPhrase = tGetCaseResult.values.case.values[this.targetAttributeName];
 			tTriples.push({actual: tActualClass, predicted: tPredictedClass, phrase: tPhrase});
 		}
-		await this.composeText(tTriples, tFeatures, textToObject, aManager.targetColumnFeatureNames, tEndPhrase);
+		await this.composeText(tTriples, tFeatures, textToObject,
+			aManager.targetColumnFeatureNames.concat(aManager.getConstructedFeatureNames()), tEndPhrase);
 	}
 
 	/**
@@ -135,7 +136,8 @@ export default class TextFeedbackManager {
 		tFeatures.forEach(iFeature=>{
 			tFeaturesArray.push(iFeature);
 		});
-		await this.composeText( tTargetTriples, tFeaturesArray, phraseToFeatures, aManager.targetColumnFeatureNames);
+		await this.composeText( tTargetTriples, tFeaturesArray,
+			phraseToFeatures, aManager.targetColumnFeatureNames.concat(aManager.getConstructedFeatureNames()));
 	}
 
 	private async clearText() {
