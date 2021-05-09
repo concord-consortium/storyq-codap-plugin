@@ -23,7 +23,8 @@ export interface FeatureDetails {
 
 export interface ConstructedFeature {
 	name: string, chosen: boolean,
-	info: FeatureDetails
+	info: FeatureDetails,
+	description: string
 }
 
 export interface WordListSpec {
@@ -40,12 +41,22 @@ export default class FeatureConstructorBridge {
 	}
 	
 	public addConstructedFeature( iFeature:ConstructedFeature) {
+		iFeature.description = this.getDescriptionFor(iFeature);
 		this.constructedFeaturesList.push(iFeature);
 		this.newFeatureAddedCallback(iFeature);
 	}
 	
 	public getConstructedFeaturesList():any[] {
 		return this.constructedFeaturesList;
+	}
+
+	private getDescriptionFor(iFeature:ConstructedFeature) {
+		const tDetails = iFeature.info.details as ContainsDetails,
+					tFirstPart = `${tDetails.containsOption} ${tDetails.kindOption}`,
+					tSecondPart = tDetails.freeFormText !== '' ? `"${tDetails.freeFormText}"` : '',
+					tThirdPart = tDetails.wordList && tDetails.wordList.datasetName !== '' ?
+							` of ${tDetails.wordList.datasetName}` : '';
+		return `${tFirstPart} ${tSecondPart}${tThirdPart}`
 	}
 
 	public restoreFromStorage( iStorage: ConstructedFeature[]) {

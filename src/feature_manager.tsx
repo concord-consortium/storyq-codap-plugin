@@ -97,7 +97,7 @@ export class FeatureManager extends Component<FM_Props, {
 	public targetCollectionNames: string[] = [];
 	public targetAttributeName = '';
 	private targetAttributeNames: string[] = [];
-	public targetPredictedLabelAttributeName = 'predicted label';
+	public targetPredictedLabelAttributeName = 'predicted ';
 	public targetClassAttributeName = '';
 	private targetCaseCount = 0;
 	private targetPositiveCategory = '';
@@ -147,15 +147,15 @@ export class FeatureManager extends Component<FM_Props, {
 		this.state = {
 			status: props.status,
 			count: 0,
-			accordianSelection: {outer: 0, inner: 1},
+			accordianSelection: {outer: 0, inner: 0},
 			iterations: 50,
 			unigrams: true,
 			currentIteration: 0,
 			frequencyThreshold: 4,
 			useColumnFeatures: false,
-			ignoreStopWords: false,
-			lockIntercept: false,
-			lockProbThreshold: false,
+			ignoreStopWords: true,
+			lockIntercept: true,
+			lockProbThreshold: true,
 			showWeightsGraph: false
 		};
 		this.updatePercentageFunc = null;
@@ -275,23 +275,32 @@ export class FeatureManager extends Component<FM_Props, {
 	 * @param iNotification    (from CODAP)
 	 */
 	private async handleNotification(iNotification: CODAP_Notification) {
-		if (iNotification.action === 'notify' && iNotification.values.operation === 'dataContextCountChanged') {
-			this.datasetNames = await getDatasetNamesWithFilter(isNotAModel);
-			if (this.state.status !== 'inProgress') {
+		if (iNotification.action === 'notify' && this.state.status !== 'inProgress') {
+			let tOperation = iNotification.values.operation;
+			if (tOperation === 'dataContextCountChanged') {
 				await this.updateTargetNames();
 				this.setState({count: this.state.count + 1});
-			}
-		} else if (iNotification.action === 'notify' && iNotification.values.operation === 'selectCases') {
-			// @ts-ignore
-			let tDataContextName: string = iNotification.resource && iNotification.resource.match(/\[(.+)]/)[1];
-			if (tDataContextName === this.modelsDatasetName && !this.isSelectingFeatures) {
-				this.isSelectingTargetPhrases = true;
-				await this.getTextFeedbackManager().handleFeatureSelection(this);
-				this.isSelectingTargetPhrases = false;
-			} else if (tDataContextName === this.targetDatasetName && !this.isSelectingTargetPhrases) {
-				this.isSelectingFeatures = true;
-				await this.getTextFeedbackManager().handleTargetSelection(this);
-				this.isSelectingFeatures = false;
+			} else if (tOperation === 'selectCases') {
+				// @ts-ignore
+				let tDataContextName: string = iNotification.resource && iNotification.resource.match(/\[(.+)]/)[1];
+				console.log('datacontextname', tDataContextName);
+				if (tDataContextName === this.modelsDatasetName && !this.isSelectingFeatures) {
+					console.log('about to call handleFeatureSelection');
+					this.isSelectingTargetPhrases = true;
+					await this.getTextFeedbackManager().handleFeatureSelection(this);
+					this.isSelectingTargetPhrases = false;
+				} else if (tDataContextName === this.targetDatasetName &&
+						this.datasetNames.indexOf(this.targetDatasetName) >= 0 && !this.isSelectingTargetPhrases) {
+					console.log('about to call handleTargetSelection');
+					this.isSelectingFeatures = true;
+					await this.getTextFeedbackManager().handleTargetSelection(this);
+					this.isSelectingFeatures = false;
+				}
+			} else if (tOperation === 'createAttributes' || tOperation === 'updateAttributes') {
+				// await this.updateTargetNames();
+				// await this.getPossibleColumnFeatureNames();
+				this.targetAttributeNames = await this.getTargetAttributeNames();
+				this.forceUpdate();
 			}
 		}
 	}
@@ -588,15 +597,16 @@ export class FeatureManager extends Component<FM_Props, {
 				this.targetClassAttributeName = this.targetAttributeNames[1];
 			if (this.targetClassAttributeName !== '') {
 				this.targetCategories = await this.getTargetCategories();
-				if (this.targetPositiveCategory === '')
-					this.targetPositiveCategory = this.targetCategories[0] || '';
+				if (this.targetCategories.indexOf(this.targetPositiveCategory) < 0)
+					this.targetPositiveCategory = this.targetCategories[0];
 			}
 		}
 	}
 
 	private getPossibleColumnFeatureNames(): string[] {
 		let tResult: string[] = [],
-			tConstructedFeatureNames = this.fcBridge.getConstructedFeaturesList().map(iFeature=>{
+			tConstructedFeatures = this.fcBridge.getConstructedFeaturesList(),
+			tConstructedFeatureNames = tConstructedFeatures.map(iFeature => {
 				return iFeature.name;
 			});
 		this.targetAttributeNames.forEach((iName) => {
@@ -615,8 +625,8 @@ export class FeatureManager extends Component<FM_Props, {
 		return await getCollectionNames(this.targetDatasetName);
 	}
 
-	public getConstructedFeatureNames():string[] {
-		return this.fcBridge.getConstructedFeaturesList().map(iFeature=>iFeature.name);
+	public getConstructedFeatureNames(): string[] {
+		return this.fcBridge.getConstructedFeaturesList().map(iFeature => iFeature.name);
 	}
 
 	private async getTargetAttributeNames(): Promise<string[]> {
@@ -657,8 +667,8 @@ export class FeatureManager extends Component<FM_Props, {
 					console.log('Error getting case for category name')
 				});
 			if (tCaseResult.success) {
-				let tCategory = tCaseResult.values.case.values[this.targetClassAttributeName];
-				if (tCategory && tCategory !== '' && tCategories.indexOf(tCategory) === -1)
+				let tCategory = (tCaseResult.values.case.values[this.targetClassAttributeName]).toString();
+				if (tCategory !== '' && tCategories.indexOf(tCategory) === -1)
 					tCategories.push(tCategory);
 			}
 			tCaseIndex++;
@@ -865,7 +875,9 @@ export class FeatureManager extends Component<FM_Props, {
 	private async updateModelTopLevelInfo() {
 		const tModelsDataSetName = this.modelsDatasetName,
 			tModelsCollectionName = this.modelCollectionName,
-			tConstructedFeatureNames = this.fcBridge.getConstructedFeaturesList().map(iFeature=>{ return iFeature.name; });
+			tConstructedFeatureNames = this.fcBridge.getConstructedFeaturesList().map(iFeature => {
+				return iFeature.name;
+			});
 		await codapInterface.sendRequest({
 			action: "update",
 			resource: `dataContext[${tModelsDataSetName}].collection[${tModelsCollectionName}].case`,
@@ -931,6 +943,7 @@ export class FeatureManager extends Component<FM_Props, {
 		tPositiveClassName = this.targetPositiveCategory;
 
 		// Now that we know the class name we're predicting, we can add attributes to the target dataset
+		this.targetPredictedLabelAttributeName += this.targetClassAttributeName;
 		await addAttributesToTarget(tPositiveClassName, this.targetDatasetName || '',
 			this.targetCollectionName, this.targetPredictedLabelAttributeName);
 
@@ -1063,7 +1076,7 @@ export class FeatureManager extends Component<FM_Props, {
 			return tExpression;
 		}
 
-		function anyDateFormula() {
+		/*function anyDateFormula() {
 			const kDigit = `\\\\\\\\d`,
 				kSlash = `\\\\\\\\/`,
 				kDatePattern = `^((0?[13578]|10|12)(-|${kSlash})(([1-9])|(0[1-9])|([12])([0-9]?)|(3[01]?))(-|${kSlash})((19)([2-9])(${kDigit}{1})|(20)([01])(${kDigit}{1})|([8901])(${kDigit}{1}))|(0?[2469]|11)(-|${kSlash})(([1-9])|(0[1-9])|([12])([0-9]?)|(3[0]?))(-|${kSlash})((19)([2-9])(${kDigit}{1})|(20)([01])(${kDigit}{1})|([8901])(${kDigit}{1})))$`;
@@ -1083,19 +1096,31 @@ export class FeatureManager extends Component<FM_Props, {
 					break;
 			}
 			return tExpression;
-		}
+		}*/
 
 		function anyListFormula() {
 			let tExpression;
 			const kListName = (iNewFeature.info.details as ContainsDetails).wordList.datasetName,
 				kWords = SQ.lists[kListName];
-			if( kWords) {
+			if (kWords) {
 				tExpression = kWords.reduce((iSoFar, iWord) => {
 					return iSoFar === '' ? `\\\\\\\\b${iWord}\\\\\\\\b` : iSoFar + '|' + `\\\\\\\\b${iWord}\\\\\\\\b`;
 				}, '');
-				tExpression = `patternMatches(${tTargetAttr}, "${tExpression}")>0`
-			}
-			else {
+				switch ((iNewFeature.info.details as ContainsDetails).containsOption) {//['starts with', 'contains', 'does not contain', 'ends with']
+					case containsOptions[0]:	// starts with
+						tExpression = `patternMatches(${tTargetAttr}, "^${tExpression}")>0`;
+						break;
+					case containsOptions[1]:	// contains
+						tExpression = `patternMatches(${tTargetAttr}, "${tExpression}")>0`;
+						break;
+					case containsOptions[2]:	// does not contain
+						tExpression = `patternMatches(${tTargetAttr}, "${tExpression}")=0`;
+						break;
+					case containsOptions[3]:	// ends with
+						tExpression = `patternMatches(${tTargetAttr}, "${tExpression}$")>0`;
+						break;
+				}
+			} else {
 				tExpression = `wordListMatches(${tTargetAttr},"${kListName}","Name")>0`
 			}
 			return tExpression;
@@ -1110,15 +1135,17 @@ export class FeatureManager extends Component<FM_Props, {
 					case kindOfThingContainedOptions[0]: // 'any number'
 						tFormula = anyNumberFormula();
 						break;
-					case kindOfThingContainedOptions[1]: // 'any date'
-						tFormula = anyDateFormula();
-						break;
-					case kindOfThingContainedOptions[2]: // 'any from list'
+					case kindOfThingContainedOptions[1]: // 'any from list'
 						tFormula = anyListFormula();
 						break;
-					case kindOfThingContainedOptions[3]: // 'any free form text'
+					case kindOfThingContainedOptions[2]: // 'any free form text'
 						tFormula = freeFormFormula();
 						break;
+					/*
+										case kindOfThingContainedOptions[3]: // 'any date'
+											tFormula = anyDateFormula();
+											break;
+					*/
 				}
 				break;
 			case featureKinds[1]:	// count feature
@@ -1170,11 +1197,11 @@ export class FeatureManager extends Component<FM_Props, {
 						<SelectBox
 							dataSource={listOfNames}
 							placeholder={'Choose one'}
-							defaultValue={this_[propName]}
+							value={this_[propName]}
 							style={{display: 'inline-block'}}
-							onValueChange={(e) => {
+							onValueChange={async (e) => {
 								this_[propName] = e;
-								this_.updateTargetNames();
+								await this_.updateTargetNames();
 								this_.setState({count: this_.count + 1});
 							}
 							}
@@ -1292,7 +1319,7 @@ export class FeatureManager extends Component<FM_Props, {
 				tConstructedFeatureList = this_.fcBridge.getConstructedFeaturesList();
 			tConstructedFeatureList.forEach((iFeature, iIndex) => {
 					tCheckboxes.push(checkBox(
-						iFeature.name,
+						`${iFeature.name}—${iFeature.description || ''}`,
 						iFeature.chosen,
 						false,
 						(newValue: boolean) => {
@@ -1434,7 +1461,7 @@ export class FeatureManager extends Component<FM_Props, {
 	private renderForFinishedState() {
 		return <div className={'sq-output'}>
 			<p>Your analysis is finished!</p>
-			<p>In <b>{this.targetDatasetName}</b> identified {this.featureCaseCount} <b>unigrams </b>
+			<p>In <b>{this.targetDatasetName}</b> identified {this.featureCaseCount} <b>features </b>
 				in <b>{this.targetCaseCount} {pluralize(this.targetAttributeName)}</b>.</p>
 			<p>Positive label is {this.targetPositiveCategory}.</p>
 			<p>Feature weights were computed by a logistic regression model.</p>

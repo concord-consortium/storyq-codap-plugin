@@ -12,45 +12,45 @@ import {ClassificationManager} from "./classification_manager";
 import {FeatureManager} from "./feature_manager";
 
 export interface TFMStorage {
-	textComponentName:string,
-	textComponentID:number
+	textComponentName: string,
+	textComponentID: number
 }
 
 export default class TextFeedbackManager {
 
-	public textComponentName:string = '';
-	public textComponentID:number = -1;
+	public textComponentName: string = '';
+	public textComponentID: number = -1;
 
-	private headingsManager:HeadingsManager;
-	public targetCategories:string[];
-	public targetAttributeName:string;
+	private headingsManager: HeadingsManager;
+	public targetCategories: string[];
+	public targetAttributeName: string;
 
-	constructor( iTargetCategories:string[], iTargetAttributeName:string) {
+	constructor(iTargetCategories: string[], iTargetAttributeName: string) {
 		this.targetCategories = iTargetCategories;
 		this.targetAttributeName = iTargetAttributeName;
 		this.headingsManager = new HeadingsManager();
 	}
 
-	public createStorage():TFMStorage {
+	public createStorage(): TFMStorage {
 		return {
 			textComponentName: this.textComponentName,
 			textComponentID: this.textComponentID
 		}
 	}
 
-	public restoreStorage( iStorage:TFMStorage | null) {
-		if( iStorage) {
+	public restoreStorage(iStorage: TFMStorage | null) {
+		if (iStorage) {
 			this.textComponentName = iStorage.textComponentName;
 			this.textComponentID = iStorage.textComponentID;
 		}
 	}
 
-	getHeadingsManager():HeadingsManager {
-		if(!this.headingsManager) {
+	getHeadingsManager(): HeadingsManager {
+		if (!this.headingsManager) {
 			this.headingsManager = new HeadingsManager();
 		}
 		this.headingsManager.setupHeadings(this.targetCategories[0], this.targetCategories[1],
-			'','Actual', 'Predicted')
+			'', 'Actual', 'Predicted')
 		return this.headingsManager;
 	}
 
@@ -60,16 +60,16 @@ export default class TextFeedbackManager {
 	 * 	- Select these cases in that dataset
 	 * 	- Pull the phrase from the target case
 	 */
-	public async handleFeatureSelection(aManager:ClassificationManager | FeatureManager) {
+	public async handleFeatureSelection(aManager: ClassificationManager | FeatureManager) {
 		const kMaxStatementsToDisplay = 40;
-		let tEndPhrase:string,
+		let tEndPhrase: string,
 			tSelectedCases = await getSelectedCasesFrom(aManager.modelsDatasetName);
 		let tFeatures: string[] = [],
 			tUsedIDsSet: Set<number> = new Set();
 		tSelectedCases.forEach((iCase: any) => {
 			let tUsages = iCase.values.usages;
-			if( typeof tUsages === 'string' && tUsages.length > 0) {
-				(JSON.parse( tUsages)).forEach((anID: number) => {
+			if (typeof tUsages === 'string' && tUsages.length > 0) {
+				(JSON.parse(tUsages)).forEach((anID: number) => {
 					tUsedIDsSet.add(anID);
 				});
 			}
@@ -81,9 +81,9 @@ export default class TextFeedbackManager {
 			resource: `dataContext[${aManager.targetDatasetName}].selectionList`,
 			values: tUsedCaseIDs
 		});
-		let tTriples:{ actual:string, predicted:string, phrase:string}[] = [];
-		tEndPhrase = (tUsedCaseIDs.length > kMaxStatementsToDisplay) ? 'Not all statements could be displayed': '';
-		const tTargetPhrasesToShow = Math.min( tUsedCaseIDs.length, kMaxStatementsToDisplay);
+		let tTriples: { actual: string, predicted: string, phrase: string }[] = [];
+		tEndPhrase = (tUsedCaseIDs.length > kMaxStatementsToDisplay) ? 'Not all statements could be displayed' : '';
+		const tTargetPhrasesToShow = Math.min(tUsedCaseIDs.length, kMaxStatementsToDisplay);
 		// Here is where we put the contents of the text component together
 		for (let i = 0; i < tTargetPhrasesToShow; i++) {
 			let tGetCaseResult: any = await codapInterface.sendRequest({
@@ -105,12 +105,17 @@ export default class TextFeedbackManager {
 	 * Second, under headings for the classification, display each selected target phrase as text with
 	 * features highlighted and non-features grayed out
 	 */
-	public async handleTargetSelection(aManager:ClassificationManager | FeatureManager) {
-		let tSelectedTargetCases:any = await getSelectedCasesFrom(aManager.targetDatasetName),
-			tTargetTriples:PhraseTriple[] = [],
-			tIDsOfFeaturesToSelect:number[] = [];
-		tSelectedTargetCases.forEach((iCase:any)=> {
-			if( iCase) {
+	public async handleTargetSelection(aManager: ClassificationManager | FeatureManager) {
+		console.log('in handleTargetSelection')
+		if (aManager.targetDatasetName === '' || aManager.modelsDatasetName === '') {
+			console.log('in handleTargetSelection but one of target or model doesn\'t exist');
+			return;
+		}
+		let tSelectedTargetCases: any = await getSelectedCasesFrom(aManager.targetDatasetName),
+			tTargetTriples: PhraseTriple[] = [],
+			tIDsOfFeaturesToSelect: number[] = [];
+		tSelectedTargetCases.forEach((iCase: any) => {
+			if (iCase) {
 				let tFeatureIDs: number[] = JSON.parse(iCase.values.featureIDs);
 				tIDsOfFeaturesToSelect = tIDsOfFeaturesToSelect.concat(tFeatureIDs);
 				tTargetTriples.push({
@@ -127,16 +132,16 @@ export default class TextFeedbackManager {
 			values: tIDsOfFeaturesToSelect
 		});
 		// Get the features and stash them in a set
-		let tSelectedFeatureCases:any = await getSelectedCasesFrom(aManager.modelsDatasetName),
+		let tSelectedFeatureCases: any = await getSelectedCasesFrom(aManager.modelsDatasetName),
 			tFeatures = new Set<string>(),
-			tFeaturesArray:string[] = [];
-		tSelectedFeatureCases.forEach((iCase:any)=>{
+			tFeaturesArray: string[] = [];
+		tSelectedFeatureCases.forEach((iCase: any) => {
 			tFeatures.add(iCase.values.feature);
 		});
-		tFeatures.forEach(iFeature=>{
+		tFeatures.forEach(iFeature => {
 			tFeaturesArray.push(iFeature);
 		});
-		await this.composeText( tTargetTriples, tFeaturesArray,
+		await this.composeText(tTargetTriples, tFeaturesArray,
 			phraseToFeatures, aManager.targetColumnFeatureNames.concat(aManager.getConstructedFeatureNames()));
 	}
 
@@ -173,7 +178,7 @@ export default class TextFeedbackManager {
 	public async addTextComponent() {
 		this.textComponentName = 'Selected ' + pluralize(this.targetAttributeName);
 		let tFoundTextID = await getComponentByTypeAndTitle('text', this.textComponentName);
-		if( tFoundTextID === -1) {
+		if (tFoundTextID === -1) {
 			let tResult: any = await codapInterface.sendRequest({
 				action: 'create',
 				resource: 'component',
@@ -196,10 +201,10 @@ export default class TextFeedbackManager {
 
 	public async closeTextComponent() {
 		// this.textComponentName = 'Selected ' + pluralize(this.targetAttributeName);
-		await codapInterface.sendRequest( {
+		await codapInterface.sendRequest({
 			action: 'delete',
 			resource: `component[${this.textComponentName}]`
-			});
+		});
 	}
 
 	/**
@@ -214,7 +219,7 @@ export default class TextFeedbackManager {
 	 * @public
 	 */
 	public async composeText(iPhraseTriples: PhraseTriple[], iFeatures: string[], iHighlightFunc: Function,
-													 iSpecialFeatures:string[], iEndPhrase?:string) {
+													 iSpecialFeatures: string[], iEndPhrase?: string) {
 		const kHeadingsManager = this.getHeadingsManager();
 		const kProps = ['negNeg', 'negPos', 'posNeg', 'posPos', 'blankNeg', 'blankPos'];
 		// @ts-ignore
@@ -235,7 +240,7 @@ export default class TextFeedbackManager {
 			const kLabels: ClassLabel = kHeadingsManager.classLabels;
 
 			let tGroup: string = 'blankPos',
-				tColor:string = '';
+				tColor: string = '';
 			switch (iTriple.actual) {
 				case kLabels.negLabel:
 					switch (iTriple.predicted) {
@@ -305,7 +310,7 @@ export default class TextFeedbackManager {
 				tItems = tItems.concat(tHeadingItems);
 			}
 		});
-		if( iEndPhrase && iEndPhrase !== '') {
+		if (iEndPhrase && iEndPhrase !== '') {
 			tItems.push({
 				"type": "paragraph",
 				"children": [

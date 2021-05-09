@@ -2,7 +2,7 @@ import React, {Component} from 'react';
 import 'devextreme/dist/css/dx.common.css';
 import 'devextreme/dist/css/dx.light.compact.css';
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
-import {faArrowLeft} from '@fortawesome/free-solid-svg-icons'
+import {faArrowLeft,faQuestionCircle} from '@fortawesome/free-solid-svg-icons'
 import codapInterface from "./lib/CodapInterface";
 import Button from 'devextreme-react/button';
 import {
@@ -34,7 +34,7 @@ interface StoryqStorage {
 
 class Storyq extends Component<{}, { className: string, mode: string }> {
 	private kPluginName = "StoryQ";
-	private kVersion = "0.95";
+	private kVersion = "0.97";
 	private kInitialDimensions = {
 		width: 280,
 		height: 450
@@ -153,6 +153,18 @@ class Storyq extends Component<{}, { className: string, mode: string }> {
 		);
 	}
 
+	questionMark() {
+		return (
+			<div className="question-circle"
+					 onClick={() => {
+					 	window.open("https://docs.google.com/document/d/16cYwR_2QIq24CHaL69o09shQSMeKk9gmXltBTM43q7A/edit?usp=sharing", "_blank");
+					 }}
+					 title="Learn how to use StoryQ">
+				<FontAwesomeIcon icon={faQuestionCircle}/>
+			</div>
+		);
+	}
+
 	welcome(heading:string, includeBackArrow: boolean) {
 		const arrow = includeBackArrow ? this.backArrow() : "";
 		return (
@@ -161,6 +173,7 @@ class Storyq extends Component<{}, { className: string, mode: string }> {
 				<div className="title">
 					<p>{heading}</p>
 				</div>
+				{this.questionMark()}
 			</div>
 		);
 	}

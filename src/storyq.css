@@ -47,6 +47,18 @@ p {
   font-size: large;
 }
 
+.question-circle {
+  position: absolute;
+  top: 0;
+  right: 10px;
+  color: teal;
+  cursor: pointer;
+}
+
+.question-circle:hover {
+  font-size: large;
+}
+
 .sq-progress-bar-container {
   width: 100%;
   height: 20px;
@@ -58,6 +70,10 @@ p {
   height: 100%;
   background-color: aqua;
   margin: 0 !important;
+}
+
+.sq-output {
+  padding: 10px;
 }
 
 .sq-pb-label {

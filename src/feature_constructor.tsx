@@ -20,7 +20,7 @@ export interface FCState {
 		kindOfThingContained: string, // ['number', 'date', 'from list', 'free form text']
 		caseOption: string,	// ['sensitive', 'insensitive']
 		freeFormText: string,
-		wordList:WordListSpec
+		wordList: WordListSpec
 	}
 }
 
@@ -41,7 +41,7 @@ export interface FC_Props {
 
 export const featureKinds = ['\"contains\" feature', '\"count of\" feature']
 export const containsOptions = ['starts with', 'contains', 'does not contain', 'ends with']
-export const kindOfThingContainedOptions = ['any number', 'any date', 'any from list', 'free form text']
+export const kindOfThingContainedOptions = ['any number', 'any from list', 'free form text'/*, 'any date'*/]
 export const caseOptions = ['sensitive', 'insensitive']
 
 export class FeatureConstructor extends Component<FC_Props, FCState> {
@@ -53,8 +53,10 @@ export class FeatureConstructor extends Component<FC_Props, FCState> {
 			otherFeaturesChecked: false,
 			featureUnderConstruction: {kind: '', name: ''},
 			showingFeatureTemplate: false,
-			containsFeatureOptions: {kindOfContains: '', kindOfThingContained: '',
-				caseOption: caseOptions[0], freeFormText: '', wordList: {datasetName: '', firstAttributeName: ''}}
+			containsFeatureOptions: {
+				kindOfContains: '', kindOfThingContained: '',
+				caseOption: caseOptions[0], freeFormText: '', wordList: {datasetName: '', firstAttributeName: ''}
+			}
 		}
 		this.createStorage = this.createStorage.bind(this);
 		this.restoreStorage = this.restoreStorage.bind(this);
@@ -63,7 +65,6 @@ export class FeatureConstructor extends Component<FC_Props, FCState> {
 	}
 
 	public async componentDidMount() {
-		console.log('in ComponentDidMount');
 		this.props.setStorageCallbacks({
 			createStorageCallback: this.createStorage,
 			restoreStorageCallback: this.restoreStorage
@@ -101,21 +102,21 @@ export class FeatureConstructor extends Component<FC_Props, FCState> {
 		}).catch((reason) => {
 			console.log('unable to get datacontext list because ' + reason);
 		});
-		tContextListResult.values.forEach(async (aValue:{title:string, id:number}) => {
-			let tCollectionsResult:any = await codapInterface.sendRequest({
+		tContextListResult.values.forEach(async (aValue: { title: string, id: number }) => {
+			let tCollectionsResult: any = await codapInterface.sendRequest({
 				action: 'get',
 				resource: `dataContext[${aValue.id}].collectionList`
 			}).catch((reason) => {
 				console.log('unable to get collection list because ' + reason);
 			});
-			if( tCollectionsResult.values.length === 1) {
-				let tAttributesResult:any = await codapInterface.sendRequest( {
+			if (tCollectionsResult.values.length === 1) {
+				let tAttributesResult: any = await codapInterface.sendRequest({
 					action: 'get',
 					resource: `dataContext[${aValue.id}].collection[${tCollectionsResult.values[0].id}].attributeList`
 				}).catch((reason) => {
 					console.log('unable to get attribute list because ' + reason);
 				});
-				if( tAttributesResult.values.length === 1) {
+				if (tAttributesResult.values.length === 1) {
 					this_.wordListDatasetNames.push({
 						datasetName: aValue.title,
 						firstAttributeName: tAttributesResult.values[0].name
@@ -164,7 +165,8 @@ export class FeatureConstructor extends Component<FC_Props, FCState> {
 						freeFormText: this.state.containsFeatureOptions.freeFormText,
 						wordList: this.state.containsFeatureOptions.wordList
 					}
-				}
+				},
+				description: ''
 			})
 		this.setState({
 			featureUnderConstruction: {kind: '', name: ''},
@@ -183,10 +185,10 @@ export class FeatureConstructor extends Component<FC_Props, FCState> {
 		function containsTemplate() {
 
 			function freeForm() {
-				return this_.state.containsFeatureOptions.kindOfThingContained === kindOfThingContainedOptions[3] ?
+				return this_.state.containsFeatureOptions.kindOfThingContained === kindOfThingContainedOptions[2] ?
 					(<div>
 						<TextBox
-							hint='type something'
+							placeholder='type something here'
 							onValueChanged={(e) => {
 								this_.setState({
 									containsFeatureOptions: {
@@ -200,7 +202,8 @@ export class FeatureConstructor extends Component<FC_Props, FCState> {
 							}
 							}
 							value={this_.state.containsFeatureOptions.freeFormText}
-						></TextBox>
+						/>
+						{/*
 						<span> with </span>
 						<SelectBox
 							dataSource={caseOptions}
@@ -219,28 +222,30 @@ export class FeatureConstructor extends Component<FC_Props, FCState> {
 								});
 							}}
 						/>
+*/}
 					</div>) : ""
 			}
 
 			function lists() {
 				let tLists = Object.keys(SQ.lists);
-				return this_.state.containsFeatureOptions.kindOfThingContained === kindOfThingContainedOptions[2] ?
+				return this_.state.containsFeatureOptions.kindOfThingContained === kindOfThingContainedOptions[1] ?
 					(<div>
 						<SelectBox
-							dataSource={tLists.concat(this_.wordListDatasetNames.map(iDataset=>{
+							dataSource={tLists.concat(this_.wordListDatasetNames.map(iDataset => {
 								return iDataset.datasetName;
 							}))}
 							defaultValue={this_.state.containsFeatureOptions.wordList}
 							placeholder={'choose list'}
 							style={{display: 'inline-block'}}
 							onValueChange={(option: string) => {
-								const tWordListSpec = this_.wordListDatasetNames.find((iSpec)=>{
-									return iSpec.datasetName === option;
-								}),
+								const tWordListSpec = this_.wordListDatasetNames.find((iSpec) => {
+										return iSpec.datasetName === option;
+									}),
 									tAttributeName = tWordListSpec ? tWordListSpec.firstAttributeName : '';
 								this_.setState({
 									containsFeatureOptions: {
-										kindOfContains: this_.state.containsFeatureOptions.kindOfContains,
+										kindOfContains: (tWordListSpec ? containsOptions[1] :
+											this_.state.containsFeatureOptions.kindOfContains),
 										kindOfThingContained: this_.state.containsFeatureOptions.kindOfThingContained,
 										caseOption: this_.state.containsFeatureOptions.caseOption,
 										freeFormText: this_.state.containsFeatureOptions.freeFormText,
@@ -248,7 +253,7 @@ export class FeatureConstructor extends Component<FC_Props, FCState> {
 									}
 								});
 							}}
-						></SelectBox>
+						/>
 					</div>) : ""
 			}
 
@@ -256,8 +261,8 @@ export class FeatureConstructor extends Component<FC_Props, FCState> {
 				<div className='sq-new-feature-item'>
 					<SelectBox
 						dataSource={containsOptions}
-						defaultValue={this_.state.containsFeatureOptions.kindOfContains}
-						placeholder={'choose kind'}
+						value={this_.state.containsFeatureOptions.kindOfContains}
+						placeholder={'choose kind of contains'}
 						style={{display: 'inline-block'}}
 						onValueChange={(option: string) => {
 							this_.setState({
@@ -277,7 +282,7 @@ export class FeatureConstructor extends Component<FC_Props, FCState> {
 						placeholder={'choose thing'}
 						style={{display: 'inline-block'}}
 						onValueChange={async (option: string) => {
-							if(option === kindOfThingContainedOptions[2])
+							if (option === kindOfThingContainedOptions[1]) // any from list
 								await this_.updateWordListDatasetNames();
 							this_.setState({
 								containsFeatureOptions: {
@@ -295,7 +300,7 @@ export class FeatureConstructor extends Component<FC_Props, FCState> {
 					<div className='sq-new-feature-name'>
 						<span>Name of Feature</span>
 						<TextBox
-							hint='name'
+							placeholder="type the feature's name"
 							onValueChanged={(e) => {
 								this_.setState({
 									featureUnderConstruction: {
@@ -303,10 +308,9 @@ export class FeatureConstructor extends Component<FC_Props, FCState> {
 										name: e.value
 									}
 								});
-							}
-							}
+							}}
 							value={this_.state.featureUnderConstruction.name}
-						></TextBox>
+						/>
 					</div>
 				</div>
 			);
@@ -317,28 +321,28 @@ export class FeatureConstructor extends Component<FC_Props, FCState> {
 		}
 
 		function allFilledOut(): boolean {
-			
+
 			function freeFormOK() {
 				return this_.state.containsFeatureOptions.kindOfContains !== '' &&
-					this_.state.containsFeatureOptions.kindOfThingContained === kindOfThingContainedOptions[3] &&
+					this_.state.containsFeatureOptions.kindOfThingContained === kindOfThingContainedOptions[2] &&
 					this_.state.containsFeatureOptions.freeFormText !== '';
 			}
-			
+
 			function listOK() {
 				return this_.state.containsFeatureOptions.kindOfContains !== '' &&
-					this_.state.containsFeatureOptions.kindOfThingContained === kindOfThingContainedOptions[2] &&
+					this_.state.containsFeatureOptions.kindOfThingContained === kindOfThingContainedOptions[1] &&
 					this_.state.containsFeatureOptions.wordList.datasetName !== '';
 			}
 
 			function otherOK() {
 				return this_.state.containsFeatureOptions.kindOfContains !== '' &&
-					this_.state.containsFeatureOptions.kindOfThingContained !== kindOfThingContainedOptions[2]&&
-					this_.state.containsFeatureOptions.kindOfThingContained !== kindOfThingContainedOptions[3];
+					this_.state.containsFeatureOptions.kindOfThingContained !== kindOfThingContainedOptions[1] &&
+					this_.state.containsFeatureOptions.kindOfThingContained !== kindOfThingContainedOptions[2];
 			}
 
 			return (
 				(this_.state.featureUnderConstruction.kind === featureKinds[0] ?
-					( freeFormOK() || listOK() || otherOK())
+					(freeFormOK() || listOK() || otherOK())
 					:
 					false) &&
 				this_.state.featureUnderConstruction.name !== ''
@@ -374,7 +378,7 @@ export class FeatureConstructor extends Component<FC_Props, FCState> {
 						<SelectBox
 							className='sq-new-feature-item'
 							dataSource={featureKinds}
-							placeholder={'Choose one'}
+							placeholder={'Choose kind of new feature'}
 							/*defaultValue={this.state.featureUnderConstruction.kind}*/
 							value={this.state.featureUnderConstruction.kind}
 							style={{display: 'inline-block'}}
