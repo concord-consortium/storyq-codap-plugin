@@ -49,6 +49,7 @@ interface ClassificationModel {
 	caseIDs: number[],
 	usages: number[][],
 	labels: string[],
+	positiveLabel: string,
 	modelColumnFeatures: string[],
 	threshold: number,
 	constantWeightTerm: number,
@@ -352,6 +353,7 @@ export class ClassificationManager extends Component<Classification_Props, {
 				weights: [],
 				caseIDs: [],
 				labels: [],
+				positiveLabel: '',
 				modelColumnFeatures: [],
 				usages: [],
 				threshold: 0.5,
@@ -389,6 +391,7 @@ export class ClassificationManager extends Component<Classification_Props, {
 				});
 			let tLabels = tParentCaseResult.values.case.values['Classes'] || `["negative", "positive"]`;
 			tModel.labels = JSON.parse(tLabels);
+			tModel.positiveLabel = tParentCaseResult.values.case.values['Target Class'] || `[]`;
 			this_.modelCategories = tModel.labels;	// Needed to pass to TextFeedbackManager
 			let tColumnFeatures = tParentCaseResult.values.case.values['Column Features'] || `[]`;
 			tModel.modelColumnFeatures = tColumnFeatures.split(',').map((iFeature: string) => {
@@ -419,7 +422,8 @@ export class ClassificationManager extends Component<Classification_Props, {
 		async function classifyEachPhrase() {
 			let tPhraseCount = await getCaseCount(this_.targetDatasetName, this_.targetCollectionName),
 				tCorrect = 0,
-				tMatrix = {posPos: 0, negPos: 0, posNeg: 0, negNeg: 0};
+				tMatrix = {posPos: 0, negPos: 0, posNeg: 0, negNeg: 0},
+				tNegativeLabel = tModel.positiveLabel === tModel.labels[0] ? tModel.labels[1] : tModel.labels[0];
 			for (let i = 0; i < tPhraseCount; i++) {
 				const tGetResult: any = await codapInterface.sendRequest({
 					"action": "get",
@@ -461,7 +465,7 @@ export class ClassificationManager extends Component<Classification_Props, {
 				let tCaseValues: { [key: string]: string } = {},
 					tPrediction = tModel.predictor.predict(tGiven);
 				tCaseValues[this_.targetPredictedLabelAttributeName] = tPrediction.class ?
-					tModel.labels[1] : tModel.labels[0];
+					tModel.positiveLabel : tNegativeLabel;
 				tCaseValues[kProbabilityAttributeName] = tPrediction.probability;
 				tCaseValues[kFeatureIDsAttributeName] = JSON.stringify(tFeatureIDs);
 				tLabelValues.push({

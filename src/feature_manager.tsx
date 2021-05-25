@@ -148,7 +148,7 @@ export class FeatureManager extends Component<FM_Props, {
 			status: props.status,
 			count: 0,
 			accordianSelection: {outer: 0, inner: 0},
-			iterations: 50,
+			iterations: 20,
 			unigrams: true,
 			currentIteration: 0,
 			frequencyThreshold: 4,
@@ -691,7 +691,7 @@ export class FeatureManager extends Component<FM_Props, {
 					{name: 'Training Set', editable: false, description: 'Name of dataset used for training'},
 					{name: 'Iterations', editable: false, description: 'Number of iterations used in training'},
 					{name: 'Classes', editable: false, description: 'The two classification labels'},
-					{name: 'Positive Class', editable: false, description: 'The classification label regarded as positive'},
+					{name: 'Target Class', editable: false, description: 'The classification label regarded as the target. Chosen when prob of positive is greater than threshold.'},
 					{name: 'Column Features', editable: false, description: 'Names of columns treated as model features'},
 					{name: 'Constructed Features', editable: false, description: 'Names of features created for this model'},
 					{
@@ -889,7 +889,7 @@ export class FeatureManager extends Component<FM_Props, {
 					"Frequency Threshold": this.state.unigrams ? this.state.frequencyThreshold : '',
 					"Ignore Stop Words": this.state.unigrams ? this.state.ignoreStopWords : '',
 					"Classes": JSON.stringify(this.targetCategories),
-					"Positive Class": this.targetPositiveCategory,
+					"Target Class": this.targetPositiveCategory,
 					"Column Features": this.state.useColumnFeatures ? this.targetColumnFeatureNames.join(', ') : '',
 					"Constructed Features": tConstructedFeatureNames.length > 0 ? tConstructedFeatureNames.join(', ') : '',
 					"Constant Weight": this.logisticModel.theta[0],
@@ -1230,7 +1230,7 @@ export class FeatureManager extends Component<FM_Props, {
 			if (tInProgress || this_.targetDatasetName === '')
 				return '';
 			return (propertyControl(this_.targetCategories,
-				'targetPositiveCategory', 'Positive label: ', 'No labels found'));
+				'targetPositiveCategory', 'Target label: ', 'No labels found'));
 		}
 
 		function doItButton() {
@@ -1463,7 +1463,7 @@ export class FeatureManager extends Component<FM_Props, {
 			<p>Your analysis is finished!</p>
 			<p>In <b>{this.targetDatasetName}</b> identified {this.featureCaseCount} <b>features </b>
 				in <b>{this.targetCaseCount} {pluralize(this.targetAttributeName)}</b>.</p>
-			<p>Positive label is {this.targetPositiveCategory}.</p>
+			<p>Target label is {this.targetPositiveCategory}.</p>
 			<p>Feature weights were computed by a logistic regression model.</p>
 			<p>Iterations = {this.state.iterations}</p>
 			<p>Frequency threshold = {this.state.frequencyThreshold}</p>
