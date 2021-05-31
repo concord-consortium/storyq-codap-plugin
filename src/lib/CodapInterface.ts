@@ -71,6 +71,7 @@ interface IConfig {
   dimensions?: any;
   preventBringToFront?: any;
   preventDataContextReorg?: any;
+  cannotClose?: boolean
 }
 
 let config: IConfig | null = null;
@@ -228,7 +229,8 @@ const codapInterface = {
         version: iConfig.version,
         dimensions: iConfig.dimensions,
         preventBringToFront: iConfig.preventBringToFront,
-        preventDataContextReorg: iConfig.preventDataContextReorg
+        preventDataContextReorg: iConfig.preventDataContextReorg,
+        cannotClose: iConfig.cannotClose
       };
       let updateFrameReq = {
         action: 'update',
