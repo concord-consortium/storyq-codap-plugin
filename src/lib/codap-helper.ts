@@ -1,12 +1,19 @@
 import codapInterface from "./CodapInterface";
 
+export interface entityInfo {
+	name: string,
+	title: string,
+	id: number
+}
+
 export function initializePlugin(pluginName: string, version: string, dimensions: { width: number, height: number },
 																 iRestoreStateHandler: (arg0: any) => void) {
 	const interfaceConfig = {
 		name: pluginName,
 		version: version,
 		dimensions: dimensions,
-		preventDataContextReorg: false
+		preventDataContextReorg: false,
+		cannotClose: true
 	};
 	return codapInterface.init(interfaceConfig, iRestoreStateHandler);
 }
@@ -71,8 +78,8 @@ export function isAModel(iValue: any): boolean {
  * Return the names of datasets that pass the given filter
  * @param iFilter
  */
-export async function getDatasetNamesWithFilter(iFilter: (value: any) => boolean): Promise<string[]> {
-	let tDatasetNames: string[] = [];
+export async function getDatasetInfoWithFilter(iFilter: (value: any) => boolean): Promise<entityInfo[]> {
+	let tDatasetInfoArray: entityInfo[] = [];
 	let tContextListResult: any = await codapInterface.sendRequest({
 		"action": "get",
 		"resource": "dataContextList"
@@ -81,9 +88,14 @@ export async function getDatasetNamesWithFilter(iFilter: (value: any) => boolean
 	});
 	tContextListResult.values.forEach((aValue: any) => {
 		if (iFilter(aValue))
-			tDatasetNames.push(aValue.title);
+			tDatasetInfoArray.push(
+				{
+					title: aValue.title,
+					name: aValue.name,
+					id: aValue.id
+				});
 	});
-	return tDatasetNames;
+	return tDatasetInfoArray;
 }
 
 export async function getSelectedCasesFrom(iDatasetName: string | null): Promise<any[]> {

@@ -78,7 +78,7 @@ export default class TextFeedbackManager {
 		let tUsedCaseIDs: number[] = Array.from(tUsedIDsSet);
 		await codapInterface.sendRequest({
 			action: 'create',
-			resource: `dataContext[${aManager.targetDatasetName}].selectionList`,
+			resource: `dataContext[${aManager.targetDatasetInfo.name}].selectionList`,
 			values: tUsedCaseIDs
 		});
 		let tTriples: { actual: string, predicted: string, phrase: string }[] = [];
@@ -88,7 +88,7 @@ export default class TextFeedbackManager {
 		for (let i = 0; i < tTargetPhrasesToShow; i++) {
 			let tGetCaseResult: any = await codapInterface.sendRequest({
 				action: 'get',
-				resource: `dataContext[${aManager.targetDatasetName}].collection[${aManager.targetCollectionName}].caseByID[${tUsedCaseIDs[i]}]`
+				resource: `dataContext[${aManager.targetDatasetInfo.name}].collection[${aManager.targetCollectionName}].caseByID[${tUsedCaseIDs[i]}]`
 			});
 			let tActualClass = tGetCaseResult.values.case.values[aManager.targetClassAttributeName];
 			let tPredictedClass = tGetCaseResult.values.case.values[aManager.targetPredictedLabelAttributeName];
@@ -106,12 +106,11 @@ export default class TextFeedbackManager {
 	 * features highlighted and non-features grayed out
 	 */
 	public async handleTargetSelection(aManager: ClassificationManager | FeatureManager) {
-		console.log('in handleTargetSelection')
-		if (aManager.targetDatasetName === '' || aManager.modelsDatasetName === '') {
+		if (aManager.targetDatasetInfo.name === '' || aManager.modelsDatasetName === '') {
 			console.log('in handleTargetSelection but one of target or model doesn\'t exist');
 			return;
 		}
-		let tSelectedTargetCases: any = await getSelectedCasesFrom(aManager.targetDatasetName),
+		let tSelectedTargetCases: any = await getSelectedCasesFrom(aManager.targetDatasetInfo.name),
 			tTargetTriples: PhraseTriple[] = [],
 			tIDsOfFeaturesToSelect: number[] = [];
 		tSelectedTargetCases.forEach((iCase: any) => {

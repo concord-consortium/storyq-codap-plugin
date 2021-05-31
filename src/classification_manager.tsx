@@ -7,7 +7,7 @@ import React, {Component} from 'react';
 import codapInterface, {CODAP_Notification} from "./lib/CodapInterface";
 import {
 	getCaseCount, getCollectionNames,
-	getDatasetNamesWithFilter, isAModel, isNotAModel, deselectAllCasesIn
+	getDatasetInfoWithFilter, isAModel, isNotAModel, deselectAllCasesIn, entityInfo, scrollCaseTableToRight
 } from './lib/codap-helper';
 import {wordTokenizer} from "./lib/one_hot";
 import './storyq.css';
@@ -35,7 +35,8 @@ interface ClassificationStorage {
 	modelCollectionName: string,
 	modelCategories: string[],
 	modelColumnFeatures: string[],
-	targetDatasetName: string,
+	targetDatasetInfo: entityInfo,
+	targetDatasetName: string | null,
 	targetCollectionName: string,
 	targetAttributeName: string,
 	targetClassAttributeName: string,
@@ -56,7 +57,6 @@ interface ClassificationModel {
 	predictor: any
 }
 
-const kProbabilityAttributeName = 'prob of positive';
 const kFeatureIDsAttributeName = 'featureIDs';
 
 export class ClassificationManager extends Component<Classification_Props, {
@@ -65,7 +65,7 @@ export class ClassificationManager extends Component<Classification_Props, {
 }> {
 	[indexindex: string]: any;
 
-	private modelDatasetNames: string[] = [];
+	private modelDatasetInfoArray: entityInfo[] = [];
 	private modelsDatasetName: string = '';
 	private modelToplevelNames: string[] = [];
 	private modelToplevelName: string = '';
@@ -73,20 +73,21 @@ export class ClassificationManager extends Component<Classification_Props, {
 	private modelCollectionName = 'models';
 	private modelCategories: string[] = [];
 	private modelColumnFeatures: string[] = [];
-	private targetDatasetNames: string[] = [];
-	private targetDatasetName: string = '';
+	private targetDatasetInfoArray: entityInfo[] = [];
+	private targetDatasetInfo: entityInfo = {name: '', title: '', id: -1};
 	private targetCollectionNames: string[] = [];
 	private targetCollectionName = '';
 	private targetAttributeName = '';
 	private targetAttributeNames: string[] = [];
 	private targetClassAttributeName = '';
 	private targetPredictedLabelAttributeName = 'classification';
+	private targetProbabilityAttributeName = 'probability of positive';
 	private targetColumnFeatureNames: string[] = [];
 	private subscriberIndex: number = -1;
 	private textFeedbackManager: TextFeedbackManager | null = null;
 	private restoredStatus: string = '';
 	private results: {
-		targetName: string, modelName: string,
+		targetTitle: string, modelName: string,
 		numPositive: number, numNegative: number,
 		accuracy: number, kappa: number
 	};
@@ -105,7 +106,7 @@ export class ClassificationManager extends Component<Classification_Props, {
 			restoreStorageCallback: this.restoreStorage
 		});
 		this.results = {
-			targetName: '', modelName: '', numPositive: 0, numNegative: 0,
+			targetTitle: '', modelName: '', numPositive: 0, numNegative: 0,
 			accuracy: 0, kappa: 0
 		};
 	}
@@ -137,7 +138,8 @@ export class ClassificationManager extends Component<Classification_Props, {
 			modelCollectionName: this.modelCollectionName,
 			modelCategories: this.modelCategories,
 			modelColumnFeatures: this.modelColumnFeatures,
-			targetDatasetName: this.targetDatasetName,
+			targetDatasetInfo: this.targetDatasetInfo,
+			targetDatasetName: null,
 			targetCollectionName: this.targetCollectionName,
 			targetAttributeName: this.targetAttributeName,
 			targetClassAttributeName: this.targetClassAttributeName,
@@ -147,13 +149,17 @@ export class ClassificationManager extends Component<Classification_Props, {
 	}
 
 	public restoreStorage(iStorage: ClassificationStorage) {
+		if (typeof iStorage.targetDatasetName === 'string') { // backward compatibility
+			iStorage.targetDatasetInfo = {name: iStorage.targetDatasetName, title: iStorage.targetDatasetName, id: -1};
+			iStorage.targetDatasetName = null;
+		}
 		this.modelsDatasetName = iStorage.modelsDatasetName;
 		this.modelToplevelName = iStorage.modelToplevelName || '';
 		this.modelCaseIndex = iStorage.modelCaseIndex;
 		this.modelCollectionName = iStorage.modelCollectionName || '';
 		this.modelCategories = iStorage.modelCategories || [];
 		this.modelColumnFeatures = iStorage.modelColumnFeatures || [];
-		this.targetDatasetName = iStorage.targetDatasetName || '';
+		this.targetDatasetInfo = iStorage.targetDatasetInfo || {name: '', title: '', id: -1};
 		this.targetCollectionName = iStorage.targetCollectionName || '';
 		this.targetAttributeName = iStorage.targetAttributeName || '';
 		this.targetClassAttributeName = iStorage.targetClassAttributeName || '';
@@ -176,31 +182,32 @@ export class ClassificationManager extends Component<Classification_Props, {
 	}
 
 	private async getTargetCollectionNames(): Promise<string[]> {
-		return await getCollectionNames(this.targetDatasetName);
+		return await getCollectionNames(this.targetDatasetInfo.name);
 	}
 
 	private async getTargetAttributeNames(): Promise<string[]> {
-		if (this.targetCollectionName === '') {
-			const tCollNames = await this.getTargetCollectionNames();
-			if (tCollNames.length === 0)
-				return [];
-			this.targetCollectionName = tCollNames[tCollNames.length - 1];
-		}
+		const tCollNames = await this.getTargetCollectionNames();
+		if (tCollNames.length === 0)
+			return [];
+		this.targetCollectionName = tCollNames[tCollNames.length - 1];
 		const tListResult: any = await codapInterface.sendRequest(
 			{
 				action: 'get',
-				resource: `dataContext[${this.targetDatasetName}].collection[${this.targetCollectionName}].attributeList`
+				resource: `dataContext[${this.targetDatasetInfo.name}].collection[${this.targetCollectionName}].attributeList`
 			}
 		)
-			.catch(() => {
-				console.log('Error getting attribute names')
+			.catch((reason) => {
+				console.log('Error getting attribute names because', reason);
 			});
-		return tListResult.values.map((iValue: any) => {
-			return iValue.name;
-		});
+		console.log('getTargetAttributeNames, success', tListResult.success);
+		if (tListResult.success) {
+			return tListResult.values.map((iValue: any) => {
+				return iValue.name;
+			});
+		} else return [];
 	}
 
-	public getConstructedFeatureNames():string[] {
+	public getConstructedFeatureNames(): string[] {
 		return [];
 	}
 
@@ -248,10 +255,10 @@ export class ClassificationManager extends Component<Classification_Props, {
 			return tCasesResult.values.length === 0;
 		}
 
-		this.modelDatasetNames = await getDatasetNamesWithFilter(isAModel);
+		this.modelDatasetInfoArray = await getDatasetInfoWithFilter(isAModel);
 		if (this.modelsDatasetName === '') {
-			if (this.modelDatasetNames.length > 0)
-				this.modelsDatasetName = this.modelDatasetNames[0];
+			if (this.modelDatasetInfoArray.length > 0)
+				this.modelsDatasetName = this.modelDatasetInfoArray[0].name;
 		}
 		if (this.modelsDatasetName !== '') {
 			this.modelToplevelNames = await this.getModelToplevelNames();
@@ -261,12 +268,12 @@ export class ClassificationManager extends Component<Classification_Props, {
 			} else if (this.modelToplevelName !== '')
 				this.modelCaseIndex = this.modelToplevelNames.indexOf(this.modelToplevelName);
 		}
-		this.targetDatasetNames = await getDatasetNamesWithFilter(isNotAModel);
-		if (this.targetDatasetName === '') {
-			if (this.targetDatasetNames.length > 0)
-				this.targetDatasetName = this.targetDatasetNames[0];
+		this.targetDatasetInfoArray = await getDatasetInfoWithFilter(isNotAModel);
+		if (this.targetDatasetInfo.name === '') {
+			if (this.targetDatasetInfoArray.length > 0)
+				this.targetDatasetInfo = this.targetDatasetInfoArray[0];
 		}
-		if (this.targetDatasetName !== '') {
+		if (this.targetDatasetInfo.name !== '') {
 			this.targetCollectionNames = await this.getTargetCollectionNames();
 			if (this.targetCollectionName === '' && this.targetCollectionNames.length > 0)
 				this.targetCollectionName = this.targetCollectionNames[this.targetCollectionNames.length - 1];
@@ -276,10 +283,11 @@ export class ClassificationManager extends Component<Classification_Props, {
 			if (this.targetClassAttributeName === '' && this.targetAttributeNames.length > 1) {
 				this.modelCategories = await this.getModelCategories();
 				let tCandidate = this.targetAttributeNames[1];
-				if (allValuesAreInArray(this.targetDatasetName, this.targetCollectionName, tCandidate, this.modelCategories))
+				if (allValuesAreInArray(this.targetDatasetInfo.name, this.targetCollectionName, tCandidate, this.modelCategories))
 					this.targetClassAttributeName = tCandidate;
 			}
 		}
+		console.log('targetAttributeName', this.targetAttributeName);
 		this.setState({count: this.count + 1});
 	}
 
@@ -288,28 +296,32 @@ export class ClassificationManager extends Component<Classification_Props, {
 	 * @param iNotification    (from CODAP)
 	 */
 	private async handleNotification(iNotification: CODAP_Notification) {
-		if (iNotification.action === 'notify' && iNotification.values.operation === 'dataContextCountChanged') {
-			this.modelDatasetNames = await getDatasetNamesWithFilter(isAModel);
-			this.targetDatasetNames = await getDatasetNamesWithFilter(isNotAModel);
-			// Force next render to allow choices if they exist
-			this.modelsDatasetName = '';
-			this.targetDatasetName = '';
-			this.setState({count: this.state.count + 1});
-		} else if (iNotification.action === 'notify' && iNotification.values.operation === 'selectCases') {
-			// @ts-ignore
-			let tDataContextName: string = iNotification.resource && iNotification.resource.match(/\[(.+)]/)[1];
-			if (tDataContextName === this.modelsDatasetName && !this.isSelectingFeatures) {
-				this.isSelectingTargetPhrases = true;
-				await this.getTextFeedbackManager().handleFeatureSelection(this);
-				this.isSelectingTargetPhrases = false;
-			} else if (tDataContextName === this.targetDatasetName && !this.isSelectingTargetPhrases) {
-				this.isSelectingFeatures = true;
-				await this.getTextFeedbackManager().handleTargetSelection(this);
-				this.isSelectingFeatures = false;
+		if (iNotification.action === 'notify') {
+			if (iNotification.values.operation === 'dataContextCountChanged') {
+				this.modelDatasetInfoArray = await getDatasetInfoWithFilter(isAModel);
+				this.targetDatasetInfoArray = await getDatasetInfoWithFilter(isNotAModel);
+				// Force next render to allow choices if they exist
+				this.modelsDatasetName = '';
+				this.targetDatasetInfo = {name: '', title: '', id: -1};
+				this.setState({count: this.state.count + 1});
+			} else if (iNotification.values.operation === 'selectCases') {
+				// @ts-ignore
+				let tDataContextName: string = iNotification.resource && iNotification.resource.match(/\[(.+)]/)[1];
+				if (tDataContextName === this.modelsDatasetName && !this.isSelectingFeatures) {
+					this.isSelectingTargetPhrases = true;
+					await this.getTextFeedbackManager().handleFeatureSelection(this);
+					this.isSelectingTargetPhrases = false;
+				} else if (tDataContextName === this.targetDatasetInfo.name && !this.isSelectingTargetPhrases) {
+					this.isSelectingFeatures = true;
+					await this.getTextFeedbackManager().handleTargetSelection(this);
+					this.isSelectingFeatures = false;
+				}
+			} else if (['titleChange', 'updateAttributes'].includes(iNotification.values.operation)) {
+				this.updateTargetNames();
+			} else if (iNotification.resource === `dataContextChangeNotice[${this.targetDatasetInfo.name}]` &&
+				iNotification.values.operation === 'createCases') {
+				await this.classify();
 			}
-		} else if (iNotification.action === 'notify' && iNotification.resource === `dataContextChangeNotice[${this.targetDatasetName}]` &&
-			iNotification.values.operation === 'createCases') {
-			await this.classify();
 		}
 	}
 
@@ -318,14 +330,14 @@ export class ClassificationManager extends Component<Classification_Props, {
 		await codapInterface.sendRequest(
 			{
 				action: 'create',
-				resource: `dataContext[${this.targetDatasetName}].collection[${this.targetCollectionName}].attribute`,
+				resource: `dataContext[${this.targetDatasetInfo.name}].collection[${this.targetCollectionName}].attribute`,
 				values: [
 					{
 						name: this.targetPredictedLabelAttributeName,
 						description: 'The label predicted by the model'
 					},
 					{
-						name: kProbabilityAttributeName,
+						name: this.targetProbabilityAttributeName,
 						description: 'The probability predicted by the model that the classification is positive',
 						precision: 5
 					},
@@ -336,10 +348,10 @@ export class ClassificationManager extends Component<Classification_Props, {
 				]
 			}
 		)
-			.catch(() => {
-				console.log('Error showing adding target attributes')
+			.catch((reason) => {
+				console.log('Error adding target attributes because', reason);
 			});
-
+		await scrollCaseTableToRight(this.targetDatasetInfo.name);
 	}
 
 	/**
@@ -391,7 +403,9 @@ export class ClassificationManager extends Component<Classification_Props, {
 				});
 			let tLabels = tParentCaseResult.values.case.values['Classes'] || `["negative", "positive"]`;
 			tModel.labels = JSON.parse(tLabels);
-			tModel.positiveLabel = tParentCaseResult.values.case.values['Target Class'] || `[]`;
+			tModel.positiveLabel = tParentCaseResult.values.case.values['Target Class'] || `positive`;
+			this_.targetPredictedLabelAttributeName = tParentCaseResult.values.case.values['Predicted Column Name'] || `classification`;
+			this_.targetProbabilityAttributeName = 'probability of ' + tModel.positiveLabel;
 			this_.modelCategories = tModel.labels;	// Needed to pass to TextFeedbackManager
 			let tColumnFeatures = tParentCaseResult.values.case.values['Column Features'] || `[]`;
 			tModel.modelColumnFeatures = tColumnFeatures.split(',').map((iFeature: string) => {
@@ -420,14 +434,14 @@ export class ClassificationManager extends Component<Classification_Props, {
 		}
 
 		async function classifyEachPhrase() {
-			let tPhraseCount = await getCaseCount(this_.targetDatasetName, this_.targetCollectionName),
+			let tPhraseCount = await getCaseCount(this_.targetDatasetInfo.name, this_.targetCollectionName),
 				tCorrect = 0,
 				tMatrix = {posPos: 0, negPos: 0, posNeg: 0, negNeg: 0},
 				tNegativeLabel = tModel.positiveLabel === tModel.labels[0] ? tModel.labels[1] : tModel.labels[0];
 			for (let i = 0; i < tPhraseCount; i++) {
 				const tGetResult: any = await codapInterface.sendRequest({
 					"action": "get",
-					"resource": `dataContext[${this_.targetDatasetName}].collection[${this_.targetCollectionName}].caseByIndex[${i}]`
+					"resource": `dataContext[${this_.targetDatasetInfo.name}].collection[${this_.targetCollectionName}].caseByIndex[${i}]`
 				})
 					.catch(() => {
 						console.log('unable to get target phrase');
@@ -466,14 +480,14 @@ export class ClassificationManager extends Component<Classification_Props, {
 					tPrediction = tModel.predictor.predict(tGiven);
 				tCaseValues[this_.targetPredictedLabelAttributeName] = tPrediction.class ?
 					tModel.positiveLabel : tNegativeLabel;
-				tCaseValues[kProbabilityAttributeName] = tPrediction.probability;
+				tCaseValues[this_.targetProbabilityAttributeName] = tPrediction.probability;
 				tCaseValues[kFeatureIDsAttributeName] = JSON.stringify(tFeatureIDs);
 				tLabelValues.push({
 					id: tGetResult.values.case.id,
 					values: tCaseValues
 				});
 				// Increment results
-				let tActualBool = tActual === tModel.labels[1];
+				let tActualBool = tActual === tModel.positiveLabel;
 				if (tPrediction.class) {
 					this_.results.numPositive++;
 					if (tActualBool)
@@ -494,7 +508,7 @@ export class ClassificationManager extends Component<Classification_Props, {
 			// Send the values to CODAP
 			await codapInterface.sendRequest({
 				action: 'update',
-				resource: `dataContext[${this_.targetDatasetName}].collection[${this_.targetCollectionName}].case`,
+				resource: `dataContext[${this_.targetDatasetInfo.name}].collection[${this_.targetCollectionName}].case`,
 				values: tLabelValues
 			});
 			// Add the usages to each feature case
@@ -520,7 +534,7 @@ export class ClassificationManager extends Component<Classification_Props, {
 
 		function wipeResults() {
 			this_.results = {
-				targetName: '',
+				targetTitle: '',
 				modelName: '',
 				numPositive: 0,
 				numNegative: 0,
@@ -533,13 +547,13 @@ export class ClassificationManager extends Component<Classification_Props, {
 		 * Setting results will cause them to be displayed
 		 */
 		function reportResults() {
-			this_.results.targetName = this_.targetDatasetName;
+			this_.results.targetTitle = this_.targetDatasetInfo.title;
 			this_.results.modelName = this_.modelToplevelName;
 			this_.setState({count: this_.state.count + 1})
 		}
 
 		wipeResults();
-		await deselectAllCasesIn(this.targetDatasetName);
+		await deselectAllCasesIn(this.targetDatasetInfo.name);
 		await deselectAllCasesIn(this.modelsDatasetName);
 		await buildModelFromDataset();
 		await addUsagesAttributeToModelDataset();
@@ -554,32 +568,58 @@ export class ClassificationManager extends Component<Classification_Props, {
 			kNoTargets = 'No phrases to classify found';
 		let this_ = this;
 
-		function propertyControl(listOfNames: string[], propName: string, prompt: string, noneFoundPrompt: string) {
+		function entityPropertyControl(entityInfoArray: entityInfo[], propName: string, prompt: string, noneFoundPrompt: string) {
+			if (entityInfoArray.length === 1)
+				this_[propName] = entityInfoArray[0];
+			if (entityInfoArray.length === 0) {
+				return (
+					<p>{prompt}<em>{noneFoundPrompt}</em></p>
+				)
+			} else {
+				return (
+					<div>
+						<label>
+							<span>{prompt}</span>
+							<SelectBox
+								dataSource={entityInfoArray.map(iInfo => iInfo.title)}
+								placeholder={'Choose one'}
+								value={this_[propName].title}
+								style={{display: 'inline-block'}}
+								onValueChange={async (e) => {
+									this_[propName] = entityInfoArray.find(iInfo => iInfo.title === e);
+									await this_.updateTargetNames();
+									this_.setState({count: this_.count + 1});
+								}
+								}
+							>
+							</SelectBox>
+						</label>
+						<br/>
+					</div>
+				);
+			}
+		}
+
+		function stringPropertyControl(listOfNames: string[], propName: string, prompt: string, noneFoundPrompt: string) {
 			if (listOfNames.length === 1)
 				this_[propName] = listOfNames[0];
 			if (listOfNames.length === 0) {
 				return (
-					<div>
-						<label>{prompt}<em>{noneFoundPrompt}</em></label>
-					</div>
+					<p>{prompt}<em>{noneFoundPrompt}</em></p>
 				)
 			} else {
 				return (
 					<label>
-						<br/><br/>
 						<span>{prompt}</span>
 						<SelectBox
 							dataSource={listOfNames}
 							placeholder={'Choose one'}
-							defaultValue={this_[propName]}
+							value={this_[propName]}
 							style={{display: 'inline-block'}}
-							onValueChange={(e) => {
-								if( propName === 'targetDatasetName' && this_.targetDatasetName !== e) {
-									this_.targetCollectionName = ''; // So that we start over with choosing collection name
-									this_.targetAttributeName = '';
-								}
+							onValueChange={async (e) => {
 								this_[propName] = e;
-								this_.updateTargetNames();
+								await this_.updateTargetNames();
+								this_.setState({count: this_.count + 1});
 							}
 							}
 						>
@@ -590,37 +630,38 @@ export class ClassificationManager extends Component<Classification_Props, {
 		}
 
 		function modelDatasetsControl() {
-			return propertyControl(this_.modelDatasetNames, 'modelsDatasetName', 'Models dataset: ',
+			return stringPropertyControl(this_.modelDatasetInfoArray.map(iInfo => iInfo.name),
+				'modelsDatasetName', 'Models dataset: ',
 				kNoModels);
 		}
 
 		function modelNamesControl() {
-			return propertyControl(this_.modelToplevelNames, 'modelToplevelName', 'Model to use: ',
+			return stringPropertyControl(this_.modelToplevelNames, 'modelToplevelName', 'Model to use: ',
 				kNoModels);
 		}
 
 		function targetControl() {
-			return propertyControl(this_.targetDatasetNames, 'targetDatasetName',
+			return entityPropertyControl(this_.targetDatasetInfoArray, 'targetDatasetInfo',
 				'Dataset to use for classification: ',
 				kNoTargets);
 		}
 
 		function getTargetAttributeControl() {
-			if (this_.targetDatasetName === '')
+			if (this_.targetDatasetInfo.name === '')
 				return '';
-			return (propertyControl(this_.targetAttributeNames,
+			return (stringPropertyControl(this_.targetAttributeNames,
 				'targetAttributeName', 'Column to classify: ', 'No columns found'));
 		}
 
 		function doItButton() {
-			if (this_.targetDatasetName === '' && this_.modelsDatasetName === '') {
+			if (this_.targetDatasetInfo.name === '' && this_.modelsDatasetName === '') {
 				return (
 					<div>
 						<br/>
 						<p>Cannot classify without both a model and phrases to classify.</p>
 					</div>
 				);
-			} else if (this_.targetDatasetName === '') {
+			} else if (this_.targetDatasetInfo.name === '') {
 				return (
 					<div>
 						<br/>
@@ -658,13 +699,13 @@ export class ClassificationManager extends Component<Classification_Props, {
 					));
 			}
 
-			if (this_.results.targetName === '')
+			if (this_.results.targetTitle === '')
 				return '';
 			else {
 				return (
 					<div>
 						<br/>
-						<p>Results of classifying <strong>{this_.results.targetName}</strong> using
+						<p>Results of classifying <strong>{this_.results.targetTitle}</strong> using
 							<strong> {this_.results.modelName}</strong></p>
 						<ul>
 							<li>{this_.results.numPositive} were classified as <strong>{this_.modelCategories[1]}</strong></li>

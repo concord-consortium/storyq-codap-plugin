@@ -76,6 +76,10 @@ p {
   padding: 10px;
 }
 
+.sq-options {
+  padding-left: 5px;
+}
+
 .sq-pb-label {
   color: black;
   text-align: right;

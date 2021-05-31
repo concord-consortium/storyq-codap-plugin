@@ -2,10 +2,15 @@ import React, {Component} from 'react';
 import pluralize from 'pluralize';
 import codapInterface, {CODAP_Notification} from "./lib/CodapInterface";
 import {
-	addAttributesToTarget, deselectAllCasesIn,
-	getCaseCount, getCollectionNames,
-	getDatasetNamesWithFilter, isAModel,
-	isNotAModel, scrollCaseTableToRight
+	addAttributesToTarget,
+	deselectAllCasesIn,
+	entityInfo,
+	getCaseCount,
+	getCollectionNames,
+	getDatasetInfoWithFilter,
+	isAModel,
+	isNotAModel,
+	scrollCaseTableToRight
 } from './lib/codap-helper';
 import Button from 'devextreme-react/button';
 import {Accordion, Item} from 'devextreme-react/accordion';
@@ -22,10 +27,12 @@ import {
 	FC_StorageCallbackFuncs,
 	FCState,
 	FeatureConstructor,
-	featureKinds, kindOfThingContainedOptions
+	featureKinds,
+	kindOfThingContainedOptions
 } from "./feature_constructor";
 import FeatureConstructorBridge, {ConstructedFeature, ContainsDetails} from "./feature_constructor_bridge";
 import {SQ} from "./lists/personal-pronouns";
+import {stopWords} from "./lib/stop_words";
 
 // import tf from "@tensorflow/tfjs";
 
@@ -40,10 +47,11 @@ export interface FM_Props {
 }
 
 interface FMStorage {
+	datasetName: string | null;
 	textFeedbackManagerStorage: TFMStorage | null,
 	featureConstructorStorage: FCState | null,
-	datasetName: string | null,
-	datasetNames: string[] | null,
+	targetDatasetInfo: entityInfo | null,
+	targetDatasetInfoArray: entityInfo[] | null,
 	targetCollectionName: string,
 	targetCollectionNames: string[],
 	targetAttributeName: string,
@@ -91,8 +99,8 @@ export class FeatureManager extends Component<FM_Props, {
 	[indexindex: string]: any;
 
 	private updatePercentageFunc: ((p: number) => void) | null;
-	public targetDatasetName: string | null = '';
-	private datasetNames: string[] = [];
+	public targetDatasetInfo: entityInfo = {name: '', title: '', id: -1};
+	private targetDatasetInfoArray: entityInfo[] = [];
 	public targetCollectionName = '';
 	public targetCollectionNames: string[] = [];
 	public targetAttributeName = '';
@@ -185,15 +193,16 @@ export class FeatureManager extends Component<FM_Props, {
 	public async componentWillUnmount() {
 		codapInterface.off(this.subscriberIndex);
 		this.featureTokenArray = [];
-		this.getTextFeedbackManager().closeTextComponent();
+		await this.getTextFeedbackManager().closeTextComponent();
 	}
 
 	public createStorage(): FMStorage {
 		return {
+			datasetName: null,
 			textFeedbackManagerStorage: this.textFeedbackManager ? this.textFeedbackManager.createStorage() : null,
 			featureConstructorStorage: this.featureConstructorCreateStorage ? this.featureConstructorCreateStorage() : null,
-			datasetName: this.targetDatasetName,
-			datasetNames: this.datasetNames,
+			targetDatasetInfo: this.targetDatasetInfo,
+			targetDatasetInfoArray: this.targetDatasetInfoArray,
 			targetCollectionName: this.targetCollectionName,
 			targetCollectionNames: this.targetCollectionNames,
 			targetAttributeName: this.targetAttributeName,
@@ -223,8 +232,11 @@ export class FeatureManager extends Component<FM_Props, {
 	}
 
 	public restoreStorage(iStorage: FMStorage) {
-		this.targetDatasetName = iStorage.datasetName;
-		this.datasetNames = iStorage.datasetNames || [];
+		if( typeof iStorage.datasetName === 'string') // backward compatibility
+			iStorage.targetDatasetInfo = {name: iStorage.datasetName, title: iStorage.datasetName, id: -1};
+		if( iStorage.targetDatasetInfo)
+			this.targetDatasetInfo = iStorage.targetDatasetInfo;
+		this.targetDatasetInfoArray = iStorage.targetDatasetInfoArray || [];
 		this.targetCollectionName = iStorage.targetCollectionName;
 		this.targetCollectionNames = iStorage.targetCollectionNames || [];
 		this.targetAttributeName = iStorage.targetAttributeName;
@@ -275,6 +287,8 @@ export class FeatureManager extends Component<FM_Props, {
 	 * @param iNotification    (from CODAP)
 	 */
 	private async handleNotification(iNotification: CODAP_Notification) {
+		let tTargetDatasetInfo = this.targetDatasetInfo,
+				tTargetDatasetName = this.targetDatasetInfo.name;
 		if (iNotification.action === 'notify' && this.state.status !== 'inProgress') {
 			let tOperation = iNotification.values.operation;
 			if (tOperation === 'dataContextCountChanged') {
@@ -283,15 +297,14 @@ export class FeatureManager extends Component<FM_Props, {
 			} else if (tOperation === 'selectCases') {
 				// @ts-ignore
 				let tDataContextName: string = iNotification.resource && iNotification.resource.match(/\[(.+)]/)[1];
-				console.log('datacontextname', tDataContextName);
 				if (tDataContextName === this.modelsDatasetName && !this.isSelectingFeatures) {
 					console.log('about to call handleFeatureSelection');
 					this.isSelectingTargetPhrases = true;
 					await this.getTextFeedbackManager().handleFeatureSelection(this);
 					this.isSelectingTargetPhrases = false;
-				} else if (tDataContextName === this.targetDatasetName &&
-						this.datasetNames.indexOf(this.targetDatasetName) >= 0 && !this.isSelectingTargetPhrases) {
-					console.log('about to call handleTargetSelection');
+				} else if (tTargetDatasetInfo && tDataContextName === tTargetDatasetInfo.name &&
+						this.targetDatasetInfoArray.findIndex(iInfo => iInfo.name === tTargetDatasetName) >= 0 &&
+						!this.isSelectingTargetPhrases) {
 					this.isSelectingFeatures = true;
 					await this.getTextFeedbackManager().handleTargetSelection(this);
 					this.isSelectingFeatures = false;
@@ -571,7 +584,7 @@ export class FeatureManager extends Component<FM_Props, {
 		// Send the values to CODAP
 		await codapInterface.sendRequest({
 			action: 'update',
-			resource: `dataContext[${this.targetDatasetName}].collection[${this.targetCollectionName}].case`,
+			resource: `dataContext[${this.targetDatasetInfo.name}].collection[${this.targetCollectionName}].case`,
 			values: tLabelValues
 		});
 	}
@@ -581,12 +594,12 @@ export class FeatureManager extends Component<FM_Props, {
 	 * @private
 	 */
 	private async updateTargetNames() {
-		this.datasetNames = await getDatasetNamesWithFilter(isNotAModel);
-		if (this.targetDatasetName === '') {
-			if (this.datasetNames.length > 0)
-				this.targetDatasetName = this.datasetNames[0];
+		this.targetDatasetInfoArray = await getDatasetInfoWithFilter(isNotAModel);
+		if (this.targetDatasetInfo.name === '') {
+			if (this.targetDatasetInfoArray.length > 0)
+				this.targetDatasetInfo = this.targetDatasetInfoArray[0];
 		}
-		if (this.targetDatasetName !== '') {
+		if (this.targetDatasetInfo.name !== '') {
 			this.targetCollectionNames = await this.getTargetCollectionNames();
 			if (this.targetCollectionName === '' && this.targetCollectionNames.length > 0)
 				this.targetCollectionName = this.targetCollectionNames[this.targetCollectionNames.length - 1];
@@ -622,7 +635,7 @@ export class FeatureManager extends Component<FM_Props, {
 	}
 
 	private async getTargetCollectionNames(): Promise<string[]> {
-		return await getCollectionNames(this.targetDatasetName);
+		return await getCollectionNames(this.targetDatasetInfo.name);
 	}
 
 	public getConstructedFeatureNames(): string[] {
@@ -639,7 +652,7 @@ export class FeatureManager extends Component<FM_Props, {
 		const tListResult: any = await codapInterface.sendRequest(
 			{
 				action: 'get',
-				resource: `dataContext[${this.targetDatasetName}].collection[${this.targetCollectionName}].attributeList`
+				resource: `dataContext[${this.targetDatasetInfo.name}].collection[${this.targetCollectionName}].attributeList`
 			}
 		)
 			.catch(() => {
@@ -656,12 +669,14 @@ export class FeatureManager extends Component<FM_Props, {
 				return [];
 		}
 		let tCaseIndex = 0,
-			tNumCases = await getCaseCount(this.targetDatasetName, this.targetCollectionName),
+			tTargetDatasetName = this.targetDatasetInfo.name,
+			tTargetCollectionName = this.targetCollectionName,
+			tNumCases = await getCaseCount(tTargetDatasetName, tTargetCollectionName),
 			tCategories: string[] = [];
 		while (tCategories.length < 2 && tCaseIndex < tNumCases) {
 			let tCaseResult: any = await codapInterface.sendRequest({
 				action: 'get',
-				resource: `dataContext[${this.targetDatasetName}].collection[${this.targetCollectionName}].caseByIndex[${tCaseIndex}]`
+				resource: `dataContext[${tTargetDatasetName}].collection[${tTargetCollectionName}].caseByIndex[${tCaseIndex}]`
 			})
 				.catch(() => {
 					console.log('Error getting case for category name')
@@ -691,6 +706,7 @@ export class FeatureManager extends Component<FM_Props, {
 					{name: 'Training Set', editable: false, description: 'Name of dataset used for training'},
 					{name: 'Iterations', editable: false, description: 'Number of iterations used in training'},
 					{name: 'Classes', editable: false, description: 'The two classification labels'},
+					{name: 'Predicted Column Name', editable: false, description: 'The name of the column with predictions'},
 					{name: 'Target Class', editable: false, description: 'The classification label regarded as the target. Chosen when prob of positive is greater than threshold.'},
 					{name: 'Column Features', editable: false, description: 'Names of columns treated as model features'},
 					{name: 'Constructed Features', editable: false, description: 'Names of features created for this model'},
@@ -791,10 +807,10 @@ export class FeatureManager extends Component<FM_Props, {
 			});
 		}
 
-		let tModelsDataContextNames = await getDatasetNamesWithFilter(isAModel),
+		let tModelsDatasetInfoArray = await getDatasetInfoWithFilter(isAModel),
 			tModelsDataSetName = this.modelsDatasetName,
 			tModelsCollectionName = this.modelCollectionName,
-			tModelDatasetAlreadyExists = tModelsDataContextNames.indexOf(tModelsDataSetName) >= 0,
+			tModelDatasetAlreadyExists = tModelsDatasetInfoArray.findIndex(iInfo=>iInfo.name === tModelsDataSetName) >= 0,
 			tNumPreexistingModels = 0;
 
 		if (tModelDatasetAlreadyExists) {
@@ -884,11 +900,12 @@ export class FeatureManager extends Component<FM_Props, {
 			values: [{
 				id: this.modelCurrentParentCaseID,
 				values: {
-					"Training Set": this.targetDatasetName,
+					"Training Set": this.targetDatasetInfo.title,
 					"Iterations": this.state.iterations,
 					"Frequency Threshold": this.state.unigrams ? this.state.frequencyThreshold : '',
 					"Ignore Stop Words": this.state.unigrams ? this.state.ignoreStopWords : '',
 					"Classes": JSON.stringify(this.targetCategories),
+					"Predicted Column Name": this.targetPredictedLabelAttributeName,
 					"Target Class": this.targetPositiveCategory,
 					"Column Features": this.state.useColumnFeatures ? this.targetColumnFeatureNames.join(', ') : '',
 					"Constructed Features": tConstructedFeatureNames.length > 0 ? tConstructedFeatureNames.join(', ') : '',
@@ -907,7 +924,7 @@ export class FeatureManager extends Component<FM_Props, {
 	private async buildModel() {
 		this.logisticModel.iterations = this.state.iterations;
 		this.logisticModel.lockIntercept = this.state.lockIntercept;
-		this.targetCaseCount = await getCaseCount(this.targetDatasetName, this.targetCollectionName);
+		this.targetCaseCount = await getCaseCount(this.targetDatasetInfo.name, this.targetCollectionName);
 		let tDocuments: {
 				example: string, class: string, caseID: number,
 				columnFeatures: { [key: string]: number | boolean }
@@ -918,7 +935,7 @@ export class FeatureManager extends Component<FM_Props, {
 		for (let i = 0; i < this.targetCaseCount; i++) {
 			const tGetResult: any = await codapInterface.sendRequest({
 				"action": "get",
-				"resource": `dataContext[${this.targetDatasetName}].collection[${this.targetCollectionName}].caseByIndex[${i}]`
+				"resource": `dataContext[${this.targetDatasetInfo.name}].collection[${this.targetCollectionName}].caseByIndex[${i}]`
 			})
 				.catch(() => {
 					console.log('unable to get case');
@@ -944,7 +961,7 @@ export class FeatureManager extends Component<FM_Props, {
 
 		// Now that we know the class name we're predicting, we can add attributes to the target dataset
 		this.targetPredictedLabelAttributeName += this.targetClassAttributeName;
-		await addAttributesToTarget(tPositiveClassName, this.targetDatasetName || '',
+		await addAttributesToTarget(tPositiveClassName, this.targetDatasetInfo.name,
 			this.targetCollectionName, this.targetPredictedLabelAttributeName);
 
 		// Logistic can't happen until we've isolated the features and produced a oneHot representation
@@ -1020,11 +1037,11 @@ export class FeatureManager extends Component<FM_Props, {
 		this.setState({status: 'finished'});
 	}
 
-	private async extract(iTargetDatasetName: string | null) {
+	private async extract(iTargetDatasetInfo: entityInfo) {
 		this.setState({status: 'inProgress'});
 		this.logisticModel.trace = this.state.showWeightsGraph;
-		this.targetDatasetName = iTargetDatasetName;
-		await deselectAllCasesIn(this.targetDatasetName);
+		this.targetDatasetInfo = iTargetDatasetInfo;
+		await deselectAllCasesIn(this.targetDatasetInfo.name);
 		await this.buildModel();
 	}
 
@@ -1126,7 +1143,7 @@ export class FeatureManager extends Component<FM_Props, {
 			return tExpression;
 		}
 
-		if (!this.targetDatasetName)
+		if (!this.targetDatasetInfo)
 			return;
 		let tFormula = '';
 		switch (iNewFeature.info.kind) {
@@ -1155,13 +1172,13 @@ export class FeatureManager extends Component<FM_Props, {
 		if (tFormula !== '')
 			await codapInterface.sendRequest({
 				action: 'create',
-				resource: `dataContext[${this.targetDatasetName}].collection[${this.targetCollectionName}].attribute`,
+				resource: `dataContext[${this.targetDatasetInfo.name}].collection[${this.targetCollectionName}].attribute`,
 				values: {
 					name: iNewFeature.name,
 					formula: tFormula
 				}
 			});
-		await scrollCaseTableToRight(this.targetDatasetName);
+		await scrollCaseTableToRight(this.targetDatasetInfo.name);
 		this.forceUpdate();
 	}
 
@@ -1177,13 +1194,42 @@ export class FeatureManager extends Component<FM_Props, {
 				</div>
 				: ''),
 			dataSetControl: any = tInProgress ?
-				(<p>Training with <strong>{this.targetDatasetName}</strong></p>)
+				(<p>Training with <strong>{this.targetDatasetInfo.title}</strong></p>)
 				:
-				propertyControl(this.datasetNames,
-					'targetDatasetName', 'Training set: ',
+				entityPropertyControl(this.targetDatasetInfoArray,
+					'targetDatasetInfo', 'Training set: ',
 					'No training set found');
 
-		function propertyControl(listOfNames: string[], propName: string, prompt: string, noneFoundPrompt: string) {
+		function entityPropertyControl(entityInfoArray: entityInfo[], propName: string, prompt: string, noneFoundPrompt: string) {
+			if (entityInfoArray.length === 1)
+				this_[propName] = entityInfoArray[0];
+			if (entityInfoArray.length === 0) {
+				return (
+					<p>{prompt}<em>{noneFoundPrompt}</em></p>
+				)
+			} else {
+				return (
+					<label>
+						<span>{prompt}</span>
+						<SelectBox
+							dataSource={entityInfoArray.map(iInfo=>iInfo.title)}
+							placeholder={'Choose one'}
+							value={this_[propName].title}
+							style={{display: 'inline-block'}}
+							onValueChange={async (e) => {
+								this_[propName] = entityInfoArray.find(iInfo => iInfo.title === e);
+								await this_.updateTargetNames();
+								this_.setState({count: this_.count + 1});
+							}
+							}
+						>
+						</SelectBox>
+					</label>
+				);
+			}
+		}
+
+		function stringPropertyControl(listOfNames: string[], propName: string, prompt: string, noneFoundPrompt: string) {
 			if (listOfNames.length === 1)
 				this_[propName] = listOfNames[0];
 			if (listOfNames.length === 0) {
@@ -1211,32 +1257,31 @@ export class FeatureManager extends Component<FM_Props, {
 				);
 			}
 		}
-
 		function getColumnControl() {
-			if (tInProgress || this_.targetDatasetName === '')
+			if (tInProgress || this_.targetDatasetInfo.name === '')
 				return '';
-			return (propertyControl(this_.targetAttributeNames,
+			return (stringPropertyControl(this_.targetAttributeNames,
 				'targetAttributeName', 'Column to train on: ', 'No columns found'));
 		}
 
 		function getLabelAttributeControl() {
-			if (tInProgress || this_.targetDatasetName === '')
+			if (tInProgress || this_.targetDatasetInfo.name === '')
 				return '';
-			return (propertyControl(this_.targetAttributeNames,
+			return (stringPropertyControl(this_.targetAttributeNames,
 				'targetClassAttributeName', 'Column with labels: ', 'No columns found'));
 		}
 
 		function getLabelsControl() {
-			if (tInProgress || this_.targetDatasetName === '')
+			if (tInProgress || this_.targetDatasetInfo.name === '')
 				return '';
-			return (propertyControl(this_.targetCategories,
+			return (stringPropertyControl(this_.targetCategories,
 				'targetPositiveCategory', 'Target label: ', 'No labels found'));
 		}
 
 		function doItButton() {
 			if (tInProgress)
 				return '';
-			else if (this_.targetDatasetName === '') {
+			else if (this_.targetDatasetInfo.name === '') {
 				return (
 					<div>
 						<p>Cannot train a model without a training set.</p>
@@ -1247,21 +1292,22 @@ export class FeatureManager extends Component<FM_Props, {
 					<div>
 						<br/>
 						<Button onClick={() => {
-							this_.extract(this_.targetDatasetName);
-						}}>Train using {this_.targetDatasetName}</Button>
+							this_.extract(this_.targetDatasetInfo);
+						}}>Train using {this_.targetDatasetInfo.name}</Button>
 					</div>
 				);
 			}
 
 		}
 
-		function checkBox(label: string, checked: boolean, disabled: boolean, setProp: any, key?: number) {
+		function checkBox(label: string, checked: boolean, disabled: boolean, setProp: any, key?: number, hint?:string) {
 			return (
 				<div key={key}>
 					<CheckBox
 						text={label}
 						value={checked && !disabled}
 						disabled={disabled}
+						hint={hint}
 						onValueChange={
 							e => setProp(e)
 						}
@@ -1416,7 +1462,9 @@ export class FeatureManager extends Component<FM_Props, {
 										false,
 										(newValue: boolean) => {
 											this.setState({ignoreStopWords: newValue})
-										})}
+										},
+									1,
+									Object.keys(stopWords).join(', '))}
 								</div>
 							</Item>
 						</Accordion>
@@ -1461,7 +1509,7 @@ export class FeatureManager extends Component<FM_Props, {
 	private renderForFinishedState() {
 		return <div className={'sq-output'}>
 			<p>Your analysis is finished!</p>
-			<p>In <b>{this.targetDatasetName}</b> identified {this.featureCaseCount} <b>features </b>
+			<p>In <b>{this.targetDatasetInfo.title}</b> identified {this.featureCaseCount} <b>features </b>
 				in <b>{this.targetCaseCount} {pluralize(this.targetAttributeName)}</b>.</p>
 			<p>Target label is {this.targetPositiveCategory}.</p>
 			<p>Feature weights were computed by a logistic regression model.</p>
