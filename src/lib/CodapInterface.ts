@@ -182,7 +182,7 @@ const codapInterface = {
   stats: stats,
 
   /**
-   * Initialize connection.
+   * Initialize connection. nothing change
    *
    * Start connection. Request interactiveFrame to get prior state, if any.
    * Update interactive frame to set name and dimensions and other configuration
