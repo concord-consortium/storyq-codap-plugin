@@ -500,6 +500,8 @@ export class FeatureManager extends Component<FM_Props, {
 					tNegIndex = tNegProbs.findIndex((iProb) => {
 						return iProb > 0.5;
 					});
+				if( tNegIndex === -1)
+					tNegIndex = tNegLength;
 				tRecord = {
 					posIndex: tPosIndex,
 					negIndex: tNegIndex,
@@ -1054,20 +1056,23 @@ export class FeatureManager extends Component<FM_Props, {
 			tTargetAttr = `${this_.targetAttributeName}`;
 
 		function freeFormFormula() {
-			const tParamString = `${this_.targetAttributeName},"${(iNewFeature.info.details as ContainsDetails).freeFormText}"`;
+			const option = (iNewFeature.info.details as ContainsDetails).containsOption;
+			const tBegins = option === containsOptions[0] ? '^' : '';
+			const tEnds = option === containsOptions[3] ? '$' : '';
+			const tParamString = `${this_.targetAttributeName},"${tBegins}\\\\\\\\b${(iNewFeature.info.details as ContainsDetails).freeFormText}\\\\\\\\b${tEnds}"`;
 			let tResult = '';
-			switch ((iNewFeature.info.details as ContainsDetails).containsOption) {//['starts with', 'contains', 'does not contain', 'ends with']
+			switch (option) {//['starts with', 'contains', 'does not contain', 'ends with']
 				case containsOptions[0]:	// starts with
-					tResult = `beginsWith(${tParamString})`
+					tResult = `patternMatches(${tParamString})>0`
 					break;
 				case containsOptions[1]:	// contains
-					tResult = `includes(${tParamString})`
+					tResult = `patternMatches(${tParamString})>0`
 					break;
 				case containsOptions[2]:	// does not contain
-					tResult = `!includes(${tParamString})`
+					tResult = `patternMatches(${tParamString})=0`
 					break;
 				case containsOptions[3]:	// ends with
-					tResult = `endsWith(${tParamString})`
+					tResult = `patternMatches(${tParamString})>0`
 					break;
 			}
 			return tResult;
@@ -1118,6 +1123,7 @@ export class FeatureManager extends Component<FM_Props, {
 		function anyListFormula() {
 			let tExpression;
 			const kListName = (iNewFeature.info.details as ContainsDetails).wordList.datasetName,
+				kListAttributeName = (iNewFeature.info.details as ContainsDetails).wordList.firstAttributeName,
 				kWords = SQ.lists[kListName];
 			if (kWords) {
 				tExpression = kWords.reduce((iSoFar, iWord) => {
@@ -1138,7 +1144,7 @@ export class FeatureManager extends Component<FM_Props, {
 						break;
 				}
 			} else {
-				tExpression = `wordListMatches(${tTargetAttr},"${kListName}","Name")>0`
+				tExpression = `wordListMatches(${tTargetAttr},"${kListName}","${kListAttributeName}")>0`
 			}
 			return tExpression;
 		}

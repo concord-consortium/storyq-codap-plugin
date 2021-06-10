@@ -96,13 +96,15 @@ export class FeatureConstructor extends Component<FC_Props, FCState> {
 
 	async updateWordListDatasetNames() {
 		let this_ = this;
+		this.wordListDatasetNames = [];	// Start over
 		let tContextListResult: any = await codapInterface.sendRequest({
 			"action": "get",
 			"resource": "dataContextList"
 		}).catch((reason) => {
 			console.log('unable to get datacontext list because ' + reason);
 		});
-		tContextListResult.values.forEach(async (aValue: { title: string, id: number }) => {
+		for (let index = 0; index < tContextListResult.values.length; index++) {
+			let aValue = tContextListResult.values[index];
 			let tCollectionsResult: any = await codapInterface.sendRequest({
 				action: 'get',
 				resource: `dataContext[${aValue.id}].collectionList`
@@ -123,7 +125,7 @@ export class FeatureConstructor extends Component<FC_Props, FCState> {
 					});
 				}
 			}
-		});
+		}
 	}
 
 	createNewFeatureTemplate() {

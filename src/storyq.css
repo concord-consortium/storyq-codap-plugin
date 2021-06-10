@@ -26,6 +26,10 @@ h2 {
   margin: 0;
 }
 
+.storyq div .back-arrow{
+  margin-left: 10px;
+}
+
 .button-list {
   padding: 5px;
 }
@@ -38,7 +42,7 @@ p {
 .back-arrow {
   position: absolute;
   top: 0;
-  left: 0;
+  margin-left: 10px;
   color: teal;
   cursor: pointer;
 }
