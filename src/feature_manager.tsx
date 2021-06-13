@@ -157,7 +157,7 @@ export class FeatureManager extends Component<FM_Props, {
 			count: 0,
 			accordianSelection: {outer: 0, inner: 0},
 			iterations: 20,
-			unigrams: true,
+			unigrams: false,
 			currentIteration: 0,
 			frequencyThreshold: 4,
 			useColumnFeatures: false,
@@ -287,6 +287,7 @@ export class FeatureManager extends Component<FM_Props, {
 	 * @param iNotification    (from CODAP)
 	 */
 	private async handleNotification(iNotification: CODAP_Notification) {
+		console.log('iNotification', iNotification);
 		let tTargetDatasetInfo = this.targetDatasetInfo,
 				tTargetDatasetName = this.targetDatasetInfo.name;
 		if (iNotification.action === 'notify' && this.state.status !== 'inProgress') {
@@ -310,9 +311,16 @@ export class FeatureManager extends Component<FM_Props, {
 					this.isSelectingFeatures = false;
 				}
 			} else if (tOperation === 'createAttributes' || tOperation === 'updateAttributes') {
-				// await this.updateTargetNames();
-				// await this.getPossibleColumnFeatureNames();
 				this.targetAttributeNames = await this.getTargetAttributeNames();
+				this.forceUpdate();
+			} else if (tOperation === 'titleChange') {
+				const kFrom = iNotification.values.from,
+					kTo = iNotification.values.to;
+				let tFoundEntry = this.targetDatasetInfoArray.find(entry=>entry.title === kFrom);
+				if( tFoundEntry)
+					tFoundEntry.title = kTo;
+				if(this.targetDatasetInfo.title === kFrom)
+					this.targetDatasetInfo.title = kTo;
 				this.forceUpdate();
 			}
 		}
@@ -1293,13 +1301,21 @@ export class FeatureManager extends Component<FM_Props, {
 						<p>Cannot train a model without a training set.</p>
 					</div>
 				);
+			} else if(!this_.state.unigrams &&
+				!(this_.state.useColumnFeatures && this_.targetColumnFeatureNames.length > 0) &&
+				this_.fcBridge.getConstructedFeaturesList().filter(iItem=>iItem.chosen).length === 0) {
+				return (
+					<div>
+						<p>Cannot train a model without specifying at least one feature.</p>
+					</div>
+				);
 			} else {
 				return (
 					<div>
 						<br/>
 						<Button onClick={() => {
 							this_.extract(this_.targetDatasetInfo);
-						}}>Train using {this_.targetDatasetInfo.name}</Button>
+						}}>Train using {this_.targetDatasetInfo.title}</Button>
 					</div>
 				);
 			}

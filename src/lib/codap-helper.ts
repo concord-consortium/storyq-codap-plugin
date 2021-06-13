@@ -232,7 +232,7 @@ export async function getComponentByTypeAndTitle(iType: string, iTitle: string):
 	return tID;
 }
 
-export async function getNameOfCaseTableForDataContext(iDataContextName: string): Promise<string> {
+export async function getIdOfCaseTableForDataContext(iDataContextName: string): Promise<number> {
 	const tListResult: any = await codapInterface.sendRequest(
 		{
 			action: 'get',
@@ -243,25 +243,24 @@ export async function getNameOfCaseTableForDataContext(iDataContextName: string)
 			console.log('Error getting component list')
 		});
 
-	let tCaseTableName;
+	let tCaseTableID;
 	if (tListResult.success) {
-		console.log( tListResult);
 		let tFoundValue = tListResult.values.find((iValue: any) => {
 			return iValue.type === 'caseTable' && iValue.title === iDataContextName;
 		});
 		if (tFoundValue)
-			tCaseTableName = tFoundValue.title;
+			tCaseTableID = tFoundValue.id;
 	}
-	return tCaseTableName;
+	return tCaseTableID;
 }
 
 export async function scrollCaseTableToRight(iDataContextName: string): Promise<boolean> {
-	const tCaseTableName = await getNameOfCaseTableForDataContext(iDataContextName);
+	const tCaseTableID = await getIdOfCaseTableForDataContext(iDataContextName);
 	let tScrollResult: any;
-	if (tCaseTableName) {
+	if (tCaseTableID) {
 		tScrollResult = await codapInterface.sendRequest({
 			action: 'update',
-			resource: `component[${tCaseTableName}]`,
+			resource: `component[${tCaseTableID}]`,
 			values: {
 				horizontalScrollOffset: 10000	// all the way
 			}
