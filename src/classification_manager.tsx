@@ -15,6 +15,7 @@ import {LogitPrediction} from './lib/logit_prediction';
 import TextFeedbackManager, {TFMStorage} from "./text_feedback_manager";
 import Button from 'devextreme-react/button';
 import {SelectBox} from "devextreme-react/select-box";
+import {computeKappa} from "./utilities";
 
 // import tf from "@tensorflow/tfjs";
 
@@ -82,7 +83,6 @@ export class ClassificationManager extends Component<Classification_Props, {
 	private targetClassAttributeName = '';
 	private targetPredictedLabelAttributeName = 'classification';
 	private targetProbabilityAttributeName = 'probability of positive';
-	private targetColumnFeatureNames: string[] = [];
 	private subscriberIndex: number = -1;
 	private textFeedbackManager: TextFeedbackManager | null = null;
 	private restoredStatus: string = '';
@@ -412,7 +412,6 @@ export class ClassificationManager extends Component<Classification_Props, {
 				return iFeature.trimLeft();
 			});
 			this_.modelColumnFeatures = tModel.modelColumnFeatures;	// So they get saved and used to get values
-			this_.targetColumnFeatureNames = tModel.modelColumnFeatures;	// So they get used by text feedback manager
 			tModel.threshold = tParentCaseResult.values.case.values['Threshold'];
 			tModel.constantWeightTerm = tParentCaseResult.values.case.values['Constant Weight'];
 			tModel.predictor = new LogitPrediction(tModel.constantWeightTerm, tModel.weights, tModel.threshold);
@@ -524,11 +523,10 @@ export class ClassificationManager extends Component<Classification_Props, {
 				values: tFeatureUpdates
 			});
 			if (this_.targetClassAttributeName !== '') {
-				// Compute accuracy and kappa
-				this_.results.accuracy = Math.round(1000 * tCorrect / tPhraseCount) / 1000;
-				let tExpected = (((tMatrix.posPos + tMatrix.negPos) * (tMatrix.posPos + tMatrix.posNeg)) +
-					((tMatrix.posNeg + tMatrix.negNeg) * (tMatrix.negPos + tMatrix.negNeg))) / tPhraseCount;
-				this_.results.kappa = Math.round(1000 * (tCorrect - tExpected) / (tPhraseCount - tExpected)) / 1000;
+				let computedKappa = computeKappa( tPhraseCount, tMatrix.posPos, tMatrix.negNeg,
+					tMatrix.posPos + tMatrix.posNeg, tMatrix.posPos + tMatrix.negPos);
+				this_.results.accuracy = Number(computedKappa.observed.toFixed(3));
+				this_.results.kappa = Number(computedKappa.kappa.toFixed(3));
 			}
 		}
 

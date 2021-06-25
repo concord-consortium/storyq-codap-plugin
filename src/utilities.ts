@@ -77,3 +77,20 @@ export function phraseToFeatures( iPhrase:string, iFeatures:string[], iSpecialFe
 	});
 	return tResultArray;
 }
+
+/**
+ *
+ * @param n				number of observations
+ * @param bothPos	number both raters rated positive
+ * @param bothNeg	number both raters rated negative
+ * @param actualPos	number first rater rated positive
+ * @param predPos		number second rater rated positive
+ */
+export function computeKappa(n:number, bothPos:number, bothNeg:number, actualPos:number, predPos:number) {
+	let p0 = (bothPos + bothNeg) / n,
+		randomBothPos = (actualPos / n) * (predPos / n),
+		randomBothNeg = ((n-actualPos)/n)*((n-predPos)/n),
+		pE = randomBothPos + randomBothNeg,
+		kappa = (p0 - pE) / (1 - pE);
+	return {observed: p0, kappa: kappa};
+}

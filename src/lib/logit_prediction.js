@@ -44,6 +44,6 @@ LogitPrediction.prototype.transform = function(given, weights) {
  */
 LogitPrediction.prototype.predict = function(given) {
   let tProbability = this.transform( given, this.weights);
-  return { class: tProbability >= this.thresholdProbability, probability: tProbability};
+  return { class: tProbability > this.thresholdProbability, probability: tProbability};
 }
 

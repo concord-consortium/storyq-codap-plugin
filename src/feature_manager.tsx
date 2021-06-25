@@ -33,6 +33,7 @@ import {
 import FeatureConstructorBridge, {ConstructedFeature, ContainsDetails} from "./feature_constructor_bridge";
 import {SQ} from "./lists/personal-pronouns";
 import {stopWords} from "./lib/stop_words";
+import {computeKappa} from "./utilities";
 
 // import tf from "@tensorflow/tfjs";
 
@@ -67,6 +68,7 @@ interface FMStorage {
 	modelCurrentParentCaseID: number,
 	modelCollectionName: string,
 	featureCaseCount: number,
+	frequencyThreshold: number,
 	modelAccuracy: number,
 	modelKappa: number,
 	modelThreshold: number,
@@ -105,7 +107,7 @@ export class FeatureManager extends Component<FM_Props, {
 	public targetCollectionNames: string[] = [];
 	public targetAttributeName = '';
 	private targetAttributeNames: string[] = [];
-	public targetPredictedLabelAttributeName = 'predicted ';
+	public targetPredictedLabelAttributeName = '';
 	public targetClassAttributeName = '';
 	private targetCaseCount = 0;
 	private targetPositiveCategory = '';
@@ -218,6 +220,7 @@ export class FeatureManager extends Component<FM_Props, {
 			modelCurrentParentCaseID: this.modelCurrentParentCaseID,
 			featureCollectionName: this.featureCollectionName,
 			featureCaseCount: this.featureCaseCount,
+			frequencyThreshold: this.state.frequencyThreshold,
 			modelAccuracy: this.logisticModel.accuracy,
 			modelKappa: this.logisticModel.kappa,
 			modelThreshold: this.logisticModel.threshold,
@@ -262,6 +265,7 @@ export class FeatureManager extends Component<FM_Props, {
 			this.stashedClassificationManagerStorage = null;
 		}
 		this.setState({unigrams: iStorage.unigrams});
+		this.setState({frequencyThreshold: iStorage.frequencyThreshold || 4});
 		this.setState({useColumnFeatures: iStorage.useColumnFeatures || false});
 		this.setState({ignoreStopWords: iStorage.ignoreStopWords || false});
 		this.setState({lockIntercept: iStorage.lockIntercept || false});
@@ -287,7 +291,6 @@ export class FeatureManager extends Component<FM_Props, {
 	 * @param iNotification    (from CODAP)
 	 */
 	private async handleNotification(iNotification: CODAP_Notification) {
-		console.log('iNotification', iNotification);
 		let tTargetDatasetInfo = this.targetDatasetInfo,
 				tTargetDatasetName = this.targetDatasetInfo.name;
 		if (iNotification.action === 'notify' && this.state.status !== 'inProgress') {
@@ -465,7 +468,7 @@ export class FeatureManager extends Component<FM_Props, {
 			tNegProbs: number[] = [],
 			tMapFromCaseIDToProbability: any = {};
 
-		function findThreshold(): { threshold: number, accuracy: number, kappa: number } {
+		function findThreshold(): number {
 			// Determine the probability threshold that yields the fewest discrepant classifications
 			// First compute the probabilities separating them into two arrays
 			iTools.documents.forEach((aDoc: any, iIndex: number) => {
@@ -547,33 +550,32 @@ export class FeatureManager extends Component<FM_Props, {
 					tRecord.negIndex = findNegIndex(tRecord.negIndex, tPosProbs[tRecord.posIndex]);
 				}
 			}
-			let tNumDocs = iTools.documents.length,
-				tObserved = (tNumDocs - tRecord.currMinDescrepancies),
-				tExpected = (tPosProbs.length * (tRecord.posIndex + tRecord.negIndex) +
-					tNegLength * (tPosProbs.length - tRecord.posIndex + tNegLength - tRecord.negIndex)) / tNumDocs,
-				tKappa = (tObserved - tExpected) / (tNumDocs - tExpected),
-				tAccuracy = tObserved / tNumDocs;
-			return {
-				threshold: tRecord.threshold,
-				accuracy: tAccuracy, kappa: tKappa
-			};
+			return  tRecord.threshold;
 		}
 
 		// Create values of predicted label and probability for each document
 		let tThresholdResult = findThreshold(),
-			tLabelValues: { id: number, values: any }[] = [];
-		iTools.logisticModel.threshold = tThresholdResult.threshold;
-		iTools.logisticModel.accuracy = tThresholdResult.accuracy;
-		iTools.logisticModel.kappa = tThresholdResult.kappa;
+			tLabelValues: { id: number, values: any }[] = [],
+			tActualPos = 0,
+			tPredictedPos = 0,
+			tBothPos = 0,
+			tBothNeg = 0;
+		iTools.logisticModel.threshold = tThresholdResult;
 		iTools.documents.forEach((aDoc: any) => {
 			let tProbability: number,
 				tPredictedLabel,
+				tActualLabel,
 				tValues: any = {},
 				tProbName = `${this.kProbPredAttrNamePrefix}${iTools.positiveClassName}`;
 			tProbability = tMapFromCaseIDToProbability[aDoc.caseID];
-			tPredictedLabel = tProbability > tThresholdResult.threshold ? iTools.positiveClassName : iTools.negativeClassName;
+			tPredictedLabel = tProbability > tThresholdResult ? iTools.positiveClassName : iTools.negativeClassName;
 			tValues[this.targetPredictedLabelAttributeName] = tPredictedLabel;
 			tValues[tProbName] = tProbability;
+			tActualLabel = aDoc.class;
+			tActualPos += tActualLabel === iTools.positiveClassName ? 1 : 0;
+			tPredictedPos += tPredictedLabel === iTools.positiveClassName ? 1 : 0;
+			tBothPos += (tActualLabel === iTools.positiveClassName && tPredictedLabel === iTools.positiveClassName) ? 1 : 0;
+			tBothNeg += (tActualLabel === iTools.negativeClassName && tPredictedLabel === iTools.negativeClassName) ? 1 : 0;
 
 			// For each document, stash the case ids of its features so we can link selection
 			let tFeatureIDsForThisDoc: number[] = [];
@@ -591,6 +593,11 @@ export class FeatureManager extends Component<FM_Props, {
 				values: tValues
 			})
 		});
+
+		let computedKappa = computeKappa(iTools.documents.length, tBothPos, tBothNeg, tActualPos, tPredictedPos);
+		iTools.logisticModel.accuracy = computedKappa.observed;
+		iTools.logisticModel.kappa = computedKappa.kappa;
+
 		// Send the values to CODAP
 		await codapInterface.sendRequest({
 			action: 'update',
@@ -665,8 +672,8 @@ export class FeatureManager extends Component<FM_Props, {
 				resource: `dataContext[${this.targetDatasetInfo.name}].collection[${this.targetCollectionName}].attributeList`
 			}
 		)
-			.catch(() => {
-				console.log('Error getting attribute names')
+			.catch((reason) => {
+				console.log('Error getting attribute names because', reason);
 			});
 		return tListResult.values.map((iValue: any) => {
 			return iValue.name;
@@ -970,7 +977,7 @@ export class FeatureManager extends Component<FM_Props, {
 		tPositiveClassName = this.targetPositiveCategory;
 
 		// Now that we know the class name we're predicting, we can add attributes to the target dataset
-		this.targetPredictedLabelAttributeName += this.targetClassAttributeName;
+		this.targetPredictedLabelAttributeName = 'predicted ' + this.targetClassAttributeName;
 		await addAttributesToTarget(tPositiveClassName, this.targetDatasetInfo.name,
 			this.targetCollectionName, this.targetPredictedLabelAttributeName);
 
@@ -1537,9 +1544,9 @@ export class FeatureManager extends Component<FM_Props, {
 			<p>Feature weights were computed by a logistic regression model.</p>
 			<p>Iterations = {this.state.iterations}</p>
 			<p>Frequency threshold = {this.state.frequencyThreshold}</p>
-			<p>Accuracy = {Math.round(this.logisticModel.accuracy * 1000) / 1000}</p>
-			<p>Kappa = {Math.round(this.logisticModel.kappa * 1000) / 1000}</p>
-			<p>Threshold = {Math.round(this.logisticModel.threshold * 10000) / 10000}</p>
+			<p>Accuracy = {Number(this.logisticModel.accuracy.toFixed(3))}</p>
+			<p>Kappa = {Number(this.logisticModel.kappa.toFixed(3))}</p>
+			<p>Threshold = {Number(this.logisticModel.threshold.toFixed(4))}</p>
 			<br/>
 			<Button onClick={() => {
 				this.setState({status: 'active'});
