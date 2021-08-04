@@ -1544,9 +1544,9 @@ export class FeatureManager extends Component<FM_Props, {
 			<p>Feature weights were computed by a logistic regression model.</p>
 			<p>Iterations = {this.state.iterations}</p>
 			<p>Frequency threshold = {this.state.frequencyThreshold}</p>
-			<p>Accuracy = {Number(this.logisticModel.accuracy.toFixed(3))}</p>
-			<p>Kappa = {Number(this.logisticModel.kappa.toFixed(3))}</p>
-			<p>Threshold = {Number(this.logisticModel.threshold.toFixed(4))}</p>
+			<p>Accuracy = {this.logisticModel.accuracy !== undefined ? Number(this.logisticModel.accuracy.toFixed(3)) : ''}</p>
+			<p>Kappa = {this.logisticModel.kappa !== undefined ? Number(this.logisticModel.kappa.toFixed(3)) : ''}</p>
+			<p>Threshold = {this.logisticModel.threshold !== undefined ? Number(this.logisticModel.threshold.toFixed(4)) : ''}</p>
 			<br/>
 			<Button onClick={() => {
 				this.setState({status: 'active'});

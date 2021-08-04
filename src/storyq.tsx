@@ -34,7 +34,7 @@ interface StoryqStorage {
 
 class Storyq extends Component<{}, { className: string, mode: string }> {
 	private kPluginName = "StoryQ";
-	private kVersion = "1.0";
+	private kVersion = "1.01";
 	private kInitialDimensions = {
 		width: 280,
 		height: 450
