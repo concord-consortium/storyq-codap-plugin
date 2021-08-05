@@ -969,8 +969,12 @@ export class FeatureManager extends Component<FM_Props, {
 			// We're going to put column features into each document as well so one-hot can include them in the vector
 			tColumnNames.forEach((aName) => {
 				let tValue = tGetResult.values.case.values[aName];
+				if(['1', 'true'].indexOf(String(tValue).toLowerCase()) >= 0)
+					tValue = 1;
+				else
+					tValue = 0;
 				if (tValue)
-					tColumnFeatures[aName] = Number(tValue);
+					tColumnFeatures[aName] = tValue;
 			});
 			tDocuments.push({example: tText, class: tClass, caseID: tCaseID, columnFeatures: tColumnFeatures});
 		}
