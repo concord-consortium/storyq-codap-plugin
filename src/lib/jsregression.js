@@ -39,7 +39,7 @@ export class LinearRegression {
     }
     for (var k = 0; k < this.iterations; ++k) {
       var Vx = this.grad(X, Y, this.theta);
-      for (var d = 0; d < this.dim; ++d) {
+      for (d = 0; d < this.dim; ++d) {
         this.theta[d] = this.theta[d] - this.alpha * Vx[d];
       }
       if (this.trace) {
@@ -118,7 +118,7 @@ export class LinearRegression {
 
 
 export var LogisticRegression = function(config) {
-    var config = config || {};
+    config = config || {};
     if(!config.alpha){
       config.alpha = 0.001;
     }
@@ -191,7 +191,7 @@ export var LogisticRegression = function(config) {
             iterations: this_.iterations
           }
         }
-        if( this_.progressCallback(iIteration));
+        this_.progressCallback(iIteration);
       }
     }
 
@@ -261,7 +261,7 @@ export var LogisticRegression = function(config) {
 
 
   export var MultiClassLogistic = function(config){
-    var config = config || {};
+    config = config || {};
     if(!config.alpha){
       config.alpha = 0.001;
     }
@@ -309,9 +309,9 @@ export var LogisticRegression = function(config) {
         iterations: this.iterations
       });
       var data_c = [];
-      for(var i=0; i < N; ++i){
+      for(i=0; i < N; ++i){
         var row = [];
-        for(var j=0; j < this.dim-1; ++j){
+        for(j=0; j < this.dim-1; ++j){
           row.push(data[i][j]);
         }
         row.push(data[i][this.dim-1] == c ? 1 : 0);

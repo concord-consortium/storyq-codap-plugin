@@ -155,11 +155,11 @@ function notificationHandler (request: CODAP_Notification, callback: (arg0: { su
       notificationSubscribers.forEach(function (subscription) {
         // pass this notification to matching subscriptions
         handled = false;
-        if ((subscription.actionSpec === action) && matchResource(resource,
-                subscription.resourceSpec) && (!subscription.operation ||
-            (subscription.operation === value.operation) && subscription.handler)) {
-          let rtn = subscription.handler(
-              {action: action, resource: resource, values: value});
+        if ((subscription.actionSpec === action) &&
+          matchResource(resource, subscription.resourceSpec) &&
+          (!subscription.operation || subscription.operation === value.operation) &&
+          subscription.handler) {
+          let rtn = subscription.handler({action: action, resource: resource, values: value});
           if (rtn && rtn.success) { stats.countCodapRplSuccess++; } else{ stats.countCodapRplFail++; }
           success = (success && (rtn ? rtn.success : false));
           handled = true;
@@ -247,14 +247,14 @@ const codapInterface = {
       if (!config.customInteractiveStateHandler) {
         this_.on('get', 'interactiveState', function () {
           return ({success: true, values: this_.getInteractiveState()});
-        }.bind(this_));
+        });
       }
 
       // console.log('sending interactiveState: ' + JSON.stringify(this_.getInteractiveState));
       // update, then get the interactiveFrame.
       return this_.sendRequest([updateFrameReq, getFrameReq])
         .then(getFrameRespHandler as any, reject);
-    }.bind(this));
+    });
   },
 
   /**

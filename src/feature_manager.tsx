@@ -1146,7 +1146,7 @@ export class FeatureManager extends Component<FM_Props, {
 				kWords = SQ.lists[kListName];
 			if (kWords) {
 				tExpression = kWords.reduce((iSoFar, iWord) => {
-					return iSoFar === '' ? `\\\\\\\\b${iWord}\\\\\\\\b` : iSoFar + '|' + `\\\\\\\\b${iWord}\\\\\\\\b`;
+					return iSoFar === '' ? `\\\\\\\\b${iWord}\\\\\\\\b` : iSoFar + `|\\\\\\\\b${iWord}\\\\\\\\b`;
 				}, '');
 				switch ((iNewFeature.info.details as ContainsDetails).containsOption) {//['starts with', 'contains', 'does not contain', 'ends with']
 					case containsOptions[0]:	// starts with

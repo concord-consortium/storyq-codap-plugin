@@ -39,7 +39,7 @@ export interface FC_Props {
 	setStorageCallbacks: (iCallbacks: FC_StorageCallbackFuncs) => void
 }
 
-export const featureKinds = ['\"contains\" feature', '\"count of\" feature']
+export const featureKinds = ['"contains" feature', '"count of" feature']
 export const containsOptions = ['starts with', 'contains', 'does not contain', 'ends with']
 export const kindOfThingContainedOptions = ['any number', 'any from list', 'free form text'/*, 'any date'*/]
 export const caseOptions = ['sensitive', 'insensitive']
@@ -181,7 +181,7 @@ export class FeatureConstructor extends Component<FC_Props, FCState> {
 		});
 	}
 
-	featureTemplate(kind: string) {
+	featureTemplate() {
 		const this_ = this;
 
 		function containsTemplate() {
@@ -397,7 +397,7 @@ export class FeatureConstructor extends Component<FC_Props, FCState> {
 						>
 						</SelectBox>
 					</label>
-					{this.featureTemplate(this.state.featureUnderConstruction.kind)}
+					{this.featureTemplate()}
 				</div>
 			) : '';
 	}

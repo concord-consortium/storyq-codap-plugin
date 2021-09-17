@@ -246,7 +246,7 @@ export class ClassificationManager extends Component<Classification_Props, {
 
 		async function allValuesAreInArray(iDatasetName: string, collectionName: string,
 																			 iAttrName: string, iCategories: string[]) {
-			let tFormula = `\`${iAttrName}\`!=\"${iCategories[0]}\" and \`${iAttrName}\`!=\"${iCategories[1]}\"`;
+			let tFormula = `\`${iAttrName}\`!="${iCategories[0]}" and \`${iAttrName}\`!="${iCategories[1]}"`;
 			// console.log(tFormula);
 			let tCasesResult: any = await codapInterface.sendRequest({
 				action: 'get',
@@ -434,7 +434,6 @@ export class ClassificationManager extends Component<Classification_Props, {
 
 		async function classifyEachPhrase() {
 			let tPhraseCount = await getCaseCount(this_.targetDatasetInfo.name, this_.targetCollectionName),
-				tCorrect = 0,
 				tMatrix = {posPos: 0, negPos: 0, posNeg: 0, negNeg: 0},
 				tNegativeLabel = tModel.positiveLabel === tModel.labels[0] ? tModel.labels[1] : tModel.labels[0];
 			for (let i = 0; i < tPhraseCount; i++) {
@@ -499,9 +498,6 @@ export class ClassificationManager extends Component<Classification_Props, {
 						tMatrix.posNeg++;
 					else
 						tMatrix.negNeg++;
-				}
-				if (tActualBool === tPrediction.class) {
-					tCorrect++;
 				}
 			}
 			// Send the values to CODAP
