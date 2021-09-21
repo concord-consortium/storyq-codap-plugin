@@ -4,9 +4,9 @@
  * "Story Measuresments" dataset.
  */
 
-import codapInterface, {CODAP_Notification} from "./lib/CodapInterface";
+import codapInterface, {CODAP_Notification} from "../lib/CodapInterface";
 import DataManager from './data_manager';
-import {textToObject} from "./utilities";
+import {textToObject} from "../utilities/utilities";
 
 export const kStoryFeaturesContextName = "Story Measurements";
 export const kStoryTextComponentName = 'A New Story';

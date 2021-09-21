@@ -4,18 +4,18 @@
  */
 
 import React, {Component} from 'react';
-import codapInterface, {CODAP_Notification} from "./lib/CodapInterface";
+import codapInterface, {CODAP_Notification} from "../lib/CodapInterface";
 import {
 	getCaseCount, getCollectionNames,
 	getDatasetInfoWithFilter, isAModel, isNotAModel, deselectAllCasesIn, entityInfo, scrollCaseTableToRight
-} from './lib/codap-helper';
-import {wordTokenizer} from "./lib/one_hot";
-import './storyq.css';
-import {LogitPrediction} from './lib/logit_prediction';
-import TextFeedbackManager, {TFMStorage} from "./text_feedback_manager";
+} from '../lib/codap-helper';
+import {wordTokenizer} from "../lib/one_hot";
+import '../storyq.css';
+import {LogitPrediction} from '../lib/logit_prediction';
+import TextFeedbackManager, {TFMStorage} from "../managers/text_feedback_manager";
 import Button from 'devextreme-react/button';
 import {SelectBox} from "devextreme-react/select-box";
-import {computeKappa} from "./utilities";
+import {computeKappa} from "../utilities/utilities";
 
 // import tf from "@tensorflow/tfjs";
 

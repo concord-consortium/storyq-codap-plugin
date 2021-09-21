@@ -20,7 +20,7 @@ import {SelectBox} from 'devextreme-react/select-box';
 import {oneHot} from "../lib/one_hot";
 import '../storyq.css';
 
-import {StorageCallbackFuncs, FMStorage} from "../storyq_types";
+import {FMStorage} from "../storyq_types";
 
 import {LogisticRegression} from '../lib/jsregression';
 import TextFeedbackManager from "../managers/text_feedback_manager";
@@ -982,6 +982,7 @@ export class FeaturePanel extends Component<FM_Props, FM_StateTypes> {
 		}
 
 		// The fitting process is asynchronous so we fire it off here
+		// @ts-ignore
 		this.logisticModel.fit(tData);
 		this.logisticModel._data = tData;
 		this.logisticModel._oneHot = tOneHot;

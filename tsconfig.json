@@ -26,7 +26,8 @@
     "moduleResolution": "node",
     "noEmit": true,
     "isolatedModules": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "useDefineForClassFields": true
   },
   "include": [
     "./src/**/*"

@@ -23,11 +23,7 @@ h2 {
 }
 
 .storyq div {
-  margin: 0;
-}
-
-.storyq div .back-arrow{
-  margin-left: 10px;
+  /*margin: 0;*/
 }
 
 .button-list {
@@ -61,6 +57,29 @@ p {
 
 .question-circle:hover {
   font-size: large;
+}
+
+.sq-target-panel {
+  /*position: absolute;*/
+  margin: 5px;
+}
+
+.sq-target-text-panel {
+  margin-left: 5px;
+  border-color: gray;
+  width: 100%;
+  height: 100%;
+}
+
+.sq-info-prompt {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  margin-bottom: 10px;
+  text-align: center;
+  color: #187992;
+  font-style: italic;
+  font-size: larger;
 }
 
 .sq-progress-bar-container {

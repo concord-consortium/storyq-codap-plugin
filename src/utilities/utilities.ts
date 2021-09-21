@@ -1,4 +1,4 @@
-import {wordTokenizer} from "./lib/one_hot";
+import {wordTokenizer} from "../lib/one_hot";
 
 /**
  *

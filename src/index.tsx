@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import './index.css';
-import Storyq from './storyq';
+import Storyq from './components/storyq';
 import * as serviceWorker from './serviceWorker';
 
 ReactDOM.render(<Storyq />, document.getElementById('root'));

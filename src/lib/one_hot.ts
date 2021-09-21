@@ -85,12 +85,14 @@ export const oneHot = (config:{includeUnigrams:boolean, frequencyThreshold:numbe
 	// Only include tokens with a count above specified threshold
 	let tIndexFirstBelowThreshold = -1,
 			tThreshold = config.frequencyThreshold;
+	/*eslint-disable */
 	while( tIndexFirstBelowThreshold < 0 && tThreshold > 0) {
 		tIndexFirstBelowThreshold = tokenArray.findIndex((aToken) => {
 			return aToken.count <= tThreshold;
 		});
 		tThreshold--;
 	}
+	/*eslint-enable */
 	if( tIndexFirstBelowThreshold < 0)	// There were no very frequent tokens
 		tIndexFirstBelowThreshold = tokenArray.length;
 	tokenArray.length = Math.min(tIndexFirstBelowThreshold, tokenArray.length, kMaxTokens);

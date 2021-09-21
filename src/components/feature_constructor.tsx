@@ -7,9 +7,9 @@ import {CheckBox} from "devextreme-react/check-box";
 import {SelectBox} from "devextreme-react/select-box";
 import Button from "devextreme-react/button";
 import {TextBox} from "devextreme-react";
-import FeatureConstructorBridge, {ConstructedFeature, WordListSpec} from "./feature_constructor_bridge";
-import {SQ} from "./lists/personal-pronouns";
-import codapInterface from "./lib/CodapInterface";
+import FeatureConstructorBridge, {ConstructedFeature, WordListSpec} from "../feature_constructor_bridge";
+import {SQ} from "../lists/personal-pronouns";
+import codapInterface from "../lib/CodapInterface";
 
 export interface FCState {
 	otherFeaturesChecked: boolean,

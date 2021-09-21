@@ -1,5 +1,5 @@
-import codapInterface from "./lib/CodapInterface";
-import {wordTokenizer} from "./lib/one_hot";
+import codapInterface from "../lib/CodapInterface";
+import {wordTokenizer} from "../lib/one_hot";
 
 export default class DataManager {
 
