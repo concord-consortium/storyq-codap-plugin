@@ -1,6 +1,6 @@
 import React, {Component} from 'react';
 import pluralize from 'pluralize';
-import codapInterface, {CODAP_Notification} from "./lib/CodapInterface";
+import codapInterface, {CODAP_Notification} from "../lib/CodapInterface";
 import {
 	addAttributesToTarget,
 	deselectAllCasesIn,
@@ -11,80 +11,41 @@ import {
 	isAModel,
 	isNotAModel,
 	scrollCaseTableToRight
-} from './lib/codap-helper';
+} from '../lib/codap-helper';
+
 import Button from 'devextreme-react/button';
 import {Accordion, Item} from 'devextreme-react/accordion';
 import {SelectBox} from 'devextreme-react/select-box';
-import {oneHot} from "./lib/one_hot";
-import './storyq.css';
-import {LogisticRegression} from './lib/jsregression';
-import TextFeedbackManager, {TFMStorage} from "./text_feedback_manager";
+
+import {oneHot} from "../lib/one_hot";
+import '../storyq.css';
+
+import {StorageCallbackFuncs, FMStorage} from "../storyq_types";
+
+import {LogisticRegression} from '../lib/jsregression';
+import TextFeedbackManager from "../managers/text_feedback_manager";
 import {ProgressBar} from "./progress_bar";
 import {CheckBox} from "devextreme-react/check-box";
 import {NumericInput} from "./numeric_input";
 import {
 	containsOptions,
 	FC_StorageCallbackFuncs,
-	FCState,
 	FeatureConstructor,
 	featureKinds,
 	kindOfThingContainedOptions
 } from "./feature_constructor";
-import FeatureConstructorBridge, {ConstructedFeature, ContainsDetails} from "./feature_constructor_bridge";
-import {SQ} from "./lists/personal-pronouns";
-import {stopWords} from "./lib/stop_words";
-import {computeKappa} from "./utilities";
+import FeatureConstructorBridge, {ConstructedFeature, ContainsDetails} from "../feature_constructor_bridge";
+import {SQ} from "../lists/personal-pronouns";
+import {stopWords} from "../lib/stop_words";
+import {computeKappa} from "../utilities/utilities";
 
 // import tf from "@tensorflow/tfjs";
 
-export interface FM_StorageCallbackFuncs {
-	createStorageCallback: () => any,
-	restoreStorageCallback: (iStorage: any) => void
-}
-
-export interface FM_Props {
-	status: string,
-	setStorageCallbacks: (iCallbacks: FM_StorageCallbackFuncs) => void
-}
-
-interface FMStorage {
-	datasetName: string | null;
-	textFeedbackManagerStorage: TFMStorage | null,
-	featureConstructorStorage: FCState | null,
-	targetDatasetInfo: entityInfo | null,
-	targetDatasetInfoArray: entityInfo[] | null,
-	targetCollectionName: string,
-	targetCollectionNames: string[],
-	targetAttributeName: string,
-	targetAttributeNames: string[],
-	targetCaseCount: number,
-	targetPositiveCategory: string,
-	targetCategories: string[],
-	targetColumnFeatureNames: string[],
-	targetClassAttributeName: string,
-	modelsDatasetName: string,
-	modelsDatasetID: number,
-	featureCollectionName: string,
-	modelCurrentParentCaseID: number,
-	modelCollectionName: string,
-	featureCaseCount: number,
-	frequencyThreshold: number,
-	modelAccuracy: number,
-	modelKappa: number,
-	modelThreshold: number,
-	unigrams: boolean,
-	useColumnFeatures: boolean,
-	ignoreStopWords: boolean,
-	lockIntercept: boolean,
-	lockProbThreshold: boolean,
-	accordianSelection: Record<string, number>,
+interface FM_Props {
 	status: string
 }
 
-const outerNames = ['Extraction', 'Model Setup'],
-	innerNames = ['Setup', 'Features', 'Settings'];
-
-export class FeatureManager extends Component<FM_Props, {
+interface FM_StateTypes {
 	status: string,
 	count: number,
 	accordianSelection: Record<string, number>,
@@ -97,7 +58,12 @@ export class FeatureManager extends Component<FM_Props, {
 	lockIntercept: boolean,
 	lockProbThreshold: boolean,
 	showWeightsGraph: boolean
-}> {
+}
+
+const outerNames = ['Extraction', 'Model Setup'],
+	innerNames = ['Setup', 'Features', 'Settings'];
+
+export class FeaturePanel extends Component<FM_Props, FM_StateTypes> {
 	[indexindex: string]: any;
 
 	private updatePercentageFunc: ((p: number) => void) | null;
@@ -182,10 +148,12 @@ export class FeatureManager extends Component<FM_Props, {
 	}
 
 	public async componentDidMount() {
+/*
 		this.props.setStorageCallbacks({
 			createStorageCallback: this.createStorage,
 			restoreStorageCallback: this.restoreStorage
 		});
+*/
 		await this.updateTargetNames();
 		this.subscriberIndex = codapInterface.on('notify', '*', '', this.handleNotification);
 		// this.nbClassifier = new NaiveBayesClassifier();
@@ -1569,7 +1537,7 @@ export class FeatureManager extends Component<FM_Props, {
 	public render() {
 		switch (this.state.status) {
 			case 'error':
-				return FeatureManager.renderForErrorState();
+				return FeaturePanel.renderForErrorState();
 			case 'active':
 			case 'inProgress':
 				return this.renderForActiveState();
