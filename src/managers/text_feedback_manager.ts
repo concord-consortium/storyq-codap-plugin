@@ -9,7 +9,7 @@ import pluralize from "pluralize";
 import {getComponentByTypeAndTitle, getSelectedCasesFrom} from "../lib/codap-helper";
 import {phraseToFeatures, textToObject} from "../utilities/utilities";
 import {ClassificationManager} from "../components/classification_manager";
-import {FeaturePanel} from "../components/feature_panel";
+import {OldFeaturePanel} from "../components/old_feature_panel";
 
 export interface TFMStorage {
 	textComponentName: string,
@@ -60,7 +60,7 @@ export default class TextFeedbackManager {
 	 * 	- Select these cases in that dataset
 	 * 	- Pull the phrase from the target case
 	 */
-	public async handleFeatureSelection(aManager: ClassificationManager | FeaturePanel) {
+	public async handleFeatureSelection(aManager: ClassificationManager | OldFeaturePanel) {
 		const kMaxStatementsToDisplay = 40;
 		let tEndPhrase: string,
 			tSelectedCases = await getSelectedCasesFrom(aManager.modelsDatasetName);
@@ -105,7 +105,7 @@ export default class TextFeedbackManager {
 	 * Second, under headings for the classification, display each selected target phrase as text with
 	 * features highlighted and non-features grayed out
 	 */
-	public async handleTargetSelection(aManager: ClassificationManager | FeaturePanel) {
+	public async handleTargetSelection(aManager: ClassificationManager | OldFeaturePanel) {
 		if (aManager.targetDatasetInfo.name === '' || aManager.modelsDatasetName === '') {
 			console.log('in handleTargetSelection but one of target or model doesn\'t exist');
 			return;

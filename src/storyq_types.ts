@@ -1,14 +1,22 @@
 import {TFMStorage} from "./managers/text_feedback_manager";
-import {FCState} from "./components/feature_constructor";
+import {FCState} from "./components/old_feature_constructor";
 import {entityInfo} from "./lib/codap-helper";
 
 /**
  * Types and interfaces for StoryQ
  */
 
+export interface Case {
+	[index: string]: any;
+}
+
 export interface StoryqStorage {
 	success: boolean,
-	values: any
+	values: {
+		domainStore: object,
+		uiStore: object
+	}
+
 }
 
 export interface FMStorage {

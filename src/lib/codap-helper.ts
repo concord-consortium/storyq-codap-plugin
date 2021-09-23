@@ -98,6 +98,38 @@ export async function getDatasetInfoWithFilter(iFilter: (value: any) => boolean)
 	return tDatasetInfoArray;
 }
 
+export async function getAttributeNames( iDatasetName:string, iCollectionName:string):Promise<string[]> {
+	const tNamesResult:any = await codapInterface.sendRequest({
+		action: 'get',
+		resource: `dataContext[${iDatasetName}].collection[${iCollectionName}].attributeList`
+	}).catch(reason => console.log(`Unable to get attribute names because ${reason}`))
+	return tNamesResult.success ? tNamesResult.values.map((iValue: any) => iValue.name) : []
+}
+
+export async function getCaseValues(iDatasetName:string, iCollectionName:string, iAttributeName:string):Promise<object[]> {
+	let tValues:object[] = []
+	const tCountResult:any = await codapInterface.sendRequest({
+		action: 'get',
+		resource: `dataContext[${iDatasetName}].collection[${iCollectionName}].caseCount`
+	}).catch(reason => console.log(`Unable to get attribute names because ${reason}`))
+	const tCaseCount = tCountResult.success ? Math.min( tCountResult.values, 20) : 0
+	if(tCaseCount > 0) {
+		let tRequests:any[] = []
+		for(let i = 0; i < tCaseCount; i++) {
+			tRequests.push( {
+				action: 'get',
+				resource: `dataContext[${iDatasetName}].collection[${iCollectionName}].caseByIndex[${i}]`
+			})
+		}
+		const tCasesResult:any = await codapInterface.sendRequest(tRequests)
+			.catch(reason => console.log(`Unable to get cases because ${reason}`))
+		tValues = tCasesResult.map( (iResult:any)=>{
+			return iResult.values.case.values
+		})
+	}
+	return tValues
+}
+
 export async function getSelectedCasesFrom(iDatasetName: string | null): Promise<any[]> {
 	let tCasesRequest = [],
 		tSelectedCases = [],

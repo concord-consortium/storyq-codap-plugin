@@ -1,3 +1,7 @@
+body {
+  overflow: hidden;
+}
+
 h1 {
   font-size: medium;
   margin-bottom: 0;
@@ -9,7 +13,14 @@ h2 {
 }
 
 .storyq {
+  height: 100vh;
   text-align: left;
+  display: flex;
+  flex-direction: column;
+}
+
+#tabPanel {
+  flex: 1 1 auto;
 }
 
 .title {
@@ -20,10 +31,6 @@ h2 {
 .storyText {
   height: 75vh;
   width: 90vw;
-}
-
-.storyq div {
-  /*margin: 0;*/
 }
 
 .button-list {
@@ -60,26 +67,92 @@ p {
 }
 
 .sq-target-panel {
-  /*position: absolute;*/
   margin: 5px;
+  display: flex;
+  flex-flow: column;
+}
+
+.sq-target-choices-panel {
+  padding: 5px;
+  display: flex;
 }
 
 .sq-target-text-panel {
-  margin-left: 5px;
+  margin: 2%;
   border-color: gray;
-  width: 100%;
+  border-style: solid;
+  border-width: thin;
+  flex: 0 0 auto;
+  width: 46%;
+}
+
+.sq-target-lower-panel {
+  margin: 5px;
   height: 100%;
+  width: 100%;
+  flex: 1 1 auto;
+  display: flex;
+}
+
+.sq-target-texts {
+  flex: 1 1 auto;
+  margin: 2px;
+  background-color: yellow;
+  border: #2d6da3 thin;
+  border-style: solid;
+  overflow: auto;
+}
+
+.sq-text-card {
+  background-color: lightblue;
+  border: thin black solid;
+  padding: 3px;
+  margin: 3px;
+}
+
+.sq-target-info-pane {
+  background-color: #EEF7F8;
+  margin-top: -7px;
+  padding: 5px;
+  border: solid #2d6da3 thin;
+}
+
+.sq-info-row {
+  display: flex;
+}
+
+.sq-info-column {
+  flex: 50%;
+}
+
+.sq-target-info-pane h1 {
+  text-align: center;
+  font-size: larger;
+  font-weight: bold;
+}
+
+.sq-feature-pane {
+  padding: 5px;
+}
+
+.sq-feature-constructor {
+  background-color: white;
+}
+
+sq-button {
+  margin-left: 0!important;
 }
 
 .sq-info-prompt {
-  position: absolute;
   bottom: 0;
   width: 100%;
-  margin-bottom: 10px;
+  padding-bottom: 10px;
   text-align: center;
   color: #187992;
   font-style: italic;
   font-size: larger;
+  background-color: white;
+  flex: 1 0 auto;
 }
 
 .sq-progress-bar-container {
@@ -112,10 +185,6 @@ p {
   margin-left: 30px!important;
 }
 
-.sq-feature-constructor {
-
-}
-
 .sq-feature-template {
   background-color: lightcyan;
   border: 2px solid gray;
@@ -137,6 +206,7 @@ p {
 
 .dx-item-content label {
   display: flex;
+  margin: 2px;
 }
 
 .dx-item-content span {

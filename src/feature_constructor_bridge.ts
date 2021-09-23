@@ -1,5 +1,5 @@
 /**
- * The FeatureConstructorBridge serves as a bridge between the FeatureConstructor and the FeaturePanel.
+ * The FeatureConstructorBridge serves as a bridge between the FeatureConstructor and the OldFeaturePanel.
  * The former passes newly constructed features to the FeatureConstructorBridge and the latter requests
  * them in order to display the list of them.
  */
