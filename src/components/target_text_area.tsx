@@ -37,10 +37,12 @@ export const TargetTextArea = observer(class TargetTextArea extends Component<Ta
 						return iCase[tClassAttr] === iClassName
 					})
 					return (
-						<div className='sq-target-texts'>
-							{tFilteredCases.map((iCase, iIndex) => {
-								return <p className='sq-text-card' key={iIndex}>{iCase[tTargetAttr]}</p>
-							})}
+						<div className='sq-text-container'>
+							<div className='sq-target-texts'>
+								{tFilteredCases.map((iCase, iIndex) => {
+									return <p className='sq-text-card' key={iIndex}>{iCase[tTargetAttr]}</p>
+								})}
+							</div>
 						</div>
 					)
 				}
