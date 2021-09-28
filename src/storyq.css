@@ -17,6 +17,8 @@ h2 {
   text-align: left;
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
+  gap: 0;
 }
 
 #tabPanel {
@@ -69,7 +71,9 @@ p {
 .sq-target-panel {
   margin: 5px;
   display: flex;
-  flex-flow: column;
+  flex-direction: column;
+  flex: 1 1 auto;
+  height: 100%;
 }
 
 .sq-target-choices-panel {
@@ -82,16 +86,23 @@ p {
   border-color: gray;
   border-style: solid;
   border-width: thin;
-  flex: 0 0 auto;
+  flex: 1 1 auto;
   width: 46%;
+  display: flex;
+  flex-direction: column;
 }
 
 .sq-target-lower-panel {
   margin: 5px;
-  height: 100%;
   width: 100%;
   flex: 1 1 auto;
   display: flex;
+}
+
+.sq-text-container {
+    height: 10vh;
+    overflow: auto;
+    flex: 1 1 auto;
 }
 
 .sq-target-texts {
@@ -149,15 +160,16 @@ sq-button {
 }
 
 .sq-info-prompt {
-  bottom: 0;
   width: 100%;
+  height: 20px;
+  padding-top: 10px;
   padding-bottom: 10px;
   text-align: center;
   color: #187992;
   font-style: italic;
   font-size: larger;
   background-color: white;
-  flex: 1 0 auto;
+  flex: 0 0 auto;
 }
 
 .sq-progress-bar-container {
