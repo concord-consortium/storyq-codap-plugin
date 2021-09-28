@@ -8,6 +8,7 @@ import {observer} from "mobx-react";
 import {UiStore} from "../stores/ui_store";
 import {Button} from "devextreme-react";
 import {FeatureConstructor} from "./feature_constructor";
+import {action} from "mobx";
 
 interface FeaturePaneState {
 	count: number,
@@ -38,21 +39,46 @@ export const FeaturePane = observer(class FeaturePane extends Component<Feature_
 
 	}
 
-	render() {
-
-		return (
-			<div className='sq-feature-pane'>
+	getButtons() {
+		let tFeatureUnderConstruction = this.props.domainStore.featureStore.featureUnderConstruction,
+			tButtonLabel = tFeatureUnderConstruction.inProgress ? 'Cancel' : '+ Add Feature',
+			tAddButton =
+				(<Button
+						className='sq-button'
+						onClick={action(() => {
+							tFeatureUnderConstruction.inProgress = !tFeatureUnderConstruction.inProgress
+						})}
+					>
+						{tButtonLabel}
+					</Button>
+				),
+			tDoneButton = tFeatureUnderConstruction.inProgress ? (
 				<Button
 					className='sq-button'
-					onClick={() => {
-						this.addFeature();
-					}}>
-					+ Add Feature
+					disabled={!this.props.domainStore.featureStore.constructionIsDone()}
+					onClick={action(() => {
+						tFeatureUnderConstruction.inProgress = !tFeatureUnderConstruction.inProgress
+					})}
+				>
+					Done
 				</Button>
+			) : ''
+		return (
+			<div>
+				{tAddButton}
+				{tDoneButton}
+			</div>
+		)
+	}
+
+	render() {
+		return (
+			<div className='sq-feature-pane'>
 				<FeatureConstructor
-					uiStore ={this.props.uiStore}
-					domainStore = {this.props.domainStore}
+					uiStore={this.props.uiStore}
+					domainStore={this.props.domainStore}
 				/>
+				{this.getButtons()}
 			</div>
 		);
 	}

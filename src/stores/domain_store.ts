@@ -112,28 +112,51 @@ class TargetStore {
 	}
 
 }
-
+export const featureDescriptors = {
+	kinds: ['"contains" feature', '"count of" feature'],
+	containsOptions: ['starts with', 'contains', 'does not contain', 'ends with'],
+	kindOfThingContainedOptions: ['any number', 'any from list', 'free form text'/*, 'any date'*/],
+	caseOptions: ['sensitive', 'insensitive']
+}
 interface Feature {
+	inProgress:boolean
 	name:string
+	kind:string
 }
 
+const starterFeature = { inProgress: false, name: '', kind: '' }
+
 class FeatureStore {
-	private features:Feature[] = []
+	features:Feature[] = []
+	featureUnderConstruction: Feature
 
 	constructor() {
 		makeAutoObservable(this, {}, {autoBind: true})
+		this.featureUnderConstruction = starterFeature
 	}
 
 	asJSON() {
 		return {
-			features: toJS(this.features)
+			features: toJS(this.features),
+			featureUnderConstruction: toJS(this.featureUnderConstruction)
 		}
 	}
 
 	fromJSON(json:any) {
 		if(json) {
 			this.features = json.features || []
+			this.featureUnderConstruction = json.featureUnderConstruction || starterFeature
 		}
+	}
+
+	constructionIsDone() {
+		const tFeature = this.featureUnderConstruction
+		return tFeature.name !== '' && tFeature.kind !== ''
+	}
+
+	pushFeatureUnderConstruction() {
+		this.features.push(this.featureUnderConstruction)
+		this.featureUnderConstruction = starterFeature
 	}
 
 }

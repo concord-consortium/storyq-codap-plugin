@@ -137,6 +137,11 @@ p {
 
 .sq-feature-constructor {
   background-color: white;
+  display: flex;
+}
+
+.sq-fc-part {
+  margin: 5px;
 }
 
 sq-button {
