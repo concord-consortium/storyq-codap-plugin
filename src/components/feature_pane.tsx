@@ -9,6 +9,7 @@ import {UiStore} from "../stores/ui_store";
 import {Button} from "devextreme-react";
 import {FeatureConstructor} from "./feature_constructor";
 import {action} from "mobx";
+import {FeatureList} from "./feature_list";
 
 interface FeaturePaneState {
 	count: number,
@@ -56,8 +57,12 @@ export const FeaturePane = observer(class FeaturePane extends Component<Feature_
 				<Button
 					className='sq-button'
 					disabled={!this.props.domainStore.featureStore.constructionIsDone()}
-					onClick={action(() => {
-						tFeatureUnderConstruction.inProgress = !tFeatureUnderConstruction.inProgress
+					onClick={action(async () => {
+						if( tFeatureUnderConstruction.inProgress) {
+							await this.props.domainStore.targetStore.addOrUpdateFeatureToTarget(tFeatureUnderConstruction)
+							this.props.domainStore.featureStore.addFeatureUnderConstruction()
+							await this.props.domainStore.updateFeaturesDataset()
+						}
 					})}
 				>
 					Done
@@ -79,6 +84,10 @@ export const FeaturePane = observer(class FeaturePane extends Component<Feature_
 					domainStore={this.props.domainStore}
 				/>
 				{this.getButtons()}
+				<FeatureList
+					uiStore={this.props.uiStore}
+					domainStore={this.props.domainStore}
+				/>
 			</div>
 		);
 	}

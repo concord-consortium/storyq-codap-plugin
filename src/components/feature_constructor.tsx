@@ -3,12 +3,10 @@
  */
 
 import React, {Component} from "react";
-import {DomainStore, featureDescriptors} from "../stores/domain_store";
+import {DomainStore} from "../stores/domain_store";
 import {observer} from "mobx-react";
 import {UiStore} from "../stores/ui_store";
-import {TextBox} from "devextreme-react";
-import {action} from "mobx";
-import {SelectBox} from "devextreme-react/select-box";
+import {FeatureComponent} from "./feature_component";
 
 interface FeatureConstructorInfo {
 	subscriberIndex: number
@@ -35,34 +33,14 @@ export const FeatureConstructor = observer(class FeatureConstructor extends Comp
 		const tFeatureUnderConstruction = this.props.domainStore.featureStore.featureUnderConstruction
 		if (tFeatureUnderConstruction.inProgress) {
 			return (
-				<div className='sq-feature-constructor'>
-					<TextBox
-						className='sq-fc-part'
-						valueChangeEvent={'keyup'}
-						placeholder="type the feature's name"
-						onValueChanged={action((e)=>{
-							tFeatureUnderConstruction.name = e.value
-						})}
-						value={tFeatureUnderConstruction.name}
-						maxLength={20}
+				<div>
+					<FeatureComponent
+						uiStore={this.props.uiStore}
+						domainStore={this.props.domainStore}
+						feature={tFeatureUnderConstruction}
 					/>
-					<span
-						className='sq-fc-part'
-					>is defined as</span>
-					<SelectBox
-						className='sq-new-feature-item sq-fc-part'
-						dataSource={featureDescriptors.kinds}
-						placeholder={'Choose kind of new feature'}
-						value={tFeatureUnderConstruction.kind}
-						style={{display: 'inline-block'}}
-						onValueChanged={action((e)=>{
-							tFeatureUnderConstruction.kind = e.value
-						})}
-					/>
-
 				</div>
 			)
-		}
-		else return ''
+		} else return ''
 	}
 })

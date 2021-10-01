@@ -404,7 +404,7 @@ export class OldFeatureConstructor extends Component<FC_Props, FCState> {
 
 	render() {
 		return (
-			<div className='sq-feature-constructor'>
+			<div className='sq-feature-component'>
 				{this.checkBox('Other features', this.state.otherFeaturesChecked, false,
 					(newValue: boolean) => {
 						this.setState({otherFeaturesChecked: newValue})
