@@ -6,6 +6,7 @@ import {makeAutoObservable, toJS} from 'mobx'
 
 export class UiStore {
 	tabPanelSelectedIndex: number = 0
+	trainingPanelShowsEditor: boolean = false
 
 	constructor() {
 		makeAutoObservable(this)
@@ -13,12 +14,14 @@ export class UiStore {
 
 	asJSON(): object {
 		return {
-			tabPanelSelectedIndex: toJS(this.tabPanelSelectedIndex)
+			tabPanelSelectedIndex: toJS(this.tabPanelSelectedIndex),
+			trainingPanelShowsEditor: toJS(this.trainingPanelShowsEditor)
 		}
 	}
 
 	fromJSON(json: any) {
 		this.tabPanelSelectedIndex = json.tabPanelSelectedIndex
+		this.trainingPanelShowsEditor = json.trainingPanelShowsEditor
 	}
 
 }

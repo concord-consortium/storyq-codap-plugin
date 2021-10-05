@@ -20,6 +20,7 @@
 //import {on} from "cluster";
 
 import {stopWords} from "./stop_words";
+import {Feature} from "../stores/domain_store";
 
 export const kMaxTokens = 1000;
 
@@ -52,7 +53,11 @@ export const wordTokenizer = ( text:string, ignoreStopWords:boolean):string[] =>
  *	 		caseIDs:number[], weight:number|null, featureCaseID:number}[]
  * }
  */
-export const oneHot = (config:{includeUnigrams:boolean, frequencyThreshold:number, ignoreStopWords:boolean},
+export const oneHot = (config:{
+													includeUnigrams:boolean,
+												 	frequencyThreshold:number,
+												 	ignoreStopWords:boolean,
+											 		features:Feature[]},
 											 documents: { example:string, class:string, caseID:number,
 												 						columnFeatures:{[key:string]:number | boolean}, tokens?:string[] }[]
 											 ) => {
@@ -68,9 +73,11 @@ export const oneHot = (config:{includeUnigrams:boolean, frequencyThreshold:numbe
 
 		tokens.forEach(aToken=>{
 			if(!tokenMap[aToken]) {
-				let tType = aDoc.columnFeatures[aToken] ? 'column feature' : 'unigram';
+				const tType = aDoc.columnFeatures[aToken] ? 'column feature' : 'unigram',
+					tFeatureCaseIDObject = config.features.find(aFeature=>aFeature.name===aToken),
+					tFeatureCaseID = tFeatureCaseIDObject ? Number(tFeatureCaseIDObject.caseID) : null
 				tokenMap[aToken] = {token: aToken, type: tType, count: 1, index: -1,
-					caseIDs: [], weight: null, featureCaseID: null};
+					caseIDs: [], weight: null, featureCaseID: tFeatureCaseID};
 			}
 			else
 				tokenMap[aToken].count++;
@@ -78,6 +85,7 @@ export const oneHot = (config:{includeUnigrams:boolean, frequencyThreshold:numbe
 		});
 		aDoc.tokens = Array.from(tokens);
 	});
+	console.log('tokenMap = ', tokenMap)
 	// Convert tokenMap to an array and sort descending
 	let tokenArray = Object.values( tokenMap).sort((aToken1, aToken2)=>{
 		return aToken2.count - aToken1.count;

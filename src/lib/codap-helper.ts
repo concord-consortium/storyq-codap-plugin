@@ -24,8 +24,8 @@ export function registerObservers() {
 
 // const dataSetString = (contextName: string) => `dataContext[${contextName}]`;
 
-export function openTable(dataContextName: string) {
-	codapInterface.sendRequest({
+export async function openTable(dataContextName: string) {
+	await codapInterface.sendRequest({
 		action: 'create',
 		resource: 'component',
 		values: {

@@ -12,6 +12,20 @@ h2 {
     margin-bottom: 0;
 }
 
+table, th, td {
+    border: thin solid teal;
+    border-collapse: collapse;
+    padding: 5px;
+}
+
+td {
+    text-align: right;
+}
+
+table {
+    margin-left: 10px;
+}
+
 .storyq {
     height: 100vh;
     text-align: left;
@@ -142,16 +156,24 @@ p {
     font-weight: bold;
 }
 
-.sq-feature-pane {
+.sq-pane {
     padding: 5px;
 }
 
-.sq-feature-component {
+.sq-component {
     display: flex;
     margin: 2px;
     flex-wrap: wrap;
     border: #5cb85c solid thin;
     background-color: aliceblue;
+}
+
+.sq-component p {
+    margin-left: 5px;
+}
+
+.sq-indent {
+    margin-left: 20px!important;
 }
 
 .sq-fc-part {
@@ -216,6 +238,42 @@ p {
 
 .sq-new-feature-item {
     flex: 1 0 auto;
+}
+
+.sq-training-pane {
+
+}
+
+.sq-training-buttons {
+    margin: 10px;
+    display: flex;
+    justify-content: center;
+}
+
+.sq-training-settings-panel {
+    display: flex;
+    margin: 5px;
+}
+
+.sq-training-settings {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    background-color: lightcyan;
+    border: thin solid gray;
+    margin: 5px;
+}
+
+.sq-training-iterations {
+    margin: 0 5px 0 5px;
+    display: flex;
+    align-items: baseline;
+}
+
+.sq-training-checkboxes {
+    display: flex;
+    flex-direction: column;
+    margin: 0 5px 5px 5px;
 }
 
 .dx-dropdowneditor-button.dx-button-mode-contained,

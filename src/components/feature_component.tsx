@@ -67,7 +67,7 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 				return (
 					<SelectBox
 						className='sq-new-feature-item sq-fc-part'
-						dataSource={featureDescriptors.kinds}
+						dataSource={featureDescriptors.featureKinds}
 						placeholder={'Choose kind of new feature'}
 						value={tFeature.info.kind}
 						style={{display: 'inline-block'}}
@@ -135,7 +135,7 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 			const tKindOption = tFeature.info.details ? (tFeature.info.details as ContainsDetails).kindOption : ''
 
 			return (
-				<div className='sq-feature-component'>
+				<div className='sq-component'>
 					{nameBox()}
 					<span
 						className='sq-fc-part'

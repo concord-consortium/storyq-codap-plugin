@@ -29,31 +29,29 @@ export const TargetTextArea = observer(class TargetTextArea extends Component<Ta
 		let this_ = this
 
 		function getTexts(iClassName: string) {
-			if( iClassName && iClassName !== '') {
-				const tTargetAttr = this_.props.domainStore.targetStore.targetAttributeName
-				const tClassAttr = this_.props.domainStore.targetStore.targetClassAttributeName
-				if (this_.props.domainStore.targetStore.targetCases.length > 0) {
-					const tFilteredCases = this_.props.domainStore.targetStore.targetCases.filter(iCase => {
-						return iCase[tClassAttr] === iClassName
-					})
-					return (
-						<div className='sq-text-container'>
-							<div className='sq-target-texts'>
-								{tFilteredCases.map((iCase, iIndex) => {
-									return <p className='sq-text-card' key={iIndex}>{iCase[tTargetAttr]}</p>
-								})}
-							</div>
+			const tTargetAttr = this_.props.domainStore.targetStore.targetAttributeName
+			const tClassAttr = this_.props.domainStore.targetStore.targetClassAttributeName
+			if (this_.props.domainStore.targetStore.targetCases.length > 0) {
+				const tFilteredCases = this_.props.domainStore.targetStore.targetCases.filter(iCase => {
+					return iClassName === '' || iCase[tClassAttr] === iClassName
+				})
+				return (
+					<div className='sq-text-container'>
+						<div className='sq-target-texts'>
+							{tFilteredCases.map((iCase, iIndex) => {
+								return <p className='sq-text-card' key={iIndex}>{iCase[tTargetAttr]}</p>
+							})}
 						</div>
-					)
-				}
+					</div>
+				)
 			}
 		}
 
-		function getTargetClassName(index:number) {
+		function getTargetClassName(index: number) {
 			const tClassnameObjectArray = this_.props.domainStore.targetStore.targetClassNames
 			const tCurrentObject = tClassnameObjectArray[index]
 			const tOtherObject = tClassnameObjectArray[(index + 1) % 2]
-			if(tCurrentObject && tCurrentObject.name !== '') {
+			if (tCurrentObject && tCurrentObject.name !== '') {
 				const tValue = tCurrentObject.positive ? tCurrentObject.name : ''
 				return (
 					<div>
@@ -61,7 +59,7 @@ export const TargetTextArea = observer(class TargetTextArea extends Component<Ta
 							items={[tCurrentObject.name]}
 							value={tValue}
 							onValueChange={action((e) => {
-								if(e) {
+								if (e) {
 									tCurrentObject.positive = true
 									tOtherObject.positive = false
 								}
@@ -74,21 +72,26 @@ export const TargetTextArea = observer(class TargetTextArea extends Component<Ta
 
 		if (this.props.domainStore.targetStore.targetClassAttributeName !== '') {
 			const tTargetClassNames = this.props.domainStore.targetStore.targetClassNames
-			const tNames = tTargetClassNames.map(iClassNameObject=>iClassNameObject.name)
+			const tNames = tTargetClassNames.map(iClassNameObject => iClassNameObject.name)
 			return (
 				<div className='sq-target-lower-panel'>
 					<div className='sq-target-text-panel'>
-						{getTargetClassName( 0)}
+						{getTargetClassName(0)}
 						{getTexts(tNames.length === 2 ? tTargetClassNames[0].name : '')}
 					</div>
 					<div className='sq-target-text-panel'>
-						{getTargetClassName( 1)}
+						{getTargetClassName(1)}
 						{getTexts(tNames.length === 2 ? tTargetClassNames[1].name : '')}
 					</div>
 				</div>
 			);
+		} else if (this.props.domainStore.targetStore.targetAttributeName !== '') {
+			return (
+				<div className='sq-target-lower-panel'>
+					{getTargetClassName(0)}
+					{getTexts('')}
+				</div>
+			)
 		}
-		else
-			return ''
 	}
 })

@@ -9,12 +9,20 @@ import {
 	getAttributeNames,
 	getCollectionNames,
 	getDatasetInfoWithFilter,
-	getCaseValues, openTable, scrollCaseTableToRight
+	getCaseValues, openTable, scrollCaseTableToRight, getComponentByTypeAndTitle
 } from "../lib/codap-helper";
 import {Case} from "../storyq_types";
 import codapInterface from "../lib/CodapInterface";
-import {containsOptions, featureKinds, kindOfThingContainedOptions} from "../components/old_feature_constructor";
 import {SQ} from "../lists/personal-pronouns";
+import {LogisticRegression} from "../lib/jsregression";
+import pluralize from "pluralize";
+
+export const featureDescriptors = {
+	featureKinds: ['"contains" feature', '"count of" feature'],
+	containsOptions: ['starts with', 'contains', 'does not contain', 'ends with'],
+	kindOfThingContainedOptions: ['any number', 'any from list', 'free form text'/*, 'any date'*/],
+	caseOptions: ['sensitive', 'insensitive']
+}
 
 const kEmptyEntityInfo = {name: '', title: '', id: 0},
 	kPosNegConstants = {
@@ -31,22 +39,28 @@ const kEmptyEntityInfo = {name: '', title: '', id: 0},
 export class DomainStore {
 	targetStore: TargetStore
 	featureStore: FeatureStore
+	trainingStore: TrainingStore
+	textStore: TextStore
 
 	constructor() {
 		this.targetStore = new TargetStore()
 		this.featureStore = new FeatureStore()
+		this.trainingStore = new TrainingStore()
+		this.textStore = new TextStore()
 	}
 
 	asJSON(): object {
 		return {
 			targetStore: this.targetStore.asJSON(),
-			featureStore: this.featureStore.asJSON()
+			featureStore: this.featureStore.asJSON(),
+			trainingStore: this.trainingStore.asJSON()
 		}
 	}
 
-	async fromJSON(json: { targetStore: object, featureStore: object }) {
+	async fromJSON(json: { targetStore: object, featureStore: object, trainingStore: object }) {
 		this.targetStore.fromJSON(json.targetStore)
 		this.featureStore.fromJSON(json.featureStore)
+		this.trainingStore.fromJSON(json.trainingStore)
 		await this.updateFeaturesDataset()
 	}
 
@@ -79,7 +93,8 @@ export class DomainStore {
 									{name: kPosNegConstants.positive.attrKey},
 									{name: kPosNegConstants.negative.attrKey},
 									{name: 'description'},
-									{name: 'formula'}
+									{name: 'formula'},
+									{name: 'weight'}
 								]
 							}]
 						}
@@ -94,7 +109,7 @@ export class DomainStore {
 			return false
 		}
 
-		async function getExistingItems(): Promise<{ values: object, id: string }[]> {
+		async function getExistingFeatureItems(): Promise<{ values: object, id: string }[]> {
 			const tItemsRequestResult: any = await codapInterface.sendRequest({
 				action: 'get',
 				resource: `${resourceString}.itemSearch[*]`
@@ -106,10 +121,22 @@ export class DomainStore {
 		}
 
 		function featureDoesNotMatchItem(iItem: { [key: string]: any }, iFeature: { [key: string]: any }) {
+/*
+			console.log('matching iItem', toJS(iItem), ' with feature ', iFeature)
+			console.log('storeKey = ', kPosNegConstants.negative.storeKey,
+				'iItem[kPosNegConstants.negative.storeKey] =', iItem[kPosNegConstants.negative.storeKey])
+			console.log('attrKey = ', kPosNegConstants.negative.attrKey,
+				'iFeature[kPosNegConstants.negative.attrKey] =', iFeature[kPosNegConstants.negative.attrKey])
+*/
 			return ['name', 'chosen', 'formula', 'description'].some(iKey => {
-				return iItem[iKey] !== iFeature[iKey]
-			}) || iItem[kPosNegConstants.negative.attrKey] !== iFeature[kPosNegConstants.negative.storeKey] ||
-				iItem[kPosNegConstants.positive.attrKey] !== iFeature[kPosNegConstants.positive.storeKey]
+				const tMisMatch = String(iItem[iKey]).trim() !== String(iFeature[iKey]).trim()
+/*
+				if( tMisMatch)
+					console.log(`mismatch '${iKey}': '${iItem[iKey]}' with '${iFeature[iKey]}'`)
+*/
+				return tMisMatch
+			}) || iItem[kPosNegConstants.negative.storeKey] !== iFeature[kPosNegConstants.negative.attrKey] ||
+				iItem[kPosNegConstants.positive.storeKey] !== iFeature[kPosNegConstants.positive.attrKey]
 		}
 
 		async function updateFrequencies() {
@@ -141,31 +168,31 @@ export class DomainStore {
 			}
 		}
 
-		/*
 				function logArrays() {
+/*
 					console.log(`itemsInDataset = ${JSON.stringify(tItemsInDataset)}`)
 					console.log(`tItemsToDelete = ${JSON.stringify(tItemsToDelete)}`)
 					console.log(`tFeaturesToAdd = ${JSON.stringify(tFeaturesToAdd)}`)
 					console.log(`tFeaturesToUpdate = ${JSON.stringify(tFeaturesToUpdate)}`)
+*/
 				}
-		*/
 
 		if (await guaranteeFeaturesDataset()) {
 			resourceString = `dataContext[${tFeatureStore.featureDatasetInfo.datasetID}]`
 
-			tItemsInDataset = await getExistingItems()
+			tItemsInDataset = await getExistingFeatureItems()
 			await updateFrequencies()
 			tItemsToDelete = tItemsInDataset.filter(iItem => {
-				return !tFeatureStore.features.find(iFeature => iFeature.caseID === iItem.id)
+				return !tFeatureStore.features.find(iFeature => iFeature.featureItemID === iItem.id)
 			})
 			tFeaturesToAdd = tFeatureStore.features.filter(iFeature => {
 				return !tItemsInDataset.find(iItem => {
-					return iFeature.caseID === iItem.id
+					return iFeature.featureItemID === iItem.id
 				})
 			})
 			tFeaturesToUpdate = tFeatureStore.features.filter(iFeature => {
 				const tMatchingItem = tItemsInDataset.find(iItem => {
-					return iFeature.caseID === iItem.id
+					return iFeature.featureItemID === iItem.id
 				})
 				return tMatchingItem && featureDoesNotMatchItem(iFeature, tMatchingItem.values)
 			})
@@ -196,11 +223,10 @@ export class DomainStore {
 						})
 					}
 				)
-				console.log('tCreateResult =',tCreateResult)
 				if (tCreateResult.success) {
 					tCreateResult.caseIDs.forEach((iCaseID: string, iIndex: number) => {
 						tFeaturesToAdd[iIndex].caseID = iCaseID
-						console.log('tFeaturesToAdd =',toJS(tFeaturesToAdd[iIndex]))
+						tFeaturesToAdd[iIndex].featureItemID = tCreateResult.itemIDs[iIndex]
 					})
 				}
 			}
@@ -220,11 +246,63 @@ export class DomainStore {
 					})
 				)
 			}
-
 			// logArrays()
-
 		}
 
+	}
+
+	/**
+	 * Only add a text component if one with the designated name does not already exist.
+	 */
+	async addTextComponent() {
+		this.textStore.textComponentName = 'Selected ' + pluralize(this.targetStore.targetAttributeName);
+		let tFoundTextID = await getComponentByTypeAndTitle('text', this.textStore.textComponentName);
+		if (tFoundTextID === -1) {
+			let tResult: any = await codapInterface.sendRequest({
+				action: 'create',
+				resource: 'component',
+				values: {
+					type: 'text',
+					name: this.textStore.textComponentName,
+					title: this.textStore.textComponentName,
+					dimensions: {
+						width: 500,
+						height: 150
+					},
+					position: 'top',
+					cannotClose: true
+				}
+			});
+			this.textStore.textComponentID = tResult.values.id
+			this.clearText();
+		}
+	}
+
+	async clearText() {
+		await codapInterface.sendRequest({
+			action: 'update',
+			resource: `component[${this.textStore.textComponentID}]`,
+			values: {
+				text: {
+					"object": "value",
+					"document": {
+						"children": [
+							{
+								"type": "paragraph",
+								"children": [
+									{
+										"text": `This is where selected ${pluralize(this.targetStore.targetAttributeName)} appear.`
+									}
+								]
+							}
+						],
+						"objTypes": {
+							"paragraph": "block"
+						}
+					}
+				}
+			}
+		});
 	}
 }
 
@@ -234,6 +312,7 @@ class TargetStore {
 	targetCollectionName: string = ''
 	targetAttributeNames: string[] = []
 	targetAttributeName: string = ''
+	targetPredictedLabelAttributeName:string = ''
 	targetCases: Case[] = []
 	targetClassAttributeName: string = ''
 	targetClassNames: { name: string, positive: boolean }[] = []
@@ -247,7 +326,8 @@ class TargetStore {
 			targetDatasetInfo: toJS(this.targetDatasetInfo),
 			targetAttributeName: toJS(this.targetAttributeName),
 			targetClassAttributeName: toJS(this.targetClassAttributeName),
-			targetClassNames: toJS(this.targetClassNames)
+			targetClassNames: toJS(this.targetClassNames),
+			targetPredictedLabelAttributeName: toJS(this.targetPredictedLabelAttributeName)
 		}
 	}
 
@@ -256,6 +336,7 @@ class TargetStore {
 		this.targetAttributeName = json.targetAttributeName || ''
 		this.targetClassAttributeName = json.targetClassAttributeName || ''
 		this.targetClassNames = json.targetClassNames || []
+		this.targetPredictedLabelAttributeName = json.targetPredictedLabelAttributeName || ''
 	}
 
 	async updateFromCODAP() {
@@ -306,21 +387,21 @@ class TargetStore {
 
 		function freeFormFormula() {
 			const option = (iNewFeature.info.details as ContainsDetails).containsOption;
-			const tBegins = option === containsOptions[0] ? '^' : '';
-			const tEnds = option === containsOptions[3] ? '$' : '';
+			const tBegins = option === featureDescriptors.containsOptions[0] ? '^' : '';
+			const tEnds = option === featureDescriptors.containsOptions[3] ? '$' : '';
 			const tParamString = `${this_.targetAttributeName},"${tBegins}\\\\\\\\b${(iNewFeature.info.details as ContainsDetails).freeFormText}\\\\\\\\b${tEnds}"`;
 			let tResult = '';
 			switch (option) {//['starts with', 'contains', 'does not contain', 'ends with']
-				case containsOptions[0]:	// starts with
+				case featureDescriptors.containsOptions[0]:	// starts with
 					tResult = `patternMatches(${tParamString})>0`
 					break;
-				case containsOptions[1]:	// contains
+				case featureDescriptors.containsOptions[1]:	// contains
 					tResult = `patternMatches(${tParamString})>0`
 					break;
-				case containsOptions[2]:	// does not contain
+				case featureDescriptors.containsOptions[2]:	// does not contain
 					tResult = `patternMatches(${tParamString})=0`
 					break;
-				case containsOptions[3]:	// ends with
+				case featureDescriptors.containsOptions[3]:	// ends with
 					tResult = `patternMatches(${tParamString})>0`
 					break;
 			}
@@ -331,16 +412,16 @@ class TargetStore {
 			const kNumberPattern = `[0-9]+`;
 			let tExpression = '';
 			switch ((iNewFeature.info.details as ContainsDetails).containsOption) {//['starts with', 'contains', 'does not contain', 'ends with']
-				case containsOptions[0]:	// starts with
+				case featureDescriptors.containsOptions[0]:	// starts with
 					tExpression = `patternMatches(${tTargetAttr}, "^${kNumberPattern}")>0`
 					break;
-				case containsOptions[1]:	// contains
+				case featureDescriptors.containsOptions[1]:	// contains
 					tExpression = `patternMatches(${tTargetAttr}, "${kNumberPattern}")>0`
 					break;
-				case containsOptions[2]:	// does not contain
+				case featureDescriptors.containsOptions[2]:	// does not contain
 					tExpression = `patternMatches(${tTargetAttr}, "${kNumberPattern}")=0`
 					break;
-				case containsOptions[3]:	// ends with
+				case featureDescriptors.containsOptions[3]:	// ends with
 					tExpression = `patternMatches(${tTargetAttr}, "${kNumberPattern}$")>0`
 					break;
 			}
@@ -357,16 +438,16 @@ class TargetStore {
 					return iSoFar === '' ? `\\\\\\\\b${iWord}\\\\\\\\b` : iSoFar + `|\\\\\\\\b${iWord}\\\\\\\\b`;
 				}, '');
 				switch ((iNewFeature.info.details as ContainsDetails).containsOption) {//['starts with', 'contains', 'does not contain', 'ends with']
-					case containsOptions[0]:	// starts with
+					case featureDescriptors.containsOptions[0]:	// starts with
 						tExpression = `patternMatches(${tTargetAttr}, "^${tExpression}")>0`;
 						break;
-					case containsOptions[1]:	// contains
+					case featureDescriptors.containsOptions[1]:	// contains
 						tExpression = `patternMatches(${tTargetAttr}, "${tExpression}")>0`;
 						break;
-					case containsOptions[2]:	// does not contain
+					case featureDescriptors.containsOptions[2]:	// does not contain
 						tExpression = `patternMatches(${tTargetAttr}, "${tExpression}")=0`;
 						break;
-					case containsOptions[3]:	// ends with
+					case featureDescriptors.containsOptions[3]:	// ends with
 						tExpression = `patternMatches(${tTargetAttr}, "${tExpression}$")>0`;
 						break;
 				}
@@ -380,20 +461,20 @@ class TargetStore {
 			return;
 		let tFormula = '';
 		switch (iNewFeature.info.kind) {
-			case featureKinds[0]:	// contains feature
+			case featureDescriptors.featureKinds[0]:	// contains feature
 				switch ((iNewFeature.info.details as ContainsDetails).kindOption) {
-					case kindOfThingContainedOptions[0]: // 'any number'
+					case featureDescriptors.kindOfThingContainedOptions[0]: // 'any number'
 						tFormula = anyNumberFormula();
 						break;
-					case kindOfThingContainedOptions[1]: // 'any from list'
+					case featureDescriptors.kindOfThingContainedOptions[1]: // 'any from list'
 						tFormula = anyListFormula();
 						break;
-					case kindOfThingContainedOptions[2]: // 'any free form text'
+					case featureDescriptors.kindOfThingContainedOptions[2]: // 'any free form text'
 						tFormula = freeFormFormula();
 						break;
 				}
 				break;
-			case featureKinds[1]:	// count feature
+			case featureDescriptors.featureKinds[1]:	// count feature
 
 				break;
 		}
@@ -415,7 +496,6 @@ class TargetStore {
 		}
 		else {
 			const tRequest = `dataContext[${this.targetDatasetInfo.name}].collection[${this.targetCollectionName}].attribute[${iNewFeature.attrID}]`
-			console.log('tRequest =', tRequest)
 			await codapInterface.sendRequest({
 				action: 'update',
 				resource: tRequest,
@@ -428,13 +508,6 @@ class TargetStore {
 			})
 		}
 	}
-}
-
-export const featureDescriptors = {
-	kinds: ['"contains" feature', '"count of" feature'],
-	containsOptions: ['starts with', 'contains', 'does not contain', 'ends with'],
-	kindOfThingContainedOptions: ['any number', 'any from list', 'free form text'/*, 'any date'*/],
-	caseOptions: ['sensitive', 'insensitive']
 }
 
 export const kKindOfThingOptionText = featureDescriptors.kindOfThingContainedOptions[2]
@@ -468,6 +541,7 @@ export interface Feature {
 	numberInNegative: number
 	caseID: string		// ID of the feature as a case in the feature table
 	attrID: string		// ID of the attribute in the target dataset corresponding to this feature
+	featureItemID: string	// ID of the item in the feature table corresponding to this feature
 }
 
 export interface WordListSpec {
@@ -496,7 +570,8 @@ const starterFeature: Feature = {
 	numberInNegative: -1,
 	numberInPositive: -1,
 	caseID: '',
-	attrID: ''
+	attrID: '',
+	featureItemID: ''
 }
 
 class FeatureStore {
@@ -506,6 +581,7 @@ class FeatureStore {
 		datasetName: '',
 		datasetID: -1
 	}
+	targetColumnFeatureNames:string[] = []
 
 	constructor() {
 		makeAutoObservable(this, {}, {autoBind: true})
@@ -515,7 +591,8 @@ class FeatureStore {
 	asJSON() {
 		return {
 			features: toJS(this.features),
-			featureUnderConstruction: toJS(this.featureUnderConstruction)
+			featureUnderConstruction: toJS(this.featureUnderConstruction),
+			targetColumnFeatureNames: toJS(this.targetColumnFeatureNames)
 		}
 	}
 
@@ -523,6 +600,7 @@ class FeatureStore {
 		if (json) {
 			this.features = json.features || []
 			this.featureUnderConstruction = json.featureUnderConstruction || starterFeature
+			this.targetColumnFeatureNames = json.targetColumnFeatureNames || []
 		}
 	}
 
@@ -550,4 +628,97 @@ class FeatureStore {
 		this.featureUnderConstruction = starterFeature
 	}
 
+}
+
+class Model {
+	[index: string]: any;
+	name = ''
+	iteration = 0
+	iterations = 20
+	lockInterceptAtZero = true
+	usePoint5AsProbThreshold = true
+	frequencyThreshold = 4
+	trainingInProgress = false
+	logisticModel: LogisticRegression = new LogisticRegression({
+		alpha: 1,
+		iterations: 20,
+		lambda: 0.0,
+		accuracy: 0,
+		kappa: 0,
+		threshold: 0.5,
+		trace: false,
+		progressCallback: null,
+		feedbackCallback: null
+	})
+
+
+	constructor() {
+		makeAutoObservable(this, {logisticModel:false}, {autoBind: true})
+	}
+
+	asJSON() {
+		const tCopy = Object.assign({}, toJS(this))
+		delete tCopy.logisticModel
+		return tCopy
+	}
+
+	fromJSON(json: any) {
+		if (json) {
+			for (const [key, value] of Object.entries(json)) {
+				this[key] = value
+			}
+		}
+	}
+
+}
+
+export interface TrainingResult {
+	name:string,
+	accuracy:number
+	kappa:number
+}
+
+class TrainingStore {
+	model: Model
+	trainingResults: TrainingResult[] = []
+
+	constructor() {
+		makeAutoObservable(this, {}, {autoBind: true})
+		this.model = new Model()
+	}
+
+	asJSON() {
+		return {
+			model: this.model.asJSON()
+		}
+	}
+
+	fromJSON(json: any) {
+		if (json) {
+			this.model.fromJSON(json.model)
+		}
+	}
+}
+
+class TextStore {
+	textComponentName:string = ''
+	textComponentID:number = -1
+
+	constructor() {
+		makeAutoObservable(this, {}, {autoBind: true})
+	}
+
+	asJSON() {
+		return {
+			textComponentName: this.textComponentName,
+			textComponentID: this.textComponentID
+		}
+	}
+
+	fromJSON(json: any) {
+		if (json) {
+			this.textComponentName = json.textComponentName || ''
+			this.textComponentID = json.textComponentID || -1
+		}
+	}
 }

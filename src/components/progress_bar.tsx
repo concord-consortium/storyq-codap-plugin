@@ -4,7 +4,7 @@
 
 import React, {Component} from "react";
 
-export class ProgressBar extends Component<{percentComplete:number, setUpdatePercentage:any}, any> {
+export class ProgressBar extends Component<{percentComplete:number}, any> {
 	private barRef:any;
 
 	constructor(props:any) {

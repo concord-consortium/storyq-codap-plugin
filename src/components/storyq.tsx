@@ -23,6 +23,7 @@ import {UiStore} from "../stores/ui_store";
 import {observer} from "mobx-react";
 import {DomainStore} from "../stores/domain_store";
 import {action} from "mobx";
+import {TrainingPanel} from "./training_panel";
 
 interface StoryqState {
 	tabPanelSelectedIndex: number
@@ -103,7 +104,11 @@ const Storyq = observer(class Storyq extends Component<{}, StoryqState> {
 						}
 					</Item>
 					<Item title='Training'>
-						{}
+						{<TrainingPanel
+							uiStore={this.uiStore}
+							domainStore={this.domainStore}
+						/>
+						}
 					</Item>
 					<Item title='Testing'>
 						{}

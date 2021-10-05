@@ -118,7 +118,7 @@ export class LinearRegression {
 
 
 export var LogisticRegression = function (config) {
-  this.fit = null;
+  // this.fit = null;
   this.fitResult = null;
   this._data = null;
   this._oneHot = null;
@@ -201,7 +201,7 @@ LogisticRegression.prototype.fit = async function (data) {
           iterations: this_.iterations
         }
       }
-      this_.progressCallback(iIteration);
+      this_.progressCallback && this_.progressCallback(iIteration);
     }
   }
 

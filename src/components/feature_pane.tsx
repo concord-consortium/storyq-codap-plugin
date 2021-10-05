@@ -78,7 +78,7 @@ export const FeaturePane = observer(class FeaturePane extends Component<Feature_
 
 	render() {
 		return (
-			<div className='sq-feature-pane'>
+			<div className='sq-pane'>
 				<FeatureConstructor
 					uiStore={this.props.uiStore}
 					domainStore={this.props.domainStore}
