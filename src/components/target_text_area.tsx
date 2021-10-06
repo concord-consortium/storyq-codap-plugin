@@ -89,7 +89,9 @@ export const TargetTextArea = observer(class TargetTextArea extends Component<Ta
 			return (
 				<div className='sq-target-lower-panel'>
 					{getTargetClassName(0)}
+					<div className='sq-target-text-panel'>
 					{getTexts('')}
+					</div>
 				</div>
 			)
 		}
