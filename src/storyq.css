@@ -89,6 +89,11 @@ p {
     flex: 1 1 auto;
     height: 100%;
 }
+.sq-feature-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
 
 .sq-target-choices-panel {
     padding: 5px;
@@ -111,6 +116,7 @@ p {
     width: 100%;
     flex: 1 1 auto;
     display: flex;
+    flex-direction: row;
 }
 
 .sq-text-container {
@@ -158,6 +164,15 @@ p {
 
 .sq-pane {
     padding: 5px;
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+}
+
+.sq-container {
+    height: 1vh;
+    overflow: auto;
+    flex: 1 1 auto;
 }
 
 .sq-component {

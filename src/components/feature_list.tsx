@@ -43,8 +43,10 @@ export const FeatureList = observer(class FeatureList extends Component<FeatureL
 
 	render() {
 		return (
-			<div className='sq-feature-list'>
-				{this.getList()}
+			<div className='sq-container'>
+				<div className='sq-feature-list'>
+					{this.getList()}
+				</div>
 			</div>
 		)
 	}
