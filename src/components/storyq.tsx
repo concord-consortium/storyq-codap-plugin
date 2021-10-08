@@ -24,16 +24,15 @@ import {observer} from "mobx-react";
 import {DomainStore} from "../stores/domain_store";
 import {action} from "mobx";
 import {TrainingPanel} from "./training_panel";
+import {TestingPanel} from "./testing_panel";
+import {PromptsManager} from "../lists/promptsManager";
 
-interface StoryqState {
-	tabPanelSelectedIndex: number
-}
-
-const Storyq = observer(class Storyq extends Component<{}, StoryqState> {
+const Storyq = observer(class Storyq extends Component<{}, {}> {
 		private uiStore: UiStore
 		private domainStore: DomainStore
+		private promptsManager: PromptsManager
 		private kPluginName = "StoryQ Studio";
-		private kVersion = "1.5";
+		private kVersion = "1.51";
 		private kInitialDimensions = {
 			width: 429,
 			height: 420
@@ -44,6 +43,7 @@ const Storyq = observer(class Storyq extends Component<{}, StoryqState> {
 			super(props);
 			this.uiStore = new UiStore()
 			this.domainStore = new DomainStore()
+			this.promptsManager = new PromptsManager(this.uiStore, this.domainStore)
 			this.restorePluginFromStore = this.restorePluginFromStore.bind(this);
 			this.getPluginStore = this.getPluginStore.bind(this);
 			this.saveTabPanelInstance = this.saveTabPanelInstance.bind(this);
@@ -97,21 +97,22 @@ const Storyq = observer(class Storyq extends Component<{}, StoryqState> {
 						/>
 					</Item>
 					<Item title='Features'>
-						{<FeaturePanel
+						<FeaturePanel
 							uiStore={this.uiStore}
 							domainStore={this.domainStore}
 						/>
-						}
 					</Item>
 					<Item title='Training'>
-						{<TrainingPanel
+						<TrainingPanel
 							uiStore={this.uiStore}
 							domainStore={this.domainStore}
 						/>
-						}
 					</Item>
 					<Item title='Testing'>
-						{}
+						<TestingPanel
+							uiStore={this.uiStore}
+							domainStore={this.domainStore}
+						/>
 					</Item>
 				</TabPanel>
 			);
@@ -123,7 +124,7 @@ const Storyq = observer(class Storyq extends Component<{}, StoryqState> {
 				<div>
 					<div className="storyq">
 						{this.renderTabPanel()}
-						<Prompt text={<p>Welcome to <strong>StoryQ Studio!</strong></p>}/>
+						<Prompt promptsManager={this.promptsManager}/>
 					</div>
 				</div>
 			);

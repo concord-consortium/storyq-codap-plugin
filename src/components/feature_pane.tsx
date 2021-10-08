@@ -60,7 +60,7 @@ export const FeaturePane = observer(class FeaturePane extends Component<Feature_
 					onClick={action(async () => {
 						if( tFeatureUnderConstruction.inProgress) {
 							await this.props.domainStore.targetStore.addOrUpdateFeatureToTarget(tFeatureUnderConstruction)
-							this.props.domainStore.featureStore.addFeatureUnderConstruction()
+							await this.props.domainStore.featureStore.addFeatureUnderConstruction()
 							await this.props.domainStore.updateFeaturesDataset()
 						}
 					})}

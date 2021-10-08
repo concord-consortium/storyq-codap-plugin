@@ -5,23 +5,26 @@
 import {makeAutoObservable, toJS} from 'mobx'
 
 export class UiStore {
+	[index: string]: any;
 	tabPanelSelectedIndex: number = 0
 	trainingPanelShowsEditor: boolean = false
+	currentPromptKey:string
 
 	constructor() {
 		makeAutoObservable(this)
+		this.currentPromptKey = 'blank'
 	}
 
 	asJSON(): object {
-		return {
-			tabPanelSelectedIndex: toJS(this.tabPanelSelectedIndex),
-			trainingPanelShowsEditor: toJS(this.trainingPanelShowsEditor)
-		}
+		return toJS(this)
 	}
 
 	fromJSON(json: any) {
-		this.tabPanelSelectedIndex = json.tabPanelSelectedIndex
-		this.trainingPanelShowsEditor = json.trainingPanelShowsEditor
+		if (json) {
+			for (const [key, value] of Object.entries(json)) {
+				this[key] = value
+			}
+		}
 	}
 
 }

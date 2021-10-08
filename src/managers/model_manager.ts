@@ -5,7 +5,7 @@ import {DomainStore} from "../stores/domain_store";
 import {addAttributesToTarget, deselectAllCasesIn, getCaseCount} from "../lib/codap-helper";
 import codapInterface from "../lib/CodapInterface";
 import {oneHot} from "../lib/one_hot";
-import {runInAction, toJS} from "mobx";
+import {runInAction} from "mobx";
 import {computeKappa} from "../utilities/utilities";
 
 export class ModelManager {
@@ -96,20 +96,6 @@ export class ModelManager {
 			tData.push(iResult.oneHotExample);
 		});
 
-		/*
-				// By creating the features data set now we give the user an indication that something is happening
-				await this.createModelsDataset(tOneHot.tokenArray);
-		*/
-		// We have to stash the tokenArray for use in handleFittingProgress which is a callback
-		// this.featureTokenArray = tOneHot.tokenArray;
-
-		// Fit a logistic model to the data
-		/*
-				if (this.state.showWeightsGraph) {
-					await this.setupFeedbackDataset(); // So we can display fitting progress as a graph
-				}
-		*/
-
 		// The fitting process is asynchronous so we fire it off here
 		// @ts-ignore
 		tLogisticModel.fit(tData);
@@ -128,13 +114,13 @@ export class ModelManager {
 					tLogisticModel = tModel.logisticModel,
 					tTrainingResults = this_.domainStore.trainingStore.trainingResults
 
+				await this_.computeResults()
+
 				tTrainingResults.push({
 					name: tModel.name,
 					accuracy: tLogisticModel.accuracy,
 					kappa: tLogisticModel.kappa
 				})
-
-				await this_.computeResults()
 
 				this_.domainStore.trainingStore.model.trainingInProgress = false
 			}
@@ -209,7 +195,8 @@ export class ModelManager {
 		positiveClassName: string,
 		negativeClassName: string,
 		lockProbThreshold: boolean
-	}) {
+	})
+	{
 		const tOneHotLength = iTools.oneHotData[0].length,
 			tPosProbs: number[] = [],
 			tNegProbs: number[] = [],

@@ -52,7 +52,7 @@ export const FeaturePanel = observer(class FeaturePanel extends Component<Featur
 	}
 
 	async updateFeaturesDataset() {
-		this.props.domainStore.updateFeaturesDataset()
+		await this.props.domainStore.updateFeaturesDataset()
 	}
 
 	render() {

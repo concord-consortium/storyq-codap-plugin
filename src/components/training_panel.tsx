@@ -52,7 +52,7 @@ export const TrainingPanel = observer(class TrainingPanel extends Component<Trai
 	}
 
 	async updateFeaturesDataset() {
-		this.props.domainStore.updateFeaturesDataset()
+		await this.props.domainStore.updateFeaturesDataset()
 	}
 
 	render() {

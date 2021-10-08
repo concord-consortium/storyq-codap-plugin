@@ -98,15 +98,35 @@ export async function getDatasetInfoWithFilter(iFilter: (value: any) => boolean)
 	return tDatasetInfoArray;
 }
 
-export async function getAttributeNames( iDatasetName:string, iCollectionName:string):Promise<string[]> {
+export async function guaranteeAttribute( iAttributeInfo:{name:string, hidden:boolean},
+																					iDatasetName:string, iCollectionName:string):Promise<void> {
 	const tNamesResult:any = await codapInterface.sendRequest({
 		action: 'get',
 		resource: `dataContext[${iDatasetName}].collection[${iCollectionName}].attributeList`
 	}).catch(reason => console.log(`Unable to get attribute names because ${reason}`))
+	if( tNamesResult.success) {
+		if(!tNamesResult.values.map((iValue: any) => iValue.name).includes(iAttributeInfo.name)){
+			// The attribute doesn't exist, so create it
+			await codapInterface.sendRequest( {
+				action: 'create',
+				resource: `dataContext[${iDatasetName}].collection[${iCollectionName}].attribute`,
+				values: [iAttributeInfo]
+			}).catch(reason => {console.log(`could not create attribute because ${reason}`)})
+		}
+	}
+}
+
+export async function getAttributeNames( iDatasetName:string, iCollectionName:string):Promise<string[]> {
+	// console.log(`Begin getAttributeNames with ${iDatasetName}(${iCollectionName})`)
+	const tNamesResult:any = await codapInterface.sendRequest({
+		action: 'get',
+		resource: `dataContext[${iDatasetName}].collection[${iCollectionName}].attributeList`
+	}).catch(reason => console.log(`Unable to get attribute names because ${reason}`))
+	// console.log('About to return from getAttributeNames')
 	return tNamesResult.success ? tNamesResult.values.map((iValue: any) => iValue.name) : []
 }
 
-export async function getCaseValues(iDatasetName:string, iCollectionName:string, iAttributeName:string):Promise<object[]> {
+export async function getCaseValues(iDatasetName:string, iCollectionName:string):Promise<object[]> {
 	let tValues:object[] = []
 	const tCountResult:any = await codapInterface.sendRequest({
 		action: 'get',
@@ -216,7 +236,7 @@ export async function addAttributesToTarget(iPredictionClass: string, iDatasetNa
 				},
 				{
 					name: 'featureIDs',
-					hidden: true
+					hidden: false
 				}
 			]
 		}

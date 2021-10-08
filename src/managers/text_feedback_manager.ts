@@ -3,45 +3,46 @@
  * or features of the model.
  */
 
-import codapInterface from "../lib/CodapInterface";
+import codapInterface, {CODAP_Notification} from "../lib/CodapInterface";
 import {ClassLabel, HeadingsManager, HeadingSpec, PhraseTriple} from "./headings_manager";
-import pluralize from "pluralize";
-import {getComponentByTypeAndTitle, getSelectedCasesFrom} from "../lib/codap-helper";
+import {
+	getSelectedCasesFrom
+} from "../lib/codap-helper";
 import {phraseToFeatures, textToObject} from "../utilities/utilities";
-import {ClassificationManager} from "../components/classification_manager";
-import {OldFeaturePanel} from "../components/old_feature_panel";
-
-export interface TFMStorage {
-	textComponentName: string,
-	textComponentID: number
-}
+import {DomainStore} from "../stores/domain_store";
 
 export default class TextFeedbackManager {
 
-	public textComponentName: string = '';
-	public textComponentID: number = -1;
+	domainStore: DomainStore
+	headingsManager: HeadingsManager
+	subscriberIndex: number
+	isSelectingFeatures = false
+	isSelectingTargetPhrases = false
 
-	private headingsManager: HeadingsManager;
-	public targetCategories: string[];
-	public targetAttributeName: string;
-
-	constructor(iTargetCategories: string[], iTargetAttributeName: string) {
-		this.targetCategories = iTargetCategories;
-		this.targetAttributeName = iTargetAttributeName;
+	constructor(iDomainStore: DomainStore) {
+		this.handleNotification = this.handleNotification.bind(this)
+		this.domainStore = iDomainStore;
 		this.headingsManager = new HeadingsManager();
+		this.subscriberIndex = codapInterface.on('notify', '*', 'selectCases', this.handleNotification);
+
 	}
 
-	public createStorage(): TFMStorage {
-		return {
-			textComponentName: this.textComponentName,
-			textComponentID: this.textComponentID
-		}
-	}
+	async handleNotification(iNotification: CODAP_Notification) {
+		const tTargetDatasetName = this.domainStore.targetStore.targetDatasetInfo.name,
+			tFeatureDatasetName = this.domainStore.featureStore.featureDatasetInfo.datasetName
 
-	public restoreStorage(iStorage: TFMStorage | null) {
-		if (iStorage) {
-			this.textComponentName = iStorage.textComponentName;
-			this.textComponentID = iStorage.textComponentID;
+		if (iNotification.action === 'notify' && iNotification.values.operation === 'selectCases') {
+			// @ts-ignore
+			let tDataContextName: string = iNotification.resource && iNotification.resource.match(/\[(.+)]/)[1];
+			if (tDataContextName === tFeatureDatasetName && !this.isSelectingFeatures) {
+				this.isSelectingTargetPhrases = true;
+				await this.handleFeatureSelection();
+				this.isSelectingTargetPhrases = false;
+			} else if (tDataContextName === tTargetDatasetName && !this.isSelectingTargetPhrases) {
+				this.isSelectingFeatures = true;
+				await this.handleTargetSelection();
+				this.isSelectingFeatures = false;
+			}
 		}
 	}
 
@@ -49,7 +50,8 @@ export default class TextFeedbackManager {
 		if (!this.headingsManager) {
 			this.headingsManager = new HeadingsManager();
 		}
-		this.headingsManager.setupHeadings(this.targetCategories[0], this.targetCategories[1],
+		this.headingsManager.setupHeadings(this.domainStore.targetStore.getClassName('positive'),
+			this.domainStore.targetStore.getClassName('negative'),
 			'', 'Actual', 'Predicted')
 		return this.headingsManager;
 	}
@@ -60,10 +62,18 @@ export default class TextFeedbackManager {
 	 * 	- Select these cases in that dataset
 	 * 	- Pull the phrase from the target case
 	 */
-	public async handleFeatureSelection(aManager: ClassificationManager | OldFeaturePanel) {
-		const kMaxStatementsToDisplay = 40;
+	async handleFeatureSelection() {
+		const kMaxStatementsToDisplay = 40,
+			tTargetDatasetName = this.domainStore.targetStore.targetDatasetInfo.name,
+			tTargetCollectionName = this.domainStore.targetStore.targetCollectionName,
+			tTargetAttributeName = this.domainStore.targetStore.targetAttributeName,
+			tFeatureDatasetName = this.domainStore.featureStore.featureDatasetInfo.datasetName,
+			tTargetClassAttributeName = this.domainStore.targetStore.targetClassAttributeName,
+			tTargetPredictedLabelAttributeName = this.domainStore.targetStore.targetPredictedLabelAttributeName,
+			tTargetColumnFeatureNames = this.domainStore.featureStore.targetColumnFeatureNames,
+			tConstructedFeatureNames = this.domainStore.featureStore.features.map(iFeature => iFeature.name)
 		let tEndPhrase: string,
-			tSelectedCases = await getSelectedCasesFrom(aManager.modelsDatasetName);
+			tSelectedCases = await getSelectedCasesFrom(tFeatureDatasetName);
 		let tFeatures: string[] = [],
 			tUsedIDsSet: Set<number> = new Set();
 		tSelectedCases.forEach((iCase: any) => {
@@ -73,12 +83,12 @@ export default class TextFeedbackManager {
 					tUsedIDsSet.add(anID);
 				});
 			}
-			tFeatures.push(iCase.values.feature);
+			tFeatures.push(iCase.values.name);
 		});
 		let tUsedCaseIDs: number[] = Array.from(tUsedIDsSet);
 		await codapInterface.sendRequest({
 			action: 'create',
-			resource: `dataContext[${aManager.targetDatasetInfo.name}].selectionList`,
+			resource: `dataContext[${tTargetDatasetName}].selectionList`,
 			values: tUsedCaseIDs
 		});
 		let tTriples: { actual: string, predicted: string, phrase: string }[] = [];
@@ -88,15 +98,16 @@ export default class TextFeedbackManager {
 		for (let i = 0; i < tTargetPhrasesToShow; i++) {
 			let tGetCaseResult: any = await codapInterface.sendRequest({
 				action: 'get',
-				resource: `dataContext[${aManager.targetDatasetInfo.name}].collection[${aManager.targetCollectionName}].caseByID[${tUsedCaseIDs[i]}]`
+				resource: `dataContext[${tTargetDatasetName}].collection[${tTargetCollectionName}].caseByID[${tUsedCaseIDs[i]}]`
 			});
-			let tActualClass = tGetCaseResult.values.case.values[aManager.targetClassAttributeName];
-			let tPredictedClass = tGetCaseResult.values.case.values[aManager.targetPredictedLabelAttributeName];
-			let tPhrase = tGetCaseResult.values.case.values[this.targetAttributeName];
-			tTriples.push({actual: tActualClass, predicted: tPredictedClass, phrase: tPhrase});
+			const tActualClass = tGetCaseResult.values.case.values[tTargetClassAttributeName],
+			tPredictedClass = tGetCaseResult.values.case.values[tTargetPredictedLabelAttributeName],
+			 tPhrase = tGetCaseResult.values.case.values[tTargetAttributeName],
+				tTriple = {actual: tActualClass, predicted: tPredictedClass, phrase: tPhrase}
+			tTriples.push((tTriple));
 		}
 		await this.composeText(tTriples, tFeatures, textToObject,
-			aManager.targetColumnFeatureNames.concat(aManager.getConstructedFeatureNames()), tEndPhrase);
+			tTargetColumnFeatureNames.concat(tConstructedFeatureNames), tEndPhrase);
 	}
 
 	/**
@@ -105,105 +116,55 @@ export default class TextFeedbackManager {
 	 * Second, under headings for the classification, display each selected target phrase as text with
 	 * features highlighted and non-features grayed out
 	 */
-	public async handleTargetSelection(aManager: ClassificationManager | OldFeaturePanel) {
-		if (aManager.targetDatasetInfo.name === '' || aManager.modelsDatasetName === '') {
-			console.log('in handleTargetSelection but one of target or model doesn\'t exist');
-			return;
-		}
-		let tSelectedTargetCases: any = await getSelectedCasesFrom(aManager.targetDatasetInfo.name),
+	public async handleTargetSelection() {
+		const tTargetDatasetName = this.domainStore.targetStore.targetDatasetInfo.name,
+			tTargetAttributeName = this.domainStore.targetStore.targetAttributeName,
+			tFeatureDatasetName = this.domainStore.featureStore.featureDatasetInfo.datasetName,
+			tTargetClassAttributeName = this.domainStore.targetStore.targetClassAttributeName,
+			tTargetPredictedLabelAttributeName = this.domainStore.targetStore.targetPredictedLabelAttributeName,
+			tTargetColumnFeatureNames = this.domainStore.featureStore.targetColumnFeatureNames,
+			tConstructedFeatureNames = this.domainStore.featureStore.features.map(iFeature => iFeature.name)
+
+		let tSelectedTargetCases: any = await getSelectedCasesFrom(tTargetDatasetName),
 			tTargetTriples: PhraseTriple[] = [],
 			tIDsOfFeaturesToSelect: number[] = [];
 		tSelectedTargetCases.forEach((iCase: any) => {
 			if (iCase) {
-				let tFeatureIDs: number[] = JSON.parse(iCase.values.featureIDs);
-				tIDsOfFeaturesToSelect = tIDsOfFeaturesToSelect.concat(tFeatureIDs);
+				if (iCase.values.featureIDs) {
+					let tFeatureIDs: number[] = JSON.parse(iCase.values.featureIDs);
+					tIDsOfFeaturesToSelect = tIDsOfFeaturesToSelect.concat(tFeatureIDs);
+				}
 				tTargetTriples.push({
-					actual: iCase.values[aManager.targetClassAttributeName],
-					predicted: iCase.values[aManager.targetPredictedLabelAttributeName],
-					phrase: iCase.values[aManager.targetAttributeName]
+					actual: iCase.values[tTargetClassAttributeName],
+					predicted: iCase.values[tTargetPredictedLabelAttributeName],
+					phrase: iCase.values[tTargetAttributeName]
 				});
 			}
 		});
-		// Select the features
-		await codapInterface.sendRequest({
-			action: 'create',
-			resource: `dataContext[${aManager.modelsDatasetName}].selectionList`,
-			values: tIDsOfFeaturesToSelect
-		});
-		// Get the features and stash them in a set
-		let tSelectedFeatureCases: any = await getSelectedCasesFrom(aManager.modelsDatasetName),
-			tFeatures = new Set<string>(),
-			tFeaturesArray: string[] = [];
-		tSelectedFeatureCases.forEach((iCase: any) => {
-			tFeatures.add(iCase.values.feature);
-		});
-		tFeatures.forEach(iFeature => {
-			tFeaturesArray.push(iFeature);
-		});
-		await this.composeText(tTargetTriples, tFeaturesArray,
-			phraseToFeatures, aManager.targetColumnFeatureNames.concat(aManager.getConstructedFeatureNames()));
-	}
-
-	private async clearText() {
-		await codapInterface.sendRequest({
-			action: 'update',
-			resource: `component[${this.textComponentID}]`,
-			values: {
-				text: {
-					"object": "value",
-					"document": {
-						"children": [
-							{
-								"type": "paragraph",
-								"children": [
-									{
-										"text": `This is where selected ${pluralize(this.targetAttributeName)} appear.`
-									}
-								]
-							}
-						],
-						"objTypes": {
-							"paragraph": "block"
-						}
-					}
-				}
-			}
-		});
-	}
-
-	/**
-	 * Only add a text component if one with the designated name does not already exist.
-	 */
-	public async addTextComponent() {
-		this.textComponentName = 'Selected ' + pluralize(this.targetAttributeName);
-		let tFoundTextID = await getComponentByTypeAndTitle('text', this.textComponentName);
-		if (tFoundTextID === -1) {
-			let tResult: any = await codapInterface.sendRequest({
+		if( tIDsOfFeaturesToSelect.length > 0) {
+			// Select the features
+			await codapInterface.sendRequest({
 				action: 'create',
-				resource: 'component',
-				values: {
-					type: 'text',
-					name: this.textComponentName,
-					title: this.textComponentName,
-					dimensions: {
-						width: 500,
-						height: 150
-					},
-					position: 'top',
-					cannotClose: true
-				}
+				resource: `dataContext[${tFeatureDatasetName}].selectionList`,
+				values: tIDsOfFeaturesToSelect
 			});
-			this.textComponentID = tResult.values.id
-			this.clearText();
 		}
-	}
 
-	public async closeTextComponent() {
-		// this.textComponentName = 'Selected ' + pluralize(this.targetAttributeName);
-		await codapInterface.sendRequest({
-			action: 'delete',
-			resource: `component[${this.textComponentName}]`
-		});
+		let tSelectedFeatureCases: any[] = [],
+			tFeatures = new Set<string>(),
+			tFeaturesArray: string[] = []
+		if( this.domainStore.featureStore.features.length > 0) {
+			// Get the features and stash them in a set
+			tSelectedFeatureCases = await getSelectedCasesFrom(tFeatureDatasetName)
+			tSelectedFeatureCases.forEach((iCase: any) => {
+				tFeatures.add(iCase.values.feature);
+			});
+			tFeatures.forEach(iFeature => {
+				tFeaturesArray.push(iFeature);
+			});
+		}
+		await this.composeText(tTargetTriples, tFeaturesArray,
+			phraseToFeatures, tTargetColumnFeatureNames.concat(tConstructedFeatureNames));
 	}
 
 	/**
@@ -252,6 +213,10 @@ export default class TextFeedbackManager {
 							tGroup = 'negPos';
 							// @ts-ignore
 							tColor = kHeadingsManager.colors.red;
+							break;
+						default:
+							tGroup = 'negPos'
+							tColor = '#000000'
 					}
 					break;
 				case kLabels.posLabel:
@@ -265,6 +230,10 @@ export default class TextFeedbackManager {
 							tGroup = 'posPos';
 							// @ts-ignore
 							tColor = kHeadingsManager.colors.green;
+							break;
+						default:
+							tGroup = 'posPos'
+							tColor = '#00FFFF'
 					}
 					break;
 				default:
@@ -276,6 +245,10 @@ export default class TextFeedbackManager {
 						case kLabels.posLabel:
 							tGroup = 'blankPos';
 							tColor = kHeadingsManager.colors.blue;
+							break;
+						default:
+							tGroup = 'blankPos'
+							tColor = '#FFFF00'
 					}
 			}
 			const tSquare = {
@@ -320,12 +293,12 @@ export default class TextFeedbackManager {
 			})
 		}
 		if (tItems.length === 0)
-			this.clearText();
+			this.domainStore.clearText();
 		else {
 			// Send it all off to the text object
 			await codapInterface.sendRequest({
 				action: 'update',
-				resource: `component[${this.textComponentID}]`,
+				resource: `component[${this.domainStore.textStore.textComponentID}]`,
 				values: {
 					text: {
 						"object": "value",

@@ -3,13 +3,13 @@
  */
 
 import React, {Component} from "react";
-import {SelectBox} from "devextreme-react/select-box";
 import codapInterface, {CODAP_Notification} from "../lib/CodapInterface";
 import {TargetTextArea} from "./target_text_area";
-import {action, toJS} from "mobx";
+import {toJS} from "mobx";
 import {DomainStore} from "../stores/domain_store";
 import {observer} from "mobx-react";
 import {UiStore} from "../stores/ui_store";
+import {choicesMenu} from "./component_utilities";
 
 interface TargetPanelState {
 	count: number,
@@ -64,23 +64,6 @@ export const TargetPanel = observer(class TargetPanel extends Component<Target_P
 
 	render() {
 
-		function choicesMenu(iPrompt: string, iChoices: string[], iValue: string, iCallback: (choice: string) => void) {
-			return (
-				<label>
-					<span>{iPrompt}:</span>
-					<SelectBox
-						dataSource={iChoices}
-						placeholder={'Choose or create a dataset'}
-						value={iValue}
-						style={{display: 'inline-block'}}
-						onValueChange={action((e) => iCallback(e))}
-						width={'100%'}
-					>
-					</SelectBox>
-				</label>)
-
-		}
-
 		function chooseDatasetMenu() {
 
 			function handleChoice(iChoice: string) {
@@ -106,6 +89,7 @@ export const TargetPanel = observer(class TargetPanel extends Component<Target_P
 					this_.props.domainStore.targetStore.targetAttributeName, (iChoice) => {
 						this_.props.domainStore.targetStore.targetAttributeName = iChoice
 						this_.updateTargetPanelInfo()
+						this_.props.domainStore.addTextComponent()
 					})
 			}
 		}

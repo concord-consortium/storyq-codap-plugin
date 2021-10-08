@@ -1,16 +1,18 @@
-import React, {Component, ReactElement} from 'react';
+import React, {Component} from 'react';
+import {PromptsManager} from "../lists/promptsManager";
+import {observer} from "mobx-react";
 
 export interface PromptProps {
-	text:ReactElement
+	promptsManager:PromptsManager
 }
 
-export class Prompt extends Component<PromptProps, {}> {
+export const Prompt = observer(class Prompt extends Component<PromptProps, {}> {
 
 	render() {
 		return (
 			<div className='sq-info-prompt'>
-				{this.props.text}
+				{this.props.promptsManager.getCurrentPrompt()}
 			</div>
 		);
 	}
-}
+})

@@ -37,10 +37,10 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 			this.featureInfo = {subscriberIndex: -1}
 		}
 
-		updateFeaturesDataset(iFeature: Feature) {
+		async updateFeaturesDataset(iFeature: Feature) {
 			if (!iFeature.inProgress) {
-				this.props.domainStore.targetStore.addOrUpdateFeatureToTarget(iFeature, true)
-				this.props.domainStore.updateFeaturesDataset()
+				await this.props.domainStore.targetStore.addOrUpdateFeatureToTarget(iFeature, true)
+				await this.props.domainStore.updateFeaturesDataset()
 			}
 		}
 
@@ -53,9 +53,9 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 						className='sq-fc-part'
 						valueChangeEvent={'keyup'}
 						placeholder="type the feature's name"
-						onValueChanged={action((e) => {
+						onValueChanged={action(async (e) => {
 							tFeature.name = e.value
-							this_.updateFeaturesDataset(tFeature)
+							await this_.updateFeaturesDataset(tFeature)
 						})}
 						value={tFeature.name}
 						maxLength={20}
@@ -71,9 +71,9 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 						placeholder={'Choose kind of new feature'}
 						value={tFeature.info.kind}
 						style={{display: 'inline-block'}}
-						onValueChanged={action((e) => {
+						onValueChanged={action(async (e) => {
 							tFeature.info.kind = e.value
-							this_.updateFeaturesDataset(tFeature)
+							await this_.updateFeaturesDataset(tFeature)
 						})}
 					/>
 				)
@@ -87,9 +87,9 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 						placeholder={'choose kind of contains'}
 						value={tContainsOption}
 						style={{display: 'inline-block'}}
-						onValueChanged={action((e) => {
+						onValueChanged={action(async (e) => {
 							(tFeature.info.details as ContainsDetails).containsOption = e.value
-							this_.updateFeaturesDataset(tFeature)
+							await this_.updateFeaturesDataset(tFeature)
 						})}
 					/>
 				)
@@ -103,9 +103,9 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 						placeholder={'choose thing'}
 						value={tKindOption}
 						style={{display: 'inline-block'}}
-						onValueChanged={action((e) => {
+						onValueChanged={action(async (e) => {
 							(tFeature.info.details as ContainsDetails).kindOption = e.value
-							this_.updateFeaturesDataset(tFeature)
+							await this_.updateFeaturesDataset(tFeature)
 						})}
 					/>
 				)
@@ -119,9 +119,9 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 							className='sq-fc-part'
 							valueChangeEvent={'keyup'}
 							placeholder="type something here"
-							onValueChanged={action((e) => {
+							onValueChanged={action(async (e) => {
 								tContainsDetails.freeFormText = e.value
-								this_.updateFeaturesDataset(tFeature)
+								await this_.updateFeaturesDataset(tFeature)
 							})}
 							value={tContainsDetails.freeFormText}
 							maxLength={100}
