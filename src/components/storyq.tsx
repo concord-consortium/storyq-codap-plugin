@@ -96,19 +96,19 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 							domainStore={this.domainStore}
 						/>
 					</Item>
-					<Item title='Features'>
+					<Item title='Features' disabled={!this.domainStore.featuresPanelCanBeEnabled()}>
 						<FeaturePanel
 							uiStore={this.uiStore}
 							domainStore={this.domainStore}
 						/>
 					</Item>
-					<Item title='Training'>
+					<Item title='Training' disabled={!this.domainStore.trainingPanelCanBeEnabled()}>
 						<TrainingPanel
 							uiStore={this.uiStore}
 							domainStore={this.domainStore}
 						/>
 					</Item>
-					<Item title='Testing'>
+					<Item title='Testing' disabled={!this.domainStore.testingPanelCanBeEnabled()}>
 						<TestingPanel
 							uiStore={this.uiStore}
 							domainStore={this.domainStore}

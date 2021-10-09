@@ -160,9 +160,7 @@ export class ModelManager {
 		// await this.getTextFeedbackManager().addTextComponent();
 	}
 
-	async updateWeights(iTokens: any, iWeights: number[]) {
-		console.log('weights', iWeights)
-		const tFeaturesValues: any[] = [],
+	async updateWeights(iTokens: any, iWeights: number[]) {const tFeaturesValues: any[] = [],
 			tFeatureDatasetName = this.domainStore.featureStore.featureDatasetInfo.datasetName,
 			tCollectionName = 'features'
 		iTokens.forEach((aToken: any, iIndex: number) => {

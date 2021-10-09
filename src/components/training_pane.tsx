@@ -86,7 +86,7 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 							this_.props.domainStore.trainingStore.model.trainingInProgress = true
 							this_.modelManager.buildModel()
 						})}>
-						Run
+						Train
 					</Button>
 					<Button
 						className='sq-button'

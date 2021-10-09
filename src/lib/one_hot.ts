@@ -85,7 +85,6 @@ export const oneHot = (config:{
 		});
 		aDoc.tokens = Array.from(tokens);
 	});
-	console.log('tokenMap = ', tokenMap)
 	// Convert tokenMap to an array and sort descending
 	let tokenArray = Object.values( tokenMap).sort((aToken1, aToken2)=>{
 		return aToken2.count - aToken1.count;

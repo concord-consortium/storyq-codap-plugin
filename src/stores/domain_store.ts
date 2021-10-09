@@ -77,10 +77,6 @@ export class DomainStore {
 		if (this.textStore.textComponentID !== -1) {
 			this.addTextComponent()	//Make sure it is in the document
 		}
-		/*
-				await this.updateFeaturesDataset()
-				await this.addTextComponent()
-		*/
 	}
 
 	async updateFeaturesDataset() {
@@ -315,6 +311,19 @@ export class DomainStore {
 
 	async clearText() {
 		await this.textStore.clearText(this.targetStore.targetAttributeName)
+	}
+
+	featuresPanelCanBeEnabled() {
+		return this.targetStore.targetAttributeName !== ''
+			&& this.targetStore.targetClassAttributeName !== ''
+	}
+
+	trainingPanelCanBeEnabled() {
+		return this.featuresPanelCanBeEnabled() && this.featureStore.features.length > 0
+	}
+
+	testingPanelCanBeEnabled() {
+		return this.trainingPanelCanBeEnabled() && this.trainingStore.trainingResults.length > 0
 	}
 
 }
@@ -815,7 +824,6 @@ class TextStore {
 	 * Only add a text component if one with the designated name does not already exist.
 	 */
 	async addTextComponent(iAttributeName: string) {
-		console.log('In addTextComponent')
 		let tFoundIt = false
 		this.textComponentName = 'Selected ' + pluralize(iAttributeName);
 		const tListResult: any = await codapInterface.sendRequest(
@@ -854,12 +862,10 @@ class TextStore {
 				}
 			});
 			this.textComponentID = tResult.values.id
-			console.log('New text component with id = ', this.textComponentID)
 		}
 	}
 
 	async clearText(iAttributeName: string) {
-		console.log(`in clearText textComponentID = ${this.textComponentID}`)
 		await codapInterface.sendRequest({
 			action: 'update',
 			resource: `component[${this.textComponentID}]`,
