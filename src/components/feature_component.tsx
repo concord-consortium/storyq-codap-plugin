@@ -63,7 +63,7 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 				)
 			}
 
-			function kindOfFeatureChoice() {
+			/*function kindOfFeatureChoice() {
 				return (
 					<SelectBox
 						className='sq-new-feature-item sq-fc-part'
@@ -77,7 +77,7 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 						})}
 					/>
 				)
-			}
+			}*/
 
 			function kindOfContainsChoice() {
 				return (
@@ -140,7 +140,7 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 					<span
 						className='sq-fc-part'
 					>is defined as</span>
-					{kindOfFeatureChoice()}
+					{/*{kindOfFeatureChoice()}*/}
 					{kindOfContainsChoice()}
 					{kindOfThingContainedChoice()}
 					{freeFormTextBox()}

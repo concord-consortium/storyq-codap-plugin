@@ -6,6 +6,16 @@ export interface entityInfo {
 	id: number
 }
 
+/**
+ * Cases retrieved from dataset have this form
+ */
+export interface Case {
+	id:number,
+	values: {
+		[index:string]:string
+	}
+}
+
 export function initializePlugin(pluginName: string, version: string, dimensions: { width: number, height: number },
 																 iRestoreStateHandler: (arg0: any) => void) {
 	const interfaceConfig = {
@@ -80,12 +90,14 @@ export function isAModel(iValue: any): boolean {
  */
 export async function getDatasetInfoWithFilter(iFilter: (value: any) => boolean): Promise<entityInfo[]> {
 	let tDatasetInfoArray: entityInfo[] = [];
+	console.log('about to sendRequest')
 	let tContextListResult: any = await codapInterface.sendRequest({
 		"action": "get",
 		"resource": "dataContextList"
 	}).catch((reason) => {
 		console.log('unable to get datacontext list because ' + reason);
 	});
+	console.log('finished sendRequest')
 	tContextListResult.values.forEach((aValue: any) => {
 		if (iFilter(aValue))
 			tDatasetInfoArray.push(
@@ -126,28 +138,26 @@ export async function getAttributeNames( iDatasetName:string, iCollectionName:st
 	return tNamesResult.success ? tNamesResult.values.map((iValue: any) => iValue.name) : []
 }
 
-export async function getCaseValues(iDatasetName:string, iCollectionName:string):Promise<object[]> {
-	let tValues:object[] = []
-	const tCountResult:any = await codapInterface.sendRequest({
+/**
+ * Return all the cases in the given dataset/collection.
+ * @param iDatasetName
+ * @param iCollectionName
+ */
+export async function getCaseValues(iDatasetName:string,
+																		iCollectionName:string):Promise<Case[]> {
+	const tResult:any = await codapInterface.sendRequest({
 		action: 'get',
-		resource: `dataContext[${iDatasetName}].collection[${iCollectionName}].caseCount`
-	}).catch(reason => console.log(`Unable to get attribute names because ${reason}`))
-	const tCaseCount = tCountResult.success ? Math.min( tCountResult.values, 20) : 0
-	if(tCaseCount > 0) {
-		let tRequests:any[] = []
-		for(let i = 0; i < tCaseCount; i++) {
-			tRequests.push( {
-				action: 'get',
-				resource: `dataContext[${iDatasetName}].collection[${iCollectionName}].caseByIndex[${i}]`
-			})
-		}
-		const tCasesResult:any = await codapInterface.sendRequest(tRequests)
-			.catch(reason => console.log(`Unable to get cases because ${reason}`))
-		tValues = tCasesResult.map( (iResult:any)=>{
-			return iResult.values.case.values
+		resource: `dataContext[${iDatasetName}].collection[${iCollectionName}].caseFormulaSearch[true]`
+	}).catch(reason => console.log(`Unable to get cases in ${iDatasetName} because ${reason}`))
+	if( tResult.success) {
+		return tResult.values.map((iValue:any)=>{
+			delete iValue.parent
+			delete iValue.collections
+			return iValue
 		})
 	}
-	return tValues
+	else
+		return []
 }
 
 export async function getSelectedCasesFrom(iDatasetName: string | null): Promise<any[]> {
@@ -236,7 +246,7 @@ export async function addAttributesToTarget(iPredictionClass: string, iDatasetNa
 				},
 				{
 					name: 'featureIDs',
-					hidden: false
+					hidden: true
 				}
 			]
 		}
@@ -260,6 +270,11 @@ export async function getAttributeNameByIndex(iDatasetName: string, iCollectionN
 	if (tListResult.values.length > iIndex)
 		return tListResult.values[iIndex].name;
 	else return '';
+}
+
+export async function attributeExists(iDatasetName: string, iCollectionName: string, iAttributeName:string):Promise<boolean> {
+	const tNames = await getAttributeNames(iDatasetName, iCollectionName)
+	return tNames.includes(iAttributeName)
 }
 
 export async function getComponentByTypeAndTitle(iType: string, iTitle: string): Promise<number> {

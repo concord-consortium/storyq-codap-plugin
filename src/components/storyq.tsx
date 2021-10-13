@@ -25,14 +25,14 @@ import {DomainStore} from "../stores/domain_store";
 import {action} from "mobx";
 import {TrainingPanel} from "./training_panel";
 import {TestingPanel} from "./testing_panel";
-import {PromptsManager} from "../lists/promptsManager";
+import {PromptsManager} from "../managers/promptsManager";
 
 const Storyq = observer(class Storyq extends Component<{}, {}> {
 		private uiStore: UiStore
 		private domainStore: DomainStore
 		private promptsManager: PromptsManager
 		private kPluginName = "StoryQ Studio";
-		private kVersion = "1.51";
+		private kVersion = "1.52";
 		private kInitialDimensions = {
 			width: 429,
 			height: 420

@@ -102,9 +102,7 @@ p {
 
 .sq-target-text-panel {
     margin: 2%;
-    border-color: gray;
-    border-style: solid;
-    border-width: thin;
+    border: lightskyblue solid thin;
     flex: 1 1 auto;
     width: 46%;
     display: flex;
@@ -119,6 +117,10 @@ p {
     flex-direction: row;
 }
 
+.sq-target-choice {
+    padding: 5px 0 0 5px;
+}
+
 .sq-text-container {
     height: 10vh;
     overflow: auto;
@@ -128,15 +130,11 @@ p {
 .sq-target-texts {
     flex: 1 1 auto;
     margin: 2px;
-    background-color: yellow;
-    border: #2d6da3 thin;
-    border-style: solid;
     overflow: auto;
 }
 
 .sq-text-card {
-    background-color: lightblue;
-    border: thin black solid;
+    background-color: rgba(173, 216, 230, 0.64);
     padding: 3px;
     margin: 3px;
 }

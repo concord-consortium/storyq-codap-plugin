@@ -5,6 +5,7 @@
 
 import {makeAutoObservable, runInAction, toJS} from 'mobx'
 import {
+	Case,
 	entityInfo,
 	getAttributeNames,
 	getCaseValues,
@@ -14,12 +15,12 @@ import {
 	openTable,
 	scrollCaseTableToRight
 } from "../lib/codap-helper";
-import {Case} from "../storyq_types";
 import codapInterface from "../lib/CodapInterface";
 import {SQ} from "../lists/personal-pronouns";
 import {LogisticRegression} from "../lib/jsregression";
 import pluralize from "pluralize";
 import TextFeedbackManager from "../managers/text_feedback_manager";
+import React from "react";
 
 export const featureDescriptors = {
 	featureKinds: ['"contains" feature', '"count of" feature'],
@@ -32,11 +33,11 @@ const kEmptyEntityInfo = {name: '', title: '', id: 0},
 	kPosNegConstants = {
 		positive: {
 			storeKey: 'numberInPositive',
-			attrKey: 'frequency in positive'
+			attrKey: 'frequency in '
 		},
 		negative: {
 			storeKey: 'numberInNegative',
-			attrKey: 'frequency in negative'
+			attrKey: 'frequency in '
 		}
 	}
 
@@ -97,29 +98,33 @@ export class DomainStore {
 		async function guaranteeFeaturesDataset(): Promise<boolean> {
 			if (tFeatureStore.features.length > 0) {
 				if (tFeatureStore.featureDatasetInfo.datasetID === -1) {
-					const tCreateResult: any = await codapInterface.sendRequest({
-						action: 'create',
-						resource: 'dataContext',
-						values: {
-							name: tDatasetName,
-							title: tDatasetName,
-							collections: [{
-								name: 'features',
-								title: 'features',
-								attrs: [
-									{name: 'chosen'},
-									{name: 'name'},
-									{name: kPosNegConstants.positive.attrKey},
-									{name: kPosNegConstants.negative.attrKey},
-									{name: 'type'},
-									{name: 'description'},
-									{name: 'formula'},
-									{name: 'weight'},
-									{name: 'usages', hidden: false}
-								]
-							}]
-						}
-					})
+					const tChosenClassKey = this_.targetStore.targetChosenClassColumnKey,
+						tUnchosenClassKey = tChosenClassKey === 'left' ? 'right' : 'left',
+						tPositiveAttrName = kPosNegConstants.positive.attrKey + tTargetStore.targetClassNames[tChosenClassKey],
+						tNegativeAttrName = kPosNegConstants.negative.attrKey + tTargetStore.targetClassNames[tUnchosenClassKey],
+						tCreateResult: any = await codapInterface.sendRequest({
+							action: 'create',
+							resource: 'dataContext',
+							values: {
+								name: tDatasetName,
+								title: tDatasetName,
+								collections: [{
+									name: 'features',
+									title: 'features',
+									attrs: [
+										{name: 'chosen'},
+										{name: 'name'},
+										{name: tPositiveAttrName},
+										{name: tNegativeAttrName},
+										{name: 'type'},
+										{name: 'description'},
+										{name: 'formula'},
+										{name: 'weight'},
+										{name: 'usages', hidden: true}
+									]
+								}]
+							}
+						})
 					if (tCreateResult.success) {
 						tFeatureStore.featureDatasetInfo.datasetID = tCreateResult.values.id
 						tFeatureStore.featureDatasetInfo.datasetName = tDatasetName
@@ -143,13 +148,6 @@ export class DomainStore {
 		}
 
 		function featureDoesNotMatchItem(iItem: { [key: string]: any }, iFeature: { [key: string]: any }) {
-			/*
-						console.log('matching iItem', toJS(iItem), ' with feature ', iFeature)
-						console.log('storeKey = ', kPosNegConstants.negative.storeKey,
-							'iItem[kPosNegConstants.negative.storeKey] =', iItem[kPosNegConstants.negative.storeKey])
-						console.log('attrKey = ', kPosNegConstants.negative.attrKey,
-							'iFeature[kPosNegConstants.negative.attrKey] =', iFeature[kPosNegConstants.negative.attrKey])
-			*/
 			return ['name', 'chosen', 'formula', 'description'].some(iKey => {
 					return String(iItem[iKey]).trim() !== String(iFeature[iKey]).trim()
 				}) || iItem[kPosNegConstants.negative.storeKey] !== iFeature[kPosNegConstants.negative.attrKey] ||
@@ -157,10 +155,9 @@ export class DomainStore {
 		}
 
 		async function updateFrequenciesUsagesAndFeatureIDs() {
-			// console.trace('Begin updateFrequenciesUsagesAndFeatureIDs')
 			const tClassAttrName = this_.targetStore.targetClassAttributeName,
-				tPosClassLabel = this_.targetStore.getClassName('positive')
-			console.log(`tTargetCollectionName = ${tTargetCollectionName}`)
+				tChosenClassKey = this_.targetStore.targetChosenClassColumnKey,
+				tPosClassLabel = this_.targetStore.targetClassNames[tChosenClassKey]
 			// get all target dataset items
 			let tTargetCasesResponse: any = await codapInterface.sendRequest({
 				action: 'get',
@@ -187,10 +184,10 @@ export class DomainStore {
 						if (iCase.values[iFeature.name]) {
 							if (iCase.values[tClassAttrName] === tPosClassLabel) {
 								iFeature.numberInPositive++
-								iFeature.usages.push(iCase.id)
 							} else {
 								iFeature.numberInNegative++
 							}
+							iFeature.usages.push(iCase.id)
 							if (!caseUpdateRequests[iCase.id]) {
 								caseUpdateRequests[iCase.id] = {values: {features: []}}
 							}
@@ -329,6 +326,8 @@ export class DomainStore {
 }
 
 class TargetStore {
+	[index: string]: any
+
 	targetDatasetInfo: entityInfo = kEmptyEntityInfo
 	datasetInfoArray: entityInfo[] = []
 	targetCollectionName: string = ''
@@ -338,10 +337,15 @@ class TargetStore {
 	targetFeatureIDsAttributeName = 'featureIDs'
 	targetCases: Case[] = []
 	targetClassAttributeName: string = ''
-	targetClassNames: { name: string, positive: boolean }[] = []
+	targetClassNames: { [index: string]: string, left: string, right: string } = {left: '', right: ''}
+	targetLeftColumnKey:'left' | 'right' = 'left'
+	targetChosenClassColumnKey:'left' | 'right' = 'left'
+	textRefs: { ownerCaseID: number, ref: React.RefObject<any> }[] = []
 
 	constructor() {
-		makeAutoObservable(this, {}, {autoBind: true})
+		makeAutoObservable(this,
+			{targetCases: false, textRefs: false, targetLeftColumnKey: false},
+			{autoBind: true})
 	}
 
 	asJSON() {
@@ -350,79 +354,82 @@ class TargetStore {
 			targetAttributeName: toJS(this.targetAttributeName),
 			targetClassAttributeName: toJS(this.targetClassAttributeName),
 			targetClassNames: toJS(this.targetClassNames),
-			targetPredictedLabelAttributeName: toJS(this.targetPredictedLabelAttributeName)
+			targetPredictedLabelAttributeName: toJS(this.targetPredictedLabelAttributeName),
 		}
 	}
 
 	fromJSON(json: any) {
+		// todo: Only here for legacy files
+		if (Array.isArray(json.targetClassNames))
+			json.targetClassNames = null
 		this.targetDatasetInfo = json.targetDatasetInfo || kEmptyEntityInfo
 		this.targetAttributeName = json.targetAttributeName || ''
 		this.targetClassAttributeName = json.targetClassAttributeName || ''
-		this.targetClassNames = json.targetClassNames || []
+		if (json.targetClassNames)
+			this.targetClassNames = json.targetClassNames
 		this.targetPredictedLabelAttributeName = json.targetPredictedLabelAttributeName || ''
 	}
 
-	getClassName(iClass: string) {
-		const tClassObj = this.targetClassNames.find(iObj => {
-			return iClass === 'positive' ? iObj.positive : !iObj.positive
-		})
-		return tClassObj ? tClassObj.name : ''
+	getClassName(iClass: 'positive' | 'negative') {
+		const tChosenClassKey = iClass === 'positive' ? this.targetChosenClassColumnKey : (
+			this.targetChosenClassColumnKey === 'left' ? 'right' : 'left'
+		)
+		return this.targetClassNames[tChosenClassKey]
 	}
 
-	async updateFromCODAP() {
-		// console.log('Begin updateFromCODAP')
+	async updateFromCODAP(iPropName?: string | null, iValue?: any) {
 		const this_ = this
 
+		/**
+		 * We go through the target cases to find the first two unique values of the targetClassAttributeName
+		 */
 		function chooseClassNames() {
-			if (this_.targetClassAttributeName !== '') {
-				tPositiveClassName = this_.targetClassNames.length === 1 ?
-					this_.targetClassNames[0].name :
-					tCaseValues[0][this_.targetClassAttributeName]
-				const tNegativeClassCase = tCaseValues.find(iCase => iCase[this_.targetClassAttributeName] !== tPositiveClassName)
-				tNegativeClassName = tNegativeClassCase ? tNegativeClassCase[this_.targetClassAttributeName] : ''
-				tClassNames = [
-					{name: tPositiveClassName, positive: true},
-					{name: tNegativeClassName, positive: false}
-				]
+			const tTargetClassAttributeName = this_.targetClassAttributeName !== '' ?
+				this_.targetClassAttributeName : (
+					iPropName === 'targetClassAttributeName' ? iValue : ''
+				)
+			if (tTargetClassAttributeName !== '') {
+				tPositiveClassName = this_.targetClassNames.left !== '' ?
+					this_.targetClassNames.left : tCaseValues[0].values[tTargetClassAttributeName]
+				const tNegativeClassCase = tCaseValues.find(iCase => iCase.values[tTargetClassAttributeName] !== tPositiveClassName)
+				tNegativeClassName = tNegativeClassCase ? tNegativeClassCase.values[tTargetClassAttributeName] : ''
+				tClassNames = {left: tPositiveClassName, right: tNegativeClassName}
 			}
 		}
 
 		const tDatasetNames = await getDatasetInfoWithFilter(() => true);
-		let tCollNames: string[] = []
-		let tCollName = ''
+		let tCollectionNames: string[] = []
+		let tCollectionName = ''
 		let tAttrNames: string[] = []
 		let tCaseValues: Case[] = []
 		let tPositiveClassName: string = ''
 		let tNegativeClassName: string = ''
-		let tClassNames: { name: string, positive: boolean }[] = []
+		let tClassNames = {left: '', right: ''}
 		const tTargetDatasetName = this.targetDatasetInfo.name
 		if (tTargetDatasetName !== '') {
-			// console.log('Before getCollectionNames')
-			tCollNames = await getCollectionNames(tTargetDatasetName)
-			// console.log('After getCollectionNames')
-			tCollName = tCollNames.length > 0 ? tCollNames[0] : ''
-			// console.log('Before getAttributeNames')
-			tAttrNames = tCollName !== '' ? await getAttributeNames(tTargetDatasetName, tCollName) : []
-			// console.log('After getAttributeNames')
+			tCollectionNames = await getCollectionNames(tTargetDatasetName)
+			tCollectionName = tCollectionNames.length > 0 ? tCollectionNames[0] : ''
+			tAttrNames = tCollectionName !== '' ? await getAttributeNames(tTargetDatasetName, tCollectionName) : []
 			tCaseValues = this.targetAttributeName !== '' ? await getCaseValues(tTargetDatasetName,
-				tCollName) : []
+				tCollectionName) : []
 			chooseClassNames()
+			for (let i = 0; i < Math.min(40, tCaseValues.length); i++) {
+				this.textRefs[i] = {ownerCaseID: tCaseValues[i].id, ref: React.createRef()}
+			}
 		}
-		// console.log('Before runInAction')
 		runInAction(() => {
 			this.datasetInfoArray = tDatasetNames
-			this.targetCollectionName = tCollName
-			// console.log('Set targetCollectionName to', tCollName)
+			this.targetCollectionName = tCollectionName
 			this.targetAttributeNames = tAttrNames
 			this.targetCases = tCaseValues
 			this.targetClassNames = tClassNames
+			if (iPropName)
+				this[iPropName] = iValue
 		})
-		// console.log('After runInAction')
 		if (tTargetDatasetName !== '' && this.targetCollectionName !== '') {
-			await guaranteeAttribute({name: this.targetFeatureIDsAttributeName, hidden: false},
+			await guaranteeAttribute({name: this.targetFeatureIDsAttributeName, hidden: true},
 				tTargetDatasetName, this.targetCollectionName)
 		}
-		// console.log('End updateFromCODAP')
 	}
 
 	async addOrUpdateFeatureToTarget(iNewFeature: Feature, iUpdate ?: boolean) {
@@ -503,6 +510,8 @@ class TargetStore {
 
 		if (!this.targetDatasetInfo)
 			return;
+		// todo This won't be necessary when we start test documents over
+		iNewFeature.info.kind = '"contains" feature'
 		let tFormula = '';
 		switch (iNewFeature.info.kind) {
 			case featureDescriptors.featureKinds[0]:	// contains feature
@@ -588,6 +597,7 @@ export interface Feature {
 	caseID: string		// ID of the feature as a case in the feature table
 	attrID: string		// ID of the attribute in the target dataset corresponding to this feature
 	featureItemID: string	// ID of the item in the feature table corresponding to this feature
+	weight: number
 }
 
 export interface WordListSpec {
@@ -608,7 +618,7 @@ const starterContainsDetails = {
 const starterFeature: Feature = {
 	inProgress: false, name: '', chosen: false,
 	info: {
-		kind: '',
+		kind: '"contains" feature',
 		details: starterContainsDetails
 	},
 	description: '',
@@ -619,7 +629,8 @@ const starterFeature: Feature = {
 	usages: [],
 	caseID: '',
 	attrID: '',
-	featureItemID: ''
+	featureItemID: '',
+	weight: 0
 }
 
 class FeatureStore {
@@ -633,7 +644,6 @@ class FeatureStore {
 
 	constructor() {
 		makeAutoObservable(this, {}, {autoBind: true})
-		this.featureUnderConstruction = starterFeature
 	}
 
 	asJSON() {
@@ -655,7 +665,7 @@ class FeatureStore {
 	constructionIsDone() {
 		const tFeature = this.featureUnderConstruction
 		const tDetails = this.featureUnderConstruction.info.details as ContainsDetails
-		return [tFeature.name, tFeature.info.kind, tDetails.containsOption, tDetails.kindOption].every(iString => iString !== '') &&
+		return [tFeature.name, /*tFeature.info.kind, */tDetails.containsOption, tDetails.kindOption].every(iString => iString !== '') &&
 			(tDetails.kindOption !== kKindOfThingOptionText || tDetails.freeFormText !== '')
 	}
 
@@ -754,6 +764,7 @@ class TrainingStore {
 
 class TestingStore {
 	[index: string]: any;
+
 	chosenModelName: string = ''
 	testingDatasetInfo: entityInfo = kEmptyEntityInfo
 	testingDatasetInfoArray: entityInfo[] = []
@@ -766,10 +777,11 @@ class TestingStore {
 	}
 
 	async updateCodapInfoForTestingPanel() {
+		// console.log(`updateCodapInfoForTestingPanel: ${JSON.stringify(toJS(this))}`)
 		const tDatasetEntityInfoArray = await getDatasetInfoWithFilter(() => true),
 			tTestingDatasetName = this.testingDatasetInfo.name
 		let tCollectionNames: string[] = [],
-			tCollectionName:string,
+			tCollectionName: string,
 			tAttributeNames: string[] = []
 		if (tTestingDatasetName !== '') {
 			tCollectionNames = await getCollectionNames(tTestingDatasetName)

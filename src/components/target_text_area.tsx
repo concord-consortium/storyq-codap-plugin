@@ -16,81 +16,100 @@ export interface TargetTextArea_Props {
 
 export const TargetTextArea = observer(class TargetTextArea extends Component<TargetTextArea_Props, {}> {
 
-	/*
-		constructor(props: any) {
-			super(props);
-		}
-	*/
-	async updateTextAreaInfo() {
-		await this.props.domainStore.targetStore.updateFromCODAP()
+	showRefs() {
+		/*
+				const tParagraphs = this.props.domainStore.targetStore.textRefs.map(
+					(iRef) => {
+						return (iRef.ref && iRef.ref.current && iRef.ref.current.getBoundingClientRect) ?
+							`${iRef.ownerCaseID}: ${JSON.stringify(iRef.ref.current.getBoundingClientRect().y)}` : 'no rect'
+					})
+				console.log(tParagraphs)
+		*/
 	}
 
 	render() {
 		let this_ = this
+		const tTextRefs = this.props.domainStore.targetStore.textRefs
 
 		function getTexts(iClassName: string) {
 			const tTargetAttr = this_.props.domainStore.targetStore.targetAttributeName
 			const tClassAttr = this_.props.domainStore.targetStore.targetClassAttributeName
 			if (this_.props.domainStore.targetStore.targetCases.length > 0) {
 				const tFilteredCases = this_.props.domainStore.targetStore.targetCases.filter(iCase => {
-					return iClassName === '' || iCase[tClassAttr] === iClassName
+					return iClassName === '' || iCase.values[tClassAttr] === iClassName
 				})
-				return (
-					<div className='sq-text-container'>
-						<div className='sq-target-texts'>
-							{tFilteredCases.map((iCase, iIndex) => {
-								return <p className='sq-text-card' key={iIndex}>{iCase[tTargetAttr]}</p>
-							})}
+				{
+					const tTempRef = React.createRef()
+					return (
+						<div className='sq-text-container'>
+							<div className='sq-target-texts'>
+								{tFilteredCases.slice(0, 40).map((iCase, iIndex) => {
+									const tReactRef = iClassName === '' ? tTextRefs[iIndex].ref : tTempRef
+									return <p className='sq-text-card'
+														key={iIndex}
+										/*ref={tReactRef}*/>
+										{iCase.values[tTargetAttr]}
+									</p>
+								})}
+							</div>
 						</div>
-					</div>
-				)
+					)
+				}
 			}
 		}
 
+		/**
+		 * If index is zero we want the radio button for the 'left' column
+		 * @param index
+		 */
 		function getTargetClassName(index: number) {
-			const tClassnameObjectArray = this_.props.domainStore.targetStore.targetClassNames
-			const tCurrentObject = tClassnameObjectArray[index]
-			const tOtherObject = tClassnameObjectArray[(index + 1) % 2]
-			if (tCurrentObject && tCurrentObject.name !== '') {
-				const tValue = tCurrentObject.positive ? tCurrentObject.name : ''
-				return (
-					<div>
-						<RadioGroup
-							items={[tCurrentObject.name]}
-							value={tValue}
-							onValueChange={action((e) => {
-								if (e) {
-									tCurrentObject.positive = true
-									tOtherObject.positive = false
-								}
-							})}
-						></RadioGroup>
-					</div>
-				)
-			}
+			const
+				tDesiredColumnValue = index === 0 ? tLeftColumnValue : tRightColumnValue
+			return (
+				<div className='sq-target-choice'>
+					<RadioGroup
+						items={[tDesiredColumnValue]}
+						value={tChosenColumnValue}
+						onValueChange={action((e) => {
+							if (e) {
+								this_.props.domainStore.targetStore.targetChosenClassColumnKey =
+									index === 0 ? tLeftColumnKey : tRightColumnKey
+							}
+						})}
+					/>
+				</div>
+			)
 		}
 
+		const tTargetClassNames = this.props.domainStore.targetStore.targetClassNames,
+			tLeftColumnKey = this_.props.domainStore.targetStore.targetLeftColumnKey,
+			tLeftColumnValue = this_.props.domainStore.targetStore.targetClassNames[tLeftColumnKey],
+			tRightColumnKey = tLeftColumnKey === 'left' ? 'right' : 'left',
+			tRightColumnValue = this_.props.domainStore.targetStore.targetClassNames[tRightColumnKey],
+			tChosenColumnKey = this_.props.domainStore.targetStore.targetChosenClassColumnKey,
+			tChosenColumnValue = this_.props.domainStore.targetStore.targetClassNames[tChosenColumnKey]
 		if (this.props.domainStore.targetStore.targetClassAttributeName !== '') {
-			const tTargetClassNames = this.props.domainStore.targetStore.targetClassNames
-			const tNames = tTargetClassNames.map(iClassNameObject => iClassNameObject.name)
+			const tLeftClassName = tTargetClassNames[tLeftColumnKey],
+				tRightClassName = tTargetClassNames[tRightColumnKey]
+			this.showRefs()
 			return (
 				<div className='sq-target-lower-panel'>
 					<div className='sq-target-text-panel'>
 						{getTargetClassName(0)}
-						{getTexts(tNames.length === 2 ? tTargetClassNames[0].name : '')}
+						{getTexts(tLeftClassName)}
 					</div>
 					<div className='sq-target-text-panel'>
 						{getTargetClassName(1)}
-						{getTexts(tNames.length === 2 ? tTargetClassNames[1].name : '')}
+						{getTexts(tRightClassName)}
 					</div>
 				</div>
 			);
 		} else if (this.props.domainStore.targetStore.targetAttributeName !== '') {
 			return (
 				<div className='sq-target-lower-panel'>
-					{getTargetClassName(0)}
+					{/*{getTargetClassName(0)}*/}
 					<div className='sq-target-text-panel'>
-					{getTexts('')}
+						{getTexts('')}
 					</div>
 				</div>
 			)

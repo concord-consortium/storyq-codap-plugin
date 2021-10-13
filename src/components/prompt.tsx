@@ -1,5 +1,5 @@
 import React, {Component} from 'react';
-import {PromptsManager} from "../lists/promptsManager";
+import {PromptsManager} from "../managers/promptsManager";
 import {observer} from "mobx-react";
 
 export interface PromptProps {

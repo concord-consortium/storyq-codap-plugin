@@ -58,20 +58,20 @@ export const TargetPanel = observer(class TargetPanel extends Component<Target_P
 		}
 	}
 
-	async updateTargetPanelInfo() {
-		await this.props.domainStore.targetStore.updateFromCODAP()
+	async updateTargetPanelInfo(iPropName?:string | null, iValue?:any) {
+		await this.props.domainStore.targetStore.updateFromCODAP(iPropName, iValue)
 	}
 
 	render() {
 
 		function chooseDatasetMenu() {
 
-			function handleChoice(iChoice: string) {
+			async function handleChoice(iChoice: string) {
 				let newInfo = toJS(tDatasetInfoArray.find(iInfo => iInfo.title === iChoice)) ||
 					this_.targetPanelConstants.createNewEntityInfo;
 				if (newInfo) {
 					this_.props.domainStore.targetStore.targetDatasetInfo = newInfo;
-					this_.updateTargetPanelInfo()
+					await this_.updateTargetPanelInfo()
 				}
 			}
 
@@ -80,26 +80,29 @@ export const TargetPanel = observer(class TargetPanel extends Component<Target_P
 					'' : this_.props.domainStore.targetStore.targetDatasetInfo.title,
 				tDatasetChoices: string[] = (tDatasetInfoArray.map(iInfo => iInfo.title));
 			tDatasetChoices.push(this_.targetPanelConstants.createNewEntityInfo.title);
-			return choicesMenu('Choose or create a dataset', tDatasetChoices, tValue, handleChoice)
+			return choicesMenu('Choose or create a dataset', 'Choose or create a dataset',
+				tDatasetChoices, tValue, handleChoice)
 		}
 
 		function targetAttributeChoice() {
-			if( this_.props.domainStore.targetStore.targetAttributeNames.length > 0) {
-				return choicesMenu('Target Text', this_.props.domainStore.targetStore.targetAttributeNames,
-					this_.props.domainStore.targetStore.targetAttributeName, (iChoice) => {
+			if (this_.props.domainStore.targetStore.targetAttributeNames.length > 0) {
+				return choicesMenu('Target Text', 'Choose a target attribute',
+					this_.props.domainStore.targetStore.targetAttributeNames,
+					this_.props.domainStore.targetStore.targetAttributeName, async (iChoice) => {
 						this_.props.domainStore.targetStore.targetAttributeName = iChoice
-						this_.updateTargetPanelInfo()
+						await this_.updateTargetPanelInfo()
 						this_.props.domainStore.addTextComponent()
 					})
 			}
 		}
 
 		function targetClassChoice() {
-			if( this_.props.domainStore.targetStore.targetAttributeName !== '') {
-				return choicesMenu('Target Class', this_.props.domainStore.targetStore.targetAttributeNames,
-					this_.props.domainStore.targetStore.targetClassAttributeName, (iChoice) => {
-						this_.props.domainStore.targetStore.targetClassAttributeName = iChoice
-						this_.updateTargetPanelInfo()
+			if (this_.props.domainStore.targetStore.targetAttributeName !== '') {
+				return choicesMenu('Target Class', 'Choose an attribute with classes',
+					this_.props.domainStore.targetStore.targetAttributeNames,
+					this_.props.domainStore.targetStore.targetClassAttributeName, async (iChoice) => {
+						// this_.props.domainStore.targetStore.targetClassAttributeName = iChoice
+						await this_.updateTargetPanelInfo('targetClassAttributeName', iChoice)
 					})
 			}
 		}
@@ -107,10 +110,10 @@ export const TargetPanel = observer(class TargetPanel extends Component<Target_P
 		function lowerPanel() {
 			if (this_.props.domainStore.targetStore.targetCases.length > 0) {
 				return (
-						<TargetTextArea
-							uiStore={this_.props.uiStore}
-							domainStore={this_.props.domainStore}>
-						</TargetTextArea>
+					<TargetTextArea
+						uiStore={this_.props.uiStore}
+						domainStore={this_.props.domainStore}>
+					</TargetTextArea>
 				)
 			}
 		}

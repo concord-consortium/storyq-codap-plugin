@@ -32,6 +32,13 @@ export class PromptsManager {
 			noTraining: <p>Go ahead and train your model.</p>,
 			oneModel: <p>You have one trained model. Make more? Go on to <strong>Testing?</strong></p>,
 			manyModels: <p>You can proceed to <strong>Testing</strong>.</p>
+		},
+		3: {	// Training panel
+			nothingChosen: <p>Specify a model to use and a dataset of classify.</p>,
+			noModel: <p>Classification requires a model.</p>,
+			noDataset: <p>Specify a dataset with texts to classify</p>,
+			noAttribute: <p>Specify which attribute contains the texts.</p>,
+			allSetToTest: <p>You're all set to <strong>classify.</strong></p>
 		}
 	}
 
@@ -69,12 +76,24 @@ export class PromptsManager {
 				break
 			case 2:	// Training
 				if (this.domainStore.trainingStore.trainingResults.length === 0)
-							tKey = this.domainStore.trainingStore.model.name === '' ? 'noModels' : 'noTraining'
+					tKey = this.domainStore.trainingStore.model.name === '' ? 'noModels' : 'noTraining'
 				else if (this.domainStore.trainingStore.trainingResults.length === 1)
 					tKey = 'oneModel'
 				else if (this.domainStore.trainingStore.trainingResults.length > 1)
 					tKey = 'manyModels'
 				else tPanelIndex = 100
+				break
+			case 3:	// Testing
+				if (this.domainStore.testingStore.testingDatasetInfo.name === '' &&
+					this.domainStore.testingStore.chosenModelName === '')
+					tKey = 'nothingChosen'
+				else if (this.domainStore.testingStore.chosenModelName === '')
+					tKey = 'noModel'
+				else if (this.domainStore.testingStore.testingDatasetInfo.name === '')
+					tKey = 'noDataset'
+				else if (this.domainStore.testingStore.testingAttributeName === '')
+					tKey = 'noAttribute'
+				else tKey = 'allSetToTest'
 				break
 			default:
 				tPanelIndex = 100

@@ -16,10 +16,9 @@ export const TargetInfoPane = observer(class TargetInfoPane extends Component<Ta
 
 		function getInfo() {
 			if (tTargetStore.targetDatasetInfo.title !== '') {
-				const tPosObject = tTargetStore.targetClassNames.find(iObject => iObject.positive)
-				const tNegObject = tTargetStore.targetClassNames.find(iObject => !iObject.positive)
-				const tPosName = tPosObject ? tPosObject.name : '<none specified>'
-				const tNegName = tNegObject ? tNegObject.name : '<none specified>'
+				const tPosName = tTargetStore.targetClassNames[tTargetStore.targetChosenClassColumnKey],
+					tNegKey = tTargetStore.targetChosenClassColumnKey === 'left' ? 'right' : 'left',
+					tNegName = tTargetStore.targetClassNames[tNegKey]
 				return (
 					<div className='sq-info-row'>
 						<div className='sq-info-column'>

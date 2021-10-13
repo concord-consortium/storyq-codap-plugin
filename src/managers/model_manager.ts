@@ -65,8 +65,7 @@ export class ModelManager {
 			tTargetClassAttributeName = this.domainStore.targetStore.targetClassAttributeName,
 			tTargetColumnFeatureNames = this.domainStore.featureStore.targetColumnFeatureNames,
 			tFeatures = this.domainStore.featureStore.features,
-			tPositiveObject = this.domainStore.targetStore.targetClassNames.find(iObject => iObject.positive),
-			tPositiveClassName = tPositiveObject ? tPositiveObject.name : '',
+			tPositiveClassName = this.domainStore.targetStore.getClassName('positive'),
 			tTargetCaseCount = await getCaseCount(tTargetDatasetName, tTargetCollectionName),
 			tDocuments: {
 				example: string, class: string, caseID: number,
@@ -133,10 +132,8 @@ export class ModelManager {
 			tFitResult = tLogisticModel.fitResult,
 			tData = tLogisticModel._data,
 			tOneHot = tLogisticModel._oneHot,
-			tPositiveObject = this.domainStore.targetStore.targetClassNames.find(iObject => iObject.positive),
-			tPositiveClassName = tPositiveObject ? tPositiveObject.name : '',
-			tNegativeObject = this.domainStore.targetStore.targetClassNames.find(iObject => !iObject.positive),
-			tNegativeClassName = tNegativeObject ? tNegativeObject.name : '',
+			tPositiveClassName = this.domainStore.targetStore.getClassName('positive'),
+			tNegativeClassName = this.domainStore.targetStore.getClassName('negative'),
 			tDocuments = tLogisticModel._documents;
 		await this.updateWeights(tOneHot.tokenArray, tFitResult.theta);
 
@@ -160,8 +157,10 @@ export class ModelManager {
 		// await this.getTextFeedbackManager().addTextComponent();
 	}
 
-	async updateWeights(iTokens: any, iWeights: number[]) {const tFeaturesValues: any[] = [],
+	async updateWeights(iTokens: any, iWeights: number[]) {
+		const tFeaturesValues: any[] = [],
 			tFeatureDatasetName = this.domainStore.featureStore.featureDatasetInfo.datasetName,
+			tFeatures = this.domainStore.featureStore.features,
 			tCollectionName = 'features'
 		iTokens.forEach((aToken: any, iIndex: number) => {
 			const tOneFeatureUpdate: any = {
@@ -172,6 +171,10 @@ export class ModelManager {
 				}
 			};
 			tFeaturesValues.push(tOneFeatureUpdate);
+			// Also update in stored features
+			let tFoundFeature = tFeatures.find(iFeature=>iFeature.name === aToken.name)
+			if( tFoundFeature)
+				tFoundFeature.weight = iWeights[iIndex]
 		});
 		await codapInterface.sendRequest({
 			action: 'update',
