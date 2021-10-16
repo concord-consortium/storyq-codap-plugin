@@ -90,7 +90,7 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 					</Button>
 					<Button
 						className='sq-button'
-						disabled={tDisabled}
+						disabled={true}
 						onClick={action(async () => {
 							this_.props.uiStore.trainingPanelShowsEditor = false
 						})}>
@@ -98,7 +98,7 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 					</Button>
 					<Button
 						className='sq-button'
-						disabled={tDisabled}
+						disabled={true}
 						onClick={action(async () => {
 						})}>
 						Reset

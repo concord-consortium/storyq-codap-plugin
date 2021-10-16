@@ -57,12 +57,15 @@ export const oneHot = (config:{
 													includeUnigrams:boolean,
 												 	frequencyThreshold:number,
 												 	ignoreStopWords:boolean,
+													positiveClass:string,
+													negativeClass:string,
 											 		features:Feature[]},
 											 documents: { example:string, class:string, caseID:number,
 												 						columnFeatures:{[key:string]:number | boolean}, tokens?:string[] }[]
 											 ) => {
 	// Make a hash of all the tokens with their counts
-	let tokenMap: { [key:string]: { token:string, type:string, count:number, index:number,
+	let tokenMap: { [key:string]: { token:string, type:string, count:number,
+			index:number, numPositive:number, numNegative:number,
 			caseIDs:number[], weight:number|null, featureCaseID:number|null } } = {};	// Keeps track of counts of words
 	// Tokens are unigrams found in document examples. Column features are tokens, too!
 	documents.forEach(aDoc=>{
@@ -77,11 +80,16 @@ export const oneHot = (config:{
 					tFeatureCaseIDObject = config.features.find(aFeature=>aFeature.name===aToken),
 					tFeatureCaseID = tFeatureCaseIDObject ? Number(tFeatureCaseIDObject.caseID) : null
 				tokenMap[aToken] = {token: aToken, type: tType, count: 1, index: -1,
+					numPositive: 0, numNegative: 0,
 					caseIDs: [], weight: null, featureCaseID: tFeatureCaseID};
 			}
 			else
 				tokenMap[aToken].count++;
 			tokenMap[aToken].caseIDs.push( aDoc.caseID);
+			if(aDoc.class === config.positiveClass)
+				tokenMap[aToken].numPositive++
+			else
+				tokenMap[aToken].numNegative++
 		});
 		aDoc.tokens = Array.from(tokens);
 	});

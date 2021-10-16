@@ -1080,7 +1080,7 @@ export class OldFeaturePanel extends Component<FM_Props, FM_StateTypes> {
 				kSlash = `\\\\\\\\/`,
 				kDatePattern = `^((0?[13578]|10|12)(-|${kSlash})(([1-9])|(0[1-9])|([12])([0-9]?)|(3[01]?))(-|${kSlash})((19)([2-9])(${kDigit}{1})|(20)([01])(${kDigit}{1})|([8901])(${kDigit}{1}))|(0?[2469]|11)(-|${kSlash})(([1-9])|(0[1-9])|([12])([0-9]?)|(3[0]?))(-|${kSlash})((19)([2-9])(${kDigit}{1})|(20)([01])(${kDigit}{1})|([8901])(${kDigit}{1})))$`;
 			let tExpression = '';
-			switch ((iNewFeature.info.details as ContainsDetails).containsOption) {//['starts with', 'contains', 'does not contain', 'ends with']
+			switch ((iNewFeature.info.details as SearchDetails).where) {//['starts with', 'contains', 'does not contain', 'ends with']
 				case containsOptions[0]:	// starts with
 					tExpression = `patternMatches(${tTargetAttr}, "^${kDatePattern}")>0`
 					break;

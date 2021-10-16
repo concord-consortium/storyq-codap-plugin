@@ -4,7 +4,7 @@
 
 import React, {Component} from "react";
 import {
-	ContainsDetails,
+	SearchDetails,
 	DomainStore,
 	Feature,
 	featureDescriptors, kKindOfThingOptionText
@@ -14,6 +14,9 @@ import {UiStore} from "../stores/ui_store";
 import {TextBox} from "devextreme-react";
 import {action} from "mobx";
 import {SelectBox} from "devextreme-react/select-box";
+import {stopWords} from "../lib/stop_words";
+import {NumericInput} from "./numeric_input";
+import {CheckBox} from "devextreme-react/check-box";
 
 interface FeatureComponentInfo {
 	subscriberIndex: number
@@ -40,7 +43,15 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 		async updateFeaturesDataset(iFeature: Feature) {
 			if (!iFeature.inProgress) {
 				await this.props.domainStore.targetStore.addOrUpdateFeatureToTarget(iFeature, true)
-				await this.props.domainStore.updateFeaturesDataset()
+				switch (iFeature.info.kind) {
+					case 'search':
+					case 'count':
+						await this.props.domainStore.updateFeaturesDataset()
+						break
+					case 'ngram':
+						await this.props.domainStore.updateNgramFeatures()
+						break
+				}
 			}
 		}
 
@@ -63,32 +74,25 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 				)
 			}
 
-			/*function kindOfFeatureChoice() {
-				return (
-					<SelectBox
-						className='sq-new-feature-item sq-fc-part'
-						dataSource={featureDescriptors.featureKinds}
-						placeholder={'Choose kind of new feature'}
-						value={tFeature.info.kind}
-						style={{display: 'inline-block'}}
-						onValueChanged={action(async (e) => {
-							tFeature.info.kind = e.value
-							await this_.updateFeaturesDataset(tFeature)
-						})}
-					/>
-				)
-			}*/
-
 			function kindOfContainsChoice() {
 				return (
 					<SelectBox
 						className='sq-new-feature-item sq-fc-part'
-						dataSource={featureDescriptors.containsOptions}
-						placeholder={'choose kind of contains'}
+						dataSource={featureDescriptors.featureKinds}
+						valueExpr='value'
+						displayExpr='name'
+						grouped={true}
+						placeholder={'choose kind'}
 						value={tContainsOption}
 						style={{display: 'inline-block'}}
 						onValueChanged={action(async (e) => {
-							(tFeature.info.details as ContainsDetails).containsOption = e.value
+							tFeature.infoChoice = e.value
+							tFeature.info.kind = JSON.parse(e.value).kind
+							tFeature.info.details = Object.assign(tFeature.info.details || {}, JSON.parse(e.value).details)
+							if( tFeature.info.kind === 'ngram') {
+								tFeature.info.frequencyThreshold = 4
+								tFeature.info.ignoreStopWords = true
+							}
 							await this_.updateFeaturesDataset(tFeature)
 						})}
 					/>
@@ -96,24 +100,26 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 			}
 
 			function kindOfThingContainedChoice() {
-				return (
-					<SelectBox
-						className='sq-new-feature-item sq-fc-part'
-						dataSource={featureDescriptors.kindOfThingContainedOptions}
-						placeholder={'choose thing'}
-						value={tKindOption}
-						style={{display: 'inline-block'}}
-						onValueChanged={action(async (e) => {
-							(tFeature.info.details as ContainsDetails).kindOption = e.value
-							await this_.updateFeaturesDataset(tFeature)
-						})}
-					/>
-				)
+				if( tFeature.info.kind === 'search') {
+					return (
+						<SelectBox
+							className='sq-new-feature-item sq-fc-part'
+							dataSource={featureDescriptors.kindOfThingContainedOptions}
+							placeholder={'choose thing'}
+							value={tKindOption}
+							style={{display: 'inline-block'}}
+							onValueChanged={action(async (e) => {
+								(tFeature.info.details as SearchDetails).what = e.value
+								await this_.updateFeaturesDataset(tFeature)
+							})}
+						/>
+					)
+				}
 			}
 
 			function freeFormTextBox() {
-				const tContainsDetails = tFeature.info.details as ContainsDetails
-				if (tContainsDetails.kindOption === kKindOfThingOptionText) {
+				const tContainsDetails = tFeature.info.details as SearchDetails
+				if (tContainsDetails && tContainsDetails.what === kKindOfThingOptionText) {
 					return (
 						<TextBox
 							className='sq-fc-part'
@@ -130,9 +136,35 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 				}
 			}
 
+			function ngramSettings() {
+				if( tFeature.info.kind === 'ngram')
+					return (<div className='sq-feature-ngram-settings'>
+						<CheckBox
+							text=' Ignore stop words'
+							value={tFeature.info.ignoreStopWords}
+							hint={Object.keys(stopWords).join(', ')}
+							onValueChange={
+								action((e: boolean) => {
+									tFeature.info.ignoreStopWords = e
+								})
+							}
+						/>
+						<NumericInput
+							label='Frequency threshold'
+							min={1}
+							max={20}
+							getter={() => tFeature.info.frequencyThreshold || 4}
+							setter={action((newValue:number)=>{
+									tFeature.info.frequencyThreshold = newValue
+								})
+							}
+						/>
+					</div>)
+			}
+
 			const tFeature = this.props.feature
-			const tContainsOption = tFeature.info.details ? (tFeature.info.details as ContainsDetails).containsOption : ''
-			const tKindOption = tFeature.info.details ? (tFeature.info.details as ContainsDetails).kindOption : ''
+			const tContainsOption = tFeature.infoChoice ? tFeature.infoChoice : ''
+			const tKindOption = tFeature.info.details ? (tFeature.info.details as SearchDetails).what : ''
 
 			return (
 				<div className='sq-component'>
@@ -140,10 +172,10 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 					<span
 						className='sq-fc-part'
 					>is defined as</span>
-					{/*{kindOfFeatureChoice()}*/}
 					{kindOfContainsChoice()}
 					{kindOfThingContainedChoice()}
 					{freeFormTextBox()}
+					{ngramSettings()}
 				</div>
 			)
 		}

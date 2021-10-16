@@ -89,15 +89,12 @@ export function isAModel(iValue: any): boolean {
  * @param iFilter
  */
 export async function getDatasetInfoWithFilter(iFilter: (value: any) => boolean): Promise<entityInfo[]> {
-	let tDatasetInfoArray: entityInfo[] = [];
-	console.log('about to sendRequest')
-	let tContextListResult: any = await codapInterface.sendRequest({
+	let tDatasetInfoArray: entityInfo[] = [];let tContextListResult: any = await codapInterface.sendRequest({
 		"action": "get",
 		"resource": "dataContextList"
 	}).catch((reason) => {
 		console.log('unable to get datacontext list because ' + reason);
 	});
-	console.log('finished sendRequest')
 	tContextListResult.values.forEach((aValue: any) => {
 		if (iFilter(aValue))
 			tDatasetInfoArray.push(

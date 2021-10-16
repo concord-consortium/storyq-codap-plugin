@@ -21,13 +21,7 @@ import {LogisticRegression} from "../lib/jsregression";
 import pluralize from "pluralize";
 import TextFeedbackManager from "../managers/text_feedback_manager";
 import React from "react";
-
-export const featureDescriptors = {
-	featureKinds: ['"contains" feature', '"count of" feature'],
-	containsOptions: ['starts with', 'contains', 'does not contain', 'ends with'],
-	kindOfThingContainedOptions: ['any number', 'any from list', 'free form text'/*, 'any date'*/],
-	caseOptions: ['sensitive', 'insensitive']
-}
+import {oneHot} from "../lib/one_hot";
 
 const kEmptyEntityInfo = {name: '', title: '', id: 0},
 	kPosNegConstants = {
@@ -80,61 +74,65 @@ export class DomainStore {
 		}
 	}
 
+	async guaranteeFeaturesDataset(): Promise<boolean> {
+		const tFeatureStore = this.featureStore,
+			tDatasetName = tFeatureStore.featureDatasetInfo.datasetName,
+			tFeatureCollectionName = this.featureStore.featureDatasetInfo.collectionName,
+			tTargetStore = this.targetStore
+
+		if (tFeatureStore.features.length > 0) {
+			if (tFeatureStore.featureDatasetInfo.datasetID === -1) {
+				const tChosenClassKey = this.targetStore.targetChosenClassColumnKey,
+					tUnchosenClassKey = tChosenClassKey === 'left' ? 'right' : 'left',
+					tPositiveAttrName = kPosNegConstants.positive.attrKey + tTargetStore.targetClassNames[tChosenClassKey],
+					tNegativeAttrName = kPosNegConstants.negative.attrKey + tTargetStore.targetClassNames[tUnchosenClassKey],
+					tCreateResult: any = await codapInterface.sendRequest({
+						action: 'create',
+						resource: 'dataContext',
+						values: {
+							name: tDatasetName,
+							title: tDatasetName,
+							collections: [{
+								name: tFeatureCollectionName,
+								title: tFeatureCollectionName,
+								attrs: [
+									{name: 'chosen'},
+									{name: 'name'},
+									{name: tPositiveAttrName},
+									{name: tNegativeAttrName},
+									{name: 'type'},
+									{name: 'description'},
+									{name: 'formula'},
+									{name: 'weight'},
+									{name: 'usages', hidden: true}
+								]
+							}]
+						}
+					})
+				if (tCreateResult.success) {
+					tFeatureStore.featureDatasetInfo.datasetID = tCreateResult.values.id
+					tFeatureStore.featureDatasetInfo.datasetName = tDatasetName
+					openTable(tDatasetName)
+				}
+			}
+			return true
+		}
+		return false
+	}
+
 	async updateFeaturesDataset() {
-		// console.log('Begin updateFeaturesDataset')
 		const this_ = this,
-			tDatasetName = 'Features',
 			tFeatureStore = this.featureStore,
+			tNonNgramFeatures = tFeatureStore.features.filter(iFeature => iFeature.info.kind !== 'ngram'),
 			tTargetStore = this.targetStore,
 			caseUpdateRequests: { values: { features: Feature[] } }[] = [],
 			tTargetDatasetName = tTargetStore.targetDatasetInfo.name,
 			tTargetCollectionName = tTargetStore.targetCollectionName
 		let resourceString: string = '',
-			tItemsInDataset: { values: object, id: string }[] = [],
+			tFeatureItems: { values: object, id: string }[] = [],
 			tItemsToDelete: { values: object, id: string }[] = [],
 			tFeaturesToAdd: Feature[] = [],
 			tFeaturesToUpdate: Feature[] = []
-
-		async function guaranteeFeaturesDataset(): Promise<boolean> {
-			if (tFeatureStore.features.length > 0) {
-				if (tFeatureStore.featureDatasetInfo.datasetID === -1) {
-					const tChosenClassKey = this_.targetStore.targetChosenClassColumnKey,
-						tUnchosenClassKey = tChosenClassKey === 'left' ? 'right' : 'left',
-						tPositiveAttrName = kPosNegConstants.positive.attrKey + tTargetStore.targetClassNames[tChosenClassKey],
-						tNegativeAttrName = kPosNegConstants.negative.attrKey + tTargetStore.targetClassNames[tUnchosenClassKey],
-						tCreateResult: any = await codapInterface.sendRequest({
-							action: 'create',
-							resource: 'dataContext',
-							values: {
-								name: tDatasetName,
-								title: tDatasetName,
-								collections: [{
-									name: 'features',
-									title: 'features',
-									attrs: [
-										{name: 'chosen'},
-										{name: 'name'},
-										{name: tPositiveAttrName},
-										{name: tNegativeAttrName},
-										{name: 'type'},
-										{name: 'description'},
-										{name: 'formula'},
-										{name: 'weight'},
-										{name: 'usages', hidden: true}
-									]
-								}]
-							}
-						})
-					if (tCreateResult.success) {
-						tFeatureStore.featureDatasetInfo.datasetID = tCreateResult.values.id
-						tFeatureStore.featureDatasetInfo.datasetName = tDatasetName
-						openTable(tDatasetName)
-					}
-				}
-				return true
-			}
-			return false
-		}
 
 		async function getExistingFeatureItems(): Promise<{ values: object, id: string }[]> {
 			const tItemsRequestResult: any = await codapInterface.sendRequest({
@@ -157,73 +155,55 @@ export class DomainStore {
 		async function updateFrequenciesUsagesAndFeatureIDs() {
 			const tClassAttrName = this_.targetStore.targetClassAttributeName,
 				tChosenClassKey = this_.targetStore.targetChosenClassColumnKey,
-				tPosClassLabel = this_.targetStore.targetClassNames[tChosenClassKey]
-			// get all target dataset items
-			let tTargetCasesResponse: any = await codapInterface.sendRequest({
-				action: 'get',
-				resource: `dataContext[${tTargetDatasetName}].collection[${tTargetCollectionName}].caseFormulaSearch[true]`
-			}).catch(reason => {
-				console.log(`Failed to get ${tTargetDatasetName}(${tTargetCollectionName}) because ${reason}`)
+				tPosClassLabel = this_.targetStore.targetClassNames[tChosenClassKey],
+				tTargetCases = await this_.targetStore.updateTargetCases()
+
+			tNonNgramFeatures.forEach(iFeature => {
+				iFeature.numberInPositive = 0
+				iFeature.numberInNegative = 0
+				iFeature.usages = []
 			})
-			if (tTargetCasesResponse.success) {
-				tFeatureStore.features.forEach(iFeature => {
-					iFeature.numberInPositive = 0
-					iFeature.numberInNegative = 0
-					iFeature.usages = []
-				})
-				/**
-				 * We go through each target case
-				 * 		For each feature, if the case has the feature, we increment that feature's positive or negative count
-				 * 			as appropriate
-				 * 		If the feature is present,
-				 * 			- we push the case's ID into the feature's usages
-				 * 			- 	we add the feature's case ID to the array of feature IDs for that case
-				 */
-				tTargetCasesResponse.values.forEach((iCase: { [key: string]: any }) => {
-					tFeatureStore.features.forEach((iFeature) => {
-						if (iCase.values[iFeature.name]) {
-							if (iCase.values[tClassAttrName] === tPosClassLabel) {
-								iFeature.numberInPositive++
-							} else {
-								iFeature.numberInNegative++
-							}
-							iFeature.usages.push(iCase.id)
-							if (!caseUpdateRequests[iCase.id]) {
-								caseUpdateRequests[iCase.id] = {values: {features: []}}
-							}
-							caseUpdateRequests[iCase.id].values.features.push(iFeature)
+			/**
+			 * We go through each target case
+			 * 		For each feature, if the case has the feature, we increment that feature's positive or negative count
+			 * 			as appropriate
+			 * 		If the feature is present,
+			 * 			- we push the case's ID into the feature's usages
+			 * 			- 	we add the feature's case ID to the array of feature IDs for that case
+			 */
+			tTargetCases.forEach((iCase) => {
+				tNonNgramFeatures.forEach((iFeature) => {
+					if (iCase.values[iFeature.name]) {
+						if (iCase.values[tClassAttrName] === tPosClassLabel) {
+							iFeature.numberInPositive++
+						} else {
+							iFeature.numberInNegative++
 						}
-					})
+						iFeature.usages.push(iCase.id)
+						if (!caseUpdateRequests[iCase.id]) {
+							caseUpdateRequests[iCase.id] = {values: {features: []}}
+						}
+						caseUpdateRequests[iCase.id].values.features.push(iFeature)
+					}
 				})
-				tTargetCasesResponse = null	// free up memory
-			}
-			// console.log('End updateFrequenciesUsagesAndFeatureIDs')
+			})
 		}
 
-		/*
-						function logArrays() {
-							console.log(`itemsInDataset = ${JSON.stringify(tItemsInDataset)}`)
-							console.log(`tItemsToDelete = ${JSON.stringify(tItemsToDelete)}`)
-							console.log(`tFeaturesToAdd = ${JSON.stringify(tFeaturesToAdd)}`)
-							console.log(`tFeaturesToUpdate = ${JSON.stringify(tFeaturesToUpdate)}`)
-						}
-		*/
-
-		if (await guaranteeFeaturesDataset()) {
+		if (await this.guaranteeFeaturesDataset()) {
 			resourceString = `dataContext[${tFeatureStore.featureDatasetInfo.datasetID}]`
 
-			tItemsInDataset = await getExistingFeatureItems()
+			tFeatureItems = await getExistingFeatureItems()
 			await updateFrequenciesUsagesAndFeatureIDs()
-			tItemsToDelete = tItemsInDataset.filter(iItem => {
-				return !tFeatureStore.features.find(iFeature => iFeature.featureItemID === iItem.id)
+			tItemsToDelete = tFeatureItems.filter(iItem => {
+				return !tNonNgramFeatures.find(iFeature => iFeature.featureItemID === iItem.id)
 			})
-			tFeaturesToAdd = tFeatureStore.features.filter(iFeature => {
-				return !tItemsInDataset.find(iItem => {
+			tFeaturesToAdd = tNonNgramFeatures.filter(iFeature => {
+				return !tFeatureItems.find(iItem => {
 					return iFeature.featureItemID === iItem.id
 				})
 			})
-			tFeaturesToUpdate = tFeatureStore.features.filter(iFeature => {
-				const tMatchingItem = tItemsInDataset.find(iItem => {
+			tFeaturesToUpdate = tNonNgramFeatures.filter(iFeature => {
+				const tMatchingItem = tFeatureItems.find(iItem => {
 					return iFeature.featureItemID === iItem.id
 				})
 				return tMatchingItem && featureDoesNotMatchItem(iFeature, tMatchingItem.values)
@@ -295,10 +275,93 @@ export class DomainStore {
 					values: tValues
 				})
 			}
-			// logArrays()
 		}
-		// console.log('End updateFeaturesDataset')
+	}
 
+	async updateNgramFeatures() {
+		const tNgramFeatures = this.featureStore.features.filter(iFeature => iFeature.info.kind === 'ngram')
+		await this.guaranteeFeaturesDataset()
+		for (const iNtgramFeature of tNgramFeatures) {
+			const
+				tTargetStore = this.targetStore,
+				tFeatureDatasetName = this.featureStore.featureDatasetInfo.datasetName,
+				tFeatureCollectionName = this.featureStore.featureDatasetInfo.collectionName,
+				tIgnore = iNtgramFeature.info.ignoreStopWords !== undefined ? iNtgramFeature.info.ignoreStopWords : true,
+				tThreshold = (iNtgramFeature.info.frequencyThreshold || 4),
+				tTargetCases = tTargetStore.targetCases,
+				tTargetAttributeName = tTargetStore.targetAttributeName,
+				tTargetClassAttributeName = this.targetStore.targetClassAttributeName,
+				tDocuments = tTargetCases.map(iCase => {
+					return {
+						example: iCase.values[tTargetAttributeName],
+						class: iCase.values[tTargetClassAttributeName],
+						caseID: Number(iCase.id),
+						columnFeatures: {}
+					}
+				}),
+				tChosenClassKey = tTargetStore.targetChosenClassColumnKey,
+				tUnchosenClassKey = tChosenClassKey === 'left' ? 'right' : 'left',
+				tPositiveAttrName = kPosNegConstants.positive.attrKey + tTargetStore.targetClassNames[tChosenClassKey],
+				tNegativeAttrName = kPosNegConstants.negative.attrKey + tTargetStore.targetClassNames[tUnchosenClassKey]
+			// tokenize the target texts
+			const tTokenArray = oneHot({
+				frequencyThreshold: tThreshold - 1,
+				ignoreStopWords: tIgnore,
+				includeUnigrams: true,
+				positiveClass: this.targetStore.getClassName('positive'),
+				negativeClass: this.targetStore.getClassName('negative'),
+				features: []
+			}, tDocuments).tokenArray	// Array of unigram features
+			// Stash tokens in feature dataset
+			// if (await this.guaranteeFeaturesDataset()) {
+			const tUnigramCreateMsgs: any[] = []
+			tTokenArray.forEach(iFeature=>{
+				const tCaseValues: { [index: string]: any } = {
+					values: {
+						chosen: true,
+						name: iFeature.token,
+						type: 'unigram',
+						description: `unigram ${tIgnore ? '' : 'not '}ignoring stop words with frequency threshold of ${tThreshold}`,
+						usages: JSON.stringify(iFeature.caseIDs)
+					}
+				}
+				tCaseValues.values[tPositiveAttrName] = iFeature.numPositive
+				tCaseValues.values[tNegativeAttrName] = iFeature.numNegative
+				tUnigramCreateMsgs.push(tCaseValues)
+			})
+			const tCreateResult: any = await codapInterface.sendRequest({
+				action: 'create',
+				resource: `dataContext[${tFeatureDatasetName}].collection[${tFeatureCollectionName}].case`,
+				values: tUnigramCreateMsgs
+			})
+			// Stash the resultant feature case IDs where we can get them to update target cases
+			// We make a map with featureCaseID as key and usages as value
+			if (tCreateResult.success) {
+				tCreateResult.values.forEach((iValue: { id: number }, iIndex: number) => {
+					tUnigramCreateMsgs[iIndex].featureCaseID = iValue.id
+					tTokenArray[iIndex].featureCaseID = iValue.id
+				})
+				// Put together update messages for the target cases
+				const tUpdateMsgs: { id: number, values: { featureIDs: number[] | string } }[] = []
+				tTargetCases.forEach(iCase => {
+					const tUpdateValue = {id: iCase.id, values: {featureIDs: []}}
+					tTokenArray.forEach(iFeature=>{
+						if (iFeature.caseIDs.indexOf(iCase.id) >= 0) {
+							// @ts-ignore
+							tUpdateValue.values.featureIDs.push(iFeature.featureCaseID)
+						}
+					})
+					// @ts-ignore
+					tUpdateValue.values.featureIDs = JSON.stringify(tUpdateValue.values.featureIDs)
+					tUpdateMsgs.push(tUpdateValue)
+				})
+				await codapInterface.sendRequest({
+					action:'update',
+					resource: `dataContext[${tTargetStore.targetDatasetInfo.name}].collection[${tTargetStore.targetCollectionName}].case`,
+					values: tUpdateMsgs
+				})
+			}
+		}
 	}
 
 	async addTextComponent() {
@@ -338,8 +401,8 @@ class TargetStore {
 	targetCases: Case[] = []
 	targetClassAttributeName: string = ''
 	targetClassNames: { [index: string]: string, left: string, right: string } = {left: '', right: ''}
-	targetLeftColumnKey:'left' | 'right' = 'left'
-	targetChosenClassColumnKey:'left' | 'right' = 'left'
+	targetLeftColumnKey: 'left' | 'right' = 'left'
+	targetChosenClassColumnKey: 'left' | 'right' = 'left'
 	textRefs: { ownerCaseID: number, ref: React.RefObject<any> }[] = []
 
 	constructor() {
@@ -432,15 +495,32 @@ class TargetStore {
 		}
 	}
 
+	async updateTargetCases() {
+		const tTargetDatasetName = this.targetDatasetInfo.name,
+			tCollectionName = this.targetCollectionName,
+			tCaseValues = this.targetAttributeName !== '' ? await getCaseValues(tTargetDatasetName, tCollectionName) : []
+		runInAction(() => {
+			this.targetCases = tCaseValues
+		})
+		return tCaseValues
+	}
+
+	/**
+	 * 'search' features affect the target by adding an attribute. ngrams do not.
+	 * @param iNewFeature
+	 * @param iUpdate
+	 */
 	async addOrUpdateFeatureToTarget(iNewFeature: Feature, iUpdate ?: boolean) {
 		const this_ = this,
 			tTargetAttr = `${this_.targetAttributeName}`
+		if (!this_.targetDatasetInfo || iNewFeature.info.kind === 'ngram')
+			return;
 
 		function freeFormFormula() {
-			const option = (iNewFeature.info.details as ContainsDetails).containsOption;
+			const option = (iNewFeature.info.details as SearchDetails).where;
 			const tBegins = option === featureDescriptors.containsOptions[0] ? '^' : '';
 			const tEnds = option === featureDescriptors.containsOptions[3] ? '$' : '';
-			const tParamString = `${this_.targetAttributeName},"${tBegins}\\\\\\\\b${(iNewFeature.info.details as ContainsDetails).freeFormText}\\\\\\\\b${tEnds}"`;
+			const tParamString = `${this_.targetAttributeName},"${tBegins}\\\\\\\\b${(iNewFeature.info.details as SearchDetails).freeFormText}\\\\\\\\b${tEnds}"`;
 			let tResult = '';
 			switch (option) {//['starts with', 'contains', 'does not contain', 'ends with']
 				case featureDescriptors.containsOptions[0]:	// starts with
@@ -462,7 +542,7 @@ class TargetStore {
 		function anyNumberFormula() {
 			const kNumberPattern = `[0-9]+`;
 			let tExpression = '';
-			switch ((iNewFeature.info.details as ContainsDetails).containsOption) {//['starts with', 'contains', 'does not contain', 'ends with']
+			switch ((iNewFeature.info.details as SearchDetails).where) {//['starts with', 'contains', 'does not contain', 'ends with']
 				case featureDescriptors.containsOptions[0]:	// starts with
 					tExpression = `patternMatches(${tTargetAttr}, "^${kNumberPattern}")>0`
 					break;
@@ -481,14 +561,14 @@ class TargetStore {
 
 		function anyListFormula() {
 			let tExpression;
-			const kListName = (iNewFeature.info.details as ContainsDetails).wordList.datasetName,
-				kListAttributeName = (iNewFeature.info.details as ContainsDetails).wordList.firstAttributeName,
+			const kListName = (iNewFeature.info.details as SearchDetails).wordList.datasetName,
+				kListAttributeName = (iNewFeature.info.details as SearchDetails).wordList.firstAttributeName,
 				kWords = SQ.lists[kListName];
 			if (kWords) {
 				tExpression = kWords.reduce((iSoFar, iWord) => {
 					return iSoFar === '' ? `\\\\\\\\b${iWord}\\\\\\\\b` : iSoFar + `|\\\\\\\\b${iWord}\\\\\\\\b`;
 				}, '');
-				switch ((iNewFeature.info.details as ContainsDetails).containsOption) {//['starts with', 'contains', 'does not contain', 'ends with']
+				switch ((iNewFeature.info.details as SearchDetails).where) {//['starts with', 'contains', 'does not contain', 'ends with']
 					case featureDescriptors.containsOptions[0]:	// starts with
 						tExpression = `patternMatches(${tTargetAttr}, "^${tExpression}")>0`;
 						break;
@@ -508,35 +588,26 @@ class TargetStore {
 			return tExpression;
 		}
 
-		if (!this.targetDatasetInfo)
-			return;
-		// todo This won't be necessary when we start test documents over
-		iNewFeature.info.kind = '"contains" feature'
 		let tFormula = '';
-		switch (iNewFeature.info.kind) {
-			case featureDescriptors.featureKinds[0]:	// contains feature
-				switch ((iNewFeature.info.details as ContainsDetails).kindOption) {
-					case featureDescriptors.kindOfThingContainedOptions[0]: // 'any number'
-						tFormula = anyNumberFormula();
-						break;
-					case featureDescriptors.kindOfThingContainedOptions[1]: // 'any from list'
-						tFormula = anyListFormula();
-						break;
-					case featureDescriptors.kindOfThingContainedOptions[2]: // 'any free form text'
-						tFormula = freeFormFormula();
-						break;
-				}
+		switch ((iNewFeature.info.details as SearchDetails).what) {
+			case 'any number':
+				tFormula = anyNumberFormula()
 				break;
-			case featureDescriptors.featureKinds[1]:	// count feature
-
+			case 'any from List':
+				tFormula = anyListFormula()
 				break;
+			case 'free form text':
+				tFormula = freeFormFormula()
+				break;
+			case 'part of speech':
+			// tFormula = posFormula()
 		}
 		if (tFormula !== '')
 			iNewFeature.formula = tFormula
 		if (!iUpdate) {
 			const tAttributeResponse: any = await codapInterface.sendRequest({
 				action: 'create',
-				resource: `dataContext[${this.targetDatasetInfo.name}].collection[${this.targetCollectionName}].attribute`,
+				resource: `dataContext[${this_.targetDatasetInfo.name}].collection[${this_.targetCollectionName}].attribute`,
 				values: {
 					name: iNewFeature.name,
 					formula: tFormula
@@ -544,41 +615,68 @@ class TargetStore {
 			});
 			if (tAttributeResponse.success) {
 				iNewFeature.attrID = tAttributeResponse.values.attrs[0].id
-				await scrollCaseTableToRight(this.targetDatasetInfo.name);
+				await scrollCaseTableToRight(this_.targetDatasetInfo.name);
 			}
 		} else {
-			const tRequest = `dataContext[${this.targetDatasetInfo.name}].collection[${this.targetCollectionName}].attribute[${iNewFeature.attrID}]`
+			const tResource = `dataContext[${this_.targetDatasetInfo.name}].collection[${this_.targetCollectionName}].attribute[${iNewFeature.attrID}]`
 			await codapInterface.sendRequest({
 				action: 'update',
-				resource: tRequest,
+				resource: tResource,
 				values: {
 					title: iNewFeature.name,
 					name: iNewFeature.name
 				}
-			}).then((iResult: any) => {
-				console.log('result of requesting attribute update', iResult)
 			})
 		}
+		// targetCases are now out of date
 	}
+}
+
+export const featureDescriptors = {
+	featureKinds: [{
+		key: "N-grams",
+		items: [
+			{name: "unigrams", value: `{"kind": "ngram", "details": {"n":"uni"}}`}/*,
+			{name: "bigrams", value: `{"kind": "ngram", "details": {"n":"bi"}}`}*/
+		]
+	},
+		{
+			key: "Search",
+			items: [
+				{name: "starts with", value: `{"kind": "search", "details": {"where": "starts with"}}`},
+				{name: "contains", value: `{"kind": "search", "details": {"where": "contains"}}`},
+				{name: "does not contain", value: `{"kind": "search", "details": {"where": "does not contain"}}`},
+				{name: "ends with", value: `{"kind": "search", "details": {"where": "ends with"}}`}
+			]
+		}],
+	containsOptions: ['starts with', 'contains', 'does not contain', 'ends with'],
+	kindOfThingContainedOptions: ['any number', 'any from list', 'free form text'/*, 'any date'*/],
+	caseOptions: ['sensitive', 'insensitive']
 }
 
 export const kKindOfThingOptionText = featureDescriptors.kindOfThingContainedOptions[2]
 
-export interface ContainsDetails {
-	containsOption: string,
-	kindOption: string,
-	caseOption: string,
+export interface SearchDetails {
+	where: 'startsWith' | 'contains' | 'notContains' | 'endsWith' | '',
+	what: 'any number' | 'any from List' | 'free form text' | 'part of speech' | '',
+	caseOption: 'any' | 'upper' | 'lower' | '',
 	freeFormText: string,
 	wordList: WordListSpec
 }
 
 export interface CountDetails {
-	what: string
+	what: 'letters' | 'words' | 'sentences' | ''
+}
+
+export interface NgramDetails {
+	n: 'uni' | 'bi' | ''
 }
 
 export interface FeatureDetails {
-	kind: string,
-	details: ContainsDetails | CountDetails
+	kind: 'search' | 'ngram' | 'count' | '',
+	details: SearchDetails | CountDetails | NgramDetails | null,
+	ignoreStopWords?: boolean,
+	frequencyThreshold?: number
 }
 
 export interface Feature {
@@ -587,6 +685,7 @@ export interface Feature {
 	inProgress: boolean
 	name: string,
 	chosen: boolean,
+	infoChoice: string,
 	info: FeatureDetails,
 	description: string
 	type: string
@@ -605,21 +704,12 @@ export interface WordListSpec {
 	firstAttributeName: string
 }
 
-const starterContainsDetails = {
-	containsOption: '',
-	kindOption: '',
-	caseOption: '',
-	freeFormText: '',
-	wordList: {
-		datasetName: '', firstAttributeName: ''
-	}
-}
-
 const starterFeature: Feature = {
 	inProgress: false, name: '', chosen: false,
+	infoChoice: '',
 	info: {
-		kind: '"contains" feature',
-		details: starterContainsDetails
+		kind: '',
+		details: null
 	},
 	description: '',
 	type: '',
@@ -635,9 +725,10 @@ const starterFeature: Feature = {
 
 class FeatureStore {
 	features: Feature[] = []
-	featureUnderConstruction: Feature = starterFeature
+	featureUnderConstruction: Feature = Object.assign({}, starterFeature)
 	featureDatasetInfo = {
 		datasetName: 'Features',
+		collectionName: 'features',
 		datasetID: -1
 	}
 	targetColumnFeatureNames: string[] = []
@@ -664,27 +755,37 @@ class FeatureStore {
 
 	constructionIsDone() {
 		const tFeature = this.featureUnderConstruction
-		const tDetails = this.featureUnderConstruction.info.details as ContainsDetails
-		return [tFeature.name, /*tFeature.info.kind, */tDetails.containsOption, tDetails.kindOption].every(iString => iString !== '') &&
-			(tDetails.kindOption !== kKindOfThingOptionText || tDetails.freeFormText !== '')
+		const tDetails = this.featureUnderConstruction.info.details as SearchDetails
+		return (tDetails === null) || [tFeature.name, tFeature.info.kind, tDetails.where, tDetails.what].every(iString => iString !== '') &&
+			(tDetails.what !== kKindOfThingOptionText || tDetails.freeFormText !== '')
 	}
 
 	getDescriptionFor(iFeature: Feature) {
-		const tDetails = iFeature.info.details as ContainsDetails,
-			tFirstPart = `${tDetails.containsOption} ${tDetails.kindOption}`,
-			tSecondPart = tDetails.freeFormText !== '' ? `"${tDetails.freeFormText}"` : '',
-			tThirdPart = tDetails.wordList && tDetails.wordList.datasetName !== '' ?
-				` of ${tDetails.wordList.datasetName}` : '';
-		return `${tFirstPart} ${tSecondPart}${tThirdPart}`
+		if (iFeature.info.kind === 'search') {
+			const tDetails = iFeature.info.details as SearchDetails,
+				tFirstPart = `${tDetails.where} ${tDetails.what}`,
+				tSecondPart = tDetails.freeFormText !== '' ? `"${tDetails.freeFormText}"` : '',
+				tThirdPart = tDetails.wordList && tDetails.wordList.datasetName !== '' ?
+					` of ${tDetails.wordList.datasetName}` : '';
+			return `${tFirstPart} ${tSecondPart}${tThirdPart}`
+		} else if (iFeature.info.kind === 'ngram') {
+			return `${(iFeature.info.details as NgramDetails).n}gram with frequency threshold of ${iFeature.info.frequencyThreshold},
+			${iFeature.info.ignoreStopWords ? '' : ' not'} ignoring stop words`
+		} else
+			return ''
 	}
 
 	addFeatureUnderConstruction() {
+		let tType = 'constructed'
+		if (this.featureUnderConstruction.info.kind === 'ngram')
+			tType = 'unigram'
+
 		this.featureUnderConstruction.inProgress = false
 		this.featureUnderConstruction.chosen = true
-		this.featureUnderConstruction.type = 'constructed'
+		this.featureUnderConstruction.type = tType
 		this.featureUnderConstruction.description = this.getDescriptionFor(this.featureUnderConstruction)
 		this.features.unshift(this.featureUnderConstruction)
-		this.featureUnderConstruction = starterFeature
+		this.featureUnderConstruction = Object.assign({}, starterFeature)
 	}
 
 }

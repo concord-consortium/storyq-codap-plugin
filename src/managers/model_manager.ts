@@ -2,7 +2,7 @@
  * The ModelManager uses information in the domain store to build a model
  */
 import {DomainStore} from "../stores/domain_store";
-import {addAttributesToTarget, deselectAllCasesIn, getCaseCount} from "../lib/codap-helper";
+import {addAttributesToTarget, deselectAllCasesIn} from "../lib/codap-helper";
 import codapInterface from "../lib/CodapInterface";
 import {oneHot} from "../lib/one_hot";
 import {runInAction} from "mobx";
@@ -23,28 +23,21 @@ export class ModelManager {
 		async function setup() {
 			await deselectAllCasesIn(tTargetDatasetName)
 			tLogisticModel.progressCallback = this_.progressBar
+			const tCases = this_.domainStore.targetStore.targetCases,
+				tColumnNames = tTargetColumnFeatureNames.concat(
+					this_.domainStore.featureStore.features.map(iFeature => {
+						return iFeature.name;
+					}))
 			// Grab the strings in the target collection that are the values of the target attribute.
 			// Stash these in an array that can be used to produce a oneHot representation
-			for (let i = 0; i < tTargetCaseCount; i++) {
-				const tGetResult: any = await codapInterface.sendRequest({
-					"action": "get",
-					"resource": `dataContext[${tTargetDatasetName}].collection[${tTargetCollectionName}].caseByIndex[${i}]`
-				})
-					.catch(() => {
-						console.log('unable to get case');
-					});
-
-				let tCaseID = tGetResult.values.case.id,
-					tText: string = tGetResult.values.case.values[tTargetAttributeName],
-					tClass: string = tGetResult.values.case.values[tTargetClassAttributeName],
-					tColumnNames = tTargetColumnFeatureNames.concat(
-						this_.domainStore.featureStore.features.map(iFeature => {
-							return iFeature.name;
-						})),
+			tCases.forEach(iCase=> {
+				const tCaseID = iCase.id,
+					tText = iCase.values[tTargetAttributeName],
+					tClass = iCase.values[tTargetClassAttributeName],
 					tColumnFeatures: { [key: string]: number | boolean } = {};
 				// We're going to put column features into each document as well so one-hot can include them in the vector
 				tColumnNames.forEach((aName) => {
-					let tValue = tGetResult.values.case.values[aName];
+					let tValue:string | number = iCase.values[aName];
 					if (['1', 'true'].indexOf(String(tValue).toLowerCase()) >= 0)
 						tValue = 1;
 					else
@@ -53,7 +46,7 @@ export class ModelManager {
 						tColumnFeatures[aName] = tValue;
 				});
 				tDocuments.push({example: tText, class: tClass, caseID: tCaseID, columnFeatures: tColumnFeatures});
-			}
+			})
 			this_.domainStore.targetStore.targetPredictedLabelAttributeName = 'predicted ' + tTargetClassAttributeName;
 			await addAttributesToTarget(tPositiveClassName, tTargetDatasetName,
 				tTargetCollectionName, this_.domainStore.targetStore.targetPredictedLabelAttributeName);
@@ -66,7 +59,6 @@ export class ModelManager {
 			tTargetColumnFeatureNames = this.domainStore.featureStore.targetColumnFeatureNames,
 			tFeatures = this.domainStore.featureStore.features,
 			tPositiveClassName = this.domainStore.targetStore.getClassName('positive'),
-			tTargetCaseCount = await getCaseCount(tTargetDatasetName, tTargetCollectionName),
 			tDocuments: {
 				example: string, class: string, caseID: number,
 				columnFeatures: { [key: string]: number | boolean }
@@ -82,6 +74,8 @@ export class ModelManager {
 				frequencyThreshold: 4,
 				ignoreStopWords: true,
 				includeUnigrams: false,
+				positiveClass: tPositiveClassName,
+				negativeClass: this.domainStore.targetStore.getClassName('negative'),
 				features: tFeatures
 			},
 			tDocuments)

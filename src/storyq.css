@@ -95,6 +95,13 @@ p {
     height: 100%;
 }
 
+.sq-feature-ngram-settings {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-evenly;
+}
+
 .sq-target-choices-panel {
     padding: 5px;
     display: flex;
