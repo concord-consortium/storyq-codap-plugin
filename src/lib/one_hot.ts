@@ -17,26 +17,35 @@
 //  limitations under the License.
 // ==========================================================================
 
-//import {on} from "cluster";
 
 import {stopWords} from "./stop_words";
-import {Feature} from "../stores/domain_store";
+import {Feature, TokenMap} from "../stores/store_types_and_constants";
 
 export const kMaxTokens = 1000;
 
 /**
  * Convert the given string into an array of lowercase words.
  */
-export const wordTokenizer = ( text:string, ignoreStopWords:boolean):string[] => {
-	let tokens:string[] = [];
-	if(text) {
+export const wordTokenizer = (text: string, ignoreStopWords: boolean): string[] => {
+	let tokens: string[] = [];
+	if (text) {
 		let tWords: RegExpMatchArray | [] = text.toLowerCase().match(/(\w+['’]{0,1}\w+)|[\u25A0-\u2BFF]/g) || [];
 		tWords.forEach((aWord) => {
-			if( !ignoreStopWords || !stopWords[aWord])
+			if (!ignoreStopWords || !stopWords[aWord])
 				tokens.push(aWord);
 		});
 	}
 	return tokens;
+}
+
+export interface OneHotConfig {
+	includeUnigrams: boolean,
+	frequencyThreshold: number,
+	ignoreStopWords: boolean,
+	positiveClass: string,
+	negativeClass: string,
+	features: Feature[],
+	tokenMap?: TokenMap
 }
 
 /**
@@ -53,62 +62,92 @@ export const wordTokenizer = ( text:string, ignoreStopWords:boolean):string[] =>
  *	 		caseIDs:number[], weight:number|null, featureCaseID:number}[]
  * }
  */
-export const oneHot = (config:{
-													includeUnigrams:boolean,
-												 	frequencyThreshold:number,
-												 	ignoreStopWords:boolean,
-													positiveClass:string,
-													negativeClass:string,
-											 		features:Feature[]},
-											 documents: { example:string, class:string, caseID:number,
-												 						columnFeatures:{[key:string]:number | boolean}, tokens?:string[] }[]
-											 ) => {
-	// Make a hash of all the tokens with their counts
-	let tokenMap: { [key:string]: { token:string, type:string, count:number,
-			index:number, numPositive:number, numNegative:number,
-			caseIDs:number[], weight:number|null, featureCaseID:number|null } } = {};	// Keeps track of counts of words
-	// Tokens are unigrams found in document examples. Column features are tokens, too!
-	documents.forEach(aDoc=>{
-		let tText = config.includeUnigrams ? aDoc.example : '',
+export const oneHot = (config: OneHotConfig,
+											 documents: {
+												 example: string, class: string, caseID: number,
+												 columnFeatures: { [key: string]: number | boolean }, tokens?: string[]
+											 }[]
+) => {
+	const tTokenMapIsPredefined = config.tokenMap && Object.keys(config).length > 0,
+		tokenMap = tTokenMapIsPredefined ? config.tokenMap : {};	// Keeps track of counts of words
+	if( !tokenMap)
+		return
+	if (tTokenMapIsPredefined) {	// Unigrams are already taken care of when the feature was added. Only constructed features remain
+		documents.forEach(aDoc => {
+			const tokens: Set<string> = new Set()
+			Object.keys(aDoc.columnFeatures).forEach(aFeature => tokens.add(aFeature));
+			tokens.forEach(aToken => {
+				if (!tokenMap[aToken]) {
+					const tFeatureCaseIDObject = config.features.find(aFeature => aFeature.name === aToken),
+						tFeatureCaseID = tFeatureCaseIDObject ? Number(tFeatureCaseIDObject.caseID) : null
+					tokenMap[aToken] = {
+						token: aToken,
+						type: 'constructed feature',
+						count: 1,
+						index: -1,
+						numPositive: 0,
+						numNegative: 0,
+						caseIDs: [],
+						weight: null,
+						featureCaseID: tFeatureCaseID
+					}
+				}
+				else
+					tokenMap[aToken].count++
+			})
+			aDoc.tokens = aDoc.tokens ? aDoc.tokens.concat(Array.from(tokens)) : Array.from(tokens)
+		})
+	} else {
+		// console.log(`config.features = ${JSON.stringify(toJS(config.features))}`)
+		documents.forEach(aDoc => {
+			const tText = config.includeUnigrams ? aDoc.example : '',
 				tokens = new Set(wordTokenizer(tText, config.ignoreStopWords));
-		// Add the column features as tokens as well
-		Object.keys( aDoc.columnFeatures).forEach( aFeature => tokens.add(aFeature));
+			// Add the column features as tokens as well
+			Object.keys(aDoc.columnFeatures).forEach(aFeature => tokens.add(aFeature));
 
-		tokens.forEach(aToken=>{
-			if(!tokenMap[aToken]) {
-				const tType = aDoc.columnFeatures[aToken] ? 'column feature' : 'unigram',
-					tFeatureCaseIDObject = config.features.find(aFeature=>aFeature.name===aToken),
-					tFeatureCaseID = tFeatureCaseIDObject ? Number(tFeatureCaseIDObject.caseID) : null
-				tokenMap[aToken] = {token: aToken, type: tType, count: 1, index: -1,
-					numPositive: 0, numNegative: 0,
-					caseIDs: [], weight: null, featureCaseID: tFeatureCaseID};
-			}
-			else
-				tokenMap[aToken].count++;
-			tokenMap[aToken].caseIDs.push( aDoc.caseID);
-			if(aDoc.class === config.positiveClass)
-				tokenMap[aToken].numPositive++
-			else
-				tokenMap[aToken].numNegative++
+			tokens.forEach(aToken => {
+				if (!tokenMap[aToken]) {
+					const tType = aDoc.columnFeatures[aToken] ? 'constructed feature' : 'unigram',
+						tFeatureCaseIDObject = config.features.find(aFeature => aFeature.name === aToken),
+						tFeatureCaseID = tFeatureCaseIDObject ? Number(tFeatureCaseIDObject.caseID) : null
+					tokenMap[aToken] = {
+						token: aToken,
+						type: tType,
+						count: 1,
+						index: -1,
+						numPositive: 0,
+						numNegative: 0,
+						caseIDs: [],
+						weight: null,
+						featureCaseID: tFeatureCaseID
+					};
+				} else
+					tokenMap[aToken].count++;
+				tokenMap[aToken].caseIDs.push(aDoc.caseID);
+				if (aDoc.class === config.positiveClass)
+					tokenMap[aToken].numPositive++
+				else
+					tokenMap[aToken].numNegative++
+			});
+			aDoc.tokens = Array.from(tokens);
 		});
-		aDoc.tokens = Array.from(tokens);
-	});
+	}
 	// Convert tokenMap to an array and sort descending
-	let tokenArray = Object.values( tokenMap).sort((aToken1, aToken2)=>{
+	let tokenArray = Object.values(tokenMap).sort((aToken1, aToken2) => {
 		return aToken2.count - aToken1.count;
 	});
 	// Only include tokens with a count above specified threshold
 	let tIndexFirstBelowThreshold = -1,
-			tThreshold = config.frequencyThreshold;
+		tThreshold = config.frequencyThreshold;
 	/*eslint-disable */
-	while( tIndexFirstBelowThreshold < 0 && tThreshold > 0) {
+	while (tIndexFirstBelowThreshold < 0 && tThreshold > 0) {
 		tIndexFirstBelowThreshold = tokenArray.findIndex((aToken) => {
 			return aToken.count <= tThreshold;
 		});
 		tThreshold--;
 	}
 	/*eslint-enable */
-	if( tIndexFirstBelowThreshold < 0)	// There were no very frequent tokens
+	if (tIndexFirstBelowThreshold < 0)	// There were no very frequent tokens
 		tIndexFirstBelowThreshold = tokenArray.length;
 	tokenArray.length = Math.min(tIndexFirstBelowThreshold, tokenArray.length, kMaxTokens);
 	const kVectorLength = tokenArray.length;
@@ -117,26 +156,26 @@ export const oneHot = (config:{
 		aToken.index = iIndex;
 	});
 	// Delete the unneeded tokens from tokenMap
-	Object.keys(tokenMap).forEach((aKey)=>{
-		if( tokenMap[aKey].index === -1)
-			delete  tokenMap[aKey];
+	Object.keys(tokenMap).forEach((aKey) => {
+		if (tokenMap[aKey].index === -1)
+			delete tokenMap[aKey];
 	});
 	// Create an array of one-hot vectors corresponding to the original document examples
 	// We have to do both the tokens in the example and the column features
-	let oneHotArray: { oneHotExample:number[], class:string }[] = documents.map(aDoc=>{
+	let oneHotArray: { oneHotExample: number[], class: string }[] = documents.map(aDoc => {
 		let tText = config.includeUnigrams ? aDoc.example : '',
-				tokens:string[] = wordTokenizer(tText, config.ignoreStopWords),
-				tVector:number[] = Array(kVectorLength).fill(0);
-		Object.keys( aDoc.columnFeatures).forEach( aFeature => tokens.push(aFeature));
-		tokens.forEach(aWord=>{
-			if(tokenMap[aWord]) {
+			tokens: string[] = wordTokenizer(tText, config.ignoreStopWords),
+			tVector: number[] = Array(kVectorLength).fill(0);
+		Object.keys(aDoc.columnFeatures).forEach(aFeature => tokens.push(aFeature));
+		tokens.forEach(aWord => {
+			if (tokenMap[aWord]) {
 				let tWordIndex = tokenMap[aWord].index;
 				if (tWordIndex >= 0 && tWordIndex < kVectorLength)
 					tVector[tWordIndex] = 1;
 			}
 		});
 
-		return { oneHotExample: tVector, class: aDoc.class };
+		return {oneHotExample: tVector, class: aDoc.class};
 	});
 	return {
 		oneHotResult: oneHotArray,

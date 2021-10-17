@@ -108,6 +108,26 @@ export const starterFeature: Feature = {
 	weight: 0
 }
 
+export interface TrainingResult {
+	name: string,
+	accuracy: number
+	kappa: number
+}
+
+export interface TokenMap {
+	[key: string]: {
+		token: string,
+		type: 'constructed feature' | 'unigram',
+		count: number,	// the number of target texts where this token is true (column feature) or found (unigram)
+		index: number,
+		numPositive: number,
+		numNegative: number,
+		caseIDs: number[],
+		weight: number | null,
+		featureCaseID: number | null
+	}
+}
+
 export class Model {
 	[index: string]: any;
 
@@ -149,11 +169,5 @@ export class Model {
 		}
 	}
 
-}
-
-export interface TrainingResult {
-	name: string,
-	accuracy: number
-	kappa: number
 }
 

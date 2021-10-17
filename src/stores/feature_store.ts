@@ -7,7 +7,7 @@ import {makeAutoObservable, toJS} from 'mobx'
 import {
 	Feature, kKindOfThingOptionText,
 	NgramDetails,
-	SearchDetails, starterFeature
+	SearchDetails, starterFeature, TokenMap
 } from "./store_types_and_constants";
 
 export class FeatureStore {
@@ -19,9 +19,14 @@ export class FeatureStore {
 		datasetID: -1
 	}
 	targetColumnFeatureNames: string[] = []
+	tokenMap:TokenMap = {}
 
 	constructor() {
-		makeAutoObservable(this, {}, {autoBind: true})
+		makeAutoObservable(this, {tokenMap: false}, {autoBind: true})
+	}
+
+	tokenMapIsFilledOut() {
+		return this.tokenMap && Object.keys(this.tokenMap).length > 0
 	}
 
 	asJSON() {
