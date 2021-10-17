@@ -29,7 +29,8 @@ export const TargetTextArea = observer(class TargetTextArea extends Component<Ta
 
 	render() {
 		let this_ = this
-		const tTextRefs = this.props.domainStore.targetStore.textRefs
+
+		// const tTextRefs = this.props.domainStore.targetStore.textRefs
 
 		function getTexts(iClassName: string) {
 			const tTargetAttr = this_.props.domainStore.targetStore.targetAttributeName
@@ -38,23 +39,21 @@ export const TargetTextArea = observer(class TargetTextArea extends Component<Ta
 				const tFilteredCases = this_.props.domainStore.targetStore.targetCases.filter(iCase => {
 					return iClassName === '' || iCase.values[tClassAttr] === iClassName
 				})
-				{
-					const tTempRef = React.createRef()
-					return (
-						<div className='sq-text-container'>
-							<div className='sq-target-texts'>
-								{tFilteredCases.slice(0, 40).map((iCase, iIndex) => {
-									const tReactRef = iClassName === '' ? tTextRefs[iIndex].ref : tTempRef
-									return <p className='sq-text-card'
-														key={iIndex}
-										/*ref={tReactRef}*/>
-										{iCase.values[tTargetAttr]}
-									</p>
-								})}
-							</div>
+				// const tTempRef = React.createRef()
+				return (
+					<div className='sq-text-container'>
+						<div className='sq-target-texts'>
+							{tFilteredCases.slice(0, 40).map((iCase, iIndex) => {
+								// const tReactRef = iClassName === '' ? tTextRefs[iIndex].ref : tTempRef
+								return <p className='sq-text-card'
+													key={iIndex}
+									/*ref={tReactRef}*/>
+									{iCase.values[tTargetAttr]}
+								</p>
+							})}
 						</div>
-					)
-				}
+					</div>
+				)
 			}
 		}
 

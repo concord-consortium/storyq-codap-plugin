@@ -45,14 +45,14 @@ export const FeaturePanel = observer(class FeaturePanel extends Component<Featur
 /*
 			let tOperation = iNotification.values.operation;
 			if (tOperation === 'dataContextCountChanged') {
-				await this.updateFeaturesDataset();
+				await this.updateNonNtigramFeaturesDataset();
 			}
 */
 		}
 	}
 
 	async updateFeaturesDataset() {
-		await this.props.domainStore.updateFeaturesDataset()
+		await this.props.domainStore.updateNonNtigramFeaturesDataset()
 	}
 
 	render() {

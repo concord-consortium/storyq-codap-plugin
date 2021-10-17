@@ -57,7 +57,7 @@ export const FeaturePane = observer(class FeaturePane extends Component<Feature_
 						if( tFeatureUnderConstruction.inProgress) {
 							await this.props.domainStore.targetStore.addOrUpdateFeatureToTarget(tFeatureUnderConstruction)
 							await this.props.domainStore.featureStore.addFeatureUnderConstruction()
-							await this.props.domainStore.updateFeaturesDataset()
+							await this.props.domainStore.updateNonNtigramFeaturesDataset()
 							await this.props.domainStore.updateNgramFeatures()
 						}
 					})}

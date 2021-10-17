@@ -5,10 +5,10 @@
 import React, {Component} from "react";
 import {
 	SearchDetails,
-	DomainStore,
 	Feature,
 	featureDescriptors, kKindOfThingOptionText
-} from "../stores/domain_store";
+} from "../stores/store_types_and_constants";
+import { DomainStore } from "../stores/domain_store";
 import {observer} from "mobx-react";
 import {UiStore} from "../stores/ui_store";
 import {TextBox} from "devextreme-react";
@@ -40,13 +40,13 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 			this.featureInfo = {subscriberIndex: -1}
 		}
 
-		async updateFeaturesDataset(iFeature: Feature) {
+		async updateNonNtigramFeaturesDataset(iFeature: Feature) {
 			if (!iFeature.inProgress) {
 				await this.props.domainStore.targetStore.addOrUpdateFeatureToTarget(iFeature, true)
 				switch (iFeature.info.kind) {
 					case 'search':
 					case 'count':
-						await this.props.domainStore.updateFeaturesDataset()
+						await this.props.domainStore.updateNonNtigramFeaturesDataset()
 						break
 					case 'ngram':
 						await this.props.domainStore.updateNgramFeatures()
@@ -66,7 +66,7 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 						placeholder="type the feature's name"
 						onValueChanged={action(async (e) => {
 							tFeature.name = e.value
-							await this_.updateFeaturesDataset(tFeature)
+							await this_.updateNonNtigramFeaturesDataset(tFeature)
 						})}
 						value={tFeature.name}
 						maxLength={20}
@@ -93,7 +93,7 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 								tFeature.info.frequencyThreshold = 4
 								tFeature.info.ignoreStopWords = true
 							}
-							await this_.updateFeaturesDataset(tFeature)
+							await this_.updateNonNtigramFeaturesDataset(tFeature)
 						})}
 					/>
 				)
@@ -110,7 +110,7 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 							style={{display: 'inline-block'}}
 							onValueChanged={action(async (e) => {
 								(tFeature.info.details as SearchDetails).what = e.value
-								await this_.updateFeaturesDataset(tFeature)
+								await this_.updateNonNtigramFeaturesDataset(tFeature)
 							})}
 						/>
 					)
@@ -127,7 +127,7 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 							placeholder="type something here"
 							onValueChanged={action(async (e) => {
 								tContainsDetails.freeFormText = e.value
-								await this_.updateFeaturesDataset(tFeature)
+								await this_.updateNonNtigramFeaturesDataset(tFeature)
 							})}
 							value={tContainsDetails.freeFormText}
 							maxLength={100}

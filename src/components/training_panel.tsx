@@ -37,7 +37,7 @@ export const TrainingPanel = observer(class TrainingPanel extends Component<Trai
 
 	async componentDidMount() {
 		this.trainingPanelInfo.subscriberIndex = codapInterface.on('notify', '*', '', this.handleNotification);
-		await this.updateFeaturesDataset();
+		await this.props.domainStore.updateNonNtigramFeaturesDataset()
 	}
 
 	async handleNotification(iNotification: CODAP_Notification) {
@@ -45,14 +45,10 @@ export const TrainingPanel = observer(class TrainingPanel extends Component<Trai
 			/*
 						let tOperation = iNotification.values.operation;
 						if (tOperation === 'dataContextCountChanged') {
-							await this.updateFeaturesDataset();
+							await this.updateNonNtigramFeaturesDataset();
 						}
 			*/
 		}
-	}
-
-	async updateFeaturesDataset() {
-		await this.props.domainStore.updateFeaturesDataset()
 	}
 
 	render() {
