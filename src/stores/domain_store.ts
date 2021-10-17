@@ -3,11 +3,11 @@
  * be accessed in more than one file or needs to be saved and restored.
  */
 
-import { openTable } from "../lib/codap-helper";
+import {openTable} from "../lib/codap-helper";
 import codapInterface from "../lib/CodapInterface";
 import TextFeedbackManager from "../managers/text_feedback_manager";
 import {oneHot} from "../lib/one_hot";
-import { Feature, kPosNegConstants } from "./store_types_and_constants";
+import {Feature, kPosNegConstants} from "./store_types_and_constants";
 import {TargetStore} from "./target_store";
 import {FeatureStore} from "./feature_store";
 import {TrainingStore} from "./training_store";
@@ -108,7 +108,7 @@ export class DomainStore {
 			tTargetDatasetName = tTargetStore.targetDatasetInfo.name,
 			tTargetCollectionName = tTargetStore.targetCollectionName
 		let resourceString: string = '',
-			tFeatureItems: { values: {type:string}, id: string }[] = [],
+			tFeatureItems: { values: { type: string }, id: string }[] = [],
 			tItemsToDelete: { values: object, id: string }[] = [],
 			tFeaturesToAdd: Feature[] = [],
 			tFeaturesToUpdate: Feature[] = []
@@ -258,6 +258,7 @@ export class DomainStore {
 	}
 
 	async updateNgramFeatures() {
+		const this_ = this
 		const tNgramFeatures = this.featureStore.features.filter(iFeature => iFeature.info.kind === 'ngram')
 		await this.guaranteeFeaturesDataset()
 		for (const iNtgramFeature of tNgramFeatures) {
@@ -283,14 +284,19 @@ export class DomainStore {
 				tPositiveAttrName = kPosNegConstants.positive.attrKey + tTargetStore.targetClassNames[tChosenClassKey],
 				tNegativeAttrName = kPosNegConstants.negative.attrKey + tTargetStore.targetClassNames[tUnchosenClassKey]
 			// tokenize the target texts
-			const tTokenArray = oneHot({
+			const tOneHotResult = oneHot({
 				frequencyThreshold: tThreshold - 1,
 				ignoreStopWords: tIgnore,
 				includeUnigrams: true,
 				positiveClass: this.targetStore.getClassName('positive'),
 				negativeClass: this.targetStore.getClassName('negative'),
 				features: []
-			}, tDocuments).tokenArray	// Array of unigram features
+			}, tDocuments)
+			if (!tOneHotResult)
+				return
+			const tTokenArray = tOneHotResult.tokenArray	// Array of unigram features
+
+			this_.featureStore.tokenMap = tOneHotResult.tokenMap
 			// Stash tokens in feature dataset
 			// if (await this.guaranteeFeaturesDataset()) {
 			const tUnigramCreateMsgs: any[] = []

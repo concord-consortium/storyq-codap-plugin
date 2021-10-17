@@ -7,6 +7,7 @@ import codapInterface from "../lib/CodapInterface";
 import {oneHot} from "../lib/one_hot";
 import {runInAction} from "mobx";
 import {computeKappa} from "../utilities/utilities";
+import {NgramDetails} from "../stores/store_types_and_constants";
 
 export class ModelManager {
 
@@ -30,14 +31,14 @@ export class ModelManager {
 					}))
 			// Grab the strings in the target collection that are the values of the target attribute.
 			// Stash these in an array that can be used to produce a oneHot representation
-			tCases.forEach(iCase=> {
+			tCases.forEach(iCase => {
 				const tCaseID = iCase.id,
 					tText = iCase.values[tTargetAttributeName],
 					tClass = iCase.values[tTargetClassAttributeName],
 					tColumnFeatures: { [key: string]: number | boolean } = {};
 				// We're going to put column features into each document as well so one-hot can include them in the vector
 				tColumnNames.forEach((aName) => {
-					let tValue:string | number = iCase.values[aName];
+					let tValue: string | number = iCase.values[aName];
 					if (['1', 'true'].indexOf(String(tValue).toLowerCase()) >= 0)
 						tValue = 1;
 					else
@@ -57,7 +58,9 @@ export class ModelManager {
 			tTargetAttributeName = this.domainStore.targetStore.targetAttributeName,
 			tTargetClassAttributeName = this.domainStore.targetStore.targetClassAttributeName,
 			tTargetColumnFeatureNames = this.domainStore.featureStore.targetColumnFeatureNames,
-			tFeatures = this.domainStore.featureStore.features,
+			tNonNgramFeatures = this.domainStore.featureStore.features.filter(iFeature => iFeature.info.kind !== 'ngram'),
+			tNgramFeatures = this.domainStore.featureStore.features.filter(iFeature => iFeature.info.kind === 'ngram'),
+			tUnigramFeature = tNgramFeatures.find(iFeature => (iFeature.info.details as NgramDetails).n === 'uni'),
 			tPositiveClassName = this.domainStore.targetStore.getClassName('positive'),
 			tDocuments: {
 				example: string, class: string, caseID: number,
@@ -70,15 +73,20 @@ export class ModelManager {
 		const tData: number[][] = [];
 
 		// Logistic can't happen until we've isolated the features and produced a oneHot representation
+		const tIgnore = tUnigramFeature && (tUnigramFeature.info.ignoreStopWords === true ||
+			tUnigramFeature.info.ignoreStopWords === false) ? tUnigramFeature.info.ignoreStopWords : true
 		let tOneHot = oneHot({
-				frequencyThreshold: 4,
-				ignoreStopWords: true,
-				includeUnigrams: false,
+				frequencyThreshold: (tUnigramFeature && (Number(tUnigramFeature.info.frequencyThreshold) - 1)) || 3,
+				ignoreStopWords: tIgnore,
+				includeUnigrams: Boolean(tUnigramFeature),
 				positiveClass: tPositiveClassName,
 				negativeClass: this.domainStore.targetStore.getClassName('negative'),
-				features: tFeatures
+				features: tNonNgramFeatures,
+				tokenMap: this.domainStore.featureStore.tokenMap
 			},
 			tDocuments)
+		if (!tOneHot)
+			return
 
 		// Column feature results get pushed on after unigrams
 
@@ -100,7 +108,7 @@ export class ModelManager {
 	progressBar(iIteration: number) {
 		const tIterations = this.domainStore.trainingStore.model.iterations,
 			this_ = this
-		runInAction(async ()=> {
+		runInAction(async () => {
 			this.domainStore.trainingStore.model.iteration = iIteration
 			if (iIteration >= tIterations) {
 				const tModel = this_.domainStore.trainingStore.model,
@@ -166,8 +174,8 @@ export class ModelManager {
 			};
 			tFeaturesValues.push(tOneFeatureUpdate);
 			// Also update in stored features
-			let tFoundFeature = tFeatures.find(iFeature=>iFeature.name === aToken.name)
-			if( tFoundFeature)
+			let tFoundFeature = tFeatures.find(iFeature => iFeature.name === aToken.name)
+			if (tFoundFeature)
 				tFoundFeature.weight = iWeights[iIndex]
 		});
 		await codapInterface.sendRequest({
@@ -190,8 +198,7 @@ export class ModelManager {
 		positiveClassName: string,
 		negativeClassName: string,
 		lockProbThreshold: boolean
-	})
-	{
+	}) {
 		const tOneHotLength = iTools.oneHotData[0].length,
 			tPosProbs: number[] = [],
 			tNegProbs: number[] = [],
@@ -241,7 +248,7 @@ export class ModelManager {
 					tNegIndex = tNegProbs.findIndex((iProb) => {
 						return iProb > 0.5;
 					});
-				if( tNegIndex === -1)
+				if (tNegIndex === -1)
 					tNegIndex = tNegLength;
 				tRecord = {
 					posIndex: tPosIndex,
@@ -280,7 +287,7 @@ export class ModelManager {
 					tRecord.negIndex = findNegIndex(tRecord.negIndex, tPosProbs[tRecord.posIndex]);
 				}
 			}
-			return  tRecord.threshold;
+			return tRecord.threshold;
 		}
 
 		// Create values of predicted label and probability for each document
@@ -307,17 +314,6 @@ export class ModelManager {
 			tPredictedPos += tPredictedLabel === iTools.positiveClassName ? 1 : 0;
 			tBothPos += (tActualLabel === iTools.positiveClassName && tPredictedLabel === iTools.positiveClassName) ? 1 : 0;
 			tBothNeg += (tActualLabel === iTools.negativeClassName && tPredictedLabel === iTools.negativeClassName) ? 1 : 0;
-
-			// For each document, stash the case ids of its features so we can link selection
-			const tFeatureIDsForThisDoc: number[] = [];
-			iTools.tokenArray.forEach((aToken: any) => {
-				if (aDoc.tokens.findIndex((iFeature: any) => {
-					return iFeature === aToken.token;
-				}) >= 0) {
-					tFeatureIDsForThisDoc.push(aToken.featureCaseID);
-				}
-			});
-			tValues.featureIDs = JSON.stringify(tFeatureIDsForThisDoc);
 
 			tLabelValues.push({
 				id: aDoc.caseID,
