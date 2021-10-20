@@ -10,9 +10,9 @@ export interface entityInfo {
  * Cases retrieved from dataset have this form
  */
 export interface Case {
-	id:number,
+	id: number,
 	values: {
-		[index:string]:string
+		[index: string]: string
 	}
 }
 
@@ -89,12 +89,13 @@ export function isAModel(iValue: any): boolean {
  * @param iFilter
  */
 export async function getDatasetInfoWithFilter(iFilter: (value: any) => boolean): Promise<entityInfo[]> {
-	let tDatasetInfoArray: entityInfo[] = [];let tContextListResult: any = await codapInterface.sendRequest({
-		"action": "get",
-		"resource": "dataContextList"
-	}).catch((reason) => {
-		console.log('unable to get datacontext list because ' + reason);
-	});
+	const tDatasetInfoArray: entityInfo[] = [],
+		tContextListResult: any = await codapInterface.sendRequest({
+			"action": "get",
+			"resource": "dataContextList"
+		}).catch((reason) => {
+			console.log('unable to get datacontext list because ' + reason);
+		});
 	tContextListResult.values.forEach((aValue: any) => {
 		if (iFilter(aValue))
 			tDatasetInfoArray.push(
@@ -107,27 +108,29 @@ export async function getDatasetInfoWithFilter(iFilter: (value: any) => boolean)
 	return tDatasetInfoArray;
 }
 
-export async function guaranteeAttribute( iAttributeInfo:{name:string, hidden:boolean},
-																					iDatasetName:string, iCollectionName:string):Promise<void> {
-	const tNamesResult:any = await codapInterface.sendRequest({
+export async function guaranteeAttribute(iAttributeInfo: { name: string, hidden: boolean },
+																				 iDatasetName: string, iCollectionName: string): Promise<void> {
+	const tNamesResult: any = await codapInterface.sendRequest({
 		action: 'get',
 		resource: `dataContext[${iDatasetName}].collection[${iCollectionName}].attributeList`
 	}).catch(reason => console.log(`Unable to get attribute names because ${reason}`))
-	if( tNamesResult.success) {
-		if(!tNamesResult.values.map((iValue: any) => iValue.name).includes(iAttributeInfo.name)){
+	if (tNamesResult.success) {
+		if (!tNamesResult.values.map((iValue: any) => iValue.name).includes(iAttributeInfo.name)) {
 			// The attribute doesn't exist, so create it
-			await codapInterface.sendRequest( {
+			await codapInterface.sendRequest({
 				action: 'create',
 				resource: `dataContext[${iDatasetName}].collection[${iCollectionName}].attribute`,
 				values: [iAttributeInfo]
-			}).catch(reason => {console.log(`could not create attribute because ${reason}`)})
+			}).catch(reason => {
+				console.log(`could not create attribute because ${reason}`)
+			})
 		}
 	}
 }
 
-export async function getAttributeNames( iDatasetName:string, iCollectionName:string):Promise<string[]> {
+export async function getAttributeNames(iDatasetName: string, iCollectionName: string): Promise<string[]> {
 	// console.log(`Begin getAttributeNames with ${iDatasetName}(${iCollectionName})`)
-	const tNamesResult:any = await codapInterface.sendRequest({
+	const tNamesResult: any = await codapInterface.sendRequest({
 		action: 'get',
 		resource: `dataContext[${iDatasetName}].collection[${iCollectionName}].attributeList`
 	}).catch(reason => console.log(`Unable to get attribute names because ${reason}`))
@@ -140,20 +143,19 @@ export async function getAttributeNames( iDatasetName:string, iCollectionName:st
  * @param iDatasetName
  * @param iCollectionName
  */
-export async function getCaseValues(iDatasetName:string,
-																		iCollectionName:string):Promise<Case[]> {
-	const tResult:any = await codapInterface.sendRequest({
+export async function getCaseValues(iDatasetName: string,
+																		iCollectionName: string): Promise<Case[]> {
+	const tResult: any = await codapInterface.sendRequest({
 		action: 'get',
 		resource: `dataContext[${iDatasetName}].collection[${iCollectionName}].caseFormulaSearch[true]`
 	}).catch(reason => console.log(`Unable to get cases in ${iDatasetName} because ${reason}`))
-	if( tResult.success) {
-		return tResult.values.map((iValue:any)=>{
+	if (tResult.success) {
+		return tResult.values.map((iValue: any) => {
 			delete iValue.parent
 			delete iValue.collections
 			return iValue
 		})
-	}
-	else
+	} else
 		return []
 }
 
@@ -269,7 +271,7 @@ export async function getAttributeNameByIndex(iDatasetName: string, iCollectionN
 	else return '';
 }
 
-export async function attributeExists(iDatasetName: string, iCollectionName: string, iAttributeName:string):Promise<boolean> {
+export async function attributeExists(iDatasetName: string, iCollectionName: string, iAttributeName: string): Promise<boolean> {
 	const tNames = await getAttributeNames(iDatasetName, iCollectionName)
 	return tNames.includes(iAttributeName)
 }

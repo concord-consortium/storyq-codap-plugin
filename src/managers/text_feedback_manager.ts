@@ -24,7 +24,6 @@ export default class TextFeedbackManager {
 		this.domainStore = iDomainStore;
 		this.headingsManager = new HeadingsManager();
 		this.subscriberIndex = codapInterface.on('notify', '*', 'selectCases', this.handleNotification);
-
 	}
 
 	async handleNotification(iNotification: CODAP_Notification) {
@@ -199,8 +198,8 @@ export default class TextFeedbackManager {
 			// @ts-ignore
 			const kLabels: ClassLabel = kHeadingsManager.classLabels;
 
-			let tGroup: string = 'blankPos',
-				tColor: string = '';
+			let tGroup: string,
+				tColor: string;
 			switch (iTriple.actual) {
 				case kLabels.negLabel:
 					switch (iTriple.predicted) {

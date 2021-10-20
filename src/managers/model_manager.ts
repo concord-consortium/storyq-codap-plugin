@@ -150,13 +150,10 @@ export class ModelManager {
 		}
 		await this.showPredictedLabels(tPredictionTools);
 
-		// await this.updateModelTopLevelInfo();
-
 		// Clean up a bit
 		delete tLogisticModel._data;
 		delete tLogisticModel._oneHot;
 		delete tLogisticModel._documents;
-		// await this.getTextFeedbackManager().addTextComponent();
 	}
 
 	async updateWeights(iTokens: any, iWeights: number[]) {

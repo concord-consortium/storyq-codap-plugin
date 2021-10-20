@@ -15,6 +15,7 @@ export class FeatureStore {
 	featureUnderConstruction: Feature = Object.assign({}, starterFeature)
 	featureDatasetInfo = {
 		datasetName: 'Features',
+		datasetTitle: 'Features',
 		collectionName: 'features',
 		datasetID: -1
 	}
@@ -65,6 +66,19 @@ export class FeatureStore {
 			${iFeature.info.ignoreStopWords ? '' : ' not'} ignoring stop words`
 		} else
 			return ''
+	}
+
+	getFeatureNames() {
+		return this.features.map(iFeature=>iFeature.name)
+	}
+
+	getConstructedFeatureNames() {
+		return this.features.filter(iFeature=>iFeature.info.kind !== 'ngram').map(iFeature=>iFeature.name)
+	}
+
+	getShouldIgnoreStopwords() {
+		const tNtigramFeature = this.features.find(iFeature=>iFeature.info.kind === 'ngram')
+		return tNtigramFeature ? tNtigramFeature.info.ignoreStopWords : true
 	}
 
 	addFeatureUnderConstruction() {

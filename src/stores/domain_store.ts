@@ -26,7 +26,7 @@ export class DomainStore {
 		this.targetStore = new TargetStore()
 		this.featureStore = new FeatureStore()
 		this.trainingStore = new TrainingStore()
-		this.testingStore = new TestingStore()
+		this.testingStore = new TestingStore(this.featureStore)
 		this.textStore = new TextStore()
 		this.textFeedbackManager = new TextFeedbackManager(this)
 	}
@@ -75,8 +75,8 @@ export class DomainStore {
 								name: tFeatureCollectionName,
 								title: tFeatureCollectionName,
 								attrs: [
-									{name: 'chosen'},
 									{name: 'name'},
+									{name: 'chosen'},
 									{name: tPositiveAttrName},
 									{name: tNegativeAttrName},
 									{name: 'type'},
@@ -91,6 +91,7 @@ export class DomainStore {
 				if (tCreateResult.success) {
 					tFeatureStore.featureDatasetInfo.datasetID = tCreateResult.values.id
 					tFeatureStore.featureDatasetInfo.datasetName = tDatasetName
+					tFeatureStore.featureDatasetInfo.datasetTitle = tCreateResult.values.title
 					openTable(tDatasetName)
 				}
 			}

@@ -114,6 +114,11 @@ export interface TrainingResult {
 	kappa: number
 }
 
+export interface TestingResult {
+	targetTitle:string, modelName:string, numPositive:number, numNegative:number,
+	accuracy:number, kappa:number
+}
+
 export interface TokenMap {
 	[key: string]: {
 		token: string,
