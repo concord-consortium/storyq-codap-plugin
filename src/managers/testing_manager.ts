@@ -74,7 +74,8 @@ export class TestingManager {
 				numPositive: 0,
 				numNegative: 0,
 				accuracy: 0,
-				kappa: 0
+				kappa: 0,
+				testHasBeenRun: true
 			}
 		let	tPhraseCount = 0
 

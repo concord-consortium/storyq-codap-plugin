@@ -125,27 +125,29 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 		}
 
 		function showResults() {
-			const tResult = this_.props.domainStore.testingStore.testingResults
-			return (
-				<div>
-					<table>
-						<thead>
-						<tr>
-							<th>Model Name</th>
-							<th>Accuracy</th>
-							<th>Kappa</th>
-						</tr>
-						</thead>
-						<tbody>
-						<tr>
-							<td>{tResult.modelName}</td>
-							<td>{tResult.accuracy.toFixed(2)}</td>
-							<td>{tResult.kappa.toFixed(2)}</td>
-						</tr>
-						</tbody>
-					</table>
-				</div>
-			)
+			if( this_.props.domainStore.testingStore.testingResults.testHasBeenRun) {
+				const tResult = this_.props.domainStore.testingStore.testingResults
+				return (
+					<div>
+						<table>
+							<thead>
+							<tr>
+								<th>Model Name</th>
+								<th>Accuracy</th>
+								<th>Kappa</th>
+							</tr>
+							</thead>
+							<tbody>
+							<tr>
+								<td>{tResult.modelName}</td>
+								<td>{tResult.accuracy.toFixed(2)}</td>
+								<td>{tResult.kappa.toFixed(2)}</td>
+							</tr>
+							</tbody>
+						</table>
+					</div>
+				)
+			}
 		}
 
 		return (

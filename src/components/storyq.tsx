@@ -32,7 +32,7 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 		private domainStore: DomainStore
 		private promptsManager: PromptsManager
 		private kPluginName = "StoryQ Studio";
-		private kVersion = "1.53";
+		private kVersion = "1.54";
 		private kInitialDimensions = {
 			width: 429,
 			height: 420

@@ -27,7 +27,7 @@ export class TestingStore {
 	testingClassAttributeName: string = ''
 	testingResults:TestingResult = {
 		targetTitle: '', modelName: '', numPositive: 0, numNegative: 0,
-		accuracy: 0, kappa: 0
+		accuracy: 0, kappa: 0, testHasBeenRun: false
 	}
 
 	constructor(iFeatureStore:FeatureStore) {

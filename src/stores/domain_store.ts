@@ -76,7 +76,7 @@ export class DomainStore {
 								title: tFeatureCollectionName,
 								attrs: [
 									{name: 'name'},
-									{name: 'chosen'},
+									{name: 'chosen', type: 'checkbox'},
 									{name: tPositiveAttrName},
 									{name: tNegativeAttrName},
 									{name: 'type'},

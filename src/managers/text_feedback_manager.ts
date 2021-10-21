@@ -31,8 +31,7 @@ export default class TextFeedbackManager {
 			tFeatureDatasetName = this.domainStore.featureStore.featureDatasetInfo.datasetName
 
 		if (iNotification.action === 'notify' && iNotification.values.operation === 'selectCases') {
-			// @ts-ignore
-			let tDataContextName: string = iNotification.resource && iNotification.resource.match(/\[(.+)]/)[1];
+			const tDataContextName = iNotification.resource && iNotification.resource.match(/\[(.+)]/)[1];
 			if (tDataContextName === tFeatureDatasetName && !this.isSelectingFeatures) {
 				this.isSelectingTargetPhrases = true;
 				await this.handleFeatureSelection();
@@ -49,8 +48,8 @@ export default class TextFeedbackManager {
 		if (!this.headingsManager) {
 			this.headingsManager = new HeadingsManager();
 		}
-		this.headingsManager.setupHeadings(this.domainStore.targetStore.getClassName('positive'),
-			this.domainStore.targetStore.getClassName('negative'),
+		this.headingsManager.setupHeadings(this.domainStore.targetStore.getClassName('negative'),
+			this.domainStore.targetStore.getClassName('positive'),
 			'', 'Actual', 'Predicted')
 		return this.headingsManager;
 	}
@@ -70,11 +69,11 @@ export default class TextFeedbackManager {
 			tTargetClassAttributeName = this.domainStore.targetStore.targetClassAttributeName,
 			tTargetPredictedLabelAttributeName = this.domainStore.targetStore.targetPredictedLabelAttributeName,
 			tTargetColumnFeatureNames = this.domainStore.featureStore.targetColumnFeatureNames,
-			tConstructedFeatureNames = this.domainStore.featureStore.features.map(iFeature => iFeature.name)
-		let tEndPhrase: string,
-			tSelectedCases = await getSelectedCasesFrom(tFeatureDatasetName);
-		let tFeatures: string[] = [],
-			tUsedIDsSet: Set<number> = new Set();
+			tConstructedFeatureNames = this.domainStore.featureStore.features.map(iFeature => iFeature.name),
+			tFeatures: string[] = [],
+			tUsedIDsSet: Set<number> = new Set(),
+			tSelectedCases = await getSelectedCasesFrom(tFeatureDatasetName)
+		let tEndPhrase: string;
 		tSelectedCases.forEach((iCase: any) => {
 			let tUsages = iCase.values.usages;
 			if (typeof tUsages === 'string' && tUsages.length > 0) {
@@ -90,7 +89,7 @@ export default class TextFeedbackManager {
 			resource: `dataContext[${tTargetDatasetName}].selectionList`,
 			values: tUsedCaseIDs
 		});
-		let tTriples: { actual: string, predicted: string, phrase: string }[] = [];
+		const tTriples: { actual: string, predicted: string, phrase: string }[] = [];
 		tEndPhrase = (tUsedCaseIDs.length > kMaxStatementsToDisplay) ? 'Not all statements could be displayed' : '';
 		const tTargetPhrasesToShow = Math.min(tUsedCaseIDs.length, kMaxStatementsToDisplay);
 		// Here is where we put the contents of the text component together
@@ -100,8 +99,8 @@ export default class TextFeedbackManager {
 				resource: `dataContext[${tTargetDatasetName}].collection[${tTargetCollectionName}].caseByID[${tUsedCaseIDs[i]}]`
 			});
 			const tActualClass = tGetCaseResult.values.case.values[tTargetClassAttributeName],
-			tPredictedClass = tGetCaseResult.values.case.values[tTargetPredictedLabelAttributeName],
-			 tPhrase = tGetCaseResult.values.case.values[tTargetAttributeName],
+				tPredictedClass = tGetCaseResult.values.case.values[tTargetPredictedLabelAttributeName],
+				tPhrase = tGetCaseResult.values.case.values[tTargetAttributeName],
 				tTriple = {actual: tActualClass, predicted: tPredictedClass, phrase: tPhrase}
 			tTriples.push((tTriple));
 		}
@@ -140,7 +139,7 @@ export default class TextFeedbackManager {
 				});
 			}
 		});
-		if( tIDsOfFeaturesToSelect.length > 0) {
+		if (tIDsOfFeaturesToSelect.length > 0) {
 			// Select the features
 			await codapInterface.sendRequest({
 				action: 'create',
@@ -152,7 +151,7 @@ export default class TextFeedbackManager {
 		let tSelectedFeatureCases: any[] = [],
 			tFeatures = new Set<string>(),
 			tFeaturesArray: string[] = []
-		if( this.domainStore.featureStore.features.length > 0) {
+		if (this.domainStore.featureStore.features.length > 0) {
 			// Get the features and stash them in a set
 			tSelectedFeatureCases = await getSelectedCasesFrom(tFeatureDatasetName)
 			tSelectedFeatureCases.forEach((iCase: any) => {
@@ -180,18 +179,14 @@ export default class TextFeedbackManager {
 	public async composeText(iPhraseTriples: PhraseTriple[], iFeatures: string[], iHighlightFunc: Function,
 													 iSpecialFeatures: string[], iEndPhrase?: string) {
 		const kHeadingsManager = this.getHeadingsManager();
-		const kProps = ['negNeg', 'negPos', 'posNeg', 'posPos', 'blankNeg', 'blankPos'];
+		const kProps = ['negNeg', 'negPos', 'negBlank', 'posNeg', 'posPos', 'posBlank', 'blankNeg', 'blankPos', 'blankBlank'];
 		// @ts-ignore
 		const kHeadings: HeadingSpec = kHeadingsManager.headings;
-		let tClassItems = {
-				negNeg: [],
-				negPos: [],
-				posNeg: [],
-				posPos: [],
-				blankNeg: [],
-				blankPos: []
-			},
-			tItems: any = [];
+		const tClassItems:{[index:string]:any[]} = {}
+		kProps.forEach(iProp=> {
+			tClassItems[iProp] = []
+		})
+		let tItems: any = [];
 
 
 		function addOnePhrase(iTriple: PhraseTriple) {
@@ -214,8 +209,8 @@ export default class TextFeedbackManager {
 							tColor = kHeadingsManager.colors.red;
 							break;
 						default:
-							tGroup = 'negPos'
-							tColor = '#000000'
+							tGroup = 'negBlank'
+							tColor = kHeadingsManager.colors.red
 					}
 					break;
 				case kLabels.posLabel:
@@ -231,8 +226,8 @@ export default class TextFeedbackManager {
 							tColor = kHeadingsManager.colors.green;
 							break;
 						default:
-							tGroup = 'posPos'
-							tColor = '#00FFFF'
+							tGroup = 'posBlank'
+							tColor = kHeadingsManager.colors.green
 					}
 					break;
 				default:
@@ -246,19 +241,19 @@ export default class TextFeedbackManager {
 							tColor = kHeadingsManager.colors.blue;
 							break;
 						default:
-							tGroup = 'blankPos'
+							tGroup = 'blankBlank'
 							tColor = '#FFFF00'
 					}
 			}
 			const tSquare = {
-				text: '■ ',
+				text: tGroup !== kProps[kProps.length - 1] ? '■ ' : '', // Don't add the square if we're in 'blankBlank'
 				color: tColor
 			}
 			// @ts-ignore
 			tClassItems[tGroup].push({
 				type: 'list-item',
 				children: [tSquare].concat(iHighlightFunc(iTriple.phrase, iFeatures, iSpecialFeatures))
-			});
+			})
 		}
 
 		iPhraseTriples.forEach(iTriple => {
