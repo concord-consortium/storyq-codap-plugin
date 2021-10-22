@@ -15,6 +15,11 @@ export class UiStore {
 		this.currentPromptKey = 'blank'
 	}
 
+	getSelectedPanelTitle() {
+		const tTitles = ['Target', 'Features', 'Training', 'Testing']
+		return tTitles[this.tabPanelSelectedIndex]
+	}
+
 	asJSON(): object {
 		return toJS(this)
 	}

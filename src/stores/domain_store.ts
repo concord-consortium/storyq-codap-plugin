@@ -13,6 +13,7 @@ import {FeatureStore} from "./feature_store";
 import {TrainingStore} from "./training_store";
 import {TestingStore} from "./testing_store";
 import {TextStore} from "./text_store";
+import {UiStore} from "./ui_store";
 
 export class DomainStore {
 	targetStore: TargetStore
@@ -20,15 +21,17 @@ export class DomainStore {
 	trainingStore: TrainingStore
 	testingStore: TestingStore
 	textStore: TextStore
+	uiStore: UiStore
 	textFeedbackManager: TextFeedbackManager
 
-	constructor() {
+	constructor(iUiStore:UiStore) {
 		this.targetStore = new TargetStore()
 		this.featureStore = new FeatureStore()
 		this.trainingStore = new TrainingStore()
 		this.testingStore = new TestingStore(this.featureStore)
 		this.textStore = new TextStore()
-		this.textFeedbackManager = new TextFeedbackManager(this)
+		this.uiStore = iUiStore
+		this.textFeedbackManager = new TextFeedbackManager(this, this.uiStore)
 	}
 
 	asJSON(): object {
@@ -353,7 +356,7 @@ export class DomainStore {
 	}
 
 	async addTextComponent() {
-		await this.textStore.addTextComponent(this.targetStore.targetAttributeName)
+		await this.textStore.addTextComponent(this.targetStore.targetDatasetInfo.title, this.targetStore.targetAttributeName)
 		await this.clearText()
 	}
 

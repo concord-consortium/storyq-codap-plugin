@@ -8,7 +8,7 @@ import {
 	entityInfo,
 	getAttributeNames,
 	getCollectionNames,
-	getDatasetInfoWithFilter
+	getDatasetInfoWithFilter, guaranteeTableOrCardIsVisibleFor
 } from "../lib/codap-helper";
 import {
 	kEmptyEntityInfo, TestingResult
@@ -60,15 +60,15 @@ export class TestingStore {
 		if (tTestingDatasetName !== '') {
 			tCollectionNames = await getCollectionNames(tTestingDatasetName)
 			tCollectionName = tCollectionNames.length > 0 ? tCollectionNames[0] : 'cases'
-			// console.log('Before getAttributeNames')
 			tAttributeNames = tCollectionName !== '' ? await getAttributeNames(tTestingDatasetName, tCollectionName) : []
 		}
-		// console.log('Before runInAction')
 		runInAction(() => {
 			this.testingDatasetInfoArray = tDatasetEntityInfoArray
 			this.testingCollectionName = tCollectionName
 			this.testingAttributeNames = tAttributeNames
 		})
+		guaranteeTableOrCardIsVisibleFor({name: tTestingDatasetName,
+			title: this.testingDatasetInfo.title, id: -1})
 	}
 
 }

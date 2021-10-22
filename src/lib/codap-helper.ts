@@ -47,6 +47,28 @@ export async function openTable(dataContextName: string) {
 	});
 }
 
+/**
+ * Find the case table or case card corresponding to the given dataset
+ * @param iDatasetInfo
+ */
+export async function guaranteeTableOrCardIsVisibleFor( iDatasetInfo:entityInfo){
+	// console.log(`In guaranteeTableOrCardIsVisibleFor ${JSON.stringify(iDatasetInfo)}`)
+	const tTableID = await getComponentByTypeAndTitle('caseTable', iDatasetInfo.title),
+		tCardID = await getComponentByTypeAndTitle('caseCard', iDatasetInfo.title),
+		tComponentID = (tTableID >= 0) ? tTableID :
+			(tCardID >= 0) ? tCardID : -1
+	// console.log(`tTableID = ${tTableID}; tCardID = ${tCardID}; tComponentID = ${tComponentID}`)
+	if( tComponentID >= 0) {
+		await codapInterface.sendRequest({
+			action: 'update',
+			resource: `component[${tComponentID}]`,
+			values: {
+				isVisible: true
+			}
+		});
+	}
+}
+
 export async function openStory(iTextComponentName: string): Promise<number> {
 	let theMessage = {
 		action: 'create',
@@ -67,7 +89,7 @@ export async function openStory(iTextComponentName: string): Promise<number> {
 			console.log(`Could not open text component`);
 			return 0;
 		});
-	console.log(`openStoryResult is ${JSON.stringify(theResult)}`);
+	// console.log(`openStoryResult is ${JSON.stringify(theResult)}`);
 	return theResult.values.id;
 }
 
@@ -82,6 +104,16 @@ export function isNotAModel(iValue: any): boolean {
  */
 export function isAModel(iValue: any): boolean {
 	return iValue.title.toLowerCase().indexOf('model') >= 0;
+}
+
+export async function datasetExists(iDatasetName:string):Promise<boolean> {
+	const tContextListResult: any = await codapInterface.sendRequest({
+		"action": "get",
+		"resource": "dataContextList"
+	}).catch((reason) => {
+		console.log('unable to get datacontext list because ' + reason);
+	});
+	return tContextListResult.values.some( (aContext:any)=>aContext.name === iDatasetName)
 }
 
 /**
@@ -286,11 +318,11 @@ export async function getComponentByTypeAndTitle(iType: string, iTitle: string):
 		.catch(() => {
 			console.log('Error getting component list')
 		});
-
+	// console.log(`tListResult = ${JSON.stringify(tListResult)}`)
 	let tID = -1;
 	if (tListResult.success) {
 		let tFoundValue = tListResult.values.find((iValue: any) => {
-			return iValue.type === 'text' && iValue.title === iTitle;
+			return iValue.type === iType && iValue.title === iTitle;
 		});
 		if (tFoundValue)
 			tID = tFoundValue.id;
@@ -312,7 +344,7 @@ export async function getIdOfCaseTableForDataContext(iDataContextName: string): 
 	let tCaseTableID;
 	if (tListResult.success) {
 		let tFoundValue = tListResult.values.find((iValue: any) => {
-			return iValue.type === 'caseTable' && iValue.title === iDataContextName;
+			return iValue.type === 'caseTable' && [iValue.title, iValue.name].includes( iDataContextName)
 		});
 		if (tFoundValue)
 			tCaseTableID = tFoundValue.id;

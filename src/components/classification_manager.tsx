@@ -313,7 +313,7 @@ export class ClassificationManager extends Component<Classification_Props, {
 					this.isSelectingTargetPhrases = false;
 				} else if (tDataContextName === this.targetDatasetInfo.name && !this.isSelectingTargetPhrases) {
 					this.isSelectingFeatures = true;
-					await this.getTextFeedbackManager().handleTargetSelection(this);
+					await this.getTextFeedbackManager().handleTextDatasetSelection(this);
 					this.isSelectingFeatures = false;
 				}
 			} else if (['titleChange', 'updateAttributes'].includes(iNotification.values.operation)) {

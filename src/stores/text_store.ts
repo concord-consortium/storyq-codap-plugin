@@ -8,7 +8,7 @@ import codapInterface from "../lib/CodapInterface";
 import pluralize from "pluralize";
 
 export class TextStore {
-	textComponentName: string = ''
+	textComponentTitle: string = ''
 	textComponentID: number = -1
 
 	constructor() {
@@ -17,14 +17,14 @@ export class TextStore {
 
 	asJSON() {
 		return {
-			textComponentName: this.textComponentName,
+			textComponentTitle: this.textComponentTitle,
 			textComponentID: this.textComponentID
 		}
 	}
 
 	fromJSON(json: any) {
 		if (json) {
-			this.textComponentName = json.textComponentName || ''
+			this.textComponentTitle = json.textComponentTitle || ''
 			this.textComponentID = json.textComponentID || -1
 		}
 	}
@@ -32,9 +32,9 @@ export class TextStore {
 	/**
 	 * Only add a text component if one with the designated name does not already exist.
 	 */
-	async addTextComponent(iAttributeName: string) {
+	async addTextComponent(iDatasetName:string, iAttributeName: string) {
 		let tFoundIt = false
-		this.textComponentName = 'Selected ' + pluralize(iAttributeName);
+		this.textComponentTitle = `Selected  ${pluralize(iAttributeName)} in ${iDatasetName}`;
 		const tListResult: any = await codapInterface.sendRequest(
 			{
 				action: 'get',
@@ -47,7 +47,7 @@ export class TextStore {
 
 		if (tListResult.success) {
 			const tFoundValue = tListResult.values.find((iValue: any) => {
-				return iValue.type === 'text' && iValue.title === this.textComponentName;
+				return iValue.type === 'text' && iValue.id === this.textComponentID;
 			});
 			if (tFoundValue) {
 				this.textComponentID = tFoundValue.id;
@@ -60,8 +60,8 @@ export class TextStore {
 				resource: 'component',
 				values: {
 					type: 'text',
-					name: this.textComponentName,
-					title: this.textComponentName,
+					name: this.textComponentTitle,
+					title: this.textComponentTitle,
 					dimensions: {
 						width: 500,
 						height: 150
@@ -102,10 +102,10 @@ export class TextStore {
 	}
 
 	async closeTextComponent() {
-		// this.textComponentName = 'Selected ' + pluralize(this.targetAttributeName);
+		// this.textComponentTitle = 'Selected ' + pluralize(this.targetAttributeName);
 		await codapInterface.sendRequest({
 			action: 'delete',
-			resource: `component[${this.textComponentName}]`
+			resource: `component[${this.textComponentTitle}]`
 		});
 	}
 

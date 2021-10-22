@@ -32,7 +32,7 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 		private domainStore: DomainStore
 		private promptsManager: PromptsManager
 		private kPluginName = "StoryQ Studio";
-		private kVersion = "1.54";
+		private kVersion = "1.56";
 		private kInitialDimensions = {
 			width: 429,
 			height: 420
@@ -42,7 +42,7 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 		constructor(props: any) {
 			super(props);
 			this.uiStore = new UiStore()
-			this.domainStore = new DomainStore()
+			this.domainStore = new DomainStore(this.uiStore)
 			this.promptsManager = new PromptsManager(this.uiStore, this.domainStore)
 			this.restorePluginFromStore = this.restorePluginFromStore.bind(this);
 			this.getPluginStore = this.getPluginStore.bind(this);

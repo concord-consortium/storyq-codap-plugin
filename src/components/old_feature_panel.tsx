@@ -278,7 +278,7 @@ export class OldFeaturePanel extends Component<FM_Props, FM_StateTypes> {
 						this.targetDatasetInfoArray.findIndex(iInfo => iInfo.name === tTargetDatasetName) >= 0 &&
 						!this.isSelectingTargetPhrases) {
 					this.isSelectingFeatures = true;
-					await this.getTextFeedbackManager().handleTargetSelection(this);
+					await this.getTextFeedbackManager().handleTextDatasetSelection(this);
 					this.isSelectingFeatures = false;
 				}
 			} else if (tOperation === 'createAttributes' || tOperation === 'updateAttributes') {
