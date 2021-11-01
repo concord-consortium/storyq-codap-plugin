@@ -2,12 +2,13 @@
  * The ModelManager uses information in the domain store to build a model
  */
 import {DomainStore} from "../stores/domain_store";
-import {addAttributesToTarget, deselectAllCasesIn} from "../lib/codap-helper";
+import {deselectAllCasesIn} from "../lib/codap-helper";
 import codapInterface from "../lib/CodapInterface";
 import {oneHot} from "../lib/one_hot";
 import {runInAction} from "mobx";
 import {computeKappa} from "../utilities/utilities";
-import {NgramDetails} from "../stores/store_types_and_constants";
+import {NgramDetails, StoredModel} from "../stores/store_types_and_constants";
+import {LogisticRegression} from "../lib/jsregression";
 
 export class ModelManager {
 
@@ -23,6 +24,7 @@ export class ModelManager {
 
 		async function setup() {
 			await deselectAllCasesIn(tTargetDatasetName)
+			tLogisticModel.reset()
 			tLogisticModel.progressCallback = this_.progressBar
 			const tCases = this_.domainStore.targetStore.targetCases,
 				tColumnNames = tTargetColumnFeatureNames.concat(
@@ -48,13 +50,9 @@ export class ModelManager {
 				});
 				tDocuments.push({example: tText, class: tClass, caseID: tCaseID, columnFeatures: tColumnFeatures});
 			})
-			this_.domainStore.targetStore.targetPredictedLabelAttributeName = 'predicted ' + tTargetClassAttributeName;
-			await addAttributesToTarget(tPositiveClassName, tTargetDatasetName,
-				tTargetCollectionName, this_.domainStore.targetStore.targetPredictedLabelAttributeName);
 		}
 
 		const tTargetDatasetName = this.domainStore.targetStore.targetDatasetInfo.name,
-			tTargetCollectionName = this.domainStore.targetStore.targetCollectionName,
 			tTargetAttributeName = this.domainStore.targetStore.targetAttributeName,
 			tTargetClassAttributeName = this.domainStore.targetStore.targetClassAttributeName,
 			tTargetColumnFeatureNames = this.domainStore.featureStore.targetColumnFeatureNames,
@@ -76,7 +74,7 @@ export class ModelManager {
 		const tIgnore = tUnigramFeature && (tUnigramFeature.info.ignoreStopWords === true ||
 			tUnigramFeature.info.ignoreStopWords === false) ? tUnigramFeature.info.ignoreStopWords : true
 		let tOneHot = oneHot({
-				frequencyThreshold: (tUnigramFeature && (Number(tUnigramFeature.info.frequencyThreshold) - 1)) || 3,
+				frequencyThreshold: (tUnigramFeature && (Number(tUnigramFeature.info.frequencyThreshold) - 1)) || 0,
 				ignoreStopWords: tIgnore,
 				includeUnigrams: Boolean(tUnigramFeature),
 				positiveClass: tPositiveClassName,
@@ -106,26 +104,49 @@ export class ModelManager {
 	}
 
 	progressBar(iIteration: number) {
-		const tIterations = this.domainStore.trainingStore.model.iterations,
+		const tModel = this.domainStore.trainingStore.model,
+			tIterations = tModel.iterations,
 			this_ = this
 		runInAction(async () => {
-			this.domainStore.trainingStore.model.iteration = iIteration
+			tModel.iteration = iIteration
 			if (iIteration >= tIterations) {
-				const tModel = this_.domainStore.trainingStore.model,
-					tLogisticModel = tModel.logisticModel,
+				const tLogisticModel = tModel.logisticModel,
 					tTrainingResults = this_.domainStore.trainingStore.trainingResults
 
 				await this_.computeResults()
 
 				tTrainingResults.push({
 					name: tModel.name,
-					accuracy: tLogisticModel.accuracy,
-					kappa: tLogisticModel.kappa
+					threshold: Number(tLogisticModel.threshold),
+					constantWeightTerm: tLogisticModel.fitResult.constantWeightTerm,
+					accuracy: tLogisticModel.accuracy || 0,
+					kappa: tLogisticModel.kappa || 0,
+					featureNames: this.domainStore.featureStore.getFeatureNames(),
+					storedModel: this.fillOutCurrentStoredModel(tLogisticModel)
 				})
 
-				this_.domainStore.trainingStore.model.trainingInProgress = false
+				tModel.reset()
 			}
 		})
+	}
+
+	fillOutCurrentStoredModel(iLogisticModel:LogisticRegression): StoredModel {
+		const this_ = this,
+			tTokenArray = iLogisticModel._oneHot.tokenArray,
+			tWeights = iLogisticModel.fitResult.theta.slice(1)	// toss the constant term
+
+		return {
+			storedTokens: tTokenArray.map((iToken: any, iIndex: number) => {
+				return {
+					featureCaseID: iToken.featureCaseID,
+					name: iToken.token,
+					formula: iToken.type !== 'unigram' ? this_.domainStore.featureStore.getFormulaFor(iToken.token) : '',
+					weight: tWeights[iIndex]
+				}
+			}),
+			positiveClassName: this.domainStore.targetStore.getClassName('positive'),
+			negativeClassName: this.domainStore.targetStore.getClassName('negative')
+		}
 	}
 
 	async computeResults() {
@@ -137,7 +158,7 @@ export class ModelManager {
 			tPositiveClassName = this.domainStore.targetStore.getClassName('positive'),
 			tNegativeClassName = this.domainStore.targetStore.getClassName('negative'),
 			tDocuments = tLogisticModel._documents;
-		await this.updateWeights(tOneHot.tokenArray, tFitResult.theta);
+		await this.updateWeights(tModel.name, tOneHot.tokenArray, tFitResult.theta);
 
 		let tPredictionTools = {
 			logisticModel: tLogisticModel,
@@ -148,24 +169,33 @@ export class ModelManager {
 			negativeClassName: tNegativeClassName,
 			lockProbThreshold: this.domainStore.trainingStore.model.usePoint5AsProbThreshold
 		}
-		await this.showPredictedLabels(tPredictionTools);
-
-		// Clean up a bit
-		delete tLogisticModel._data;
-		delete tLogisticModel._oneHot;
-		delete tLogisticModel._documents;
+		await this.showPredictedLabels(tModel.name, tPredictionTools);
 	}
 
-	async updateWeights(iTokens: any, iWeights: number[]) {
+	async updateWeights(iModelName: string, iTokens: any, iWeights: number[]) {
 		const tFeaturesValues: any[] = [],
 			tFeatureDatasetName = this.domainStore.featureStore.featureDatasetInfo.datasetName,
-			tFeatures = this.domainStore.featureStore.features,
-			tCollectionName = 'features'
+			tWeightsCollectionName = this.domainStore.featureStore.featureDatasetInfo.weightsCollectionName,
+			tFeatures = this.domainStore.featureStore.features/*,
+			tShowRequests = [{
+				action: 'update',
+				resource: `dataContext[${tFeatureDatasetName}].collection[${tWeightsCollectionName}].attribute[weight]`,
+				values: {hidden: false}
+			},
+				{
+					action: 'update',
+					resource: `dataContext[${tFeatureDatasetName}].collection[${tWeightsCollectionName}].attribute[model]`,
+					values: {hidden: false}
+				}]
+
+		// Make sure the 'weight and model name' attributes are not hidden
+		await codapInterface.sendRequest(tShowRequests)*/
+
 		iTokens.forEach((aToken: any, iIndex: number) => {
-			const tOneFeatureUpdate: any = {
-				id: aToken.featureCaseID,
+			const tOneFeatureUpdate = {
+				parent: aToken.featureCaseID,
 				values: {
-					type: aToken.type,
+					'model name': iModelName,
 					weight: iWeights[iIndex]
 				}
 			};
@@ -176,18 +206,19 @@ export class ModelManager {
 				tFoundFeature.weight = iWeights[iIndex]
 		});
 		await codapInterface.sendRequest({
-			action: 'update',
-			resource: `dataContext[${tFeatureDatasetName}].collection[${tCollectionName}].case`,
+			action: 'create',
+			resource: `dataContext[${tFeatureDatasetName}].collection[${tWeightsCollectionName}].case`,
 			values: tFeaturesValues
 		});
 	}
 
 	/**
 	 * Add attributes for predicted label and for probability. Compute and stash values.
+	 * @param iModelName
 	 * @param iTools
 	 * @private
 	 */
-	private async showPredictedLabels(iTools: {
+	private async showPredictedLabels(iModelName: string, iTools: {
 		logisticModel: any,	// Will compute probabilities
 		oneHotData: number[][],
 		documents: any,
@@ -200,7 +231,11 @@ export class ModelManager {
 			tPosProbs: number[] = [],
 			tNegProbs: number[] = [],
 			tMapFromCaseIDToProbability: any = {},
-			kProbPredAttrNamePrefix = 'probability of '
+			kProbPredAttrNamePrefix = 'probability of ',
+			tProbName = `${kProbPredAttrNamePrefix}${iTools.positiveClassName}`,
+			tPredictedLabelAttributeName = this.domainStore.targetStore.targetPredictedLabelAttributeName,
+			tTargetDatasetName = this.domainStore.targetStore.targetDatasetInfo.name,
+			tResultsCollectionName = this.domainStore.targetStore.targetResultsCollectionName
 
 		function findThreshold(): number {
 			// Determine the probability threshold that yields the fewest discrepant classifications
@@ -289,19 +324,20 @@ export class ModelManager {
 
 		// Create values of predicted label and probability for each document
 		let tThresholdResult = findThreshold(),
-			tLabelValues: { id: number, values: any }[] = [],
+			tResultCaseIDsToFill = this.domainStore.targetStore.resultCaseIDsToFill,
+			tWeAreUpdating = tResultCaseIDsToFill.length > 0,
+			tLabelValuesForCreation: { parent: number, values: any }[] = [],
+			tLabelValuesForUpdating: { id:number, values: any }[] = [],
 			tActualPos = 0,
 			tPredictedPos = 0,
 			tBothPos = 0,
 			tBothNeg = 0;
 		iTools.logisticModel.threshold = tThresholdResult;
-		iTools.documents.forEach((aDoc: any) => {
+		iTools.documents.forEach((aDoc: any, iIndex: number) => {
 			let tProbability: number,
 				tPredictedLabel,
 				tActualLabel,
-				tValues: any = {},
-				tProbName = `${kProbPredAttrNamePrefix}${iTools.positiveClassName}`,
-				tPredictedLabelAttributeName = this.domainStore.targetStore.targetPredictedLabelAttributeName;
+				tValues: any = {'model name': iModelName};
 			tProbability = tMapFromCaseIDToProbability[aDoc.caseID];
 			tPredictedLabel = tProbability > tThresholdResult ? iTools.positiveClassName : iTools.negativeClassName;
 			tValues[tPredictedLabelAttributeName] = tPredictedLabel;
@@ -312,10 +348,17 @@ export class ModelManager {
 			tBothPos += (tActualLabel === iTools.positiveClassName && tPredictedLabel === iTools.positiveClassName) ? 1 : 0;
 			tBothNeg += (tActualLabel === iTools.negativeClassName && tPredictedLabel === iTools.negativeClassName) ? 1 : 0;
 
-			tLabelValues.push({
-				id: aDoc.caseID,
-				values: tValues
-			})
+			if (tWeAreUpdating) {
+				tLabelValuesForUpdating.push({
+					id: tResultCaseIDsToFill[iIndex],
+					values: tValues
+				})
+			} else {
+				tLabelValuesForCreation.push({
+					parent: aDoc.caseID,
+					values: tValues
+				})
+			}
 		});
 
 		let computedKappa = computeKappa(iTools.documents.length, tBothPos, tBothNeg, tActualPos, tPredictedPos);
@@ -323,13 +366,20 @@ export class ModelManager {
 		iTools.logisticModel.kappa = computedKappa.kappa;
 
 		// Send the values to CODAP
-		const tTargetDatasetName = this.domainStore.targetStore.targetDatasetInfo.name,
-			tTargetCollectionName = this.domainStore.targetStore.targetCollectionName
-		await codapInterface.sendRequest({
-			action: 'update',
-			resource: `dataContext[${tTargetDatasetName}].collection[${tTargetCollectionName}].case`,
-			values: tLabelValues
-		});
+		if (tWeAreUpdating) {
+			tResultCaseIDsToFill.length = 0
+			await codapInterface.sendRequest({
+				action: 'update',
+				resource: `dataContext[${tTargetDatasetName}].collection[${tResultsCollectionName}].case`,
+				values: tLabelValuesForUpdating,
+			})
+		} else {
+			await codapInterface.sendRequest({
+				action: 'create',
+				resource: `dataContext[${tTargetDatasetName}].collection[${tResultsCollectionName}].case`,
+				values: tLabelValuesForCreation
+			})
+		}
 	}
 
 }

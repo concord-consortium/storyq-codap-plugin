@@ -6,6 +6,7 @@
 import codapInterface, {CODAP_Notification} from "../lib/CodapInterface";
 import {ClassLabel, HeadingsManager, HeadingSpec, PhraseTriple} from "./headings_manager";
 import {
+	deselectAllCasesIn,
 	getSelectedCasesFrom
 } from "../lib/codap-helper";
 import {phraseToFeatures, textToObject} from "../utilities/utilities";
@@ -76,13 +77,14 @@ export default class TextFeedbackManager {
 			tCollectionName = tUseTestingDataset ? tStore.testingCollectionName : tStore.targetCollectionName,
 			tAttributeName = tUseTestingDataset ? tStore.testingAttributeName : tStore.targetAttributeName,
 			tFeatureDatasetName = this.domainStore.featureStore.featureDatasetInfo.datasetName,
+			tFeatureCollectionName = this.domainStore.featureStore.featureDatasetInfo.collectionName,
 			tClassAttributeName = tUseTestingDataset ? tStore.testingClassAttributeName : tStore.targetClassAttributeName,
 			tPredictedLabelAttributeName = this.domainStore.targetStore.targetPredictedLabelAttributeName,
 			tColumnFeatureNames = this.domainStore.featureStore.targetColumnFeatureNames,
 			tConstructedFeatureNames = this.domainStore.featureStore.features.map(iFeature => iFeature.name),
 			tFeatures: string[] = [],
 			tUsedIDsSet: Set<number> = new Set(),
-			tSelectedCases = await getSelectedCasesFrom(tFeatureDatasetName)
+			tSelectedCases = await getSelectedCasesFrom(tFeatureDatasetName, tFeatureCollectionName)
 		let tEndPhrase: string;
 		tSelectedCases.forEach((iCase: any) => {
 			let tUsages = iCase.values.usages;
@@ -108,6 +110,7 @@ export default class TextFeedbackManager {
 				action: 'get',
 				resource: `dataContext[${tDatasetName}].collection[${tCollectionName}].caseByID[${tUsedCaseIDs[i]}]`
 			});
+			console.log(`tGetCaseResult = ${JSON.stringify(tGetCaseResult)}`)
 			const tActualClass = tGetCaseResult.values.case.values[tClassAttributeName],
 				tPredictedClass = tGetCaseResult.values.case.values[tPredictedLabelAttributeName],
 				tPhrase = tGetCaseResult.values.case.values[tAttributeName],
@@ -131,15 +134,17 @@ export default class TextFeedbackManager {
 				this.domainStore.testingStore.testingAttributeName !== '',
 			tStore = tUseTestingDataset ? this.domainStore.testingStore : this.domainStore.targetStore,
 			tDatasetName = tUseTestingDataset ? tStore.testingDatasetInfo.name : tStore.targetDatasetInfo.name,
+			tCollectionName = tUseTestingDataset ? tStore.testingCollectionName : tStore.targetCollectionName,
 			tDatasetTitle = tUseTestingDataset ? tStore.testingDatasetInfo.title : tStore.targetDatasetInfo.title,
 			tAttributeName = tUseTestingDataset ? tStore.testingAttributeName : tStore.targetAttributeName,
 			tFeatureDatasetName = this.domainStore.featureStore.featureDatasetInfo.datasetName,
+			tFeatureCollectionName = this.domainStore.featureStore.featureDatasetInfo.collectionName,
 			tClassAttributeName = tUseTestingDataset ? tStore.testingClassAttributeName : tStore.targetClassAttributeName,
 			tPredictedLabelAttributeName = this.domainStore.targetStore.targetPredictedLabelAttributeName,
 			tColumnFeatureNames = this.domainStore.featureStore.targetColumnFeatureNames,
 			tConstructedFeatureNames = this.domainStore.featureStore.features.map(iFeature => iFeature.name)
 
-		let tSelectedCases: any = await getSelectedCasesFrom(tDatasetName),
+		let tSelectedCases: any = await getSelectedCasesFrom(tDatasetName, tCollectionName),
 			tTriples: PhraseTriple[] = [],
 			tIDsOfFeaturesToSelect: number[] = [];
 		tSelectedCases.forEach((iCase: any) => {
@@ -155,6 +160,7 @@ export default class TextFeedbackManager {
 				});
 			}
 		});
+		deselectAllCasesIn(tFeatureDatasetName)
 		if (tIDsOfFeaturesToSelect.length > 0) {
 			// Select the features
 			await codapInterface.sendRequest({
@@ -169,9 +175,9 @@ export default class TextFeedbackManager {
 			tFeaturesArray: string[] = []
 		if (this.domainStore.featureStore.features.length > 0) {
 			// Get the features and stash them in a set
-			tSelectedFeatureCases = await getSelectedCasesFrom(tFeatureDatasetName)
+			tSelectedFeatureCases = await getSelectedCasesFrom(tFeatureDatasetName, tFeatureCollectionName)
 			tSelectedFeatureCases.forEach((iCase: any) => {
-				tFeatures.add(iCase.values.feature);
+				tFeatures.add(iCase.values.name);
 			});
 			tFeatures.forEach(iFeature => {
 				tFeaturesArray.push(iFeature);

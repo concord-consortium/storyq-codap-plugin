@@ -51,22 +51,22 @@ export async function openTable(dataContextName: string) {
  * Find the case table or case card corresponding to the given dataset
  * @param iDatasetInfo
  */
-export async function guaranteeTableOrCardIsVisibleFor( iDatasetInfo:entityInfo){
-	// console.log(`In guaranteeTableOrCardIsVisibleFor ${JSON.stringify(iDatasetInfo)}`)
+export async function guaranteeTableOrCardIsVisibleFor(iDatasetInfo: entityInfo) {
+	console.log(`In guaranteeTableOrCardIsVisibleFor ${JSON.stringify(iDatasetInfo)}`)
 	const tTableID = await getComponentByTypeAndTitle('caseTable', iDatasetInfo.title),
-		tCardID = await getComponentByTypeAndTitle('caseCard', iDatasetInfo.title),
-		tComponentID = (tTableID >= 0) ? tTableID :
-			(tCardID >= 0) ? tCardID : -1
-	// console.log(`tTableID = ${tTableID}; tCardID = ${tCardID}; tComponentID = ${tComponentID}`)
-	if( tComponentID >= 0) {
-		await codapInterface.sendRequest({
-			action: 'update',
-			resource: `component[${tComponentID}]`,
-			values: {
-				isVisible: true
-			}
-		});
-	}
+		tFoundTable = tTableID >= 0,
+		tType = tFoundTable ? 'caseTable' : 'caseCard'
+
+	await codapInterface.sendRequest({
+		action: 'create',
+		resource: `component`,
+		values: {
+			type: tType,
+			name: iDatasetInfo.name,
+			title: iDatasetInfo.name,
+			dataContext: iDatasetInfo.name
+		}
+	});
 }
 
 export async function openStory(iTextComponentName: string): Promise<number> {
@@ -106,14 +106,14 @@ export function isAModel(iValue: any): boolean {
 	return iValue.title.toLowerCase().indexOf('model') >= 0;
 }
 
-export async function datasetExists(iDatasetName:string):Promise<boolean> {
+export async function datasetExists(iDatasetName: string): Promise<boolean> {
 	const tContextListResult: any = await codapInterface.sendRequest({
 		"action": "get",
 		"resource": "dataContextList"
 	}).catch((reason) => {
 		console.log('unable to get datacontext list because ' + reason);
 	});
-	return tContextListResult.values.some( (aContext:any)=>aContext.name === iDatasetName)
+	return tContextListResult.values.some((aContext: any) => aContext.name === iDatasetName)
 }
 
 /**
@@ -191,7 +191,7 @@ export async function getCaseValues(iDatasetName: string,
 		return []
 }
 
-export async function getSelectedCasesFrom(iDatasetName: string | null): Promise<any[]> {
+export async function getSelectedCasesFrom(iDatasetName: string | null, iCollectionName: string): Promise<any[]> {
 	let tCasesRequest = [],
 		tSelectedCases = [],
 		tResult: any = await codapInterface.sendRequest({
@@ -199,10 +199,12 @@ export async function getSelectedCasesFrom(iDatasetName: string | null): Promise
 			resource: `dataContext[${iDatasetName}].selectionList`
 		});
 	if (tResult.success && Array.isArray(tResult.values)) {
-		tCasesRequest = tResult.values.map(function (iValue: any) {
+		const tIDsOfSelectedCasesFromCollection =
+			tResult.values.filter((iValue: any) => iValue.collectionName === iCollectionName).map((iObject: any) => iObject.caseID)
+		tCasesRequest = tIDsOfSelectedCasesFromCollection.map(function (iID: any) {
 			return {
 				action: 'get',
-				resource: `dataContext[${iDatasetName}].caseByID[${iValue.caseID}]`
+				resource: `dataContext[${iDatasetName}].caseByID[${iID}]`
 			}
 		});
 		tResult = await codapInterface.sendRequest(tCasesRequest);
@@ -256,36 +258,6 @@ export async function getCollectionNames(iDatasetName: string | null): Promise<s
 	return tListResult.values.map((aCollection: any) => {
 		return aCollection.name;
 	});
-}
-
-export async function addAttributesToTarget(iPredictionClass: string, iDatasetName: string,
-																						iCollectionName: string, iAttributeName: string) {
-	// Add the predicted label and probability attributes to the target collection
-	await codapInterface.sendRequest(
-		{
-			action: 'create',
-			resource: `dataContext[${iDatasetName}].collection[${iCollectionName}].attribute`,
-			values: [
-				{
-					name: iAttributeName,
-					description: 'The label predicted by the model'
-				},
-				{
-					name: 'probability of ' + iPredictionClass,
-					precision: 5,
-					description: 'A computed probability based on the logistic regression model'
-				},
-				{
-					name: 'featureIDs',
-					hidden: true
-				}
-			]
-		}
-	)
-		.catch(() => {
-			console.log('Error showing adding target attributes')
-		});
-
 }
 
 export async function getAttributeNameByIndex(iDatasetName: string, iCollectionName: string, iIndex: number): Promise<string> {
@@ -344,7 +316,7 @@ export async function getIdOfCaseTableForDataContext(iDataContextName: string): 
 	let tCaseTableID;
 	if (tListResult.success) {
 		let tFoundValue = tListResult.values.find((iValue: any) => {
-			return iValue.type === 'caseTable' && [iValue.title, iValue.name].includes( iDataContextName)
+			return iValue.type === 'caseTable' && [iValue.title, iValue.name].includes(iDataContextName)
 		});
 		if (tFoundValue)
 			tCaseTableID = tFoundValue.id;

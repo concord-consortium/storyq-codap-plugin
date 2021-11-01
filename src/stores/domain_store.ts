@@ -24,7 +24,7 @@ export class DomainStore {
 	uiStore: UiStore
 	textFeedbackManager: TextFeedbackManager
 
-	constructor(iUiStore:UiStore) {
+	constructor(iUiStore: UiStore) {
 		this.targetStore = new TargetStore()
 		this.featureStore = new FeatureStore()
 		this.trainingStore = new TrainingStore()
@@ -60,6 +60,7 @@ export class DomainStore {
 		const tFeatureStore = this.featureStore,
 			tDatasetName = tFeatureStore.featureDatasetInfo.datasetName,
 			tFeatureCollectionName = this.featureStore.featureDatasetInfo.collectionName,
+			tWeightsCollectionName = this.featureStore.featureDatasetInfo.weightsCollectionName,
 			tTargetStore = this.targetStore
 
 		if (tFeatureStore.features.length > 0) {
@@ -85,10 +86,18 @@ export class DomainStore {
 									{name: 'type'},
 									{name: 'description'},
 									{name: 'formula'},
-									{name: 'weight'},
 									{name: 'usages', hidden: true}
 								]
-							}]
+							},
+								{
+									name: tWeightsCollectionName,
+									title: tWeightsCollectionName,
+									parent: tFeatureCollectionName,
+									attrs: [
+										{name: 'model name', hidden: false},
+										{name: 'weight', hidden: false}
+									]
+								}]
 						}
 					})
 				if (tCreateResult.success) {
@@ -202,28 +211,35 @@ export class DomainStore {
 				)
 			}
 			if (tFeaturesToAdd.length > 0) {
+				const tValues = tFeaturesToAdd.map(iFeature => {
+					return {
+						values: {
+							chosen: iFeature.chosen,
+							name: iFeature.name,
+							'frequency in positive': iFeature.numberInPositive,
+							'frequency in negative': iFeature.numberInNegative,
+							type: iFeature.type,
+							formula: iFeature.formula,
+							description: iFeature.description,
+							usages: JSON.stringify(iFeature.usages)
+						}
+					}
+				})
 				const tCreateResult: any = await codapInterface.sendRequest(
 					{
 						action: 'create',
-						resource: `${resourceString}.item`,
-						values: tFeaturesToAdd.map(iFeature => {
-							return {
-								chosen: iFeature.chosen,
-								name: iFeature.name,
-								'frequency in positive': iFeature.numberInPositive,
-								'frequency in negative': iFeature.numberInNegative,
-								type: iFeature.type,
-								formula: iFeature.formula,
-								description: iFeature.description,
-								usages: JSON.stringify(iFeature.usages)
-							}
-						})
+						resource: `${resourceString}.collection[${tFeatureStore.featureDatasetInfo.collectionName}].case`,
+						values: tValues
 					}
 				)
 				if (tCreateResult.success) {
-					tCreateResult.caseIDs.forEach((iCaseID: string, iIndex: number) => {
-						tFeaturesToAdd[iIndex].caseID = iCaseID
-						tFeaturesToAdd[iIndex].featureItemID = tCreateResult.itemIDs[iIndex]
+					tCreateResult.values.forEach(async (iValue: any, iIndex: number) => {
+						tFeaturesToAdd[iIndex].caseID = iValue.id
+						const tGetItemResult:any = await codapInterface.sendRequest({
+							action: 'get',
+							resource: `${resourceString}.itemByCaseID[${iValue.id}]`
+						})
+						tFeaturesToAdd[iIndex].featureItemID = tGetItemResult.values.id
 					})
 				}
 			}
@@ -262,7 +278,7 @@ export class DomainStore {
 	}
 
 	async updateNgramFeatures() {
-		if( this.featureStore.tokenMapIsFilledOut())
+		if (this.featureStore.tokenMapIsFilledOut())
 			return
 		const this_ = this
 		const tNgramFeatures = this.featureStore.features.filter(iFeature => iFeature.info.kind === 'ngram')

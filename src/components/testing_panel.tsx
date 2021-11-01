@@ -116,7 +116,7 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 						className='sq-button'
 						disabled={tDisabled}
 						onClick={action(async () => {
-							this_.testingManager.classify()
+							await this_.testingManager.classify()
 						})}>
 						{tDisabled ? 'Classify' : `Classify "${tTestingAttributeName}" using model "${tChosenModelName}"`}
 					</Button>

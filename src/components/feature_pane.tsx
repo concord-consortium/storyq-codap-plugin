@@ -37,13 +37,14 @@ export const FeaturePane = observer(class FeaturePane extends Component<Feature_
 	}
 
 	getButtons() {
-		let tFeatureUnderConstruction = this.props.domainStore.featureStore.featureUnderConstruction,
+		const tFeatureUnderConstruction = this.props.domainStore.featureStore.featureUnderConstruction,
+			tInProgress = tFeatureUnderConstruction.inProgress,
 			tButtonLabel = tFeatureUnderConstruction.inProgress ? 'Cancel' : '+ Add Feature',
 			tAddButton =
 				(<Button
 						className='sq-button'
 						onClick={action(() => {
-							tFeatureUnderConstruction.inProgress = true
+							tFeatureUnderConstruction.inProgress = !tInProgress
 						})}
 					>
 						{tButtonLabel}
@@ -59,6 +60,7 @@ export const FeaturePane = observer(class FeaturePane extends Component<Feature_
 							await this.props.domainStore.featureStore.addFeatureUnderConstruction()
 							await this.props.domainStore.updateNonNtigramFeaturesDataset()
 							await this.props.domainStore.updateNgramFeatures()
+							tFeatureUnderConstruction.inProgress = false
 						}
 					})}
 				>

@@ -30,7 +30,8 @@ export class TargetStore {
 	targetCollectionName: string = ''
 	targetAttributeNames: string[] = []
 	targetAttributeName: string = ''
-	targetPredictedLabelAttributeName: string = ''
+	targetPredictedLabelAttributeName = ''
+	targetResultsCollectionName = 'results'
 	targetFeatureIDsAttributeName = 'featureIDs'
 	targetCases: Case[] = []
 	targetClassAttributeName: string = ''
@@ -38,10 +39,11 @@ export class TargetStore {
 	targetLeftColumnKey: 'left' | 'right' = 'left'
 	targetChosenClassColumnKey: 'left' | 'right' = 'left'
 	textRefs: { ownerCaseID: number, ref: React.RefObject<any> }[] = []
+	resultCaseIDsToFill:number[] = []
 
 	constructor() {
 		makeAutoObservable(this,
-			{targetCases: false, textRefs: false, targetLeftColumnKey: false},
+			{targetCases: false, textRefs: false, targetLeftColumnKey: false, resultCaseIDsToFill: false},
 			{autoBind: true})
 	}
 
@@ -52,6 +54,7 @@ export class TargetStore {
 			targetClassAttributeName: toJS(this.targetClassAttributeName),
 			targetClassNames: toJS(this.targetClassNames),
 			targetPredictedLabelAttributeName: toJS(this.targetPredictedLabelAttributeName),
+			resultCaseIDsToFill: this.resultCaseIDsToFill
 		}
 	}
 
@@ -65,6 +68,7 @@ export class TargetStore {
 		if (json.targetClassNames)
 			this.targetClassNames = json.targetClassNames
 		this.targetPredictedLabelAttributeName = json.targetPredictedLabelAttributeName || ''
+		this.resultCaseIDsToFill = json.resultCaseIDsToFill || []
 	}
 
 	getClassName(iClass: 'positive' | 'negative') {
@@ -76,6 +80,60 @@ export class TargetStore {
 
 	async updateFromCODAP(iPropName?: string | null, iValue?: any) {
 		const this_ = this
+
+		/**
+		 * The results collection is a child of the target collection and is where we show the predicted labels and
+		 * probabilities for each target text for each model
+		 */
+		async function guaranteeResultsCollection() {
+			const tTargetClassAttributeName = this_.targetClassAttributeName,
+				tPositiveClassName = this_.getClassName('positive')
+			console.log(`tTargetClassAttributeName = ${tTargetClassAttributeName}; tPositiveClassName = ${tPositiveClassName}`)
+			if( tTargetClassAttributeName !== '' && tPositiveClassName !== '') {
+				const tPredictedLabelAttributeName = this_.targetPredictedLabelAttributeName
+					const tCollectionListResult: any = await codapInterface.sendRequest({
+					action: 'get',
+					resource: `dataContext[${tTargetDatasetName}].collectionList`
+				})
+				if (tCollectionListResult.values.length === 1) {
+					const tResultsCollectionName = this_.targetResultsCollectionName
+					const tAttributeValues = [
+						{
+							name: 'model name',
+							description: 'The model used for predicting these results'
+						},
+						{
+							name: tPredictedLabelAttributeName,
+							description: 'The label predicted by the model'
+						},
+						{
+							name: 'probability of ' + tPositiveClassName,
+							precision: 5,
+							description: 'A computed probability based on the logistic regression model'
+						}
+					]
+					await codapInterface.sendRequest({
+						action: 'create',
+						resource: `dataContext[${tTargetDatasetName}].collection`,
+						values: [{
+							name: tResultsCollectionName,
+							title: tResultsCollectionName,
+							attrs: tAttributeValues
+						}]
+					}).catch(reason => {
+						console.log(`Exception in creating results collection because ${reason}`)
+					})
+
+					// This unfortunately installs an empty child case for each parent case. We store their IDs so we can delete them
+					// after we create the legitimate cases
+					const tCaseIDResult: any = await codapInterface.sendRequest({
+						action: 'get',
+						resource: `dataContext[${tTargetDatasetName}].collection[${tResultsCollectionName}].caseFormulaSearch[true]`
+					})
+					this_.resultCaseIDsToFill = tCaseIDResult.values.map((iValue: any) => Number(iValue.id))
+				}
+			}
+		}
 
 		/**
 		 * We go through the target cases to find the first two unique values of the targetClassAttributeName
@@ -99,8 +157,8 @@ export class TargetStore {
 		let tCollectionName = ''
 		let tAttrNames: string[] = []
 		let tCaseValues: Case[] = []
-		let tPositiveClassName: string = ''
-		let tNegativeClassName: string = ''
+		let tPositiveClassName = ''
+		let tNegativeClassName = ''
 		let tClassNames = {left: '', right: ''}
 		const tTargetDatasetName = this.targetDatasetInfo.name
 		if (tTargetDatasetName !== '') {
@@ -122,10 +180,12 @@ export class TargetStore {
 			this.targetClassNames = tClassNames
 			if (iPropName)
 				this[iPropName] = iValue
+			this.targetPredictedLabelAttributeName = 'predicted ' + this.targetClassAttributeName
 		})
 		if (tTargetDatasetName !== '' && this.targetCollectionName !== '') {
 			await guaranteeAttribute({name: this.targetFeatureIDsAttributeName, hidden: true},
 				tTargetDatasetName, this.targetCollectionName)
+			await guaranteeResultsCollection()
 		}
 	}
 

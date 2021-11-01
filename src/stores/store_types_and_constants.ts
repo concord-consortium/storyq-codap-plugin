@@ -26,7 +26,7 @@ export const featureDescriptors = {
 		]
 	},
 		{
-			key: "Search",
+			key: "Rules",
 			items: [
 				{name: "starts with", value: `{"kind": "search", "details": {"where": "starts with"}}`},
 				{name: "contains", value: `{"kind": "search", "details": {"where": "contains"}}`},
@@ -94,7 +94,7 @@ export const starterFeature: Feature = {
 	infoChoice: '',
 	info: {
 		kind: '',
-		details: null
+		details: { where: '', what: '', caseOption: '', freeFormText: '', wordList: {datasetName: '', firstAttributeName: ''}}
 	},
 	description: '',
 	type: '',
@@ -110,8 +110,12 @@ export const starterFeature: Feature = {
 
 export interface TrainingResult {
 	name: string,
+	threshold:number
+	constantWeightTerm:number
 	accuracy: number
 	kappa: number
+	featureNames:string[],
+	storedModel: StoredModel
 }
 
 export interface TestingResult {
@@ -142,7 +146,9 @@ export class Model {
 	lockInterceptAtZero = true
 	usePoint5AsProbThreshold = true
 	frequencyThreshold = 4
+	beingConstructed = false
 	trainingInProgress = false
+	trainingIsComplete = false
 	logisticModel: LogisticRegression = new LogisticRegression({
 		alpha: 1,
 		iterations: 20,
@@ -158,6 +164,19 @@ export class Model {
 
 	constructor() {
 		makeAutoObservable(this, {logisticModel: false}, {autoBind: true})
+	}
+
+	reset() {
+		this.name = ''
+		this.iteration = 0
+		this.iterations = 20
+		this.lockInterceptAtZero = true
+		this.usePoint5AsProbThreshold = true
+		this.frequencyThreshold = 4
+		this.beingConstructed = false
+		this.trainingInProgress = false
+		this.trainingIsComplete = false
+		this.logisticModel && this.logisticModel.reset()
 	}
 
 	asJSON() {
@@ -176,3 +195,8 @@ export class Model {
 
 }
 
+export interface StoredModel {
+	storedTokens: {featureCaseID: number, name:string, formula: string, weight:number}[],
+	positiveClassName:string,
+	negativeClassName:string
+}

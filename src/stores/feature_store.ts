@@ -17,10 +17,11 @@ export class FeatureStore {
 		datasetName: 'Features',
 		datasetTitle: 'Features',
 		collectionName: 'features',
+		weightsCollectionName: 'weights',
 		datasetID: -1
 	}
 	targetColumnFeatureNames: string[] = []
-	tokenMap:TokenMap = {}
+	tokenMap: TokenMap = {}
 
 	constructor() {
 		makeAutoObservable(this, {tokenMap: false}, {autoBind: true})
@@ -34,6 +35,7 @@ export class FeatureStore {
 		return {
 			features: toJS(this.features),
 			featureUnderConstruction: toJS(this.featureUnderConstruction),
+			tokenMap: toJS(this.tokenMap),
 			targetColumnFeatureNames: toJS(this.targetColumnFeatureNames)
 		}
 	}
@@ -42,15 +44,20 @@ export class FeatureStore {
 		if (json) {
 			this.features = json.features || []
 			this.featureUnderConstruction = json.featureUnderConstruction || starterFeature
+			this.tokenMap = json.tokenMap || {}
 			this.targetColumnFeatureNames = json.targetColumnFeatureNames || []
 		}
 	}
 
 	constructionIsDone() {
-		const tFeature = this.featureUnderConstruction
-		const tDetails = this.featureUnderConstruction.info.details as SearchDetails
-		return (tDetails === null) || ([tFeature.name, tFeature.info.kind, tDetails.where, tDetails.what].every(iString => iString !== '') &&
-			((tDetails.what !== kKindOfThingOptionText || tDetails.freeFormText !== '')))
+		const tFeature = this.featureUnderConstruction,
+			tDetails = this.featureUnderConstruction.info.details as SearchDetails,
+			tNameAndKindOK = [tFeature.name, tFeature.info.kind].every(iString => iString !== ''),
+			tDoneNgram = tNameAndKindOK && tFeature.info.kind === 'ngram',
+			tDoneSearch = tNameAndKindOK && tFeature.info.kind === 'search' &&
+				[tDetails.where, tDetails.what].every(iString => iString !== '') &&
+				(tDetails.what !== kKindOfThingOptionText || tDetails.freeFormText !== '')
+		return tDoneNgram || tDoneSearch
 	}
 
 	getDescriptionFor(iFeature: Feature) {
@@ -69,15 +76,22 @@ export class FeatureStore {
 	}
 
 	getFeatureNames() {
-		return this.features.map(iFeature=>iFeature.name)
+		return this.features.map(iFeature => iFeature.name)
+	}
+
+	getFormulaFor(iFeatureName:string) {
+		const tFoundObject = this.features.find(iFeature=>{
+			return iFeature.name === iFeatureName && iFeature.formula !== ''
+		})
+		return tFoundObject ? tFoundObject.formula : ''
 	}
 
 	getConstructedFeatureNames() {
-		return this.features.filter(iFeature=>iFeature.info.kind !== 'ngram').map(iFeature=>iFeature.name)
+		return this.features.filter(iFeature => iFeature.info.kind !== 'ngram').map(iFeature => iFeature.name)
 	}
 
 	getShouldIgnoreStopwords() {
-		const tNtigramFeature = this.features.find(iFeature=>iFeature.info.kind === 'ngram')
+		const tNtigramFeature = this.features.find(iFeature => iFeature.info.kind === 'ngram')
 		return tNtigramFeature ? tNtigramFeature.info.ignoreStopWords : true
 	}
 

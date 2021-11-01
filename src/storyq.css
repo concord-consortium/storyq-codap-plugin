@@ -196,12 +196,19 @@ p {
     margin-left: 20px!important;
 }
 
+.sq-indent ul {
+    margin-block-start: 0;
+    margin-block-end: 5px;
+}
+
 .sq-fc-part {
     margin: 5px;
 }
 
 .sq-button {
     margin-left: 0 !important;
+    margin-top: 5px;
+    margin-bottom: 5px;
 }
 
 .sq-info-prompt {
