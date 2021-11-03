@@ -69,7 +69,7 @@ export default class TextFeedbackManager {
 		const tUseTestingDataset = this.uiStore.getSelectedPanelTitle() === 'Testing' &&
 				this.domainStore.testingStore.testingDatasetInfo.name !== '' &&
 				this.domainStore.testingStore.testingAttributeName !== '' &&
-				this.domainStore.testingStore.testingResults.testHasBeenRun,
+				!this.domainStore.testingStore.currentTestingResults.testBeingConstructed,
 			tStore = tUseTestingDataset ? this.domainStore.testingStore : this.domainStore.targetStore,
 			kMaxStatementsToDisplay = 40,
 			tDatasetName = tUseTestingDataset ? tStore.testingDatasetInfo.name : tStore.targetDatasetInfo.name,

@@ -26,6 +26,7 @@ export class ModelManager {
 			await deselectAllCasesIn(tTargetDatasetName)
 			tLogisticModel.reset()
 			tLogisticModel.progressCallback = this_.progressBar
+			tLogisticModel.lockIntercept = this_.domainStore.trainingStore.model.lockInterceptAtZero
 			const tCases = this_.domainStore.targetStore.targetCases,
 				tColumnNames = tTargetColumnFeatureNames.concat(
 					this_.domainStore.featureStore.features.map(iFeature => {
@@ -122,6 +123,7 @@ export class ModelManager {
 					accuracy: tLogisticModel.accuracy || 0,
 					kappa: tLogisticModel.kappa || 0,
 					featureNames: this.domainStore.featureStore.getFeatureNames(),
+					hasNgram: this.domainStore.featureStore.hasNgram(),
 					storedModel: this.fillOutCurrentStoredModel(tLogisticModel)
 				})
 
@@ -133,7 +135,7 @@ export class ModelManager {
 	fillOutCurrentStoredModel(iLogisticModel:LogisticRegression): StoredModel {
 		const this_ = this,
 			tTokenArray = iLogisticModel._oneHot.tokenArray,
-			tWeights = iLogisticModel.fitResult.theta.slice(1)	// toss the constant term
+			tWeights = iLogisticModel.fitResult.theta	// toss the constant term
 
 		return {
 			storedTokens: tTokenArray.map((iToken: any, iIndex: number) => {

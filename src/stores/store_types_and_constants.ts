@@ -115,12 +115,13 @@ export interface TrainingResult {
 	accuracy: number
 	kappa: number
 	featureNames:string[],
+	hasNgram:boolean,
 	storedModel: StoredModel
 }
 
 export interface TestingResult {
-	targetTitle:string, modelName:string, numPositive:number, numNegative:number,
-	accuracy:number, kappa:number, testHasBeenRun:boolean
+	modelName:string, targetDatasetName:string, targetDatasetTitle:string, numPositive:number, numNegative:number,
+	accuracy:number, kappa:number, testBeingConstructed:boolean
 }
 
 export interface TokenMap {
@@ -155,6 +156,7 @@ export class Model {
 		lambda: 0.0,
 		accuracy: 0,
 		kappa: 0,
+		lockIntercept: true,
 		threshold: 0.5,
 		trace: false,
 		progressCallback: null,

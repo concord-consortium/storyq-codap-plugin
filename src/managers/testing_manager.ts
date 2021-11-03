@@ -14,19 +14,6 @@ import {wordTokenizer} from "../lib/one_hot";
 import {TestingResult} from "../stores/store_types_and_constants";
 import {computeKappa} from "../utilities/utilities";
 
-interface ClassificationModel {
-	features: string[],
-	weights: number[],
-	caseIDs: number[],
-	usages: number[][],
-	labels: string[],
-	positiveLabel: string,
-	modelColumnFeatures: string[],
-	threshold: number,
-	constantWeightTerm: number,
-	predictor: any
-}
-
 export class TestingManager {
 
 	domainStore: DomainStore
@@ -39,108 +26,88 @@ export class TestingManager {
 
 	async classify() {
 		const this_ = this,
-			tModel: ClassificationModel = {
-				features: [],
-				weights: [],
-				caseIDs: [],
-				labels: [],
-				positiveLabel: '',
-				modelColumnFeatures: [],
-				usages: [],
-				threshold: 0.5,
-				constantWeightTerm: 0,
-				predictor: null
-			},
-			tLabelValues: { id: number, values: any }[] = []
-
-		const
-			kProbPredAttrNamePrefix = 'probability of ',
-			tTestingDatasetName = this.domainStore.testingStore.testingDatasetInfo.name,
-			tTestingCollectionName = this.domainStore.testingStore.testingCollectionName,
 			tChosenModelName = this.domainStore.testingStore.chosenModelName,
-			tTestingAttributeName = this.domainStore.testingStore.testingAttributeName,
-			tClassAttributeName = this.domainStore.testingStore.testingClassAttributeName,
-			tFeatureDatasetName = this_.domainStore.featureStore.featureDatasetInfo.datasetName,
-			tFeatureCollectionName = this_.domainStore.featureStore.featureDatasetInfo.collectionName,
-			tFeatures = this.domainStore.featureStore.features,
-			tPositiveClassName = this.domainStore.targetStore.getClassName('positive'),
-			tNegativeClassName = this.domainStore.targetStore.getClassName('negative'),
-			tPredictedLabelAttributeName = this_.domainStore.targetStore.targetPredictedLabelAttributeName,
+			tTrainingResult = this.domainStore.trainingStore.getTrainingResultByName(tChosenModelName),
+			tStoredModel = tTrainingResult ? tTrainingResult.storedModel : null,
+			tPositiveClassName = tStoredModel ? tStoredModel.positiveClassName : '',
+			tNegativeClassName = tStoredModel ? tStoredModel.negativeClassName : '',
+			tTokens = tStoredModel ? tStoredModel.storedTokens : [],
+			kProbPredAttrNamePrefix = 'probability of ',
+			tTestingStore = this.domainStore.testingStore,
+			tTestingDatasetName = tTestingStore.testingDatasetInfo.name,
+			tTestingDatasetTitle = tTestingStore.testingDatasetInfo.title,
+			tTestingCollectionName = tTestingStore.testingCollectionName,
+			tTestingAttributeName = tTestingStore.testingAttributeName,
+			tClassAttributeName = tTestingStore.testingClassAttributeName,
 			tTargetPredictedProbabilityName = kProbPredAttrNamePrefix + tPositiveClassName,
+			tTargetPredictedLabelAttributeName = this.domainStore.targetStore.targetPredictedLabelAttributeName,
+			tTargetFeatureIDsAttributeName = this_.domainStore.targetStore.targetFeatureIDsAttributeName,
+			tLabelValues:{id:number, values:any}[] = [],
 			tMatrix = {posPos: 0, negPos: 0, posNeg: 0, negNeg: 0},
-			tTestingResults:TestingResult ={
-				targetTitle: tTestingDatasetName,
+			tTestingResults: TestingResult = {
+				targetDatasetName: tTestingDatasetName,
+				targetDatasetTitle: tTestingDatasetTitle,
 				modelName: tChosenModelName,
 				numPositive: 0,
 				numNegative: 0,
 				accuracy: 0,
 				kappa: 0,
-				testHasBeenRun: true
-			}
-		let	tPhraseCount = 0
+				testBeingConstructed: false
+			},
+			tWeights = tTokens.map(iToken => iToken.weight),
+			tPredictor = tTrainingResult ?
+				new LogitPrediction(tTrainingResult.constantWeightTerm, tWeights, tTrainingResult.threshold) : null
+		let tPhraseCount = 0
 
 		async function installFeatureAndPredictionAttributes() {
 			const tAttributeRequests: object[] = []
-			tFeatures.forEach(async (iFeature) => {
-				const tAttributeAlreadyExists = await attributeExists(tTestingDatasetName, tTestingCollectionName, iFeature.name)
-				if (iFeature.formula !== '' && !tAttributeAlreadyExists) {
-					tAttributeRequests.push({
-						name: iFeature.name,
-						title: iFeature.name,
-						formula: iFeature.formula
-					})
+			if (tTokens) {
+				tTokens.forEach(async (iToken) => {
+					if (iToken.formula !== '') {
+						const tAttributeAlreadyExists = await attributeExists(tTestingDatasetName, tTestingCollectionName, iToken.name)
+						if (!tAttributeAlreadyExists)
+							tAttributeRequests.push({
+								name: iToken.name,
+								title: iToken.name,
+								formula: iToken.formula
+							})
+					}
+				})
+				const tLabelExists = await attributeExists(tTestingDatasetName, tTestingCollectionName,
+					tTargetPredictedLabelAttributeName)
+				if (!tLabelExists) {
+					tAttributeRequests.push(
+						{
+							name: tTargetPredictedLabelAttributeName,
+							description: 'The label predicted by the model'
+						})
+					tAttributeRequests.push(
+						{
+							name: tTargetPredictedProbabilityName,
+							description: 'The probability predicted by the model that the classification is positive',
+							precision: 5
+						})
 				}
-			})
-			const tLabelExists = await attributeExists(tTestingDatasetName, tTestingCollectionName,
-				this_.domainStore.targetStore.targetPredictedLabelAttributeName)
-			if (!tLabelExists) {
-				tAttributeRequests.push(
-					{
-						name: tPredictedLabelAttributeName,
-						description: 'The label predicted by the model'
-					})
-				tAttributeRequests.push(
-					{
-						name: tTargetPredictedProbabilityName,
-						description: 'The probability predicted by the model that the classification is positive',
-						precision: 5
-					})
+				const tFeatureIDsAttributeExists = await attributeExists(tTestingDatasetName, tTestingCollectionName,
+					this_.domainStore.targetStore.targetFeatureIDsAttributeName)
+				if (!tFeatureIDsAttributeExists)
+					tAttributeRequests.push(
+						{
+							name: tTargetFeatureIDsAttributeName,
+							hidden: true
+						})
+
+				await codapInterface.sendRequest({
+					action: 'create',
+					resource: `dataContext[${tTestingDatasetName}].collection[${tTestingCollectionName}].attribute`,
+					values: tAttributeRequests
+				})
 			}
-			const tFeatureIDsAttributeExists = await attributeExists(tTestingDatasetName, tTestingCollectionName,
-				this_.domainStore.targetStore.targetFeatureIDsAttributeName)
-			if( !tFeatureIDsAttributeExists)
-				tAttributeRequests.push(
-					{
-						name: this_.domainStore.targetStore.targetFeatureIDsAttributeName,
-						hidden: true
-					})
-
-			await codapInterface.sendRequest({
-				action: 'create',
-				resource: `dataContext[${tTestingDatasetName}].collection[${tTestingCollectionName}].attribute`,
-				values: tAttributeRequests
-			})
-		}
-
-		async function initializeModel() {
-			const tFeatureCases = await getCaseValues( tFeatureDatasetName, tFeatureCollectionName)
-			tFeatureCases.forEach(iFeatureCase=>{
-				tModel.features.push(iFeatureCase.values['name'])
-				tModel.weights.push(Number(iFeatureCase.values['weight']))
-				tModel.caseIDs.push(iFeatureCase.id)
-				tModel.usages.push([]);
-			})
-			Object.assign(tModel, {
-				labels: [tNegativeClassName, tPositiveClassName],
-				positiveLabel: tPositiveClassName,
-				modelColumnFeatures: this_.domainStore.featureStore.getConstructedFeatureNames(),
-				threshold: tModel.threshold,
-				constantWeightTerm: tModel.constantWeightTerm,
-				predictor: new LogitPrediction(tModel.constantWeightTerm, tModel.weights, tModel.threshold)
-			})
 		}
 
 		async function classifyEachPhrase() {
+			if (!tStoredModel || !tPredictor)
+				return
 			const tTestCases = await getCaseValues(tTestingDatasetName, tTestingCollectionName)
 			tPhraseCount = tTestCases.length
 			tTestCases.forEach(iCase => {
@@ -148,44 +115,45 @@ export class TestingManager {
 					tPhrase = iCase.values[tTestingAttributeName],
 					tActual = tClassAttributeName === this_.kNonePresent ? '' :
 						iCase.values[tClassAttributeName],
-					tGiven = Array(tModel.features.length).fill(0),
+					tGiven = Array(tTokens.length).fill(0),
 					tFeatureIDs: number[] = [];
-				// Find the index of each feature the phrase
-				wordTokenizer(tPhrase, Boolean(this_.domainStore.featureStore.getShouldIgnoreStopwords())).forEach((iFeature) => {
-					let tIndex = tModel.features.indexOf(iFeature);
-					if (tIndex >= 0) {	// We've found a feature
-						// Mark it in the array
-						tGiven[tIndex] = 1;
-						// Add the case ID to the list of featureIDs for this phrase
-						tFeatureIDs.push(tModel.caseIDs[tIndex]);
-						tModel.usages[tIndex].push(tPhraseID);
-					}
-				});
-				// The column features are names of attributes we expect to find having values true or false
-				tModel.modelColumnFeatures.forEach(iFeature => {
-					if (iCase.values[iFeature]) {
-						let tIndex = tModel.features.indexOf(iFeature);
-						if (tIndex >= 0) {
+				if (tTrainingResult && tTrainingResult.hasNgram) {
+					// Find the index of each feature in the phrase
+					wordTokenizer(tPhrase, false).forEach((iWord) => {
+						let tIndex = tTokens.findIndex(iToken => iToken.name === iWord);
+						if (tIndex >= 0) {	// We've found a feature
 							// Mark it in the array
 							tGiven[tIndex] = 1;
 							// Add the case ID to the list of featureIDs for this phrase
-							tFeatureIDs.push(tModel.caseIDs[tIndex]);
-							tModel.usages[tIndex].push(tPhraseID);
+							tFeatureIDs.push(tStoredModel.storedTokens[tIndex].featureCaseID);
+							// tModel.usages[tIndex].push(tPhraseID);
+						}
+					})
+				}
+				// The column features are names of attributes we expect to find having values true or false
+				tTokens.forEach((iToken, iIndex) => {
+					if (iToken.formula !== '') {
+						if (iCase.values[iToken.name]) {
+							// Mark it in the array
+							tGiven[iIndex] = 1;
+							// Add the case ID to the list of featureIDs for this phrase
+							tFeatureIDs.push(iToken.featureCaseID);
+							// tModel.usages[tIndex].push(tPhraseID);
 						}
 					}
 				});
-				let tCaseValues: { [key: string]: string } = {},
-					tPrediction = tModel.predictor.predict(tGiven);
-				tCaseValues[tPredictedLabelAttributeName] = tPrediction.class ?
+				let tCaseValues: { [key: string]: string | number } = {},
+					tPrediction = tPredictor.predict(tGiven);
+				tCaseValues[tTargetPredictedLabelAttributeName] = tPrediction.class ?
 					tPositiveClassName : tNegativeClassName;
 				tCaseValues[tTargetPredictedProbabilityName] = tPrediction.probability;
-				tCaseValues[this_.domainStore.targetStore.targetFeatureIDsAttributeName] = JSON.stringify(tFeatureIDs);
+				tCaseValues[tTargetFeatureIDsAttributeName] = JSON.stringify(tFeatureIDs);
 				tLabelValues.push({
-					id: iCase.id,
+					id: tPhraseID,
 					values: tCaseValues
 				});
 				// Increment results
-				let tActualBool = tActual === tModel.positiveLabel;
+				let tActualBool = tActual === tPositiveClassName;
 				if (tPrediction.class) {
 					tTestingResults.numPositive++;
 					if (tActualBool)
@@ -209,6 +177,7 @@ export class TestingManager {
 				values: tLabelValues
 			});
 			// Add the usages to each feature case
+/*
 			let tFeatureUpdates = tModel.caseIDs.map((iID, iIndex) => {
 				return {
 					id: iID,
@@ -220,23 +189,32 @@ export class TestingManager {
 				resource: `dataContext[${tFeatureDatasetName}].collection[${tFeatureCollectionName}].case`,
 				values: tFeatureUpdates
 			});
+*/
 			if (tClassAttributeName !== '') {
-				let computedKappa = computeKappa( tPhraseCount, tMatrix.posPos, tMatrix.negNeg,
+				let computedKappa = computeKappa(tPhraseCount, tMatrix.posPos, tMatrix.negNeg,
 					tMatrix.posPos + tMatrix.posNeg, tMatrix.posPos + tMatrix.negPos);
 				tTestingResults.accuracy = Number(computedKappa.observed.toFixed(3));
 				tTestingResults.kappa = Number(computedKappa.kappa.toFixed(3));
 			}
-			console.log(`tTestingResults = ${JSON.stringify(tTestingResults)}; tMatrix = ${JSON.stringify(tMatrix)}`)
 		}
 
+		if (!tTrainingResult) {
+			console.log(`Unable to use ${tChosenModelName} to classify ${tTestingDatasetName}`)
+			return
+		}
 		await deselectAllCasesIn(tTestingDatasetName)
 		await installFeatureAndPredictionAttributes()
-		initializeModel()
 		await classifyEachPhrase()
 		await updateTargetAndFeatures()
-		action(()=>{
-			this.domainStore.testingStore.testingResults = tTestingResults
-			console.log(`In action: tTestingResults = ${JSON.stringify(tTestingResults)}`)
+		action(() => {
+			tTestingStore.testingResultsArray.push(tTestingResults)
+			tTestingStore.currentTestingResults = tTestingStore.emptyTestingResults()
+			tTestingStore.testingDatasetInfo.name = ''
+			tTestingStore.testingDatasetInfo.title = ''
+			tTestingStore.chosenModelName = ''
+			tTestingStore.testingCollectionName = ''
+			tTestingStore.testingAttributeName = ''
+			tTestingStore.testingClassAttributeName = ''
 		})()
 	}
 }

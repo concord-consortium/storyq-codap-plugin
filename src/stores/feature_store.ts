@@ -95,6 +95,10 @@ export class FeatureStore {
 		return tNtigramFeature ? tNtigramFeature.info.ignoreStopWords : true
 	}
 
+	hasNgram() {
+		return Boolean(this.features.find(iFeature => iFeature.info.kind === 'ngram'))
+	}
+
 	addFeatureUnderConstruction() {
 		let tType = 'constructed'
 		if (this.featureUnderConstruction.info.kind === 'ngram')

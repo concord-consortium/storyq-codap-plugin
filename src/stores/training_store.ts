@@ -28,4 +28,8 @@ export class TrainingStore {
 			this.trainingResults = json.trainingResults || []
 		}
 	}
+
+	getTrainingResultByName(iModelName:string) {
+		return this.trainingResults.find(iResult=>iResult.name === iModelName)
+	}
 }

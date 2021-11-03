@@ -25,14 +25,25 @@ export class TestingStore {
 	testingAttributeNames: string[] = []
 	testingAttributeName: string = ''
 	testingClassAttributeName: string = ''
-	testingResults:TestingResult = {
-		targetTitle: '', modelName: '', numPositive: 0, numNegative: 0,
-		accuracy: 0, kappa: 0, testHasBeenRun: false
-	}
+	currentTestingResults:TestingResult
+	testingResultsArray:TestingResult[] = []
 
 	constructor(iFeatureStore:FeatureStore) {
 		makeAutoObservable(this, {featureStore: false}, {autoBind: true})
 		this.featureStore = iFeatureStore
+		this.currentTestingResults = this.emptyTestingResults()
+	}
+
+	emptyTestingResults():TestingResult {
+		return {
+			targetDatasetName: '', targetDatasetTitle: '', modelName: '', numPositive: 0, numNegative: 0,
+			accuracy: 0, kappa: 0, testBeingConstructed: false
+		}
+	}
+
+	prepareForConstruction() {
+		this.currentTestingResults = this.emptyTestingResults()
+		this.currentTestingResults.testBeingConstructed = true
 	}
 
 	asJSON() {

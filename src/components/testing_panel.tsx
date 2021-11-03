@@ -53,96 +53,131 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 	}
 
 	render() {
-		const this_ = this
+		const this_ = this,
+			tTestingStore = this.props.domainStore.testingStore,
+			tReadyForNewTest = !tTestingStore.currentTestingResults.testBeingConstructed
+
+		function getNewTestButton() {
+			if (tReadyForNewTest) {
+				return (
+					<div className='sq-training-buttons'>
+						<Button
+							className='sq-button'
+							onClick={action(async () => {
+								this_.props.domainStore.testingStore.prepareForConstruction()
+							})}>
+							+ NewTest
+						</Button>
+					</div>
+				)
+			}
+		}
 
 		function getModelChoice() {
-			const tModelChoices = this_.props.domainStore.trainingStore.trainingResults.map(iResult => iResult.name)
-			return choicesMenu('Choose a model to test', 'Choose a model', tModelChoices,
-				this_.props.domainStore.testingStore.chosenModelName, async (iChoice) => {
-					this_.props.domainStore.testingStore.chosenModelName = iChoice
-					await this_.updateCodapInfo()
-				})
+			if (!tReadyForNewTest) {
+				const tModelChoices = this_.props.domainStore.trainingStore.trainingResults.map(iResult => iResult.name)
+				return choicesMenu('Choose a model to test', 'Choose a model', tModelChoices,
+					this_.props.domainStore.testingStore.chosenModelName, async (iChoice) => {
+						this_.props.domainStore.testingStore.chosenModelName = iChoice
+						await this_.updateCodapInfo()
+					})
+			}
 		}
 
 		function getTestingDatasetChoice() {
-			const tDatasetInfoArray = this_.props.domainStore.testingStore.testingDatasetInfoArray,
-				tDatasetNames = tDatasetInfoArray.map(iEntity => iEntity.title)
-			return choicesMenu('Choose a dataset to classify', 'Choose a dataset', tDatasetNames,
-				this_.props.domainStore.testingStore.testingDatasetInfo.title,
-				async (iChoice) => {
-					const tChosenInfo = tDatasetInfoArray.find(iInfo => iInfo.title === iChoice)
-					if (tChosenInfo)
-						this_.props.domainStore.testingStore.testingDatasetInfo = tChosenInfo
-					await this_.updateCodapInfo()
-				})
+			if (!tReadyForNewTest) {
+				const tDatasetInfoArray = tTestingStore.testingDatasetInfoArray,
+					tDatasetNames = tDatasetInfoArray.map(iEntity => iEntity.title)
+				return choicesMenu('Choose a dataset to classify', 'Choose a dataset', tDatasetNames,
+					tTestingStore.testingDatasetInfo.title,
+					async (iChoice) => {
+						const tChosenInfo = tDatasetInfoArray.find(iInfo => iInfo.title === iChoice)
+						if (tChosenInfo)
+							tTestingStore.testingDatasetInfo = tChosenInfo
+						await this_.updateCodapInfo()
+					})
+			}
 		}
 
 		function getTestingAttributeChoice() {
-			if (this_.props.domainStore.testingStore.testingDatasetInfo.title !== '') {
-				const tAttributeNames = this_.props.domainStore.testingStore.testingAttributeNames
+			if (!tReadyForNewTest && tTestingStore.testingDatasetInfo.title !== '') {
+				const tAttributeNames = tTestingStore.testingAttributeNames
 				return choicesMenu('Choose the column with texts', 'Choose a column', tAttributeNames,
-					this_.props.domainStore.testingStore.testingAttributeName,
+					tTestingStore.testingAttributeName,
 					async (iChoice) => {
-						this_.props.domainStore.testingStore.testingAttributeName = iChoice
+						tTestingStore.testingAttributeName = iChoice
 						await this_.updateCodapInfo()
 					})
 			}
 		}
 
 		function getClassAttributeChoice() {
-			if (this_.props.domainStore.testingStore.testingDatasetInfo.title !== '') {
-				const tAttributeNames: string[] = toJS(this_.props.domainStore.testingStore.testingAttributeNames)
+			if (!tReadyForNewTest && tTestingStore.testingDatasetInfo.title !== '') {
+				const tAttributeNames: string[] = toJS(tTestingStore.testingAttributeNames)
 				tAttributeNames.unshift(this_.kNonePresent)
 				return choicesMenu('Choose the column with class labels', 'Choose a column', tAttributeNames,
-					this_.props.domainStore.testingStore.testingClassAttributeName,
+					tTestingStore.testingClassAttributeName,
 					async (iChoice: string) => {
-						this_.props.domainStore.testingStore.testingClassAttributeName = iChoice
+						tTestingStore.testingClassAttributeName = iChoice
 						await this_.updateCodapInfo()
 					})
 			}
 		}
 
 		function getButtons() {
-			const
-				tTestingDatasetName = this_.props.domainStore.testingStore.testingDatasetInfo.title,
-				tChosenModelName = this_.props.domainStore.testingStore.chosenModelName,
-				tTestingAttributeName = this_.props.domainStore.testingStore.testingAttributeName,
-				tTestingClassAttributeName = this_.props.domainStore.testingStore.testingClassAttributeName,
-				tDisabled = tTestingDatasetName === '' || tChosenModelName === '' || tTestingAttributeName === '' ||
-					tTestingClassAttributeName === ''
-			return (
-				<div className='sq-training-buttons'>
-					<Button
-						className='sq-button'
-						disabled={tDisabled}
-						onClick={action(async () => {
-							await this_.testingManager.classify()
-						})}>
-						{tDisabled ? 'Classify' : `Classify "${tTestingAttributeName}" using model "${tChosenModelName}"`}
-					</Button>
-				</div>
-			)
+			if (!tReadyForNewTest) {
+				const
+					tTestingDatasetName = tTestingStore.testingDatasetInfo.title,
+					tChosenModelName = tTestingStore.chosenModelName,
+					tTestingAttributeName = tTestingStore.testingAttributeName,
+					tTestingClassAttributeName = tTestingStore.testingClassAttributeName,
+					tDisabled = tTestingDatasetName === '' || tChosenModelName === '' || tTestingAttributeName === '' ||
+						tTestingClassAttributeName === ''
+				return (
+					<div className='sq-training-buttons'>
+						<Button
+							className='sq-button'
+							disabled={tDisabled}
+							onClick={action(async () => {
+								await this_.testingManager.classify()
+							})}>
+							{tDisabled ? 'Classify' : `Classify "${tTestingAttributeName}" using model "${tChosenModelName}"`}
+						</Button>
+					</div>
+				)
+			}
 		}
 
 		function showResults() {
-			if( this_.props.domainStore.testingStore.testingResults.testHasBeenRun) {
-				const tResult = this_.props.domainStore.testingStore.testingResults
+
+			function getRows() {
+				return tTestingResults.map(iResult=>{
+					return (
+						<tr>
+							<td>{iResult.modelName}</td>
+							<td>{iResult.targetDatasetTitle}</td>
+							<td>{iResult.accuracy.toFixed(2)}</td>
+							<td>{iResult.kappa.toFixed(2)}</td>
+						</tr>
+					)
+				})
+			}
+
+			const tTestingResults = tTestingStore.testingResultsArray
+			if( tTestingResults.length > 0) {
 				return (
 					<div>
 						<table>
 							<thead>
 							<tr>
 								<th>Model Name</th>
+								<th>Dataset</th>
 								<th>Accuracy</th>
 								<th>Kappa</th>
 							</tr>
 							</thead>
 							<tbody>
-							<tr>
-								<td>{tResult.modelName}</td>
-								<td>{tResult.accuracy.toFixed(2)}</td>
-								<td>{tResult.kappa.toFixed(2)}</td>
-							</tr>
+							{getRows()}
 							</tbody>
 						</table>
 					</div>
@@ -152,6 +187,7 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 
 		return (
 			<div className='sq-feature-panel'>
+				{getNewTestButton()}
 				{getModelChoice()}
 				{getTestingDatasetChoice()}
 				{getTestingAttributeChoice()}
