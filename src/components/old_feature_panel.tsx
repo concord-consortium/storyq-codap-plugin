@@ -35,7 +35,7 @@ import {
 	kindOfThingContainedOptions
 } from "./old_feature_constructor";
 import FeatureConstructorBridge, {ConstructedFeature, ContainsDetails} from "../feature_constructor_bridge";
-import {SQ} from "../lists/personal-pronouns";
+import {SQ} from "../lists/lists";
 import {stopWords} from "../lib/stop_words";
 import {computeKappa} from "../utilities/utilities";
 

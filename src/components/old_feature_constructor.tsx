@@ -8,7 +8,7 @@ import {SelectBox} from "devextreme-react/select-box";
 import Button from "devextreme-react/button";
 import {TextBox} from "devextreme-react";
 import OldFeatureConstructorBridge, {ConstructedFeature, WordListSpec} from "../feature_constructor_bridge";
-import {SQ} from "../lists/personal-pronouns";
+import {SQ} from "../lists/lists";
 import codapInterface from "../lib/CodapInterface";
 
 export interface FCState {

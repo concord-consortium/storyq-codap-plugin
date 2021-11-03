@@ -6,9 +6,9 @@ import React, {Component} from "react";
 import {
 	SearchDetails,
 	Feature,
-	featureDescriptors, kKindOfThingOptionText
+	featureDescriptors, kKindOfThingOptionText, kKindOfThingOptionList
 } from "../stores/store_types_and_constants";
-import { DomainStore } from "../stores/domain_store";
+import {DomainStore} from "../stores/domain_store";
 import {observer} from "mobx-react";
 import {UiStore} from "../stores/ui_store";
 import {TextBox} from "devextreme-react";
@@ -17,6 +17,7 @@ import {SelectBox} from "devextreme-react/select-box";
 import {stopWords} from "../lib/stop_words";
 import {NumericInput} from "./numeric_input";
 import {CheckBox} from "devextreme-react/check-box";
+import {SQ} from "../lists/lists";
 
 interface FeatureComponentInfo {
 	subscriberIndex: number
@@ -89,7 +90,7 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 							tFeature.infoChoice = e.value
 							tFeature.info.kind = JSON.parse(e.value).kind
 							tFeature.info.details = Object.assign(tFeature.info.details || {}, JSON.parse(e.value).details)
-							if( tFeature.info.kind === 'ngram') {
+							if (tFeature.info.kind === 'ngram') {
 								tFeature.info.frequencyThreshold = 4
 								tFeature.info.ignoreStopWords = true
 							}
@@ -100,7 +101,7 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 			}
 
 			function kindOfThingContainedChoice() {
-				if( tFeature.info.kind === 'search') {
+				if (tFeature.info.kind === 'search') {
 					return (
 						<SelectBox
 							className='sq-new-feature-item sq-fc-part'
@@ -136,8 +137,40 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 				}
 			}
 
+			function wordListChoice() {
+				const tContainsDetails = tFeature.info.details as SearchDetails
+				if (tContainsDetails && tContainsDetails.what === kKindOfThingOptionList) {
+					const tWordListSpecs = this_.props.domainStore.targetStore.wordListSpecs,
+						tWordListDatasetNames = tWordListSpecs.map(iDataset => {
+							return iDataset.datasetName;
+						}),
+						tLists = Object.keys(SQ.lists).concat(tWordListDatasetNames)
+					return (
+						<SelectBox
+							dataSource={tLists}
+							defaultValue={tContainsDetails.wordList}
+							placeholder={'choose list'}
+							style={{display: 'inline-block'}}
+							onValueChange={action((option) => {
+								const tWordListSpec = tWordListSpecs.find((iSpec) => {
+										return iSpec.datasetName === option
+									})
+								let tAttributeName = ''
+								if (tWordListSpec) {
+									tAttributeName = tWordListSpec.firstAttributeName
+								}
+								(tFeature.info.details as SearchDetails).wordList = {
+									datasetName: option,
+									firstAttributeName: tAttributeName
+								}
+							})}
+						/>
+					)
+				}
+			}
+
 			function ngramSettings() {
-				if( tFeature.info.kind === 'ngram')
+				if (tFeature.info.kind === 'ngram')
 					return (<div className='sq-feature-ngram-settings'>
 						<CheckBox
 							text=' Ignore stop words'
@@ -154,9 +187,9 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 							min={1}
 							max={20}
 							getter={() => tFeature.info.frequencyThreshold || 4}
-							setter={action((newValue:number)=>{
-									tFeature.info.frequencyThreshold = newValue
-								})
+							setter={action((newValue: number) => {
+								tFeature.info.frequencyThreshold = newValue
+							})
 							}
 						/>
 					</div>)
@@ -175,6 +208,7 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 					{kindOfContainsChoice()}
 					{kindOfThingContainedChoice()}
 					{freeFormTextBox()}
+					{wordListChoice()}
 					{ngramSettings()}
 				</div>
 			)

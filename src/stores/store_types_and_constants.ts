@@ -40,6 +40,7 @@ export const featureDescriptors = {
 }
 
 export const kKindOfThingOptionText = featureDescriptors.kindOfThingContainedOptions[2]
+export const kKindOfThingOptionList = featureDescriptors.kindOfThingContainedOptions[1]
 
 export interface SearchDetails {
 	where: 'startsWith' | 'contains' | 'notContains' | 'endsWith' | '',
@@ -202,3 +203,8 @@ export interface StoredModel {
 	positiveClassName:string,
 	negativeClassName:string
 }
+
+export interface WordListSpec {
+	datasetName:string, firstAttributeName:string
+}
+

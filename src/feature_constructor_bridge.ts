@@ -27,10 +27,6 @@ export interface ConstructedFeature {
 	description: string
 }
 
-export interface WordListSpec {
-	datasetName:string, firstAttributeName:string
-}
-
 export default class FeatureConstructorBridge {
 	
 	private constructedFeaturesList:ConstructedFeature[] = [];
