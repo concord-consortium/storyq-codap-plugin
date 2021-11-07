@@ -183,6 +183,7 @@ p {
 .sq-component {
     display: flex;
     margin: 2px;
+    padding: 2px;
     flex-wrap: wrap;
     border: #5cb85c solid thin;
     background-color: aliceblue;
@@ -302,6 +303,18 @@ p {
     margin: 0 5px 5px 5px;
 }
 
+.sq-model-table {
+
+}
+
+td .dx-button {
+    text-align: center;
+}
+
+.sq-model-table .dx-button-content {
+    padding: 0!important;
+}
+
 .dx-dropdowneditor-button.dx-button-mode-contained,
 .dx-dropdowneditor-button.dx-button-mode-outlined,
 .dx-dropdowneditor-button.dx-button-mode-text {
@@ -331,4 +344,19 @@ p {
 
 .dx-button .dx-button-content {
     padding: 10px;
+}
+
+.sq-feature-list .dx-button-content {
+    padding: 0;
+}
+
+.sq-feature-list .dx-button {
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
+    margin: 0!important;
+}
+
+.sq-feature-list .dx-icon {
+    color: red;
 }

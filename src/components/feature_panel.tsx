@@ -9,6 +9,7 @@ import {UiStore} from "../stores/ui_store";
 import {TargetInfoPane} from "./target_info_pane";
 import {FeaturePane} from "./feature_pane";
 import codapInterface, {CODAP_Notification} from "../lib/CodapInterface";
+import {action} from "mobx";
 
 interface FeaturePanelState {
 	count: number,
@@ -33,21 +34,22 @@ export const FeaturePanel = observer(class FeaturePanel extends Component<Featur
 			count: 0
 		};
 		this.featurePanelInfo = {subscriberIndex: -1}
+		this.handleNotification = this.handleNotification.bind(this)
 	}
 
 	async componentDidMount() {
-		this.featurePanelInfo.subscriberIndex = codapInterface.on('notify', '*', '', this.handleNotification);
+		this.featurePanelInfo.subscriberIndex = codapInterface.on('notify', '*', 'dataContextCountChanged', this.handleNotification);
 		await this.updateFeaturesDataset();
 	}
 
 	async handleNotification(iNotification: CODAP_Notification) {
 		if (iNotification.action === 'notify') {
-/*
 			let tOperation = iNotification.values.operation;
 			if (tOperation === 'dataContextCountChanged') {
-				await this.updateNonNtigramFeaturesDataset();
+				action(async ()=> {
+					await this.props.domainStore.featureStore.updateWordListSpecs()
+				})()
 			}
-*/
 		}
 	}
 

@@ -56,6 +56,9 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 						onValueChanged={action((e) => {
 							tModel.name = e.value
 						})}
+						onFocusOut={action(() => {
+							tModel.name = this_.modelManager.guaranteeUniqueModelName(tModel.name)
+						})}
 						value={tModel.name}
 						maxLength={20}
 					/>
@@ -186,7 +189,7 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 				}
 			}
 
-			if(!tModel.beingConstructed) {
+			if (!tModel.beingConstructed) {
 				return (
 					<Button
 						className='sq-button'
@@ -197,13 +200,13 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 						+ New Model
 					</Button>
 				)
-			}
-			else {
+			} else {
 				return (
 					<div className='sq-component'>
 						<div className='sq-component'>
 							<span className='sq-fc-part'> Model Name:</span>{nameBox()}
-							<p>This model will be trained using <strong>{this_.props.domainStore.targetStore.targetDatasetInfo.title + ' '}</strong>
+							<p>This model will be trained
+								using <strong>{this_.props.domainStore.targetStore.targetDatasetInfo.title + ' '}</strong>
 								and the following {tFeatureString}:</p>
 							{featureList()}
 						</div>
@@ -215,25 +218,47 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 			}
 		}
 
-
 		function getModelResults() {
+
+			function getIsActiveButon(iIndex:number) {const tTrainingResult = tResults[iIndex],
+					tIcon = tTrainingResult.isActive ? 'check' : '',
+					tText = tTrainingResult.isActive ? '' : '◻︎'
+				return (
+					<td
+						style={{"textAlign": "center"}}
+					>
+						<Button
+							text={tText}
+							style={{'fontSize':'large'}}
+							icon={tIcon}
+							stylingMode='text'
+							onClick={action(() => {
+								tTrainingResult.isActive = !tTrainingResult.isActive
+							})}
+						/>
+					</td>
+				)
+			}
+
 			const tResults = this_.props.domainStore.trainingStore.trainingResults
 			if (tResults.length > 0) {
 				return (
 					<table>
 						<thead>
 						<tr>
+							<th>Active</th>
 							<th>Model Name</th>
 							<th>Accuracy</th>
 							<th>Kappa</th>
 							<th>Features</th>
 						</tr>
 						</thead>
-						<tbody>
+						<tbody className='sq-model-table'>
 						{tResults.map((iResult, iIndex) => {
 							const tFeatureNames = iResult.featureNames ? iResult.featureNames.join() : ''
 							return (
 								<tr key={iIndex}>
+									{getIsActiveButon(iIndex)}
 									<td>{iResult.name}</td>
 									<td>{iResult.accuracy.toFixed(2)}</td>
 									<td>{iResult.kappa.toFixed(2)}</td>

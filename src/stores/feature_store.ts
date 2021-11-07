@@ -3,12 +3,13 @@
  * be accessed in more than one file or needs to be saved and restored.
  */
 
-import {makeAutoObservable, toJS} from 'mobx'
+import {action, makeAutoObservable, toJS} from 'mobx'
 import {
 	Feature, kKindOfThingOptionText,
 	NgramDetails,
-	SearchDetails, starterFeature, TokenMap
+	SearchDetails, starterFeature, TokenMap, WordListSpec
 } from "./store_types_and_constants";
+import codapInterface from "../lib/CodapInterface";
 
 export class FeatureStore {
 	features: Feature[] = []
@@ -20,6 +21,7 @@ export class FeatureStore {
 		weightsCollectionName: 'weights',
 		datasetID: -1
 	}
+	wordListSpecs:WordListSpec[] = []	// no save/restore
 	targetColumnFeatureNames: string[] = []
 	tokenMap: TokenMap = {}
 
@@ -111,5 +113,47 @@ export class FeatureStore {
 		this.features.unshift(this.featureUnderConstruction)
 		this.featureUnderConstruction = Object.assign({}, starterFeature)
 	}
+
+	deleteFeature(iFeature:Feature) {
+		const tFoundIndex = this.features.indexOf(iFeature)
+		if( tFoundIndex >= 0)
+			this.features.splice(tFoundIndex, 1)
+	}
+
+	async updateWordListSpecs() {
+		this.wordListSpecs = []
+		const tContextListResult: any = await codapInterface.sendRequest({
+			"action": "get",
+			"resource": "dataContextList"
+		}).catch((reason) => {
+			console.log('unable to get datacontext list because ' + reason);
+		})
+		if(tContextListResult.success) {
+			tContextListResult.values.forEach(async (aValue:any)=> {
+				let tCollectionsResult: any = await codapInterface.sendRequest({
+					action: 'get',
+					resource: `dataContext[${aValue.id}].collectionList`
+				}).catch((reason) => {
+					console.log('unable to get collection list because ' + reason);
+				});
+				if (tCollectionsResult.values.length === 1) {
+					let tAttributesResult: any = await codapInterface.sendRequest({
+						action: 'get',
+						resource: `dataContext[${aValue.id}].collection[${tCollectionsResult.values[0].id}].attributeList`
+					}).catch((reason) => {
+						console.log('unable to get attribute list because ' + reason);
+					});
+					if (tAttributesResult.values.length === 1) {
+						this.wordListSpecs.push({
+							datasetName: aValue.title,
+							firstAttributeName: tAttributesResult.values[0].name
+						});
+					}
+				}
+			})
+		}
+	}
+
+
 
 }

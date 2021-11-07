@@ -6,7 +6,7 @@ import React, {Component} from "react";
 import {
 	SearchDetails,
 	Feature,
-	featureDescriptors, kKindOfThingOptionText, kKindOfThingOptionList
+	featureDescriptors, kKindOfThingOptionList, kKindOfThingOptionPunctuation
 } from "../stores/store_types_and_constants";
 import {DomainStore} from "../stores/domain_store";
 import {observer} from "mobx-react";
@@ -18,6 +18,7 @@ import {stopWords} from "../lib/stop_words";
 import {NumericInput} from "./numeric_input";
 import {CheckBox} from "devextreme-react/check-box";
 import {SQ} from "../lists/lists";
+import Button from "devextreme-react/button";
 
 interface FeatureComponentInfo {
 	subscriberIndex: number
@@ -27,6 +28,7 @@ export interface FeatureComponentProps {
 	uiStore: UiStore
 	domainStore: DomainStore
 	feature: Feature
+	shortened: boolean
 }
 
 export const FeatureComponent = observer(class FeatureComponent extends Component<FeatureComponentProps, {}> {
@@ -120,18 +122,18 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 
 			function freeFormTextBox() {
 				const tContainsDetails = tFeature.info.details as SearchDetails
-				if (tContainsDetails && tContainsDetails.what === kKindOfThingOptionText) {
+				if (tContainsDetails && tContainsDetails.what === kKindOfThingOptionPunctuation) {
 					return (
 						<TextBox
 							className='sq-fc-part'
 							valueChangeEvent={'keyup'}
-							placeholder="type something here"
+							placeholder="punctuation mark"
 							onValueChanged={action(async (e) => {
-								tContainsDetails.freeFormText = e.value
+								tContainsDetails.punctuation = e.value
 								await this_.updateNonNtigramFeaturesDataset(tFeature)
 							})}
-							value={tContainsDetails.freeFormText}
-							maxLength={100}
+							value={tContainsDetails.punctuation}
+							maxLength={1}
 						/>
 					)
 				}
@@ -140,7 +142,7 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 			function wordListChoice() {
 				const tContainsDetails = tFeature.info.details as SearchDetails
 				if (tContainsDetails && tContainsDetails.what === kKindOfThingOptionList) {
-					const tWordListSpecs = this_.props.domainStore.targetStore.wordListSpecs,
+					const tWordListSpecs = this_.props.domainStore.featureStore.wordListSpecs,
 						tWordListDatasetNames = tWordListSpecs.map(iDataset => {
 							return iDataset.datasetName;
 						}),
@@ -199,19 +201,35 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 			const tContainsOption = tFeature.infoChoice ? tFeature.infoChoice : ''
 			const tKindOption = tFeature.info.details ? (tFeature.info.details as SearchDetails).what : ''
 
-			return (
-				<div className='sq-component'>
-					{nameBox()}
-					<span
-						className='sq-fc-part'
-					>is defined as</span>
-					{kindOfContainsChoice()}
-					{kindOfThingContainedChoice()}
-					{freeFormTextBox()}
-					{wordListChoice()}
-					{ngramSettings()}
-				</div>
-			)
+			if(!this.props.shortened) {
+				return (
+					<div className='sq-component'>
+						{nameBox()}
+						<span
+							className='sq-fc-part'
+						>is defined as</span>
+						{kindOfContainsChoice()}
+						{kindOfThingContainedChoice()}
+						{freeFormTextBox()}
+						{wordListChoice()}
+						{ngramSettings()}
+					</div>
+				)
+			}
+			else {
+				return (
+					<div className='sq-component'>
+						<Button
+							text=''
+							icon='clear'
+							onClick={action(() => {
+								this_.props.domainStore.featureStore.deleteFeature(tFeature)
+							})}
+						/>
+						<p><strong>{tFeature.name}:</strong> {tFeature.description}</p>
+					</div>
+				)
+			}
 		}
 	}
 )

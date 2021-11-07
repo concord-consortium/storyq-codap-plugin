@@ -6,6 +6,7 @@
 import codapInterface, {CODAP_Notification} from "../lib/CodapInterface";
 import {ClassLabel, HeadingsManager, HeadingSpec, PhraseTriple} from "./headings_manager";
 import {
+	Case,
 	deselectAllCasesIn,
 	getSelectedCasesFrom
 } from "../lib/codap-helper";
@@ -43,7 +44,7 @@ export default class TextFeedbackManager {
 				this.isSelectingTargetPhrases = false;
 			} else if ([tTestingDatasetName, tTargetDatasetName].includes(tDataContextName) && !this.isSelectingTargetPhrases) {
 				this.isSelectingFeatures = true;
-				await this.handleTextDatasetSelection();
+				await this.handleTargetDatasetSelection(iNotification.values.result.cases);
 				this.isSelectingFeatures = false;
 			}
 		}
@@ -59,6 +60,22 @@ export default class TextFeedbackManager {
 		return this.headingsManager;
 	}
 
+	async getChildCases(iCaseIDs:number[], iDatasetName:string, iCollectionName:string) {
+		console.log(`iCaseIDs = ${iCaseIDs}`)
+		const tPromises = iCaseIDs.map(async (iID) => {
+			const tResult: any = await codapInterface.sendRequest({
+				action: 'get',
+				resource: `dataContext[${iDatasetName}].collection[${iCollectionName}].caseByID[${iID}]`
+			}).catch(reason => {
+				console.log('Unable to get child case because', reason)
+			})
+			return tResult.success ? tResult.values.case.values : {}
+		})
+		const children = await Promise.all(tPromises)
+		console.log(`In getChildCases, children = ${JSON.stringify(children)}`)
+		return children
+	}
+
 	/**
 	 * If the Features dataset has cases selected, for each selected case
 	 * 	- Pull out the array of 'usages' - the the case IDs of the cases in the dataset being analyzed
@@ -66,6 +83,7 @@ export default class TextFeedbackManager {
 	 * 	- Pull the phrase from the target case
 	 */
 	async handleFeatureSelection() {
+
 		const tUseTestingDataset = this.uiStore.getSelectedPanelTitle() === 'Testing' &&
 				this.domainStore.testingStore.testingDatasetInfo.name !== '' &&
 				this.domainStore.testingStore.testingAttributeName !== '' &&
@@ -79,6 +97,7 @@ export default class TextFeedbackManager {
 			tFeatureDatasetName = this.domainStore.featureStore.featureDatasetInfo.datasetName,
 			tFeatureCollectionName = this.domainStore.featureStore.featureDatasetInfo.collectionName,
 			tClassAttributeName = tUseTestingDataset ? tStore.testingClassAttributeName : tStore.targetClassAttributeName,
+			tActiveModelName = this.domainStore.trainingStore.getFirstActiveModelName(),
 			tPredictedLabelAttributeName = this.domainStore.targetStore.targetPredictedLabelAttributeName,
 			tColumnFeatureNames = this.domainStore.featureStore.targetColumnFeatureNames,
 			tConstructedFeatureNames = this.domainStore.featureStore.features.map(iFeature => iFeature.name),
@@ -106,13 +125,14 @@ export default class TextFeedbackManager {
 		const tTargetPhrasesToShow = Math.min(tUsedCaseIDs.length, kMaxStatementsToDisplay);
 		// Here is where we put the contents of the text component together
 		for (let i = 0; i < tTargetPhrasesToShow; i++) {
-			let tGetCaseResult: any = await codapInterface.sendRequest({
+			const tGetCaseResult: any = await codapInterface.sendRequest({
 				action: 'get',
 				resource: `dataContext[${tDatasetName}].collection[${tCollectionName}].caseByID[${tUsedCaseIDs[i]}]`
-			});
-			console.log(`tGetCaseResult = ${JSON.stringify(tGetCaseResult)}`)
-			const tActualClass = tGetCaseResult.values.case.values[tClassAttributeName],
-				tPredictedClass = tGetCaseResult.values.case.values[tPredictedLabelAttributeName],
+			})
+			const tChildren = await this.getChildCases(tGetCaseResult.values.case.children, tDatasetName, tCollectionName),
+				tFoundChild = tChildren.find(iChild => iChild['model name'] === tActiveModelName),
+				tPredictedClass = tFoundChild ? tFoundChild[tPredictedLabelAttributeName] : '',
+				tActualClass = tGetCaseResult.values.case.values[tClassAttributeName],
 				tPhrase = tGetCaseResult.values.case.values[tAttributeName],
 				tTriple = {actual: tActualClass, predicted: tPredictedClass, phrase: tPhrase}
 			tTriples.push((tTriple));
@@ -128,7 +148,27 @@ export default class TextFeedbackManager {
 	 * Second, under headings for the classification, display each selected target phrase as text with
 	 * features highlighted and non-features grayed out
 	 */
-	public async handleTextDatasetSelection() {
+	public async handleTargetDatasetSelection(iCases: Case[]) {
+		const this_ = this
+
+		async function getTargetCaseByID(iID: number) {
+			const tResult: any = await codapInterface.sendRequest({
+				action: 'get',
+				resource: `dataContext[${tDatasetName}].collection[${tCollectionName}].caseByID[${iID}]}`
+			})
+			return tResult.values.case
+		}
+
+		async function getMatchingChildCase(iCase:Case) {
+			const tCaseByID = await getTargetCaseByID(iCase.id),
+				tChildCaseIDs = tCaseByID.children,
+				tChildren = tChildCaseIDs ? await this_.getChildCases(tChildCaseIDs, tDatasetName, 'results') : null
+			console.log(`In getMatchingChildCase, iCase.id = ${iCase.id}; tChildCaseIDs = ${tChildCaseIDs}`)
+			console.log(`In getMatchingChildCase, tChildren = ${JSON.stringify(tChildren)}`)
+			if(tChildren)
+				return tChildren.find(iCase=>iCase['model name'] === tActiveModelName)
+		}
+
 		const tUseTestingDataset = this.uiStore.getSelectedPanelTitle() === 'Testing' &&
 				this.domainStore.testingStore.testingDatasetInfo.name !== '' &&
 				this.domainStore.testingStore.testingAttributeName !== '',
@@ -136,6 +176,7 @@ export default class TextFeedbackManager {
 			tDatasetName = tUseTestingDataset ? tStore.testingDatasetInfo.name : tStore.targetDatasetInfo.name,
 			tCollectionName = tUseTestingDataset ? tStore.testingCollectionName : tStore.targetCollectionName,
 			tDatasetTitle = tUseTestingDataset ? tStore.testingDatasetInfo.title : tStore.targetDatasetInfo.title,
+			tActiveModelName = this.domainStore.trainingStore.getFirstActiveModelName(),
 			tAttributeName = tUseTestingDataset ? tStore.testingAttributeName : tStore.targetAttributeName,
 			tFeatureDatasetName = this.domainStore.featureStore.featureDatasetInfo.datasetName,
 			tFeatureCollectionName = this.domainStore.featureStore.featureDatasetInfo.collectionName,
@@ -144,23 +185,25 @@ export default class TextFeedbackManager {
 			tColumnFeatureNames = this.domainStore.featureStore.targetColumnFeatureNames,
 			tConstructedFeatureNames = this.domainStore.featureStore.features.map(iFeature => iFeature.name)
 
-		let tSelectedCases: any = await getSelectedCasesFrom(tDatasetName, tCollectionName),
-			tTriples: PhraseTriple[] = [],
+		let tTriples: PhraseTriple[] = [],
 			tIDsOfFeaturesToSelect: number[] = [];
-		tSelectedCases.forEach((iCase: any) => {
-			if (iCase) {
-				if (iCase.values.featureIDs) {
-					let tFeatureIDs: number[] = JSON.parse(iCase.values.featureIDs);
+		for (const iCase of iCases) {
+			const tCaseToUseForPhrase = iCase.parent == undefined ? iCase : await getTargetCaseByID(iCase.parent),
+				tCaseToUseForPredicted = iCase.parent == undefined ? await getMatchingChildCase(iCase) : iCase
+			if (tCaseToUseForPhrase) {
+				if (tCaseToUseForPhrase.values.featureIDs) {
+					let tFeatureIDs: number[] = JSON.parse(tCaseToUseForPhrase.values.featureIDs);
 					tIDsOfFeaturesToSelect = tIDsOfFeaturesToSelect.concat(tFeatureIDs);
 				}
 				tTriples.push({
-					actual: iCase.values[tClassAttributeName],
-					predicted: iCase.values[tPredictedLabelAttributeName],
-					phrase: iCase.values[tAttributeName]
+					actual: tCaseToUseForPhrase.values[tClassAttributeName],
+					predicted: tCaseToUseForPredicted ? tCaseToUseForPredicted[tPredictedLabelAttributeName] : '',
+					phrase: tCaseToUseForPhrase.values[tAttributeName]
 				});
 			}
-		});
-		deselectAllCasesIn(tFeatureDatasetName)
+		}
+		console.log(`tTriples = ${JSON.stringify(tTriples)}`)
+		await deselectAllCasesIn(tFeatureDatasetName)
 		if (tIDsOfFeaturesToSelect.length > 0) {
 			// Select the features
 			await codapInterface.sendRequest({

@@ -37,6 +37,7 @@ export const FeatureList = observer(class FeatureList extends Component<FeatureL
 				uiStore={this.props.uiStore}
 				domainStore={this.props.domainStore}
 				feature={iFeature}
+				shortened={true}
 			/>
 		})
 	}

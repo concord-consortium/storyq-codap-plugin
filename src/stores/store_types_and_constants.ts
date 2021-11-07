@@ -35,18 +35,20 @@ export const featureDescriptors = {
 			]
 		}],
 	containsOptions: ['starts with', 'contains', 'does not contain', 'ends with'],
-	kindOfThingContainedOptions: ['any number', 'any from list', 'free form text'/*, 'any date'*/],
+	kindOfThingContainedOptions: ['any number', 'any from list', 'free form text', 'punctuation mark'/*, 'part of speech'*/],
 	caseOptions: ['sensitive', 'insensitive']
 }
 
-export const kKindOfThingOptionText = featureDescriptors.kindOfThingContainedOptions[2]
 export const kKindOfThingOptionList = featureDescriptors.kindOfThingContainedOptions[1]
+export const kKindOfThingOptionText = featureDescriptors.kindOfThingContainedOptions[2]
+export const kKindOfThingOptionPunctuation = featureDescriptors.kindOfThingContainedOptions[3]
 
 export interface SearchDetails {
 	where: 'startsWith' | 'contains' | 'notContains' | 'endsWith' | '',
-	what: 'any number' | 'any from List' | 'free form text' | 'part of speech' | '',
+	what: 'any number' | 'any from list' | 'free form text' | 'punctuation mark' | 'part of speech' | '',
 	caseOption: 'any' | 'upper' | 'lower' | '',
 	freeFormText: string,
+	punctuation:string,
 	wordList: WordListSpec
 }
 
@@ -95,7 +97,8 @@ export const starterFeature: Feature = {
 	infoChoice: '',
 	info: {
 		kind: '',
-		details: { where: '', what: '', caseOption: '', freeFormText: '', wordList: {datasetName: '', firstAttributeName: ''}}
+		details: { where: '', what: '', caseOption: '', freeFormText: '', punctuation: '',
+			wordList: {datasetName: '', firstAttributeName: ''}}
 	},
 	description: '',
 	type: '',
@@ -111,6 +114,7 @@ export const starterFeature: Feature = {
 
 export interface TrainingResult {
 	name: string,
+	isActive: boolean
 	threshold:number
 	constantWeightTerm:number
 	accuracy: number

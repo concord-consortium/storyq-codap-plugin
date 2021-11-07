@@ -38,6 +38,7 @@ export const FeatureConstructor = observer(class FeatureConstructor extends Comp
 						uiStore={this.props.uiStore}
 						domainStore={this.props.domainStore}
 						feature={tFeatureUnderConstruction}
+						shortened = {false}
 					/>
 				</div>
 			)

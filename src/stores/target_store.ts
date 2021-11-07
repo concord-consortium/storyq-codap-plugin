@@ -18,8 +18,7 @@ import codapInterface from "../lib/CodapInterface";
 import {SQ} from "../lists/lists";
 import React from "react";
 import {
-	Feature, featureDescriptors, kEmptyEntityInfo,
-	SearchDetails, WordListSpec
+	Feature, featureDescriptors, kEmptyEntityInfo, SearchDetails
 } from "./store_types_and_constants";
 
 export class TargetStore {
@@ -40,7 +39,6 @@ export class TargetStore {
 	targetChosenClassColumnKey: 'left' | 'right' = 'left'
 	textRefs: { ownerCaseID: number, ref: React.RefObject<any> }[] = []
 	resultCaseIDsToFill:number[] = []
-	wordListSpecs:WordListSpec[] = []	// no save/restore
 
 	constructor() {
 		makeAutoObservable(this,
@@ -60,7 +58,6 @@ export class TargetStore {
 	}
 
 	fromJSON(json: any) {
-		// todo: Only here for legacy files
 		if (Array.isArray(json.targetClassNames))
 			json.targetClassNames = null
 		this.targetDatasetInfo = json.targetDatasetInfo || kEmptyEntityInfo
@@ -89,7 +86,6 @@ export class TargetStore {
 		async function guaranteeResultsCollection() {
 			const tTargetClassAttributeName = this_.targetClassAttributeName,
 				tPositiveClassName = this_.getClassName('positive')
-			console.log(`tTargetClassAttributeName = ${tTargetClassAttributeName}; tPositiveClassName = ${tPositiveClassName}`)
 			if( tTargetClassAttributeName !== '' && tPositiveClassName !== '') {
 				const tPredictedLabelAttributeName = this_.targetPredictedLabelAttributeName
 					const tCollectionListResult: any = await codapInterface.sendRequest({
@@ -153,39 +149,6 @@ export class TargetStore {
 			}
 		}
 
-		async function updateWordListSpecs() {
-			const tContextListResult: any = await codapInterface.sendRequest({
-				"action": "get",
-				"resource": "dataContextList"
-			}).catch((reason) => {
-				console.log('unable to get datacontext list because ' + reason);
-			});
-			if(tContextListResult.success) {
-				tContextListResult.values.forEach(async (aValue:any)=> {
-					let tCollectionsResult: any = await codapInterface.sendRequest({
-						action: 'get',
-						resource: `dataContext[${aValue.id}].collectionList`
-					}).catch((reason) => {
-						console.log('unable to get collection list because ' + reason);
-					});
-					if (tCollectionsResult.values.length === 1) {
-						let tAttributesResult: any = await codapInterface.sendRequest({
-							action: 'get',
-							resource: `dataContext[${aValue.id}].collection[${tCollectionsResult.values[0].id}].attributeList`
-						}).catch((reason) => {
-							console.log('unable to get attribute list because ' + reason);
-						});
-						if (tAttributesResult.values.length === 1) {
-							tWordListSpecs.push({
-								datasetName: aValue.title,
-								firstAttributeName: tAttributesResult.values[0].name
-							});
-						}
-					}
-				})
-			}
-		}
-
 		const tDatasetNames = await getDatasetInfoWithFilter(() => true);
 		let tCollectionNames: string[] = []
 		let tCollectionName = ''
@@ -194,7 +157,6 @@ export class TargetStore {
 		let tPositiveClassName = ''
 		let tNegativeClassName = ''
 		let tClassNames = {left: '', right: ''}
-		let tWordListSpecs:WordListSpec[] = []
 		const tTargetDatasetName = this.targetDatasetInfo.name
 		if (tTargetDatasetName !== '') {
 			tCollectionNames = await getCollectionNames(tTargetDatasetName)
@@ -207,14 +169,12 @@ export class TargetStore {
 				this.textRefs[i] = {ownerCaseID: tCaseValues[i].id, ref: React.createRef()}
 			}
 		}
-		await updateWordListSpecs()
 		runInAction(() => {
 			this.datasetInfoArray = tDatasetNames
 			this.targetCollectionName = tCollectionName
 			this.targetAttributeNames = tAttrNames
 			this.targetCases = tCaseValues
 			this.targetClassNames = tClassNames
-			this.wordListSpecs = tWordListSpecs
 			if (iPropName)
 				this[iPropName] = iValue
 			this.targetPredictedLabelAttributeName = 'predicted ' + this.targetClassAttributeName
@@ -290,6 +250,26 @@ export class TargetStore {
 			return tExpression;
 		}
 
+		function punctuationFormula() {
+			const tPunc = `\\\\\\\\${(iNewFeature.info.details as SearchDetails).punctuation}`
+			let tExpression = '';
+			switch ((iNewFeature.info.details as SearchDetails).where) {//['starts with', 'contains', 'does not contain', 'ends with']
+				case featureDescriptors.containsOptions[0]:	// starts with
+					tExpression = `patternMatches(${tTargetAttr}, "^${tPunc}")>0`
+					break;
+				case featureDescriptors.containsOptions[1]:	// contains
+					tExpression = `patternMatches(${tTargetAttr}, "${tPunc}")>0`
+					break;
+				case featureDescriptors.containsOptions[2]:	// does not contain
+					tExpression = `patternMatches(${tTargetAttr}, "${tPunc}")=0`
+					break;
+				case featureDescriptors.containsOptions[3]:	// ends with
+					tExpression = `patternMatches(${tTargetAttr}, "${tPunc}$")>0`
+					break;
+			}
+			return tExpression;
+		}
+
 		function anyListFormula() {
 			let tExpression;
 			const kListName = (iNewFeature.info.details as SearchDetails).wordList.datasetName,
@@ -324,11 +304,14 @@ export class TargetStore {
 			case 'any number':
 				tFormula = anyNumberFormula()
 				break;
-			case 'any from List':
+			case 'any from list':
 				tFormula = anyListFormula()
 				break;
 			case 'free form text':
 				tFormula = freeFormFormula()
+				break;
+			case 'punctuation mark':
+				tFormula = punctuationFormula()
 				break;
 			case 'part of speech':
 			// tFormula = posFormula()

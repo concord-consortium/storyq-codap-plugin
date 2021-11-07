@@ -11,6 +11,8 @@ export interface entityInfo {
  */
 export interface Case {
 	id: number,
+	parent?: number,
+	children?: number[],
 	values: {
 		[index: string]: string
 	}
@@ -128,16 +130,20 @@ export async function getDatasetInfoWithFilter(iFilter: (value: any) => boolean)
 		}).catch((reason) => {
 			console.log('unable to get datacontext list because ' + reason);
 		});
-	tContextListResult.values.forEach((aValue: any) => {
-		if (iFilter(aValue))
-			tDatasetInfoArray.push(
-				{
-					title: aValue.title,
-					name: aValue.name,
-					id: aValue.id
-				});
-	});
-	return tDatasetInfoArray;
+	if( !(tContextListResult && tContextListResult.success))
+		return []
+	else {
+		tContextListResult.values.forEach((aValue: any) => {
+			if (iFilter(aValue))
+				tDatasetInfoArray.push(
+					{
+						title: aValue.title,
+						name: aValue.name,
+						id: aValue.id
+					});
+		});
+		return tDatasetInfoArray;
+	}
 }
 
 export async function guaranteeAttribute(iAttributeInfo: { name: string, hidden: boolean },

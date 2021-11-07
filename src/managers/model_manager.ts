@@ -19,6 +19,22 @@ export class ModelManager {
 		this.progressBar = this.progressBar.bind(this)
 	}
 
+	guaranteeUniqueModelName(iCandidate:string) {
+		const this_ = this
+
+		function isNotUnique(iName:string) {
+			return Boolean(this_.domainStore.trainingStore.trainingResults.find(iResult=>iResult.name === iName))
+		}
+
+		let counter = 1,
+			tTest = iCandidate
+		while( isNotUnique(tTest)) {
+			tTest = `${iCandidate}_${counter}`
+			counter++
+		}
+		return tTest
+	}
+
 	async buildModel() {
 		const this_ = this
 
@@ -105,7 +121,8 @@ export class ModelManager {
 	}
 
 	progressBar(iIteration: number) {
-		const tModel = this.domainStore.trainingStore.model,
+		const tTrainingStore = this.domainStore.trainingStore,
+			tModel = tTrainingStore.model,
 			tIterations = tModel.iterations,
 			this_ = this
 		runInAction(async () => {
@@ -116,8 +133,11 @@ export class ModelManager {
 
 				await this_.computeResults()
 
+				tTrainingStore.inactivateAll()
+
 				tTrainingResults.push({
 					name: tModel.name,
+					isActive:true,
 					threshold: Number(tLogisticModel.threshold),
 					constantWeightTerm: tLogisticModel.fitResult.constantWeightTerm,
 					accuracy: tLogisticModel.accuracy || 0,
