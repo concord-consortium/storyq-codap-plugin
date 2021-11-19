@@ -45,7 +45,7 @@ export const TrainingPanel = observer(class TrainingPanel extends Component<Trai
 			/*
 						let tOperation = iNotification.values.operation;
 						if (tOperation === 'dataContextCountChanged') {
-							await this.updateNonNtigramFeaturesDataset();
+							await this.updateFeaturesDataset();
 						}
 			*/
 		}

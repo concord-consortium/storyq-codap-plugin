@@ -40,6 +40,7 @@ export const FeaturePanel = observer(class FeaturePanel extends Component<Featur
 	async componentDidMount() {
 		this.featurePanelInfo.subscriberIndex = codapInterface.on('notify', '*', 'dataContextCountChanged', this.handleNotification);
 		await this.updateFeaturesDataset();
+		await this.props.domainStore.featureStore.updateWordListSpecs()
 	}
 
 	async handleNotification(iNotification: CODAP_Notification) {

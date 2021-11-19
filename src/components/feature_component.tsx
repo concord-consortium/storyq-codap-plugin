@@ -43,7 +43,7 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 			this.featureInfo = {subscriberIndex: -1}
 		}
 
-		async updateNonNtigramFeaturesDataset(iFeature: Feature) {
+		async updateFeaturesDataset(iFeature: Feature) {
 			if (!iFeature.inProgress) {
 				await this.props.domainStore.targetStore.addOrUpdateFeatureToTarget(iFeature, true)
 				switch (iFeature.info.kind) {
@@ -69,9 +69,12 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 						placeholder="type the feature's name"
 						onValueChanged={action(async (e) => {
 							tFeature.name = e.value
-							await this_.updateNonNtigramFeaturesDataset(tFeature)
+							await this_.updateFeaturesDataset(tFeature)
 						})}
 						value={tFeature.name}
+						onFocusOut={action(() => {
+							tFeature.name = this_.props.domainStore.featureStore.guaranteeUniqueFeatureName(tFeature.name)
+						})}
 						maxLength={20}
 					/>
 				)
@@ -96,7 +99,7 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 								tFeature.info.frequencyThreshold = 4
 								tFeature.info.ignoreStopWords = true
 							}
-							await this_.updateNonNtigramFeaturesDataset(tFeature)
+							await this_.updateFeaturesDataset(tFeature)
 						})}
 					/>
 				)
@@ -113,7 +116,7 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 							style={{display: 'inline-block'}}
 							onValueChanged={action(async (e) => {
 								(tFeature.info.details as SearchDetails).what = e.value
-								await this_.updateNonNtigramFeaturesDataset(tFeature)
+								await this_.updateFeaturesDataset(tFeature)
 							})}
 						/>
 					)
@@ -130,7 +133,7 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 							placeholder="punctuation mark"
 							onValueChanged={action(async (e) => {
 								tContainsDetails.punctuation = e.value
-								await this_.updateNonNtigramFeaturesDataset(tFeature)
+								await this_.updateFeaturesDataset(tFeature)
 							})}
 							value={tContainsDetails.punctuation}
 							maxLength={1}

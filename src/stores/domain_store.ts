@@ -94,7 +94,7 @@ export class DomainStore {
 									title: tWeightsCollectionName,
 									parent: tFeatureCollectionName,
 									attrs: [
-										{name: 'model name', hidden: false},
+										{name: 'model name', type: 'categorical', hidden: false},
 										{name: 'weight', hidden: false}
 									]
 								}]

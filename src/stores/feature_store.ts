@@ -3,7 +3,7 @@
  * be accessed in more than one file or needs to be saved and restored.
  */
 
-import {action, makeAutoObservable, toJS} from 'mobx'
+import {makeAutoObservable, toJS} from 'mobx'
 import {
 	Feature, kKindOfThingOptionText,
 	NgramDetails,
@@ -86,6 +86,22 @@ export class FeatureStore {
 			return iFeature.name === iFeatureName && iFeature.formula !== ''
 		})
 		return tFoundObject ? tFoundObject.formula : ''
+	}
+
+	guaranteeUniqueFeatureName(iCandidate:string) {
+		const this_ = this
+
+		function isNotUnique(iName:string) {
+			return Boolean(this_.features.find(iFeature=>iFeature.name === iName))
+		}
+
+		let counter = 1,
+			tTest = iCandidate
+		while( isNotUnique(tTest)) {
+			tTest = `${iCandidate}_${counter}`
+			counter++
+		}
+		return tTest
 	}
 
 	getConstructedFeatureNames() {

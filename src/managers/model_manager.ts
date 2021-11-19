@@ -198,7 +198,7 @@ export class ModelManager {
 		const tFeaturesValues: any[] = [],
 			tFeatureDatasetName = this.domainStore.featureStore.featureDatasetInfo.datasetName,
 			tWeightsCollectionName = this.domainStore.featureStore.featureDatasetInfo.weightsCollectionName,
-			tFeatures = this.domainStore.featureStore.features/*,
+			tFeatures = this.domainStore.featureStore.features,
 			tShowRequests = [{
 				action: 'update',
 				resource: `dataContext[${tFeatureDatasetName}].collection[${tWeightsCollectionName}].attribute[weight]`,
@@ -211,7 +211,7 @@ export class ModelManager {
 				}]
 
 		// Make sure the 'weight and model name' attributes are not hidden
-		await codapInterface.sendRequest(tShowRequests)*/
+		await codapInterface.sendRequest(tShowRequests)
 
 		iTokens.forEach((aToken: any, iIndex: number) => {
 			const tOneFeatureUpdate = {
