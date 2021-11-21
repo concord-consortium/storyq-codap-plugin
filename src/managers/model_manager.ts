@@ -45,7 +45,7 @@ export class ModelManager {
 			tLogisticModel.lockIntercept = this_.domainStore.trainingStore.model.lockInterceptAtZero
 			const tCases = this_.domainStore.targetStore.targetCases,
 				tColumnNames = tTargetColumnFeatureNames.concat(
-					this_.domainStore.featureStore.features.map(iFeature => {
+					this_.domainStore.featureStore.getChosenFeatures().map(iFeature => {
 						return iFeature.name;
 					}))
 			// Grab the strings in the target collection that are the values of the target attribute.
@@ -73,8 +73,8 @@ export class ModelManager {
 			tTargetAttributeName = this.domainStore.targetStore.targetAttributeName,
 			tTargetClassAttributeName = this.domainStore.targetStore.targetClassAttributeName,
 			tTargetColumnFeatureNames = this.domainStore.featureStore.targetColumnFeatureNames,
-			tNonNgramFeatures = this.domainStore.featureStore.features.filter(iFeature => iFeature.info.kind !== 'ngram'),
-			tNgramFeatures = this.domainStore.featureStore.features.filter(iFeature => iFeature.info.kind === 'ngram'),
+			tNonNgramFeatures = this.domainStore.featureStore.getChosenFeatures().filter(iFeature => iFeature.info.kind !== 'ngram'),
+			tNgramFeatures = this.domainStore.featureStore.getChosenFeatures().filter(iFeature => iFeature.info.kind === 'ngram'),
 			tUnigramFeature = tNgramFeatures.find(iFeature => (iFeature.info.details as NgramDetails).n === 'uni'),
 			tPositiveClassName = this.domainStore.targetStore.getClassName('positive'),
 			tDocuments: {
@@ -142,7 +142,7 @@ export class ModelManager {
 					constantWeightTerm: tLogisticModel.fitResult.constantWeightTerm,
 					accuracy: tLogisticModel.accuracy || 0,
 					kappa: tLogisticModel.kappa || 0,
-					featureNames: this.domainStore.featureStore.getFeatureNames(),
+					featureNames: this.domainStore.featureStore.getChosenFeatureNames(),
 					hasNgram: this.domainStore.featureStore.hasNgram(),
 					storedModel: this.fillOutCurrentStoredModel(tLogisticModel)
 				})
@@ -198,7 +198,7 @@ export class ModelManager {
 		const tFeaturesValues: any[] = [],
 			tFeatureDatasetName = this.domainStore.featureStore.featureDatasetInfo.datasetName,
 			tWeightsCollectionName = this.domainStore.featureStore.featureDatasetInfo.weightsCollectionName,
-			tFeatures = this.domainStore.featureStore.features,
+			tFeatures = this.domainStore.featureStore.getChosenFeatures(),
 			tShowRequests = [{
 				action: 'update',
 				resource: `dataContext[${tFeatureDatasetName}].collection[${tWeightsCollectionName}].attribute[weight]`,

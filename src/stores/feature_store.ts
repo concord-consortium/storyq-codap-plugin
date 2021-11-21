@@ -35,6 +35,7 @@ export class FeatureStore {
 
 	asJSON() {
 		return {
+			featureDatasetID: toJS(this.featureDatasetInfo.datasetID),
 			features: toJS(this.features),
 			featureUnderConstruction: toJS(this.featureUnderConstruction),
 			tokenMap: toJS(this.tokenMap),
@@ -44,6 +45,7 @@ export class FeatureStore {
 
 	fromJSON(json: any) {
 		if (json) {
+			this.featureDatasetInfo.datasetID = json.featureDatasetID || -1
 			this.features = json.features || []
 			this.featureUnderConstruction = json.featureUnderConstruction || starterFeature
 			this.tokenMap = json.tokenMap || {}
@@ -77,8 +79,12 @@ export class FeatureStore {
 			return ''
 	}
 
-	getFeatureNames() {
-		return this.features.map(iFeature => iFeature.name)
+	getChosenFeatureNames() {
+		return this.getChosenFeatures().map(iFeature => iFeature.name)
+	}
+
+	getChosenFeatures() {
+		return this.features.filter(iFeature=>iFeature.chosen)
 	}
 
 	getFormulaFor(iFeatureName:string) {
@@ -130,10 +136,29 @@ export class FeatureStore {
 		this.featureUnderConstruction = Object.assign({}, starterFeature)
 	}
 
-	deleteFeature(iFeature:Feature) {
+	async deleteFeature(iFeature:Feature) {
 		const tFoundIndex = this.features.indexOf(iFeature)
-		if( tFoundIndex >= 0)
+		if( tFoundIndex >= 0) {
 			this.features.splice(tFoundIndex, 1)
+			await codapInterface.sendRequest({
+				action: 'delete',
+				resource: `dataContext[${this.featureDatasetInfo.datasetID}].itemByID[${iFeature.featureItemID}]`
+			})
+		}
+	}
+
+	async toggleChosenFor(iFeature:Feature) {
+		iFeature.chosen = !iFeature.chosen
+		const tResult =  await codapInterface.sendRequest({
+			action: 'update',
+			resource: `dataContext[${this.featureDatasetInfo.datasetID}].collection[${this.featureDatasetInfo.collectionName}].caseByID[${iFeature.caseID}]`,
+			values: {
+				values: {
+					chosen: iFeature.chosen
+				}
+			}
+		})
+		console.log(`tResult = ${JSON.stringify(tResult)}`)
 	}
 
 	async updateWordListSpecs() {

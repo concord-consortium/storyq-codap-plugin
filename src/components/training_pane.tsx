@@ -69,7 +69,7 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 				return (
 					<div className='sq-indent'>
 						<ul>
-							{this_.props.domainStore.featureStore.features.map((iFeature, iIndex) => {
+							{this_.props.domainStore.featureStore.getChosenFeatures().map((iFeature, iIndex) => {
 								return (
 									<li key={iIndex}><strong>{iFeature.name}</strong></li>
 								)
@@ -114,6 +114,13 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 								this_.props.uiStore.trainingPanelShowsEditor = !this_.props.uiStore.trainingPanelShowsEditor
 							})}>
 							Settings
+						</Button>
+						<Button
+							className='sq-button'
+							onClick={action(() => {
+								tModel.beingConstructed = !tModel.beingConstructed
+							})}>
+							Cancel
 						</Button>
 					</div>
 				)

@@ -357,6 +357,10 @@ td .dx-button {
     margin: 0!important;
 }
 
+.sq-feature-delete {
+    /*alignment: right;*/
+}
+
 .sq-feature-list .dx-icon {
-    color: red;
+    color: chocolate;
 }

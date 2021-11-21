@@ -6,7 +6,7 @@ import React, {Component} from "react";
 import {
 	SearchDetails,
 	Feature,
-	featureDescriptors, kKindOfThingOptionList, kKindOfThingOptionPunctuation
+	featureDescriptors, kKindOfThingOptionList, kKindOfThingOptionPunctuation, kKindOfThingOptionText
 } from "../stores/store_types_and_constants";
 import {DomainStore} from "../stores/domain_store";
 import {observer} from "mobx-react";
@@ -125,6 +125,25 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 
 			function freeFormTextBox() {
 				const tContainsDetails = tFeature.info.details as SearchDetails
+				if (tContainsDetails && tContainsDetails.what === kKindOfThingOptionText) {
+					return (
+						<TextBox
+							className='sq-fc-part'
+							valueChangeEvent={'keyup'}
+							placeholder="type something here"
+							onValueChanged={action(async (e) => {
+								tContainsDetails.freeFormText = e.value
+								await this_.updateFeaturesDataset(tFeature)
+							})}
+							value={tContainsDetails.freeFormText}
+							maxLength={100}
+						/>
+					)
+				}
+			}
+
+			function punctuationChoice() {
+				const tContainsDetails = tFeature.info.details as SearchDetails
 				if (tContainsDetails && tContainsDetails.what === kKindOfThingOptionPunctuation) {
 					return (
 						<TextBox
@@ -214,6 +233,7 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 						{kindOfContainsChoice()}
 						{kindOfThingContainedChoice()}
 						{freeFormTextBox()}
+						{punctuationChoice()}
 						{wordListChoice()}
 						{ngramSettings()}
 					</div>
@@ -222,14 +242,22 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 			else {
 				return (
 					<div className='sq-component'>
+						<CheckBox
+							text=''
+							value={tFeature.chosen}
+							onValueChange={action(async ()=>{
+								await this.props.domainStore.featureStore.toggleChosenFor(tFeature)
+							})}
+							/>
+						<p><strong>{tFeature.name}:</strong> {tFeature.description}</p>
 						<Button
+							className='sq-feature-delete'
 							text=''
 							icon='clear'
-							onClick={action(() => {
-								this_.props.domainStore.featureStore.deleteFeature(tFeature)
+							onClick={action(async () => {
+								await this_.props.domainStore.featureStore.deleteFeature(tFeature)
 							})}
 						/>
-						<p><strong>{tFeature.name}:</strong> {tFeature.description}</p>
 					</div>
 				)
 			}
