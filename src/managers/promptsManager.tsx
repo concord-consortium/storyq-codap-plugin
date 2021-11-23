@@ -28,12 +28,14 @@ export class PromptsManager {
 			manyFeatures: <p>You can proceed to <strong>Training</strong>.</p>
 		},
 		2: {	// Training panel
+			nothingConstructed: <p>Go ahead and make a <strong>New Model</strong>.</p>,
 			noModels: <p>The model needs a name before you can train it.</p>,
 			noTraining: <p>Go ahead and train your model.</p>,
 			oneModel: <p>You have one trained model. Make more? Go on to <strong>Testing?</strong></p>,
 			manyModels: <p>You can proceed to <strong>Testing</strong>.</p>
 		},
 		3: {	// Training panel
+			readyForNewTest: <p>Go ahead and conduct a <strong>New Test</strong>.</p>,
 			nothingChosen: <p>Specify a model to use and a dataset of classify.</p>,
 			noModel: <p>Classification requires a model.</p>,
 			noDataset: <p>Specify a dataset with texts to classify</p>,
@@ -75,7 +77,10 @@ export class PromptsManager {
 				else tPanelIndex = 100
 				break
 			case 2:	// Training
-				if (this.domainStore.trainingStore.trainingResults.length === 0)
+				if (this.domainStore.trainingStore.trainingResults.length === 0 &&
+						!this.domainStore.trainingStore.model.beingConstructed)
+					tKey = 'nothingConstructed'
+				else if (this.domainStore.trainingStore.trainingResults.length === 0)
 					tKey = this.domainStore.trainingStore.model.name === '' ? 'noModels' : 'noTraining'
 				else if (this.domainStore.trainingStore.trainingResults.length === 1)
 					tKey = 'oneModel'
@@ -84,7 +89,9 @@ export class PromptsManager {
 				else tPanelIndex = 100
 				break
 			case 3:	// Testing
-				if (this.domainStore.testingStore.testingDatasetInfo.name === '' &&
+				if(!this.domainStore.testingStore.currentTestingResults.testBeingConstructed)
+					tKey = 'readyForNewTest'
+				else if (this.domainStore.testingStore.testingDatasetInfo.name === '' &&
 					this.domainStore.testingStore.chosenModelName === '')
 					tKey = 'nothingChosen'
 				else if (this.domainStore.testingStore.chosenModelName === '')

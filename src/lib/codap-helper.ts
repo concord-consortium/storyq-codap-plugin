@@ -55,20 +55,22 @@ export async function openTable(dataContextName: string) {
  */
 export async function guaranteeTableOrCardIsVisibleFor(iDatasetInfo: entityInfo) {
 	console.log(`In guaranteeTableOrCardIsVisibleFor ${JSON.stringify(iDatasetInfo)}`)
-	const tTableID = await getComponentByTypeAndTitle('caseTable', iDatasetInfo.title),
-		tFoundTable = tTableID >= 0,
-		tType = tFoundTable ? 'caseTable' : 'caseCard'
+	if( iDatasetInfo.name !== '' && iDatasetInfo.title !== '') {
+		const tTableID = await getComponentByTypeAndTitle('caseTable', iDatasetInfo.title),
+			tFoundTable = tTableID >= 0,
+			tType = tFoundTable ? 'caseTable' : 'caseCard'
 
-	await codapInterface.sendRequest({
-		action: 'create',
-		resource: `component`,
-		values: {
-			type: tType,
-			name: iDatasetInfo.name,
-			title: iDatasetInfo.name,
-			dataContext: iDatasetInfo.name
-		}
-	});
+		await codapInterface.sendRequest({
+			action: 'create',
+			resource: `component`,
+			values: {
+				type: tType,
+				name: iDatasetInfo.name,
+				title: iDatasetInfo.name,
+				dataContext: iDatasetInfo.name
+			}
+		})
+	}
 }
 
 export async function openStory(iTextComponentName: string): Promise<number> {
