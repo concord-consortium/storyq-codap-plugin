@@ -19,16 +19,16 @@ export class ModelManager {
 		this.progressBar = this.progressBar.bind(this)
 	}
 
-	guaranteeUniqueModelName(iCandidate:string) {
+	guaranteeUniqueModelName(iCandidate: string) {
 		const this_ = this
 
-		function isNotUnique(iName:string) {
-			return Boolean(this_.domainStore.trainingStore.trainingResults.find(iResult=>iResult.name === iName))
+		function isNotUnique(iName: string) {
+			return Boolean(this_.domainStore.trainingStore.trainingResults.find(iResult => iResult.name === iName))
 		}
 
 		let counter = 1,
 			tTest = iCandidate
-		while( isNotUnique(tTest)) {
+		while (isNotUnique(tTest)) {
 			tTest = `${iCandidate}_${counter}`
 			counter++
 		}
@@ -137,7 +137,7 @@ export class ModelManager {
 
 				tTrainingResults.push({
 					name: tModel.name,
-					isActive:true,
+					isActive: true,
 					threshold: Number(tLogisticModel.threshold),
 					constantWeightTerm: tLogisticModel.fitResult.constantWeightTerm,
 					accuracy: tLogisticModel.accuracy || 0,
@@ -152,7 +152,7 @@ export class ModelManager {
 		})
 	}
 
-	fillOutCurrentStoredModel(iLogisticModel:LogisticRegression): StoredModel {
+	fillOutCurrentStoredModel(iLogisticModel: LogisticRegression): StoredModel {
 		const this_ = this,
 			tTokenArray = iLogisticModel._oneHot.tokenArray,
 			tWeights = iLogisticModel.fitResult.theta	// toss the constant term
@@ -195,11 +195,9 @@ export class ModelManager {
 	}
 
 	async updateWeights(iModelName: string, iTokens: any, iWeights: number[]) {
-		const tFeaturesValues: any[] = [],
-			tFeatureDatasetName = this.domainStore.featureStore.featureDatasetInfo.datasetName,
-			tWeightsCollectionName = this.domainStore.featureStore.featureDatasetInfo.weightsCollectionName,
-			tFeatures = this.domainStore.featureStore.getChosenFeatures(),
-			tShowRequests = [{
+
+		async function showAttributes() {
+			const tShowRequests = [{
 				action: 'update',
 				resource: `dataContext[${tFeatureDatasetName}].collection[${tWeightsCollectionName}].attribute[weight]`,
 				values: {hidden: false}
@@ -209,29 +207,101 @@ export class ModelManager {
 					resource: `dataContext[${tFeatureDatasetName}].collection[${tWeightsCollectionName}].attribute[model]`,
 					values: {hidden: false}
 				}]
+			await codapInterface.sendRequest(tShowRequests)
+		}
 
-		// Make sure the 'weight and model name' attributes are not hidden
-		await codapInterface.sendRequest(tShowRequests)
+		async function emptyFirstChildCaseExists() {
+			let tIsEmpty = true;
+			const tFirstChildResult: any = await codapInterface.sendRequest({
+				action: 'get',
+				resource: `dataContext[${tFeatureDatasetName}].collection[${tWeightsCollectionName}].caseByIndex[0]`
+			})
+			if(tFirstChildResult.success) {
+				const tName = tFirstChildResult.values.case.values['model name']
+				tIsEmpty = !tName || tName === ''
+			}
+			return tIsEmpty
+		}
 
-		iTokens.forEach((aToken: any, iIndex: number) => {
-			const tOneFeatureUpdate = {
-				parent: aToken.featureCaseID,
-				values: {
-					'model name': iModelName,
-					weight: iWeights[iIndex]
+		async function getFeatureWeightCaseIDs() {
+			const tFeatureCountResult:any = await codapInterface.sendRequest({
+				action: 'get',
+				resource: `dataContext[${tFeatureDatasetName}].collection[${tFeaturesCollectionName}].caseCount`
+			}),
+				tFeatureCount = tFeatureCountResult.success ? tFeatureCountResult.values : 0,
+				tRequests:{}[] = []
+			for(let n=0; n < tFeatureCount; n++) {
+				tRequests.push({
+						action: 'get',
+						resource: `dataContext[${tFeatureDatasetName}].collection[${tFeaturesCollectionName}].caseByIndex[${n}]`
+					}
+				)
+			}
+			const tResults:any = await codapInterface.sendRequest(tRequests)
+			tResults.forEach((iResult:any)=>{
+				if( iResult.success) {
+					tFeatureWeightCaseIDs[iResult.values.case.values.name] = iResult.values.case.id
 				}
-			};
-			tFeaturesValues.push(tOneFeatureUpdate);
-			// Also update in stored features
-			let tFoundFeature = tFeatures.find(iFeature => iFeature.name === aToken.name)
-			if (tFoundFeature)
-				tFoundFeature.weight = iWeights[iIndex]
-		});
-		await codapInterface.sendRequest({
-			action: 'create',
-			resource: `dataContext[${tFeatureDatasetName}].collection[${tWeightsCollectionName}].case`,
-			values: tFeaturesValues
-		});
+			})
+		}
+
+		function generateRequests() {
+			iTokens.forEach((aToken: any, iIndex: number) => {
+					if (tUpdatingExistingWeights) {
+						tUpdateRequests.push({
+							id: tFeatureWeightCaseIDs[aToken.token],
+							values: {
+								'model name': iModelName,
+								weight: iWeights[iIndex]
+							}
+						})
+					} else {
+						tCreationRequests.push({
+							parent: aToken.featureCaseID,
+							values: {
+								'model name': iModelName,
+								weight: iWeights[iIndex]
+							}
+						})
+					}
+					// Also update in stored features
+					let tFoundFeature = tFeatures.find(iFeature => iFeature.name === aToken.name)
+					if (tFoundFeature)
+						tFoundFeature.weight = iWeights[iIndex]
+				}
+			)
+		}
+
+		const tFeatureDatasetName = this.domainStore.featureStore.featureDatasetInfo.datasetName,
+			tFeaturesCollectionName = this.domainStore.featureStore.featureDatasetInfo.collectionName,
+			tWeightsCollectionName = this.domainStore.featureStore.featureDatasetInfo.weightsCollectionName,
+			tFeatures = this.domainStore.featureStore.getChosenFeatures(),
+			tUpdatingExistingWeights = await emptyFirstChildCaseExists(),
+			tCreationRequests: { parent: number, values: any }[] = [],
+			tUpdateRequests: { id: number, values: any }[] = [],
+			tFeatureWeightCaseIDs:{[index:string]:number} = {}
+
+		await showAttributes()
+
+		if( tUpdatingExistingWeights) {
+			await getFeatureWeightCaseIDs()
+		}
+
+		generateRequests()
+
+		if (tUpdatingExistingWeights) {
+			await codapInterface.sendRequest({
+				action: 'update',
+				resource: `dataContext[${tFeatureDatasetName}].collection[${tWeightsCollectionName}].case`,
+				values: tUpdateRequests
+			});
+		} else {
+			await codapInterface.sendRequest({
+				action: 'create',
+				resource: `dataContext[${tFeatureDatasetName}].collection[${tWeightsCollectionName}].case`,
+				values: tCreationRequests
+			})
+		}
 	}
 
 	/**
@@ -240,15 +310,17 @@ export class ModelManager {
 	 * @param iTools
 	 * @private
 	 */
-	private async showPredictedLabels(iModelName: string, iTools: {
-		logisticModel: any,	// Will compute probabilities
-		oneHotData: number[][],
-		documents: any,
-		tokenArray: any,
-		positiveClassName: string,
-		negativeClassName: string,
-		lockProbThreshold: boolean
-	}) {
+	private async showPredictedLabels(iModelName: string, iTools:
+		{
+			logisticModel: any,	// Will compute probabilities
+			oneHotData: number[][],
+			documents: any,
+			tokenArray: any,
+			positiveClassName: string,
+			negativeClassName: string,
+			lockProbThreshold: boolean
+		}
+	) {
 		const tOneHotLength = iTools.oneHotData[0].length,
 			tPosProbs: number[] = [],
 			tNegProbs: number[] = [],
@@ -349,7 +421,7 @@ export class ModelManager {
 			tResultCaseIDsToFill = this.domainStore.targetStore.resultCaseIDsToFill,
 			tWeAreUpdating = tResultCaseIDsToFill.length > 0,
 			tLabelValuesForCreation: { parent: number, values: any }[] = [],
-			tLabelValuesForUpdating: { id:number, values: any }[] = [],
+			tLabelValuesForUpdating: { id: number, values: any }[] = [],
 			tActualPos = 0,
 			tPredictedPos = 0,
 			tBothPos = 0,

@@ -25,7 +25,9 @@ export class DomainStore {
 	textFeedbackManager: TextFeedbackManager
 
 	constructor(iUiStore: UiStore) {
-		this.targetStore = new TargetStore()
+		this.targetStore = new TargetStore(()=>{
+			return this.featureStore.features.map(iFeature=>iFeature.name)
+		})
 		this.featureStore = new FeatureStore()
 		this.trainingStore = new TrainingStore()
 		this.testingStore = new TestingStore(this.featureStore)
@@ -94,8 +96,8 @@ export class DomainStore {
 									title: tWeightsCollectionName,
 									parent: tFeatureCollectionName,
 									attrs: [
-										{name: 'model name', type: 'categorical', hidden: false},
-										{name: 'weight', hidden: false}
+										{name: 'model name', type: 'categorical', hidden: true},
+										{name: 'weight', hidden: true}
 									]
 								}]
 						}

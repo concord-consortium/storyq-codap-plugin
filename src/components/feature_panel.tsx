@@ -9,7 +9,7 @@ import {UiStore} from "../stores/ui_store";
 import {TargetInfoPane} from "./target_info_pane";
 import {FeaturePane} from "./feature_pane";
 import codapInterface, {CODAP_Notification} from "../lib/CodapInterface";
-import {action, toJS} from "mobx";
+import {action} from "mobx";
 
 interface FeaturePanelState {
 	count: number,
@@ -66,8 +66,8 @@ export const FeaturePanel = observer(class FeaturePanel extends Component<Featur
 			tDeletedFeatureNames = Array.isArray(tCases) ? tCases.map((iCase: any) => {
 				return iCase.values.name
 			}) : []
-		if(tDeletedFeatureNames.length > 0 && tDataContextName === tFeatureStore.featureDatasetInfo.datasetName) {
-			action( () => {
+		if (tDeletedFeatureNames.length > 0 && tDataContextName === tFeatureStore.featureDatasetInfo.datasetName) {
+			action(() => {
 				tDeletedFeatureNames.forEach((iName: string) => {
 					const tIndex = tFeatures.findIndex(iFeature => iFeature.name === iName && iFeature.type !== 'unigram')
 					if (tIndex >= 0)
@@ -81,18 +81,35 @@ export const FeaturePanel = observer(class FeaturePanel extends Component<Featur
 		const tFeatureStore = this.props.domainStore.featureStore,
 			tFeatures = tFeatureStore.features,
 			tDataContextName = iNotification.resource && iNotification.resource.match(/\[(.+)]/)[1]
-		if( tDataContextName === tFeatureStore.featureDatasetInfo.datasetName) {
+		if (tDataContextName === tFeatureStore.featureDatasetInfo.datasetName) {
 			const tCases = iNotification.values.result.cases,
 				tUpdatedCases = Array.isArray(tCases) ? tCases : []
 			if (tUpdatedCases.length > 0) {
 				action(() => {
 					tUpdatedCases.forEach((iCase: any) => {
-						const tType = iCase.values.type,
+						const tChosen = iCase.values.chosen === 'true',
+							tType = iCase.values.type,
 							tName = iCase.values.name,
 							tFoundFeature = tType !== 'unigram' && tFeatures.find(iFeature => iFeature.name === tName)
 						if (tFoundFeature) {
-							tFoundFeature.chosen = iCase.values.chosen === 'true'
-							console.log(`case.chosen = ${iCase.values.chosen}; foundFeature = ${JSON.stringify(toJS(tFoundFeature))}`)
+							tFoundFeature.chosen = tChosen
+						} else if (tType === 'unigram') {
+							const tToken = tFeatureStore.tokenMap[tName]
+							if( tToken && !tChosen) {
+								delete tFeatureStore.tokenMap[tName]
+							} else if(!tToken && tChosen) {
+								tFeatureStore.tokenMap[tName] = {
+									token: tName,
+									type: 'unigram',
+									count: iCase.values['frequency in positive'] + iCase.values['frequency in negative'],
+									index: 0,
+									numPositive: iCase.values['frequency in positive'],
+									numNegative: iCase.values['frequency in negative'],
+									caseIDs: JSON.parse(iCase.values.usages),
+									weight: null,
+									featureCaseID: iCase.id
+								}
+							}
 						}
 					})
 				})()

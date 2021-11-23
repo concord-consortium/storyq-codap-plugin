@@ -15,10 +15,10 @@ import {TextBox} from "devextreme-react";
 import {action} from "mobx";
 import {SelectBox} from "devextreme-react/select-box";
 import {stopWords} from "../lib/stop_words";
-import {NumericInput} from "./numeric_input";
 import {CheckBox} from "devextreme-react/check-box";
 import {SQ} from "../lists/lists";
 import Button from "devextreme-react/button";
+import {NumberBox} from "devextreme-react/number-box";
 
 interface FeatureComponentInfo {
 	subscriberIndex: number
@@ -81,6 +81,11 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 			}
 
 			function kindOfContainsChoice() {
+				featureDescriptors.featureKinds[2].items =
+					this_.props.domainStore.targetStore.targetColumnFeatureNames.map(iColumnName=>{
+						return {name: iColumnName, value: `{"kind": "column", "details": {}}`, key: 'Column Features'}
+					})
+				// console.log(`featureDescriptors = ${JSON.stringify(featureDescriptors.featureKinds)}`)
 				return (
 					<SelectBox
 						className='sq-new-feature-item sq-fc-part'
@@ -206,16 +211,33 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 								})
 							}
 						/>
+						<NumberBox
+							width={40}
+							// onInitialized={this.saveInputInstance}
+							min={0}
+							max={100}
+							value={tFeature.info.frequencyThreshold}
+							onValueChanged={action((e) => {
+								tFeature.info.frequencyThreshold = e.value
+							})}
+							onEnterKey={() => {
+								// this.blurInput();
+							}}
+						/>
+{/*
 						<NumericInput
 							label='Frequency threshold'
 							min={1}
-							max={20}
-							getter={() => tFeature.info.frequencyThreshold || 4}
+							max={100}
+							getter={() => {
+								return tFeature.info.frequencyThreshold
+							}}
 							setter={action((newValue: number) => {
 								tFeature.info.frequencyThreshold = newValue
 							})
 							}
 						/>
+*/}
 					</div>)
 			}
 

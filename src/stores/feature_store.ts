@@ -60,8 +60,9 @@ export class FeatureStore {
 			tDoneNgram = tNameAndKindOK && tFeature.info.kind === 'ngram',
 			tDoneSearch = tNameAndKindOK && tFeature.info.kind === 'search' &&
 				[tDetails.where, tDetails.what].every(iString => iString !== '') &&
-				(tDetails.what !== kKindOfThingOptionText || tDetails.freeFormText !== '')
-		return tDoneNgram || tDoneSearch
+				(tDetails.what !== kKindOfThingOptionText || tDetails.freeFormText !== ''),
+			tDoneColumn = tNameAndKindOK && tFeature.info.kind === 'column'
+		return tDoneNgram || tDoneSearch || tDoneColumn
 	}
 
 	getDescriptionFor(iFeature: Feature) {

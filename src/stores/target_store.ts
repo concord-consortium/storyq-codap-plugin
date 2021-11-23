@@ -35,15 +35,19 @@ export class TargetStore {
 	targetCases: Case[] = []
 	targetClassAttributeName: string = ''
 	targetClassNames: { [index: string]: string, left: string, right: string } = {left: '', right: ''}
+	targetColumnFeatureNames:string[] = []
 	targetLeftColumnKey: 'left' | 'right' = 'left'
 	targetChosenClassColumnKey: 'left' | 'right' = 'left'
 	textRefs: { ownerCaseID: number, ref: React.RefObject<any> }[] = []
 	resultCaseIDsToFill:number[] = []
+	getFeatureNamesFunc:()=>string[]
 
-	constructor() {
+	constructor(iGetFeatureNamesFunc:()=>string[]) {
 		makeAutoObservable(this,
-			{targetCases: false, textRefs: false, targetLeftColumnKey: false, resultCaseIDsToFill: false},
+			{targetCases: false, textRefs: false, targetLeftColumnKey: false, resultCaseIDsToFill: false,
+					getFeatureNamesFunc: false},
 			{autoBind: true})
+		this.getFeatureNamesFunc = iGetFeatureNamesFunc
 	}
 
 	asJSON() {
@@ -53,6 +57,7 @@ export class TargetStore {
 			targetClassAttributeName: toJS(this.targetClassAttributeName),
 			targetClassNames: toJS(this.targetClassNames),
 			targetPredictedLabelAttributeName: toJS(this.targetPredictedLabelAttributeName),
+			targetColumnFeatureNames: toJS(this.targetColumnFeatureNames),
 			resultCaseIDsToFill: this.resultCaseIDsToFill
 		}
 	}
@@ -66,6 +71,7 @@ export class TargetStore {
 		if (json.targetClassNames)
 			this.targetClassNames = json.targetClassNames
 		this.targetPredictedLabelAttributeName = json.targetPredictedLabelAttributeName || ''
+		this.targetColumnFeatureNames = json.targetColumnFeatureNames || []
 		this.resultCaseIDsToFill = json.resultCaseIDsToFill || []
 	}
 
@@ -149,6 +155,16 @@ export class TargetStore {
 			}
 		}
 
+		async function gatherColumnFeatures() {
+			if( tAttrNames.length > 0 && this_.targetAttributeName !== '' &&
+					this_.targetClassAttributeName !== '') {
+				tColumnFeatureNames = tAttrNames.filter(iName=>{
+					return iName !== this_.targetAttributeName && iName !== this_.targetClassAttributeName &&
+						this_.getFeatureNamesFunc().indexOf(iName) < 0
+				})
+			}
+		}
+
 		const tDatasetNames = await getDatasetInfoWithFilter(() => true);
 		let tCollectionNames: string[] = []
 		let tCollectionName = ''
@@ -157,6 +173,7 @@ export class TargetStore {
 		let tPositiveClassName = ''
 		let tNegativeClassName = ''
 		let tClassNames = {left: '', right: ''}
+		let tColumnFeatureNames:string[] = []
 		const tTargetDatasetName = this.targetDatasetInfo.name
 		if (tTargetDatasetName !== '') {
 			tCollectionNames = await getCollectionNames(tTargetDatasetName)
@@ -169,6 +186,8 @@ export class TargetStore {
 				this.textRefs[i] = {ownerCaseID: tCaseValues[i].id, ref: React.createRef()}
 			}
 		}
+		gatherColumnFeatures()
+
 		runInAction(() => {
 			this.datasetInfoArray = tDatasetNames
 			this.targetCollectionName = tCollectionName
@@ -178,6 +197,7 @@ export class TargetStore {
 			if (iPropName)
 				this[iPropName] = iValue
 			this.targetPredictedLabelAttributeName = 'predicted ' + this.targetClassAttributeName
+			this.targetColumnFeatureNames = tColumnFeatureNames
 		})
 		if (tTargetDatasetName !== '' && this.targetCollectionName !== '') {
 			await guaranteeAttribute({name: this.targetFeatureIDsAttributeName, hidden: true},

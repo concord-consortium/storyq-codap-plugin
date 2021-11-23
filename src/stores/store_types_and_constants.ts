@@ -17,14 +17,14 @@ export const kEmptyEntityInfo = {name: '', title: '', id: 0},
 		}
 	}
 
-export const featureDescriptors = {
+export let featureDescriptors = {
 	featureKinds: [{
-		key: "N-grams",
-		items: [
-			{name: "unigrams", value: `{"kind": "ngram", "details": {"n":"uni"}}`}/*,
-			{name: "bigrams", value: `{"kind": "ngram", "details": {"n":"bi"}}`}*/
-		]
-	},
+			key: "N-grams",
+			items: [
+				{name: "unigrams", value: `{"kind": "ngram", "details": {"n":"uni"}}`}/*,
+				{name: "bigrams", value: `{"kind": "ngram", "details": {"n":"bi"}}`}*/
+			]
+		},
 		{
 			key: "Rules",
 			items: [
@@ -33,6 +33,10 @@ export const featureDescriptors = {
 				{name: "does not contain", value: `{"kind": "search", "details": {"where": "does not contain"}}`},
 				{name: "ends with", value: `{"kind": "search", "details": {"where": "ends with"}}`}
 			]
+		},
+		{
+			key: "Column Features",
+			items: []
 		}],
 	containsOptions: ['starts with', 'contains', 'does not contain', 'ends with'],
 	kindOfThingContainedOptions: ['any number', 'any from list', 'free form text', 'punctuation mark'/*, 'part of speech'*/],
@@ -48,7 +52,7 @@ export interface SearchDetails {
 	what: 'any number' | 'any from list' | 'free form text' | 'punctuation mark' | 'part of speech' | '',
 	caseOption: 'any' | 'upper' | 'lower' | '',
 	freeFormText: string,
-	punctuation:string,
+	punctuation: string,
 	wordList: WordListSpec
 }
 
@@ -60,9 +64,11 @@ export interface NgramDetails {
 	n: 'uni' | 'bi' | ''
 }
 
+export interface ColumnDetails {}
+
 export interface FeatureDetails {
-	kind: 'search' | 'ngram' | 'count' | '',
-	details: SearchDetails | CountDetails | NgramDetails | null,
+	kind: 'search' | 'ngram' | 'count' | 'column' | '',
+	details: SearchDetails | CountDetails | NgramDetails | ColumnDetails | null,
 	ignoreStopWords?: boolean,
 	frequencyThreshold?: number
 }
@@ -97,8 +103,10 @@ export const starterFeature: Feature = {
 	infoChoice: '',
 	info: {
 		kind: '',
-		details: { where: '', what: '', caseOption: '', freeFormText: '', punctuation: '',
-			wordList: {datasetName: '', firstAttributeName: ''}}
+		details: {
+			where: '', what: '', caseOption: '', freeFormText: '', punctuation: '',
+			wordList: {datasetName: '', firstAttributeName: ''}
+		}
 	},
 	description: '',
 	type: '',
@@ -115,18 +123,24 @@ export const starterFeature: Feature = {
 export interface TrainingResult {
 	name: string,
 	isActive: boolean
-	threshold:number
-	constantWeightTerm:number
+	threshold: number
+	constantWeightTerm: number
 	accuracy: number
 	kappa: number
-	featureNames:string[],
-	hasNgram:boolean,
+	featureNames: string[],
+	hasNgram: boolean,
 	storedModel: StoredModel
 }
 
 export interface TestingResult {
-	modelName:string, targetDatasetName:string, targetDatasetTitle:string, numPositive:number, numNegative:number,
-	accuracy:number, kappa:number, testBeingConstructed:boolean
+	modelName: string,
+	targetDatasetName: string,
+	targetDatasetTitle: string,
+	numPositive: number,
+	numNegative: number,
+	accuracy: number,
+	kappa: number,
+	testBeingConstructed: boolean
 }
 
 export interface TokenMap {
@@ -203,12 +217,13 @@ export class Model {
 }
 
 export interface StoredModel {
-	storedTokens: {featureCaseID: number, name:string, formula: string, weight:number}[],
-	positiveClassName:string,
-	negativeClassName:string
+	storedTokens: { featureCaseID: number, name: string, formula: string, weight: number }[],
+	positiveClassName: string,
+	negativeClassName: string
 }
 
 export interface WordListSpec {
-	datasetName:string, firstAttributeName:string
+	datasetName: string,
+	firstAttributeName: string
 }
 
