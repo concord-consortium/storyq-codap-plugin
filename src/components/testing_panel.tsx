@@ -131,8 +131,7 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 					tChosenModelName = tTestingStore.chosenModelName,
 					tTestingAttributeName = tTestingStore.testingAttributeName,
 					tTestingClassAttributeName = tTestingStore.testingClassAttributeName,
-					tDisabled = tTestingDatasetName === '' || tChosenModelName === '' || tTestingAttributeName === '' ||
-						tTestingClassAttributeName === ''
+					tDisabled = tTestingDatasetName === '' || tChosenModelName === '' || tTestingAttributeName === ''
 				return (
 					<div className='sq-training-buttons'>
 						<Button

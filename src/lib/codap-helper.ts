@@ -54,7 +54,6 @@ export async function openTable(dataContextName: string) {
  * @param iDatasetInfo
  */
 export async function guaranteeTableOrCardIsVisibleFor(iDatasetInfo: entityInfo) {
-	console.log(`In guaranteeTableOrCardIsVisibleFor ${JSON.stringify(iDatasetInfo)}`)
 	if( iDatasetInfo.name !== '' && iDatasetInfo.title !== '') {
 		const tTableID = await getComponentByTypeAndTitle('caseTable', iDatasetInfo.title),
 			tFoundTable = tTableID >= 0,

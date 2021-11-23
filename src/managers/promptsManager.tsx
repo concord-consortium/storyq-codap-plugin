@@ -40,6 +40,7 @@ export class PromptsManager {
 			noModel: <p>Classification requires a model.</p>,
 			noDataset: <p>Specify a dataset with texts to classify</p>,
 			noAttribute: <p>Specify which attribute contains the texts.</p>,
+			noClass: <p>It's OK to <strong>Classify</strong> even though you haven't chosen class labels.</p>,
 			allSetToTest: <p>You're all set to <strong>classify.</strong></p>
 		}
 	}
@@ -100,6 +101,8 @@ export class PromptsManager {
 					tKey = 'noDataset'
 				else if (this.domainStore.testingStore.testingAttributeName === '')
 					tKey = 'noAttribute'
+				else if (this.domainStore.testingStore.testingClassAttributeName === '')
+					tKey = 'noClass'
 				else tKey = 'allSetToTest'
 				break
 			default:
