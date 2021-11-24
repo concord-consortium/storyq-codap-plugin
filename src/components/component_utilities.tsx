@@ -6,10 +6,10 @@ import React from "react";
 import {SelectBox} from "devextreme-react/select-box";
 import {action} from "mobx";
 
-export function choicesMenu(iPrompt: string, iPlaceHolder:string,
+export function choicesMenu(iPrompt: string, iPlaceHolder: string,
 														iChoices: string[], iValue: string, iCallback: (choice: string) => void) {
 	return (
-		<label>
+		<div className='sq-choice'>
 			<span>{iPrompt}:</span>
 			<SelectBox
 				dataSource={iChoices}
@@ -20,6 +20,6 @@ export function choicesMenu(iPrompt: string, iPlaceHolder:string,
 				width={'100%'}
 			>
 			</SelectBox>
-		</label>)
-
+		</div>
+	)
 }

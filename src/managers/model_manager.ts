@@ -321,15 +321,58 @@ export class ModelManager {
 			lockProbThreshold: boolean
 		}
 	) {
-		const tOneHotLength = iTools.oneHotData[0].length,
-			tPosProbs: number[] = [],
-			tNegProbs: number[] = [],
-			tMapFromCaseIDToProbability: any = {},
-			kProbPredAttrNamePrefix = 'probability of ',
-			tProbName = `${kProbPredAttrNamePrefix}${iTools.positiveClassName}`,
-			tPredictedLabelAttributeName = this.domainStore.targetStore.targetPredictedLabelAttributeName,
-			tTargetDatasetName = this.domainStore.targetStore.targetDatasetInfo.name,
-			tResultsCollectionName = this.domainStore.targetStore.targetResultsCollectionName
+
+		/**
+		 * The results collection is a child of the target collection and is where we show the predicted labels and
+		 * probabilities for each target text for each model
+		 */
+		async function guaranteeResultsCollection() {
+			const tTargetClassAttributeName = tTargetStore.targetClassAttributeName,
+				tPositiveClassName = tTargetStore.getClassName('positive')
+			if( tTargetClassAttributeName !== '' && tPositiveClassName !== '') {
+				const tCollectionListResult: any = await codapInterface.sendRequest({
+					action: 'get',
+					resource: `dataContext[${tTargetDatasetName}].collectionList`
+				})
+				if (tCollectionListResult.values.length === 1) {
+					const tResultsCollectionName = tTargetStore.targetResultsCollectionName
+					const tAttributeValues = [
+						{
+							name: 'model name',
+							description: 'The model used for predicting these results'
+						},
+						{
+							name: tPredictedLabelAttributeName,
+							description: 'The label predicted by the model'
+						},
+						{
+							name: 'probability of ' + tPositiveClassName,
+							precision: 5,
+							description: 'A computed probability based on the logistic regression model'
+						}
+					]
+					await codapInterface.sendRequest({
+						action: 'create',
+						resource: `dataContext[${tTargetDatasetName}].collection`,
+						values: [{
+							name: tResultsCollectionName,
+							title: tResultsCollectionName,
+							attrs: tAttributeValues
+						}]
+					}).catch(reason => {
+						console.log(`Exception in creating results collection because ${reason}`)
+					})
+
+					// This unfortunately installs an empty child case for each parent case. We store their IDs so we can delete them
+					// after we create the legitimate cases
+					const tCaseIDResult: any = await codapInterface.sendRequest({
+						action: 'get',
+						resource: `dataContext[${tTargetDatasetName}].collection[${tResultsCollectionName}].caseFormulaSearch[true]`
+					})
+					tResultCaseIDsToFill = tCaseIDResult.values.map((iValue: any) => Number(iValue.id))
+				}
+			}
+		}
 
 		function findThreshold(): number {
 			// Determine the probability threshold that yields the fewest discrepant classifications
@@ -416,9 +459,24 @@ export class ModelManager {
 			return tRecord.threshold;
 		}
 
+		const
+			this_ = this,
+			tTargetStore = this_.domainStore.targetStore,
+			tOneHotLength = iTools.oneHotData[0].length,
+			tPosProbs: number[] = [],
+			tNegProbs: number[] = [],
+			tMapFromCaseIDToProbability: any = {},
+			kProbPredAttrNamePrefix = 'probability of ',
+			tProbName = `${kProbPredAttrNamePrefix}${iTools.positiveClassName}`,
+			tPredictedLabelAttributeName = tTargetStore.targetPredictedLabelAttributeName,
+			tTargetDatasetName = tTargetStore.targetDatasetInfo.name,
+			tResultsCollectionName = tTargetStore.targetResultsCollectionName
+			let tResultCaseIDsToFill:number[] = []
+
+		await guaranteeResultsCollection()
+
 		// Create values of predicted label and probability for each document
 		let tThresholdResult = findThreshold(),
-			tResultCaseIDsToFill = this.domainStore.targetStore.resultCaseIDsToFill,
 			tWeAreUpdating = tResultCaseIDsToFill.length > 0,
 			tLabelValuesForCreation: { parent: number, values: any }[] = [],
 			tLabelValuesForUpdating: { id: number, values: any }[] = [],

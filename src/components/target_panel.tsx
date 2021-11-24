@@ -29,7 +29,7 @@ export const TargetPanel = observer(class TargetPanel extends Component<Target_P
 	private targetPanelInfo: TargetPanelInfo;
 	private targetPanelConstants = {
 		createNewEntityInfo: {
-			title: 'NEW',
+			title: ''/*'NEW'*/,
 			name: '',
 			id: 0
 		}
@@ -101,7 +101,6 @@ export const TargetPanel = observer(class TargetPanel extends Component<Target_P
 				return choicesMenu('Target Class', 'Choose an attribute with classes',
 					this_.props.domainStore.targetStore.targetAttributeNames,
 					this_.props.domainStore.targetStore.targetClassAttributeName, async (iChoice) => {
-						// this_.props.domainStore.targetStore.targetClassAttributeName = iChoice
 						await this_.updateTargetPanelInfo('targetClassAttributeName', iChoice)
 					})
 			}

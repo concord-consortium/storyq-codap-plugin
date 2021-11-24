@@ -55,6 +55,7 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 	render() {
 		const this_ = this,
 			tTestingStore = this.props.domainStore.testingStore,
+			tTestingClassAttributeName = tTestingStore.testingClassAttributeName,
 			tReadyForNewTest = !tTestingStore.currentTestingResults.testBeingConstructed
 
 		function getNewTestButton() {
@@ -116,7 +117,7 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 				const tAttributeNames: string[] = toJS(tTestingStore.testingAttributeNames)
 				tAttributeNames.unshift(this_.kNonePresent)
 				return choicesMenu('Choose the column with class labels', 'Choose a column', tAttributeNames,
-					tTestingStore.testingClassAttributeName,
+					tTestingClassAttributeName,
 					async (iChoice: string) => {
 						tTestingStore.testingClassAttributeName = iChoice
 						await this_.updateCodapInfo()
@@ -130,7 +131,6 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 					tTestingDatasetName = tTestingStore.testingDatasetInfo.title,
 					tChosenModelName = tTestingStore.chosenModelName,
 					tTestingAttributeName = tTestingStore.testingAttributeName,
-					tTestingClassAttributeName = tTestingStore.testingClassAttributeName,
 					tDisabled = tTestingDatasetName === '' || tChosenModelName === '' || tTestingAttributeName === ''
 				return (
 					<div className='sq-training-buttons'>

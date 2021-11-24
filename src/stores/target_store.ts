@@ -39,12 +39,11 @@ export class TargetStore {
 	targetLeftColumnKey: 'left' | 'right' = 'left'
 	targetChosenClassColumnKey: 'left' | 'right' = 'left'
 	textRefs: { ownerCaseID: number, ref: React.RefObject<any> }[] = []
-	resultCaseIDsToFill:number[] = []
 	getFeatureNamesFunc:()=>string[]
 
 	constructor(iGetFeatureNamesFunc:()=>string[]) {
 		makeAutoObservable(this,
-			{targetCases: false, textRefs: false, targetLeftColumnKey: false, resultCaseIDsToFill: false,
+			{targetCases: false, textRefs: false, targetLeftColumnKey: false,
 					getFeatureNamesFunc: false},
 			{autoBind: true})
 		this.getFeatureNamesFunc = iGetFeatureNamesFunc
@@ -58,7 +57,6 @@ export class TargetStore {
 			targetClassNames: toJS(this.targetClassNames),
 			targetPredictedLabelAttributeName: toJS(this.targetPredictedLabelAttributeName),
 			targetColumnFeatureNames: toJS(this.targetColumnFeatureNames),
-			resultCaseIDsToFill: this.resultCaseIDsToFill
 		}
 	}
 
@@ -72,7 +70,6 @@ export class TargetStore {
 			this.targetClassNames = json.targetClassNames
 		this.targetPredictedLabelAttributeName = json.targetPredictedLabelAttributeName || ''
 		this.targetColumnFeatureNames = json.targetColumnFeatureNames || []
-		this.resultCaseIDsToFill = json.resultCaseIDsToFill || []
 	}
 
 	getClassName(iClass: 'positive' | 'negative') {
@@ -86,69 +83,12 @@ export class TargetStore {
 		const this_ = this
 
 		/**
-		 * The results collection is a child of the target collection and is where we show the predicted labels and
-		 * probabilities for each target text for each model
-		 */
-		async function guaranteeResultsCollection() {
-			const tTargetClassAttributeName = this_.targetClassAttributeName,
-				tPositiveClassName = this_.getClassName('positive')
-			if( tTargetClassAttributeName !== '' && tPositiveClassName !== '') {
-				const tPredictedLabelAttributeName = this_.targetPredictedLabelAttributeName
-					const tCollectionListResult: any = await codapInterface.sendRequest({
-					action: 'get',
-					resource: `dataContext[${tTargetDatasetName}].collectionList`
-				})
-				if (tCollectionListResult.values.length === 1) {
-					const tResultsCollectionName = this_.targetResultsCollectionName
-					const tAttributeValues = [
-						{
-							name: 'model name',
-							description: 'The model used for predicting these results'
-						},
-						{
-							name: tPredictedLabelAttributeName,
-							description: 'The label predicted by the model'
-						},
-						{
-							name: 'probability of ' + tPositiveClassName,
-							precision: 5,
-							description: 'A computed probability based on the logistic regression model'
-						}
-					]
-					await codapInterface.sendRequest({
-						action: 'create',
-						resource: `dataContext[${tTargetDatasetName}].collection`,
-						values: [{
-							name: tResultsCollectionName,
-							title: tResultsCollectionName,
-							attrs: tAttributeValues
-						}]
-					}).catch(reason => {
-						console.log(`Exception in creating results collection because ${reason}`)
-					})
-
-					// This unfortunately installs an empty child case for each parent case. We store their IDs so we can delete them
-					// after we create the legitimate cases
-					const tCaseIDResult: any = await codapInterface.sendRequest({
-						action: 'get',
-						resource: `dataContext[${tTargetDatasetName}].collection[${tResultsCollectionName}].caseFormulaSearch[true]`
-					})
-					this_.resultCaseIDsToFill = tCaseIDResult.values.map((iValue: any) => Number(iValue.id))
-				}
-			}
-		}
-
-		/**
 		 * We go through the target cases to find the first two unique values of the targetClassAttributeName
 		 */
 		function chooseClassNames() {
-			const tTargetClassAttributeName = this_.targetClassAttributeName !== '' ?
-				this_.targetClassAttributeName : (
-					iPropName === 'targetClassAttributeName' ? iValue : ''
-				)
+			const tTargetClassAttributeName = iPropName === 'targetClassAttributeName' ? iValue : this_.targetClassAttributeName
 			if (tTargetClassAttributeName !== '') {
-				tPositiveClassName = this_.targetClassNames.left !== '' ?
-					this_.targetClassNames.left : tCaseValues[0].values[tTargetClassAttributeName]
+				tPositiveClassName = tCaseValues[0].values[tTargetClassAttributeName]
 				const tNegativeClassCase = tCaseValues.find(iCase => iCase.values[tTargetClassAttributeName] !== tPositiveClassName)
 				tNegativeClassName = tNegativeClassCase ? tNegativeClassCase.values[tTargetClassAttributeName] : ''
 				tClassNames = {left: tPositiveClassName, right: tNegativeClassName}
@@ -179,6 +119,7 @@ export class TargetStore {
 			tCollectionNames = await getCollectionNames(tTargetDatasetName)
 			tCollectionName = tCollectionNames.length > 0 ? tCollectionNames[0] : ''
 			tAttrNames = tCollectionName !== '' ? await getAttributeNames(tTargetDatasetName, tCollectionName) : []
+			tAttrNames = tAttrNames.filter(iName=>iName!==this.targetFeatureIDsAttributeName)
 			tCaseValues = this.targetAttributeName !== '' ? await getCaseValues(tTargetDatasetName,
 				tCollectionName) : []
 			chooseClassNames()
@@ -202,7 +143,6 @@ export class TargetStore {
 		if (tTargetDatasetName !== '' && this.targetCollectionName !== '') {
 			await guaranteeAttribute({name: this.targetFeatureIDsAttributeName, hidden: true},
 				tTargetDatasetName, this.targetCollectionName)
-			await guaranteeResultsCollection()
 		}
 	}
 

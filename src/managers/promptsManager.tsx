@@ -20,19 +20,19 @@ export class PromptsManager {
 			noChosenTargetDataset: <p>A dataset needs to be chosen (unless you want to create your own).</p>,
 			noTargetText: <p>Choose the attribute that contains the target text.</p>,
 			noTargetClass: <p>Choose the attribute that contains the classes of each text.</p>,
-			readyFeatures: <p>You can move on to <strong>Features</strong>.</p>
+			readyFeatures: <p>If you've a target class value, you can move on to Features.</p>
 		},
 		1: {	// Features panel
 			noFeatures: <p>Not much can be done without at least one feature.</p>,
 			oneFeature: <p>One feature! Do you need more?</p>,
-			manyFeatures: <p>You can proceed to <strong>Training</strong>.</p>
+			manyFeatures: <p>You can proceed to Training.</p>
 		},
 		2: {	// Training panel
 			nothingConstructed: <p>Go ahead and make a <strong>New Model</strong>.</p>,
 			noModels: <p>The model needs a name before you can train it.</p>,
 			noTraining: <p>Go ahead and train your model.</p>,
 			oneModel: <p>You have one trained model. Make more? Go on to <strong>Testing?</strong></p>,
-			manyModels: <p>You can proceed to <strong>Testing</strong>.</p>
+			manyModels: <p>You can proceed to Testing.</p>
 		},
 		3: {	// Training panel
 			readyForNewTest: <p>Go ahead and conduct a <strong>New Test</strong>.</p>,

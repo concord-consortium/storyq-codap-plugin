@@ -29,7 +29,7 @@ export const kMaxTokens = 1000;
 export const wordTokenizer = (text: string, ignoreStopWords: boolean): string[] => {
 	let tokens: string[] = [];
 	if (text) {
-		let tWords: RegExpMatchArray | [] = text.toLowerCase().match(/(\w+['’]{0,1}\w+)|[\u25A0-\u2BFF]/g) || [];
+		let tWords: RegExpMatchArray | [] = text.toLowerCase().match(/(\w+['’]{0,1}\w+)|[\u25A0-\u2BFF]|[,!:@#$%^&*()\-_[\]{};'".<>\/?`~]/g) || [];
 		tWords.forEach((aWord) => {
 			if (!ignoreStopWords || !stopWords[aWord])
 				tokens.push(aWord);
