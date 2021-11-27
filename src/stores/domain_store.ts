@@ -3,11 +3,11 @@
  * be accessed in more than one file or needs to be saved and restored.
  */
 
-import {openTable} from "../lib/codap-helper";
+import {getComponentByTypeAndTitle, openTable} from "../lib/codap-helper";
 import codapInterface from "../lib/CodapInterface";
 import TextFeedbackManager from "../managers/text_feedback_manager";
 import {oneHot} from "../lib/one_hot";
-import {Feature, kPosNegConstants} from "./store_types_and_constants";
+import {Feature, kPosNegConstants, kStoryQPluginName} from "./store_types_and_constants";
 import {TargetStore} from "./target_store";
 import {FeatureStore} from "./feature_store";
 import {TrainingStore} from "./training_store";
@@ -376,6 +376,17 @@ export class DomainStore {
 	async addTextComponent() {
 		await this.textStore.addTextComponent(this.targetStore.targetDatasetInfo.title, this.targetStore.targetAttributeName)
 		await this.clearText()
+		setTimeout(async ()=>{
+			// Take the focus away from the newly created text component
+			const tPluginID = await getComponentByTypeAndTitle('game', kStoryQPluginName)
+			await codapInterface.sendRequest({
+				action: 'notify',
+				resource: `component[${tPluginID}]`,
+				values: {
+					request: 'select'
+				}
+			})
+			}, 1000)
 	}
 
 	async clearText() {

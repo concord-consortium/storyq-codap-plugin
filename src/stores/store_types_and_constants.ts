@@ -5,6 +5,8 @@ import {makeAutoObservable, toJS} from "mobx";
  * These types and constants are used primarily by the various store classes
  */
 
+export const kStoryQPluginName = "StoryQ Studio"
+
 export const kEmptyEntityInfo = {name: '', title: '', id: 0},
 	kPosNegConstants = {
 		positive: {
@@ -175,6 +177,7 @@ export class Model {
 	frequencyThreshold = 4
 	beingConstructed = false
 	trainingInProgress = false
+	trainingInStepMode = false
 	trainingIsComplete = false
 	logisticModel: LogisticRegression = new LogisticRegression({
 		alpha: 1,
@@ -203,6 +206,7 @@ export class Model {
 		this.frequencyThreshold = 4
 		this.beingConstructed = false
 		this.trainingInProgress = false
+		this.trainingInStepMode = false
 		this.trainingIsComplete = false
 		this.logisticModel && this.logisticModel.reset()
 	}

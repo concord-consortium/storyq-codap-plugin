@@ -96,15 +96,18 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 						</Button>
 						<Button
 							className='sq-button'
-							disabled={true}
+							disabled={tDisabled}
 							onClick={action(async () => {
 								this_.props.uiStore.trainingPanelShowsEditor = false
+								this_.props.domainStore.trainingStore.model.trainingInProgress = true
+								this_.props.domainStore.trainingStore.model.trainingInStepMode = true
+								await this_.modelManager.buildModel()
 							})}>
 							Step
 						</Button>
 						<Button
 							className='sq-button'
-							disabled={true}
+							disabled={tDisabled}
 							onClick={action(async () => {
 							})}>
 							Reset
