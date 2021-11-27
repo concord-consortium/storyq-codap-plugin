@@ -19,12 +19,12 @@ export const kEmptyEntityInfo = {name: '', title: '', id: 0},
 
 export let featureDescriptors = {
 	featureKinds: [{
-			key: "N-grams",
-			items: [
-				{name: "unigrams", value: `{"kind": "ngram", "details": {"n":"uni"}}`}/*,
+		key: "N-grams",
+		items: [
+			{name: "unigrams", value: `{"kind": "ngram", "details": {"n":"uni"}}`}/*,
 				{name: "bigrams", value: `{"kind": "ngram", "details": {"n":"bi"}}`}*/
-			]
-		},
+		]
+	},
 		{
 			key: "Rules",
 			items: [
@@ -64,7 +64,9 @@ export interface NgramDetails {
 	n: 'uni' | 'bi' | ''
 }
 
-export interface ColumnDetails {}
+export interface ColumnDetails {
+	columnName:string
+}
 
 export interface FeatureDetails {
 	kind: 'search' | 'ngram' | 'count' | 'column' | '',
@@ -125,6 +127,11 @@ export interface TrainingResult {
 	isActive: boolean
 	threshold: number
 	constantWeightTerm: number
+	settings: {
+		iterations: number
+		locked: boolean
+		thresholdAtPoint5: boolean
+	}
 	accuracy: number
 	kappa: number
 	featureNames: string[],

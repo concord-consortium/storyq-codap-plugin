@@ -12,6 +12,7 @@ import Button from "devextreme-react/button";
 import {CheckBox} from "devextreme-react/check-box";
 import {ModelManager} from "../managers/model_manager";
 import {ProgressBar} from "./progress_bar";
+import {TrainingResult} from "../stores/store_types_and_constants";
 
 interface TrainingPaneState {
 	count: number,
@@ -227,7 +228,8 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 
 		function getModelResults() {
 
-			function getIsActiveButon(iIndex:number) {const tTrainingResult = tResults[iIndex],
+			function getIsActiveButon(iIndex: number) {
+				const tTrainingResult = tResults[iIndex],
 					tIcon = tTrainingResult.isActive ? 'check' : '',
 					tText = tTrainingResult.isActive ? '' : '◻︎'
 				return (
@@ -236,7 +238,7 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 					>
 						<Button
 							text={tText}
-							style={{'fontSize':'large'}}
+							style={{'fontSize': 'large'}}
 							icon={tIcon}
 							stylingMode='text'
 							onClick={action(() => {
@@ -247,6 +249,18 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 				)
 			}
 
+			function getSettings(aResult: TrainingResult) {
+				if (aResult.settings) {
+					return (
+						<div style={{"fontSize": "smaller", "textAlign":"left"}}>
+							<p>{aResult.settings.iterations} iterations</p>
+							<p>intercept {aResult.settings.locked ? '' : 'not'} locked</p>
+							<p>threshold = {aResult.threshold.toFixed(2)}</p>
+						</div>
+					)
+				}
+			}
+
 			const tResults = this_.props.domainStore.trainingStore.trainingResults
 			if (tResults.length > 0) {
 				return (
@@ -255,6 +269,7 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 						<tr>
 							<th>Active</th>
 							<th>Model Name</th>
+							<th>Settings</th>
 							<th>Accuracy</th>
 							<th>Kappa</th>
 							<th>Features</th>
@@ -267,6 +282,7 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 								<tr key={iIndex}>
 									{getIsActiveButon(iIndex)}
 									<td>{iResult.name}</td>
+									<td>{getSettings(iResult)}</td>
 									<td>{iResult.accuracy.toFixed(2)}</td>
 									<td>{iResult.kappa.toFixed(2)}</td>
 									<td>{tFeatureNames}</td>

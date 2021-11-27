@@ -49,6 +49,7 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 				switch (iFeature.info.kind) {
 					case 'search':
 					case 'count':
+					case 'column':
 						await this.props.domainStore.updateNonNtigramFeaturesDataset()
 						break
 					case 'ngram':
@@ -81,10 +82,10 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 			}
 
 			function kindOfContainsChoice() {
-				featureDescriptors.featureKinds[2].items =
-					this_.props.domainStore.targetStore.targetColumnFeatureNames.map(iColumnName=>{
-						return {name: iColumnName, value: `{"kind": "column", "details": {}}`, key: 'Column Features'}
+					const tColumns = this_.props.domainStore.targetStore.targetColumnFeatureNames.map(iColumnName=>{
+						return {name: iColumnName, value: `{"kind": "column", "details": {"columName":"${iColumnName}"}}`, key: 'Column Features'}
 					})
+				featureDescriptors.featureKinds[2].items = tColumns
 				// console.log(`featureDescriptors = ${JSON.stringify(featureDescriptors.featureKinds)}`)
 				return (
 					<SelectBox
@@ -103,6 +104,11 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 							if (tFeature.info.kind === 'ngram') {
 								tFeature.info.frequencyThreshold = 4
 								tFeature.info.ignoreStopWords = true
+							}
+							else if(tFeature.info.kind === 'column') {
+								const tName = JSON.parse(e.value).details['columName']
+								tFeature.name = tName
+								tFeature.type = 'column'
 							}
 							await this_.updateFeaturesDataset(tFeature)
 						})}

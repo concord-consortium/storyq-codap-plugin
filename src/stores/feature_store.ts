@@ -125,10 +125,17 @@ export class FeatureStore {
 	}
 
 	addFeatureUnderConstruction() {
-		let tType = 'constructed'
-		if (this.featureUnderConstruction.info.kind === 'ngram')
-			tType = 'unigram'
-
+		let tType
+		switch (this.featureUnderConstruction.info.kind) {
+			case 'ngram':
+				tType = 'unigram'
+				break
+			case 'column':
+				tType = 'column'
+				break;
+			default:
+				tType = 'constructed'
+		}
 		this.featureUnderConstruction.inProgress = false
 		this.featureUnderConstruction.chosen = true
 		this.featureUnderConstruction.type = tType

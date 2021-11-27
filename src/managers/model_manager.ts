@@ -140,6 +140,11 @@ export class ModelManager {
 					isActive: true,
 					threshold: Number(tLogisticModel.threshold),
 					constantWeightTerm: tLogisticModel.fitResult.constantWeightTerm,
+					settings: {
+						iterations: tLogisticModel.iterations,
+						locked: tLogisticModel.lockIntercept,
+						thresholdAtPoint5: tModel.usePoint5AsProbThreshold
+					},
 					accuracy: tLogisticModel.accuracy || 0,
 					kappa: tLogisticModel.kappa || 0,
 					featureNames: this.domainStore.featureStore.getChosenFeatureNames(),
@@ -204,7 +209,7 @@ export class ModelManager {
 			},
 				{
 					action: 'update',
-					resource: `dataContext[${tFeatureDatasetName}].collection[${tWeightsCollectionName}].attribute[model]`,
+					resource: `dataContext[${tFeatureDatasetName}].collection[${tWeightsCollectionName}].attribute[model name]`,
 					values: {hidden: false}
 				}]
 			await codapInterface.sendRequest(tShowRequests)

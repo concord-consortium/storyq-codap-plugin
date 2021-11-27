@@ -164,7 +164,7 @@ export class TargetStore {
 	async addOrUpdateFeatureToTarget(iNewFeature: Feature, iUpdate ?: boolean) {
 		const this_ = this,
 			tTargetAttr = `${this_.targetAttributeName}`
-		if (!this_.targetDatasetInfo || iNewFeature.info.kind === 'ngram')
+		if (!this_.targetDatasetInfo || iNewFeature.info.kind === 'ngram' || iNewFeature.info.kind === 'column')
 			return;
 
 		function freeFormFormula() {
