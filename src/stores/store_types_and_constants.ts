@@ -152,19 +152,20 @@ export interface TestingResult {
 	testBeingConstructed: boolean
 }
 
-export interface TokenMap {
-	[key: string]: {
-		token: string,
-		type: 'constructed feature' | 'unigram',
-		count: number,	// the number of target texts where this token is true (column feature) or found (unigram)
-		index: number,
-		numPositive: number,
-		numNegative: number,
-		caseIDs: number[],
-		weight: number | null,
-		featureCaseID: number | null
-	}
+export interface Token {
+	token: string,
+	type: 'constructed feature' | 'unigram',
+	count: number,	// the number of target texts where this token is true (column feature) or found (unigram)
+	index: number,
+	numPositive: number,
+	numNegative: number,
+	caseIDs: number[],
+	weight: number | null,
+	featureCaseID: number | null
 }
+
+export interface TokenMap {
+	[key: string]: Token}
 
 export class Model {
 	[index: string]: any;
@@ -189,7 +190,7 @@ export class Model {
 		threshold: 0.5,
 		trace: false,
 		progressCallback: null,
-		feedbackCallback: null
+		stepModeCallback: null
 	})
 
 

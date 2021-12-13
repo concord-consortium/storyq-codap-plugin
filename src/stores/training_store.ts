@@ -3,7 +3,7 @@
  * be accessed in more than one file or needs to be saved and restored.
  */
 
-import {action, makeAutoObservable, toJS} from 'mobx'
+import {makeAutoObservable, runInAction, toJS} from 'mobx'
 import {Model, TrainingResult} from "./store_types_and_constants";
 
 export class TrainingStore {
@@ -31,9 +31,9 @@ export class TrainingStore {
 	}
 
 	inactivateAll() {
-		action(()=> {
+		runInAction(()=> {
 			this.trainingResults.forEach(iResult => iResult.isActive = false)
-		})()
+		})
 	}
 
 	getTrainingResultByName(iModelName:string) {

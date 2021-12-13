@@ -98,10 +98,16 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 							className='sq-button'
 							disabled={tDisabled}
 							onClick={action(async () => {
-								this_.props.uiStore.trainingPanelShowsEditor = false
-								this_.props.domainStore.trainingStore.model.trainingInProgress = true
-								this_.props.domainStore.trainingStore.model.trainingInStepMode = true
-								await this_.modelManager.buildModel()
+								const tInProgress = this_.props.domainStore.trainingStore.model.trainingInProgress
+								if( !tInProgress) {
+									this_.props.uiStore.trainingPanelShowsEditor = false
+									this_.props.domainStore.trainingStore.model.trainingInProgress = true
+									this_.props.domainStore.trainingStore.model.trainingInStepMode = true
+									await this_.modelManager.buildModel()
+								}
+								else {
+									this_.modelManager.nextStep()
+								}
 							})}>
 							Step
 						</Button>
@@ -286,8 +292,8 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 									{getIsActiveButon(iIndex)}
 									<td>{iResult.name}</td>
 									<td>{getSettings(iResult)}</td>
-									<td>{iResult.accuracy.toFixed(2)}</td>
-									<td>{iResult.kappa.toFixed(2)}</td>
+									<td>{(100 * iResult.accuracy).toFixed(1)}%</td>
+									<td>{(100 * iResult.kappa).toFixed(1)}%</td>
 									<td>{tFeatureNames}</td>
 								</tr>)
 

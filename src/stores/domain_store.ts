@@ -85,9 +85,11 @@ export class DomainStore {
 									{name: 'chosen', type: 'checkbox'},
 									{name: tPositiveAttrName},
 									{name: tNegativeAttrName},
-									{name: 'type'},
+									{name: 'type', hidden: true },
+/*
 									{name: 'description'},
 									{name: 'formula'},
+*/
 									{name: 'usages', hidden: true}
 								]
 							},
@@ -140,7 +142,7 @@ export class DomainStore {
 		}
 
 		function featureDoesNotMatchItem(iItem: { [key: string]: any }, iFeature: { [key: string]: any }) {
-			return ['name', 'chosen', 'formula', 'description'].some(iKey => {
+			return ['name', 'chosen'/*, 'formula', 'description'*/].some(iKey => {
 					return String(iItem[iKey]).trim() !== String(iFeature[iKey]).trim()
 				}) || iItem[kPosNegConstants.negative.storeKey] !== iFeature[kPosNegConstants.negative.attrKey] ||
 				iItem[kPosNegConstants.positive.storeKey] !== iFeature[kPosNegConstants.positive.attrKey]
@@ -214,18 +216,25 @@ export class DomainStore {
 			}
 			if (tFeaturesToAdd.length > 0) {
 				const tValues = tFeaturesToAdd.map(iFeature => {
-					return {
+					const tChosenClassKey = this.targetStore.targetChosenClassColumnKey,
+						tUnchosenClassKey = tChosenClassKey === 'left' ? 'right' : 'left',
+						tPositiveAttrName = kPosNegConstants.positive.attrKey + tTargetStore.targetClassNames[tChosenClassKey],
+						tNegativeAttrName = kPosNegConstants.negative.attrKey + tTargetStore.targetClassNames[tUnchosenClassKey]
+					let tValuesObject:{values: { [index: string]: {} }} = {
 						values: {
 							chosen: iFeature.chosen,
 							name: iFeature.name,
-							'frequency in positive': iFeature.numberInPositive,
-							'frequency in negative': iFeature.numberInNegative,
 							type: iFeature.type,
+/*
 							formula: iFeature.formula,
 							description: iFeature.description,
+*/
 							usages: JSON.stringify(iFeature.usages)
 						}
 					}
+					tValuesObject.values[tPositiveAttrName] = iFeature.numberInPositive
+					tValuesObject.values[tNegativeAttrName] = iFeature.numberInNegative
+					return tValuesObject
 				})
 				const tCreateResult: any = await codapInterface.sendRequest(
 					{
@@ -330,7 +339,9 @@ export class DomainStore {
 						chosen: true,
 						name: iFeature.token,
 						type: 'unigram',
+/*
 						description: `unigram ${tIgnore ? '' : 'not '}ignoring stop words with frequency threshold of ${tThreshold}`,
+*/
 						usages: JSON.stringify(iFeature.caseIDs)
 					}
 				}

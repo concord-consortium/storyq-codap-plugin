@@ -105,7 +105,9 @@ export class TargetStore {
 			}
 		}
 
-		const tDatasetNames = await getDatasetInfoWithFilter(() => true);
+		const tDatasetNames = await getDatasetInfoWithFilter((anInfo:entityInfo) => {
+			return anInfo && anInfo.numAttributes ? anInfo.numAttributes > 1 : false
+		});
 		let tCollectionNames: string[] = []
 		let tCollectionName = ''
 		let tAttrNames: string[] = []

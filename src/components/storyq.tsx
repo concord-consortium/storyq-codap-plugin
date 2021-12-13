@@ -33,7 +33,7 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 		private domainStore: DomainStore
 		private promptsManager: PromptsManager
 		private kPluginName = kStoryQPluginName;
-		private kVersion = "1.68";
+		private kVersion = "1.72";
 		private kInitialDimensions = {
 			width: 429,
 			height: 420
@@ -66,10 +66,11 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 			};
 		}
 
-		restorePluginFromStore(iStorage: any) {
+		async restorePluginFromStore(iStorage: any) {
 			if (iStorage) {
 				this.uiStore.fromJSON(iStorage.uiStore);
 				this.domainStore.fromJSON(iStorage.domainStore);
+				await this.domainStore.targetStore.updateFromCODAP()
 			}
 		}
 
@@ -77,8 +78,9 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 			this.tabPanel = iInstance.component;
 		}
 
-		handleSelectionChanged(e: any) {
+		async handleSelectionChanged(e: any) {
 			this.uiStore.tabPanelSelectedIndex = e.component.option('selectedIndex')
+			await this.domainStore.targetStore.updateFromCODAP()
 		}
 
 		renderTabPanel() {

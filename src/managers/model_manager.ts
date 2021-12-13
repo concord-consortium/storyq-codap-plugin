@@ -7,16 +7,19 @@ import codapInterface from "../lib/CodapInterface";
 import {oneHot} from "../lib/one_hot";
 import {runInAction} from "mobx";
 import {computeKappa} from "../utilities/utilities";
-import {NgramDetails, StoredModel} from "../stores/store_types_and_constants";
+import {NgramDetails, StoredModel, Token} from "../stores/store_types_and_constants";
 import {LogisticRegression} from "../lib/jsregression";
 
 export class ModelManager {
 
 	domainStore: DomainStore
+	stepModeContinueCallback: ((iIteration: number) => void) | null = null
+	stepModeIteration: number = 0
 
 	constructor(iDomainStore: DomainStore) {
 		this.domainStore = iDomainStore
 		this.progressBar = this.progressBar.bind(this)
+		this.stepModeCallback = this.stepModeCallback.bind(this)
 	}
 
 	guaranteeUniqueModelName(iCandidate: string) {
@@ -35,6 +38,115 @@ export class ModelManager {
 		return tTest
 	}
 
+	/**
+	 * - We make sure both collections have their attributes showing
+	 * - If new cases for those collections need to be created, we create them
+	 * - We fill in the model name for cases in each collection
+	 * - We gather up the caseIDs for both weight and result cases
+	 */
+	async prepWeightsAndResultsCollections(iTokens: Token[]) {
+
+		async function emptyFirstChildWeightCaseExists() {
+			let tIsEmpty = true;
+			const tFirstChildResult: any = await codapInterface.sendRequest({
+				action: 'get',
+				resource: `dataContext[${tFeatureDatasetName}].collection[${tWeightsCollectionName}].caseByIndex[0]`
+			})
+			if (tFirstChildResult.success) {
+				const tName = tFirstChildResult.values.case.values['model name']
+				tIsEmpty = !tName || tName === ''
+			}
+			return tIsEmpty
+		}
+
+		const tFeatureDatasetName = this.domainStore.featureStore.featureDatasetInfo.datasetName,
+			tFeaturesCollectionName = this.domainStore.featureStore.featureDatasetInfo.collectionName,
+			tWeightsCollectionName = this.domainStore.featureStore.featureDatasetInfo.weightsCollectionName,
+			tUpdatingExistingWeights = await emptyFirstChildWeightCaseExists(),
+			tCreationRequests: { parent: number, values: any }[] = [],
+			tUpdateRequests: { id: number, values: any }[] = [],
+			tFeatureWeightCaseIDs: { [index: string]: number } = {},
+			tModelName = this.domainStore.trainingStore.model.name
+
+		async function showWeightAttributes() {
+			const tShowRequests = [{
+				action: 'update',
+				resource: `dataContext[${tFeatureDatasetName}].collection[${tWeightsCollectionName}].attribute[weight]`,
+				values: {hidden: false}
+			},
+				{
+					action: 'update',
+					resource: `dataContext[${tFeatureDatasetName}].collection[${tWeightsCollectionName}].attribute[model name]`,
+					values: {hidden: false}
+				}]
+			await codapInterface.sendRequest(tShowRequests)
+		}
+
+		async function getFeatureWeightCaseIDs() {
+			const tFeatureCountResult: any = await codapInterface.sendRequest({
+					action: 'get',
+					resource: `dataContext[${tFeatureDatasetName}].collection[${tFeaturesCollectionName}].caseCount`
+				}),
+				tFeatureCount = tFeatureCountResult.success ? tFeatureCountResult.values : 0,
+				tRequests: {}[] = []
+			for (let n = 0; n < tFeatureCount; n++) {
+				tRequests.push({
+						action: 'get',
+						resource: `dataContext[${tFeatureDatasetName}].collection[${tFeaturesCollectionName}].caseByIndex[${n}]`
+					}
+				)
+			}
+			const tResults: any = await codapInterface.sendRequest(tRequests)
+			tResults.forEach((iResult: any) => {
+				if (iResult.success) {
+					tFeatureWeightCaseIDs[iResult.values.case.values.name] = iResult.values.case.id
+				}
+			})
+		}
+
+		function generateRequests() {
+			iTokens.forEach((aToken: any) => {
+					if (tUpdatingExistingWeights) {
+						tUpdateRequests.push({
+							id: tFeatureWeightCaseIDs[aToken.token],
+							values: {
+								'model name': tModelName,
+							}
+						})
+					} else {
+						tCreationRequests.push({
+							parent: aToken.featureCaseID,
+							values: {
+								'model name': tModelName,
+							}
+						})
+					}
+				}
+			)
+		}
+
+		// Start with features/weights collection
+		await showWeightAttributes()
+		if (tUpdatingExistingWeights) {
+			await getFeatureWeightCaseIDs()
+			this.domainStore.featureStore.featureWeightCaseIDs = tFeatureWeightCaseIDs
+		}
+		generateRequests()
+		if (tUpdatingExistingWeights) {
+			await codapInterface.sendRequest({
+				action: 'update',
+				resource: `dataContext[${tFeatureDatasetName}].collection[${tWeightsCollectionName}].case`,
+				values: tUpdateRequests
+			})
+		} else {
+			await codapInterface.sendRequest({
+				action: 'create',
+				resource: `dataContext[${tFeatureDatasetName}].collection[${tWeightsCollectionName}].case`,
+				values: tCreationRequests
+			})
+		}
+	}
+
 	async buildModel() {
 		const this_ = this
 
@@ -42,6 +154,9 @@ export class ModelManager {
 			await deselectAllCasesIn(tTargetDatasetName)
 			tLogisticModel.reset()
 			tLogisticModel.progressCallback = this_.progressBar
+			tLogisticModel.trace = this_.domainStore.trainingStore.model.trainingInStepMode
+			tLogisticModel.stepModeCallback = this_.domainStore.trainingStore.model.trainingInStepMode ?
+				this_.stepModeCallback : null
 			tLogisticModel.lockIntercept = this_.domainStore.trainingStore.model.lockInterceptAtZero
 			const tCases = this_.domainStore.targetStore.targetCases,
 				tColumnNames = tTargetColumnFeatureNames.concat(
@@ -112,6 +227,9 @@ export class ModelManager {
 			tData.push(iResult.oneHotExample);
 		});
 
+		// In step mode we'll be repeatedly updating weights and results. Prep for that before we start fitting
+		await this.prepWeightsAndResultsCollections(tOneHot.tokenArray)
+
 		// The fitting process is asynchronous so we fire it off here
 		// @ts-ignore
 		tLogisticModel.fit(tData);
@@ -155,6 +273,15 @@ export class ModelManager {
 				tModel.reset()
 			}
 		})
+	}
+
+	stepModeCallback(iIteration: number, iCost: number, iWeights: number[], continueCallback: (iter: number) => void) {
+		this.stepModeContinueCallback = continueCallback
+		this.stepModeIteration = iIteration
+	}
+
+	nextStep() {
+		this.stepModeContinueCallback && this.stepModeContinueCallback(this.stepModeIteration + 1)
 	}
 
 	fillOutCurrentStoredModel(iLogisticModel: LogisticRegression): StoredModel {
@@ -201,74 +328,15 @@ export class ModelManager {
 
 	async updateWeights(iModelName: string, iTokens: any, iWeights: number[]) {
 
-		async function showAttributes() {
-			const tShowRequests = [{
-				action: 'update',
-				resource: `dataContext[${tFeatureDatasetName}].collection[${tWeightsCollectionName}].attribute[weight]`,
-				values: {hidden: false}
-			},
-				{
-					action: 'update',
-					resource: `dataContext[${tFeatureDatasetName}].collection[${tWeightsCollectionName}].attribute[model name]`,
-					values: {hidden: false}
-				}]
-			await codapInterface.sendRequest(tShowRequests)
-		}
-
-		async function emptyFirstChildCaseExists() {
-			let tIsEmpty = true;
-			const tFirstChildResult: any = await codapInterface.sendRequest({
-				action: 'get',
-				resource: `dataContext[${tFeatureDatasetName}].collection[${tWeightsCollectionName}].caseByIndex[0]`
-			})
-			if(tFirstChildResult.success) {
-				const tName = tFirstChildResult.values.case.values['model name']
-				tIsEmpty = !tName || tName === ''
-			}
-			return tIsEmpty
-		}
-
-		async function getFeatureWeightCaseIDs() {
-			const tFeatureCountResult:any = await codapInterface.sendRequest({
-				action: 'get',
-				resource: `dataContext[${tFeatureDatasetName}].collection[${tFeaturesCollectionName}].caseCount`
-			}),
-				tFeatureCount = tFeatureCountResult.success ? tFeatureCountResult.values : 0,
-				tRequests:{}[] = []
-			for(let n=0; n < tFeatureCount; n++) {
-				tRequests.push({
-						action: 'get',
-						resource: `dataContext[${tFeatureDatasetName}].collection[${tFeaturesCollectionName}].caseByIndex[${n}]`
-					}
-				)
-			}
-			const tResults:any = await codapInterface.sendRequest(tRequests)
-			tResults.forEach((iResult:any)=>{
-				if( iResult.success) {
-					tFeatureWeightCaseIDs[iResult.values.case.values.name] = iResult.values.case.id
-				}
-			})
-		}
-
 		function generateRequests() {
 			iTokens.forEach((aToken: any, iIndex: number) => {
-					if (tUpdatingExistingWeights) {
-						tUpdateRequests.push({
-							id: tFeatureWeightCaseIDs[aToken.token],
-							values: {
-								'model name': iModelName,
-								weight: iWeights[iIndex]
-							}
-						})
-					} else {
-						tCreationRequests.push({
-							parent: aToken.featureCaseID,
-							values: {
-								'model name': iModelName,
-								weight: iWeights[iIndex]
-							}
-						})
-					}
+					tUpdateRequests.push({
+						id: tFeatureWeightCaseIDs[aToken.token],
+						values: {
+							'model name': iModelName,
+							weight: iWeights[iIndex]
+						}
+					})
 					// Also update in stored features
 					let tFoundFeature = tFeatures.find(iFeature => iFeature.name === aToken.name)
 					if (tFoundFeature)
@@ -278,35 +346,20 @@ export class ModelManager {
 		}
 
 		const tFeatureDatasetName = this.domainStore.featureStore.featureDatasetInfo.datasetName,
-			tFeaturesCollectionName = this.domainStore.featureStore.featureDatasetInfo.collectionName,
 			tWeightsCollectionName = this.domainStore.featureStore.featureDatasetInfo.weightsCollectionName,
 			tFeatures = this.domainStore.featureStore.getChosenFeatures(),
-			tUpdatingExistingWeights = await emptyFirstChildCaseExists(),
 			tCreationRequests: { parent: number, values: any }[] = [],
 			tUpdateRequests: { id: number, values: any }[] = [],
-			tFeatureWeightCaseIDs:{[index:string]:number} = {}
+			tFeatureWeightCaseIDs: { [index: string]: number } = {}
 
-		await showAttributes()
-
-		if( tUpdatingExistingWeights) {
-			await getFeatureWeightCaseIDs()
-		}
 
 		generateRequests()
 
-		if (tUpdatingExistingWeights) {
-			await codapInterface.sendRequest({
-				action: 'update',
-				resource: `dataContext[${tFeatureDatasetName}].collection[${tWeightsCollectionName}].case`,
-				values: tUpdateRequests
-			});
-		} else {
-			await codapInterface.sendRequest({
-				action: 'create',
-				resource: `dataContext[${tFeatureDatasetName}].collection[${tWeightsCollectionName}].case`,
-				values: tCreationRequests
-			})
-		}
+		await codapInterface.sendRequest({
+			action: 'update',
+			resource: `dataContext[${tFeatureDatasetName}].collection[${tWeightsCollectionName}].case`,
+			values: tUpdateRequests
+		})
 	}
 
 	/**
@@ -334,7 +387,7 @@ export class ModelManager {
 		async function guaranteeResultsCollection() {
 			const tTargetClassAttributeName = tTargetStore.targetClassAttributeName,
 				tPositiveClassName = tTargetStore.getClassName('positive')
-			if( tTargetClassAttributeName !== '' && tPositiveClassName !== '') {
+			if (tTargetClassAttributeName !== '' && tPositiveClassName !== '') {
 				const tCollectionListResult: any = await codapInterface.sendRequest({
 					action: 'get',
 					resource: `dataContext[${tTargetDatasetName}].collectionList`
@@ -476,7 +529,7 @@ export class ModelManager {
 			tPredictedLabelAttributeName = tTargetStore.targetPredictedLabelAttributeName,
 			tTargetDatasetName = tTargetStore.targetDatasetInfo.name,
 			tResultsCollectionName = tTargetStore.targetResultsCollectionName
-			let tResultCaseIDsToFill:number[] = []
+		let tResultCaseIDsToFill: number[] = []
 
 		await guaranteeResultsCollection()
 

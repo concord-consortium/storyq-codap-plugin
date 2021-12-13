@@ -144,7 +144,7 @@ export class LogisticRegression {
     this.iterations = config.iterations;
     this.trace = config.trace;
     this.progressCallback = config.progressCallback;
-    this.feedbackCallback = config.feedbackCallback;
+    this.stepModeCallback = config.stepModeCallback;
   }
 
   reset() {
@@ -157,6 +157,9 @@ export class LogisticRegression {
     this.kappa = 0;
     this.threshold = 0;
     this.theta = [];
+    this.trace = false;
+    this.progressCallback = null;
+    this.stepModeCallback = null;
   }
 
   fit(data) {
@@ -184,24 +187,22 @@ export class LogisticRegression {
       this.theta.push(0.0);
     }
 
-    /*async*/
     function oneIteration(iIteration) {
-      // console.time('one')
       if (iIteration < this_.iterations) {
         var theta_delta = this_.grad(X, Y, this_.theta);
         for (var d = 0; d < this_.dim; ++d) {
           this_.theta[d] = this_.theta[d] - this_.alpha * theta_delta[d];
         }
-        if (this_.progressCallback)
-            /*await*/ this_.progressCallback(iIteration);
+        this_.progressCallback && this_.progressCallback(iIteration);
         if (this_.trace) {
           var tCost = this_.cost(X, Y, this_.theta);
-          if (this_.feedbackCallback)
-              /*await*/ this_.feedbackCallback(iIteration, tCost, this_.theta.slice(1));
+          if (this_.stepModeCallback)
+            this_.stepModeCallback(iIteration, tCost, this_.theta.slice(1), oneIteration.bind(this_));
+        } else {
+          setTimeout(function () {
+            oneIteration(iIteration + 1);
+          }, 10);
         }
-        setTimeout(function () {
-          oneIteration(iIteration + 1);
-        }, 10);
       } else {
         // Note that the zeroth element of theta is the weight of the constant term. We slice that off
         this_.fitResult = {
@@ -216,7 +217,6 @@ export class LogisticRegression {
         }
         this_.progressCallback && this_.progressCallback(iIteration);
       }
-      // console.timeEnd('one')
     }
 
     oneIteration(0);

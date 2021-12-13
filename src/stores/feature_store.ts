@@ -24,9 +24,10 @@ export class FeatureStore {
 	wordListSpecs:WordListSpec[] = []	// no save/restore
 	targetColumnFeatureNames: string[] = []
 	tokenMap: TokenMap = {}
+	featureWeightCaseIDs:{ [index: string]: number } = {}
 
 	constructor() {
-		makeAutoObservable(this, {tokenMap: false}, {autoBind: true})
+		makeAutoObservable(this, {tokenMap: false, featureWeightCaseIDs: false}, {autoBind: true})
 	}
 
 	tokenMapIsFilledOut() {

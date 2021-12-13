@@ -3,7 +3,8 @@ import codapInterface from "./CodapInterface";
 export interface entityInfo {
 	name: string,
 	title: string,
-	id: number
+	id: number,
+	numAttributes?: number
 }
 
 /**
@@ -54,7 +55,7 @@ export async function openTable(dataContextName: string) {
  * @param iDatasetInfo
  */
 export async function guaranteeTableOrCardIsVisibleFor(iDatasetInfo: entityInfo) {
-	if( iDatasetInfo.name !== '' && iDatasetInfo.title !== '') {
+	if (iDatasetInfo.name !== '' && iDatasetInfo.title !== '') {
 		const tTableID = await getComponentByTypeAndTitle('caseTable', iDatasetInfo.title),
 			tFoundTable = tTableID >= 0,
 			tType = tFoundTable ? 'caseTable' : 'caseCard'
@@ -120,6 +121,29 @@ export async function datasetExists(iDatasetName: string): Promise<boolean> {
 }
 
 /**
+ * Return the number of attributes in the rightmost collection
+ * @param iDataContextID
+ */
+export async function getNumChildAttributesInContext(iDataContextID: number) {
+	const tListResult: any = await codapInterface.sendRequest(
+		{
+			action: 'get',
+			resource: `dataContext[${iDataContextID}].collectionList`
+		}
+	)
+		.catch(() => {
+			console.log('Error getting collection list')
+		});
+	const tCollectionID = tListResult.values.pop().id
+	const tAttrsResult: any = await codapInterface.sendRequest({
+		action: 'get',
+		resource: `dataContext[${iDataContextID}].collection[${tCollectionID}].attributeList`
+	})
+	console.log(`tAttrsResult = ${JSON.stringify(tAttrsResult)}`)
+	return tAttrsResult.values.length
+}
+
+/**
  * Return the names of datasets that pass the given filter
  * @param iFilter
  */
@@ -131,20 +155,23 @@ export async function getDatasetInfoWithFilter(iFilter: (value: any) => boolean)
 		}).catch((reason) => {
 			console.log('unable to get datacontext list because ' + reason);
 		});
-	if( !(tContextListResult && tContextListResult.success))
+	if (!(tContextListResult && tContextListResult.success))
 		return []
 	else {
-		tContextListResult.values.forEach((aValue: any) => {
+		for (let tIndex = 0; tIndex < tContextListResult.values.length; tIndex++) {
+			let aValue = tContextListResult.values[tIndex]
+			aValue.numAttributes = await getNumChildAttributesInContext(aValue.id)
 			if (iFilter(aValue))
 				tDatasetInfoArray.push(
 					{
 						title: aValue.title,
 						name: aValue.name,
-						id: aValue.id
+						id: aValue.id,
+						numAttributes: aValue.numAttributes
 					});
-		});
-		return tDatasetInfoArray;
+		}
 	}
+	return tDatasetInfoArray
 }
 
 export async function guaranteeAttribute(iAttributeInfo: { name: string, hidden: boolean },
