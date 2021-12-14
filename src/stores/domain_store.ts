@@ -30,7 +30,7 @@ export class DomainStore {
 		})
 		this.featureStore = new FeatureStore()
 		this.trainingStore = new TrainingStore()
-		this.testingStore = new TestingStore(this.featureStore)
+		this.testingStore = new TestingStore(this.featureStore.getFeatureDatasetID)
 		this.textStore = new TextStore()
 		this.uiStore = iUiStore
 		this.textFeedbackManager = new TextFeedbackManager(this, this.uiStore)
@@ -54,8 +54,10 @@ export class DomainStore {
 		this.textStore.fromJSON(json.textStore)
 
 		if (this.textStore.textComponentID !== -1) {
-			this.addTextComponent()	//Make sure it is in the document
+			await this.addTextComponent()	//Make sure it is in the document
 		}
+		await this.guaranteeFeaturesDataset()
+		await this.testingStore.updateCodapInfoForTestingPanel()
 	}
 
 	async guaranteeFeaturesDataset(): Promise<boolean> {
@@ -64,7 +66,6 @@ export class DomainStore {
 			tFeatureCollectionName = this.featureStore.featureDatasetInfo.collectionName,
 			tWeightsCollectionName = this.featureStore.featureDatasetInfo.weightsCollectionName,
 			tTargetStore = this.targetStore
-
 		if (tFeatureStore.features.length > 0) {
 			if (tFeatureStore.featureDatasetInfo.datasetID === -1) {
 				const tChosenClassKey = this.targetStore.targetChosenClassColumnKey,
@@ -108,7 +109,7 @@ export class DomainStore {
 					tFeatureStore.featureDatasetInfo.datasetID = tCreateResult.values.id
 					tFeatureStore.featureDatasetInfo.datasetName = tDatasetName
 					tFeatureStore.featureDatasetInfo.datasetTitle = tCreateResult.values.title
-					openTable(tDatasetName)
+					await openTable(tDatasetName)
 				}
 			}
 			return true

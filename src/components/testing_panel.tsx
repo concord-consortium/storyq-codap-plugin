@@ -36,10 +36,6 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 		this.testingManager = new TestingManager(this.props.domainStore, this.kNonePresent)
 	}
 
-	async componentDidMount() {
-		await this.updateCodapInfo()
-	}
-
 	async handleNotification(iNotification: CODAP_Notification) {
 		if (iNotification.action === 'notify') {
 			if (iNotification.values.operation === 'dataContextCountChanged') {

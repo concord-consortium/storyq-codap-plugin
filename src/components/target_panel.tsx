@@ -98,8 +98,11 @@ export const TargetPanel = observer(class TargetPanel extends Component<Target_P
 
 		function targetClassChoice() {
 			if (this_.props.domainStore.targetStore.targetAttributeName !== '') {
+				const tCandidateAttributeNames = this_.props.domainStore.targetStore.targetAttributeNames.filter((iName)=>{
+					return this_.props.domainStore.featureStore.features.findIndex(aFeature=>aFeature.name === iName) < 0
+				})
 				return choicesMenu('Target Class', 'Choose an attribute with classes',
-					this_.props.domainStore.targetStore.targetAttributeNames,
+					tCandidateAttributeNames,
 					this_.props.domainStore.targetStore.targetClassAttributeName, async (iChoice) => {
 						await this_.updateTargetPanelInfo('targetClassAttributeName', iChoice)
 					})

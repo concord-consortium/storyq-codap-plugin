@@ -139,7 +139,6 @@ export async function getNumChildAttributesInContext(iDataContextID: number) {
 		action: 'get',
 		resource: `dataContext[${iDataContextID}].collection[${tCollectionID}].attributeList`
 	})
-	console.log(`tAttrsResult = ${JSON.stringify(tAttrsResult)}`)
 	return tAttrsResult.values.length
 }
 

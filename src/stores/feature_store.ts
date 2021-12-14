@@ -96,6 +96,10 @@ export class FeatureStore {
 		return tFoundObject ? tFoundObject.formula : ''
 	}
 
+	getFeatureDatasetID() {
+		return this.featureDatasetInfo.datasetID
+	}
+
 	guaranteeUniqueFeatureName(iCandidate:string) {
 		const this_ = this
 

@@ -13,11 +13,10 @@ import {
 import {
 	kEmptyEntityInfo, TestingResult
 } from "./store_types_and_constants";
-import {FeatureStore} from "./feature_store";
 
 export class TestingStore {
 	[index: string]: any;
-	featureStore:FeatureStore
+	getFeatureSetIDCallback:any
 	chosenModelName: string = ''
 	testingDatasetInfo: entityInfo = kEmptyEntityInfo
 	testingDatasetInfoArray: entityInfo[] = []
@@ -28,9 +27,9 @@ export class TestingStore {
 	currentTestingResults:TestingResult
 	testingResultsArray:TestingResult[] = []
 
-	constructor(iFeatureStore:FeatureStore) {
-		makeAutoObservable(this, {featureStore: false}, {autoBind: true})
-		this.featureStore = iFeatureStore
+	constructor(iGetFeatureSetIDCallback:any) {
+		makeAutoObservable(this, {}, {autoBind: true})
+		this.getFeatureSetIDCallback = iGetFeatureSetIDCallback
 		this.currentTestingResults = this.emptyTestingResults()
 	}
 
@@ -59,12 +58,12 @@ export class TestingStore {
 	}
 
 	async updateCodapInfoForTestingPanel() {
-		const this_ = this
-		const tDatasetEntityInfoArray = await getDatasetInfoWithFilter(
+		const tFeatureDatasetID = this.getFeatureSetIDCallback(),
+			tTestingDatasetName = this.testingDatasetInfo.name,
+			tDatasetEntityInfoArray = await getDatasetInfoWithFilter(
 			(anInfo) => {
-				return anInfo.id !== this_.featureStore.featureDatasetInfo.datasetID
-			}),
-			tTestingDatasetName = this.testingDatasetInfo.name
+				return anInfo.id !== tFeatureDatasetID
+			})
 		let tCollectionNames: string[] = [],
 			tCollectionName: string,
 			tAttributeNames: string[] = []
