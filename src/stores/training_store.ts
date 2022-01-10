@@ -9,9 +9,10 @@ import {Model, TrainingResult} from "./store_types_and_constants";
 export class TrainingStore {
 	model: Model
 	trainingResults: TrainingResult[] = []
+	resultCaseIDs: number[] = []
 
 	constructor() {
-		makeAutoObservable(this, {}, {autoBind: true})
+		makeAutoObservable(this, {resultCaseIDs: false}, {autoBind: true})
 		this.model = new Model()
 	}
 

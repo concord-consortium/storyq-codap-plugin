@@ -81,57 +81,83 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 			}
 
 			function getButtons() {
-				const tDisabled = this_.props.domainStore.trainingStore.model.name === ''
-				return (
-					<div className='sq-training-buttons'>
+
+				function trainButton() {
+					if (!tInProgress)
+						return (
+							<Button
+								className='sq-button'
+								disabled={tDisabled}
+								onClick={action(async () => {
+									if (tInStepMode) {
+										this_.props.domainStore.trainingStore.model.trainingInStepMode = false
+									} else {
+										this_.props.uiStore.trainingPanelShowsEditor = false
+										this_.props.domainStore.trainingStore.model.trainingInProgress = true
+										await this_.modelManager.buildModel()
+										this_.modelManager.nextStep()
+									}
+								})}>
+								{tInStepMode ? 'Finish' : 'Train'}
+							</Button>)
+				}
+
+				function stepButton() {
+					if (!tInProgress || tInStepMode)
+						return (
+							<Button
+								className='sq-button'
+								disabled={tDisabled}
+								onClick={action(async () => {
+									const tInProgress = this_.props.domainStore.trainingStore.model.trainingInProgress
+									if (!tInProgress) {
+										this_.props.uiStore.trainingPanelShowsEditor = false
+										this_.props.domainStore.trainingStore.model.trainingInProgress = true
+										this_.props.domainStore.trainingStore.model.trainingInStepMode = true
+										await this_.modelManager.buildModel()
+									} else {
+										this_.modelManager.nextStep()
+									}
+								})}>
+								Step
+							</Button>
+						)
+				}
+
+				function settingsButton() {
+					if (!tInStepMode && !tInProgress)
+						return (
+							<Button
+								className='sq-button'
+								onClick={action(() => {
+									this_.props.uiStore.trainingPanelShowsEditor = !this_.props.uiStore.trainingPanelShowsEditor
+								})}>
+								Settings
+							</Button>
+						)
+				}
+
+				function cancelButton() {
+					return (
 						<Button
 							className='sq-button'
-							disabled={tDisabled}
-							onClick={action(async () => {
-								this_.props.uiStore.trainingPanelShowsEditor = false
-								this_.props.domainStore.trainingStore.model.trainingInProgress = true
-								await this_.modelManager.buildModel()
-							})}>
-							Train
-						</Button>
-						<Button
-							className='sq-button'
-							disabled={tDisabled}
-							onClick={action(async () => {
-								const tInProgress = this_.props.domainStore.trainingStore.model.trainingInProgress
-								if( !tInProgress) {
-									this_.props.uiStore.trainingPanelShowsEditor = false
-									this_.props.domainStore.trainingStore.model.trainingInProgress = true
-									this_.props.domainStore.trainingStore.model.trainingInStepMode = true
-									await this_.modelManager.buildModel()
-								}
-								else {
-									this_.modelManager.nextStep()
-								}
-							})}>
-							Step
-						</Button>
-						<Button
-							className='sq-button'
-							disabled={tDisabled}
-							onClick={action(async () => {
-							})}>
-							Reset
-						</Button>
-						<Button
-							className='sq-button'
-							onClick={action(() => {
-								this_.props.uiStore.trainingPanelShowsEditor = !this_.props.uiStore.trainingPanelShowsEditor
-							})}>
-							Settings
-						</Button>
-						<Button
-							className='sq-button'
-							onClick={action(() => {
-								tModel.beingConstructed = !tModel.beingConstructed
+							onClick={action(async() => {
+								await this_.modelManager.cancel()
 							})}>
 							Cancel
 						</Button>
+					)
+				}
+
+				const tDisabled = this_.props.domainStore.trainingStore.model.name === '',
+					tInProgress = this_.props.domainStore.trainingStore.model.trainingInProgress,
+					tInStepMode = this_.props.domainStore.trainingStore.model.trainingInStepMode
+				return (
+					<div className='sq-training-buttons'>
+						{trainButton()}
+						{stepButton()}
+						{settingsButton()}
+						{cancelButton()}
 					</div>
 				)
 			}
@@ -261,7 +287,7 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 			function getSettings(aResult: TrainingResult) {
 				if (aResult.settings) {
 					return (
-						<div style={{"fontSize": "smaller", "textAlign":"left"}}>
+						<div style={{"fontSize": "smaller", "textAlign": "left"}}>
 							<p>{aResult.settings.iterations} iterations</p>
 							<p>intercept {aResult.settings.locked ? '' : 'not'} locked</p>
 							<p>threshold = {aResult.threshold.toFixed(2)}</p>

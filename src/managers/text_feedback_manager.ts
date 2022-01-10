@@ -32,7 +32,8 @@ export default class TextFeedbackManager {
 			tTestingDatasetName = this.domainStore.testingStore.testingDatasetInfo.name,
 			tFeatureDatasetName = this.domainStore.featureStore.featureDatasetInfo.datasetName
 
-		if (iNotification.action === 'notify' && iNotification.values.operation === 'selectCases') {
+		if (iNotification.action === 'notify' && iNotification.values.operation === 'selectCases' &&
+			iNotification.values.result.cases) {
 			const tDataContextName = iNotification.resource && iNotification.resource.match(/\[(.+)]/)[1];
 			if (tDataContextName === tFeatureDatasetName && !this.isSelectingFeatures) {
 				this.isSelectingTargetPhrases = true;
@@ -118,7 +119,7 @@ export default class TextFeedbackManager {
 			tConstructedFeatureNames = this.domainStore.featureStore.features.map(iFeature => iFeature.name),
 			tFeatures: string[] = [],
 			tUsedIDsSet: Set<number> = new Set(),
-			tChildOfFeatureIsSelected = Boolean(iCases.length > 0 && iCases[0].parent),
+			tChildOfFeatureIsSelected = Boolean(iCases && iCases.length > 0 && iCases[0].parent),
 			tIDsOfFeaturesToSelect:number[] = []
 		let tEndPhrase: string;
 		for (const iCase of iCases) {

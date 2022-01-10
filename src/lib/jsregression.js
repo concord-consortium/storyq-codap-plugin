@@ -187,13 +187,13 @@ export class LogisticRegression {
       this.theta.push(0.0);
     }
 
-    function oneIteration(iIteration) {
+    async function oneIteration(iIteration) {
       if (iIteration < this_.iterations) {
         var theta_delta = this_.grad(X, Y, this_.theta);
         for (var d = 0; d < this_.dim; ++d) {
           this_.theta[d] = this_.theta[d] - this_.alpha * theta_delta[d];
         }
-        this_.progressCallback && this_.progressCallback(iIteration);
+        this_.progressCallback && await this_.progressCallback(iIteration);
         if (this_.trace) {
           var tCost = this_.cost(X, Y, this_.theta);
           if (this_.stepModeCallback)
@@ -215,7 +215,7 @@ export class LogisticRegression {
             iterations: this_.iterations
           }
         }
-        this_.progressCallback && this_.progressCallback(iIteration);
+        this_.progressCallback && await this_.progressCallback(iIteration);
       }
     }
 

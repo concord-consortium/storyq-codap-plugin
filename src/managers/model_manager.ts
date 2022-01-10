@@ -44,7 +44,7 @@ export class ModelManager {
 	 * - We fill in the model name for cases in each collection
 	 * - We gather up the caseIDs for both weight and result cases
 	 */
-	async prepWeightsAndResultsCollections(iTokens: Token[]) {
+	async prepWeightsCollection(iTokens: Token[]) {
 
 		async function emptyFirstChildWeightCaseExists() {
 			let tIsEmpty = true;
@@ -147,6 +147,131 @@ export class ModelManager {
 		}
 	}
 
+	async prepResultsCollection() {
+		/**
+		 * The results collection is a child of the target collection and is where we show the predicted labels and
+		 * probabilities for each target text for each model
+		 */
+		async function guaranteeResultsCollection() {
+			const tTargetClassAttributeName = tTargetStore.targetClassAttributeName,
+				tPositiveClassName = tTargetStore.getClassName('positive')
+			if (tTargetClassAttributeName !== '' && tPositiveClassName !== '') {
+				const tCollectionListResult: any = await codapInterface.sendRequest({
+					action: 'get',
+					resource: `dataContext[${tTargetDatasetName}].collectionList`
+				})
+				if (tCollectionListResult.values.length === 1) {
+					const tResultsCollectionName = tTargetStore.targetResultsCollectionName
+					const tAttributeValues = [
+						{
+							name: 'model name',
+							description: 'The model used for predicting these results'
+						},
+						{
+							name: tPredictedLabelAttributeName,
+							description: 'The label predicted by the model'
+						},
+						{
+							name: 'probability of ' + tPositiveClassName,
+							precision: 5,
+							description: 'A computed probability based on the logistic regression model'
+						}
+					]
+					await codapInterface.sendRequest({
+						action: 'create',
+						resource: `dataContext[${tTargetDatasetName}].collection`,
+						values: [{
+							name: tResultsCollectionName,
+							title: tResultsCollectionName,
+							attrs: tAttributeValues
+						}]
+					}).catch(reason => {
+						console.log(`Exception in creating results collection because ${reason}`)
+					})
+
+					// This unfortunately installs an empty child case for each parent case. We store their IDs so we can delete them
+					// after we create the legitimate cases
+					const tCaseIDResult: any = await codapInterface.sendRequest({
+						action: 'get',
+						resource: `dataContext[${tTargetDatasetName}].collection[${tResultsCollectionName}].caseFormulaSearch[true]`
+					})
+					tResultCaseIDsToFill = tCaseIDResult.values.map((iValue: any) => Number(iValue.id))
+				}
+			}
+		}
+
+		const
+			this_ = this,
+			tTargetStore = this_.domainStore.targetStore,
+			tPredictedLabelAttributeName = tTargetStore.targetPredictedLabelAttributeName,
+			tTargetDatasetName = tTargetStore.targetDatasetInfo.name
+		let tResultCaseIDsToFill: number[] = []
+
+		await guaranteeResultsCollection()
+
+		this.domainStore.trainingStore.resultCaseIDs = tResultCaseIDsToFill
+
+	}
+
+	async cancel() {
+
+		async function wipeWeights() {
+			const tFeatureDatasetName = this_.domainStore.featureStore.featureDatasetInfo.datasetName,
+				tWeightsCollectionName = this_.domainStore.featureStore.featureDatasetInfo.weightsCollectionName,
+				tFeatureWeightCaseIDs = this_.domainStore.featureStore.featureWeightCaseIDs,
+				tUpdateRequests: { id: number, values: any }[] = []
+			for (let featureWeightCaseIDsKey in tFeatureWeightCaseIDs) {
+				tUpdateRequests.push({
+					id: tFeatureWeightCaseIDs[featureWeightCaseIDsKey],
+					values: {
+						'model name': '',
+						weight: ''
+					}
+				})
+			}
+			await codapInterface.sendRequest({
+				action: 'update',
+				resource: `dataContext[${tFeatureDatasetName}].collection[${tWeightsCollectionName}].case`,
+				values: tUpdateRequests
+			})
+		}
+
+		async function wipeResultsInTarget() {
+			const tTargetStore = this_.domainStore.targetStore,
+				tTargetDatasetName = tTargetStore.targetDatasetInfo.name,
+				tResultsCollectionName = tTargetStore.targetResultsCollectionName,
+				tResultCaseIDs = this_.domainStore.trainingStore.resultCaseIDs,
+				tPredictedLabelAttributeName = tTargetStore.targetPredictedLabelAttributeName,
+				tProbName = `probability of ${this_.domainStore.targetStore.getClassName('positive')}`,
+				tUpdateRequests = tResultCaseIDs.map(iID => {
+					const tRequest:any = {
+						id: iID,
+						values: {
+							'model name': '',
+						}
+					}
+					tRequest.values[tPredictedLabelAttributeName] = ''
+					tRequest.values[tProbName] = ''
+					return tRequest
+				})
+			await codapInterface.sendRequest({
+				action: 'update',
+				resource: `dataContext[${tTargetDatasetName}].collection[${tResultsCollectionName}].case`,
+				values: tUpdateRequests,
+			})
+		}
+
+		const this_ = this,
+			tTrainingStore = this.domainStore.trainingStore,
+			tModel = tTrainingStore.model,
+			tLogisiticModel = tModel.logisticModel
+
+		tModel.reset()
+		tLogisiticModel.reset()
+		await wipeWeights()
+		await wipeResultsInTarget()
+	}
+
 	async buildModel() {
 		const this_ = this
 
@@ -228,7 +353,8 @@ export class ModelManager {
 		});
 
 		// In step mode we'll be repeatedly updating weights and results. Prep for that before we start fitting
-		await this.prepWeightsAndResultsCollections(tOneHot.tokenArray)
+		await this.prepWeightsCollection(tOneHot.tokenArray)
+		await this.prepResultsCollection()
 
 		// The fitting process is asynchronous so we fire it off here
 		// @ts-ignore
@@ -238,7 +364,7 @@ export class ModelManager {
 		tLogisticModel._documents = tDocuments;
 	}
 
-	progressBar(iIteration: number) {
+	async progressBar(iIteration: number) {
 		const tTrainingStore = this.domainStore.trainingStore,
 			tModel = tTrainingStore.model,
 			tIterations = tModel.iterations,
@@ -249,7 +375,7 @@ export class ModelManager {
 				const tLogisticModel = tModel.logisticModel,
 					tTrainingResults = this_.domainStore.trainingStore.trainingResults
 
-				await this_.computeResults()
+				await this_.computeResults(tModel.logisticModel.fitResult.theta)
 
 				tTrainingStore.inactivateAll()
 
@@ -275,12 +401,18 @@ export class ModelManager {
 		})
 	}
 
-	stepModeCallback(iIteration: number, iCost: number, iWeights: number[], continueCallback: (iter: number) => void) {
+	async stepModeCallback(iIteration: number, iCost: number, iWeights: number[], continueCallback: (iter: number) => void) {
+		await this.computeResults(iWeights)
 		this.stepModeContinueCallback = continueCallback
 		this.stepModeIteration = iIteration
 	}
 
 	nextStep() {
+		const tLogisticModel = this.domainStore.trainingStore.model.logisticModel
+		tLogisticModel.trace = this.domainStore.trainingStore.model.trainingInStepMode
+		tLogisticModel.stepModeCallback = this.domainStore.trainingStore.model.trainingInStepMode ?
+			this.stepModeCallback : null
+
 		this.stepModeContinueCallback && this.stepModeContinueCallback(this.stepModeIteration + 1)
 	}
 
@@ -303,16 +435,15 @@ export class ModelManager {
 		}
 	}
 
-	async computeResults() {
+	async computeResults(iWeights: number[]) {
 		const tModel = this.domainStore.trainingStore.model,
 			tLogisticModel = tModel.logisticModel,
-			tFitResult = tLogisticModel.fitResult,
 			tData = tLogisticModel._data,
 			tOneHot = tLogisticModel._oneHot,
 			tPositiveClassName = this.domainStore.targetStore.getClassName('positive'),
 			tNegativeClassName = this.domainStore.targetStore.getClassName('negative'),
 			tDocuments = tLogisticModel._documents;
-		await this.updateWeights(tModel.name, tOneHot.tokenArray, tFitResult.theta);
+		await this.updateWeights(tModel.name, tOneHot.tokenArray, iWeights);
 
 		let tPredictionTools = {
 			logisticModel: tLogisticModel,
@@ -323,7 +454,7 @@ export class ModelManager {
 			negativeClassName: tNegativeClassName,
 			lockProbThreshold: this.domainStore.trainingStore.model.usePoint5AsProbThreshold
 		}
-		await this.showPredictedLabels(tModel.name, tPredictionTools);
+		await this.showPredictedLabels(tModel.name, tPredictionTools)
 	}
 
 	async updateWeights(iModelName: string, iTokens: any, iWeights: number[]) {
@@ -338,7 +469,7 @@ export class ModelManager {
 						}
 					})
 					// Also update in stored features
-					let tFoundFeature = tFeatures.find(iFeature => iFeature.name === aToken.name)
+					let tFoundFeature = tFeatures.find(iFeature => iFeature.name === aToken.token)
 					if (tFoundFeature)
 						tFoundFeature.weight = iWeights[iIndex]
 				}
@@ -348,10 +479,8 @@ export class ModelManager {
 		const tFeatureDatasetName = this.domainStore.featureStore.featureDatasetInfo.datasetName,
 			tWeightsCollectionName = this.domainStore.featureStore.featureDatasetInfo.weightsCollectionName,
 			tFeatures = this.domainStore.featureStore.getChosenFeatures(),
-			tCreationRequests: { parent: number, values: any }[] = [],
 			tUpdateRequests: { id: number, values: any }[] = [],
-			tFeatureWeightCaseIDs: { [index: string]: number } = {}
-
+			tFeatureWeightCaseIDs = this.domainStore.featureStore.featureWeightCaseIDs
 
 		generateRequests()
 
@@ -379,58 +508,6 @@ export class ModelManager {
 			lockProbThreshold: boolean
 		}
 	) {
-
-		/**
-		 * The results collection is a child of the target collection and is where we show the predicted labels and
-		 * probabilities for each target text for each model
-		 */
-		async function guaranteeResultsCollection() {
-			const tTargetClassAttributeName = tTargetStore.targetClassAttributeName,
-				tPositiveClassName = tTargetStore.getClassName('positive')
-			if (tTargetClassAttributeName !== '' && tPositiveClassName !== '') {
-				const tCollectionListResult: any = await codapInterface.sendRequest({
-					action: 'get',
-					resource: `dataContext[${tTargetDatasetName}].collectionList`
-				})
-				if (tCollectionListResult.values.length === 1) {
-					const tResultsCollectionName = tTargetStore.targetResultsCollectionName
-					const tAttributeValues = [
-						{
-							name: 'model name',
-							description: 'The model used for predicting these results'
-						},
-						{
-							name: tPredictedLabelAttributeName,
-							description: 'The label predicted by the model'
-						},
-						{
-							name: 'probability of ' + tPositiveClassName,
-							precision: 5,
-							description: 'A computed probability based on the logistic regression model'
-						}
-					]
-					await codapInterface.sendRequest({
-						action: 'create',
-						resource: `dataContext[${tTargetDatasetName}].collection`,
-						values: [{
-							name: tResultsCollectionName,
-							title: tResultsCollectionName,
-							attrs: tAttributeValues
-						}]
-					}).catch(reason => {
-						console.log(`Exception in creating results collection because ${reason}`)
-					})
-
-					// This unfortunately installs an empty child case for each parent case. We store their IDs so we can delete them
-					// after we create the legitimate cases
-					const tCaseIDResult: any = await codapInterface.sendRequest({
-						action: 'get',
-						resource: `dataContext[${tTargetDatasetName}].collection[${tResultsCollectionName}].caseFormulaSearch[true]`
-					})
-					tResultCaseIDsToFill = tCaseIDResult.values.map((iValue: any) => Number(iValue.id))
-				}
-			}
-		}
 
 		function findThreshold(): number {
 			// Determine the probability threshold that yields the fewest discrepant classifications
@@ -528,15 +605,13 @@ export class ModelManager {
 			tProbName = `${kProbPredAttrNamePrefix}${iTools.positiveClassName}`,
 			tPredictedLabelAttributeName = tTargetStore.targetPredictedLabelAttributeName,
 			tTargetDatasetName = tTargetStore.targetDatasetInfo.name,
-			tResultsCollectionName = tTargetStore.targetResultsCollectionName
-		let tResultCaseIDsToFill: number[] = []
-
-		await guaranteeResultsCollection()
+			tResultsCollectionName = tTargetStore.targetResultsCollectionName,
+			tResultCaseIDs = this.domainStore.trainingStore.resultCaseIDs
 
 		// Create values of predicted label and probability for each document
 		let tThresholdResult = findThreshold(),
-			tWeAreUpdating = tResultCaseIDsToFill.length > 0,
-			tLabelValuesForCreation: { parent: number, values: any }[] = [],
+			// tWeAreUpdating = tResultCaseIDs.length > 0,
+			// tLabelValuesForCreation: { parent: number, values: any }[] = [],
 			tLabelValuesForUpdating: { id: number, values: any }[] = [],
 			tActualPos = 0,
 			tPredictedPos = 0,
@@ -558,17 +633,19 @@ export class ModelManager {
 			tBothPos += (tActualLabel === iTools.positiveClassName && tPredictedLabel === iTools.positiveClassName) ? 1 : 0;
 			tBothNeg += (tActualLabel === iTools.negativeClassName && tPredictedLabel === iTools.negativeClassName) ? 1 : 0;
 
-			if (tWeAreUpdating) {
-				tLabelValuesForUpdating.push({
-					id: tResultCaseIDsToFill[iIndex],
-					values: tValues
-				})
-			} else {
-				tLabelValuesForCreation.push({
-					parent: aDoc.caseID,
-					values: tValues
-				})
-			}
+			// if (tWeAreUpdating) {
+			tLabelValuesForUpdating.push({
+				id: tResultCaseIDs[iIndex],
+				values: tValues
+			})
+			/*
+						} else {
+							tLabelValuesForCreation.push({
+								parent: aDoc.caseID,
+								values: tValues
+							})
+						}
+			*/
 		});
 
 		let computedKappa = computeKappa(iTools.documents.length, tBothPos, tBothNeg, tActualPos, tPredictedPos);
@@ -576,20 +653,22 @@ export class ModelManager {
 		iTools.logisticModel.kappa = computedKappa.kappa;
 
 		// Send the values to CODAP
-		if (tWeAreUpdating) {
-			tResultCaseIDsToFill.length = 0
-			await codapInterface.sendRequest({
-				action: 'update',
-				resource: `dataContext[${tTargetDatasetName}].collection[${tResultsCollectionName}].case`,
-				values: tLabelValuesForUpdating,
-			})
-		} else {
-			await codapInterface.sendRequest({
-				action: 'create',
-				resource: `dataContext[${tTargetDatasetName}].collection[${tResultsCollectionName}].case`,
-				values: tLabelValuesForCreation
-			})
-		}
+		// if (tWeAreUpdating) {
+		// 	tResultCaseIDs.length = 0
+		await codapInterface.sendRequest({
+			action: 'update',
+			resource: `dataContext[${tTargetDatasetName}].collection[${tResultsCollectionName}].case`,
+			values: tLabelValuesForUpdating,
+		})
+		/*
+				} else {
+					await codapInterface.sendRequest({
+						action: 'create',
+						resource: `dataContext[${tTargetDatasetName}].collection[${tResultsCollectionName}].case`,
+						values: tLabelValuesForCreation
+					})
+				}
+		*/
 	}
 
 }

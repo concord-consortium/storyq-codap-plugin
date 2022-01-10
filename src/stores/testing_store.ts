@@ -28,7 +28,7 @@ export class TestingStore {
 	testingResultsArray:TestingResult[] = []
 
 	constructor(iGetFeatureSetIDCallback:any) {
-		makeAutoObservable(this, {}, {autoBind: true})
+		makeAutoObservable(this, {getFeatureSetIDCallback: false}, {autoBind: true})
 		this.getFeatureSetIDCallback = iGetFeatureSetIDCallback
 		this.currentTestingResults = this.emptyTestingResults()
 	}
@@ -46,7 +46,9 @@ export class TestingStore {
 	}
 
 	asJSON() {
-		return toJS(this)
+		const tJSON = toJS(this)
+		delete tJSON.getFeatureSetIDCallback	// Remove so we don't crash
+		return tJSON
 	}
 
 	fromJSON(json: any) {
