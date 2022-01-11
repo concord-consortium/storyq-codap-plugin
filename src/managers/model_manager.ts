@@ -66,6 +66,7 @@ export class ModelManager {
 			tCreationRequests: { parent: number, values: any }[] = [],
 			tUpdateRequests: { id: number, values: any }[] = [],
 			tFeatureWeightCaseIDs: { [index: string]: number } = {},
+			tTokenArray:string[] = [],
 			tModelName = this.domainStore.trainingStore.model.name
 
 		async function showWeightAttributes() {
@@ -114,6 +115,8 @@ export class ModelManager {
 							}
 						})
 					} else {
+						tFeatureWeightCaseIDs[aToken.token] = -1
+						tTokenArray.push(aToken.token)
 						tCreationRequests.push({
 							parent: aToken.featureCaseID,
 							values: {
@@ -139,11 +142,16 @@ export class ModelManager {
 				values: tUpdateRequests
 			})
 		} else {
-			await codapInterface.sendRequest({
+			const tCreateResults:any = await codapInterface.sendRequest({
 				action: 'create',
 				resource: `dataContext[${tFeatureDatasetName}].collection[${tWeightsCollectionName}].case`,
 				values: tCreationRequests
 			})
+			tCreateResults.values.forEach((iValue:{id:number}, iIndex:number)=> {
+				tFeatureWeightCaseIDs[tTokenArray[iIndex]] = iValue.id
+			})
+			console.log(tFeatureWeightCaseIDs)
+			this.domainStore.featureStore.featureWeightCaseIDs = tFeatureWeightCaseIDs
 		}
 	}
 
@@ -154,14 +162,15 @@ export class ModelManager {
 		 */
 		async function guaranteeResultsCollection() {
 			const tTargetClassAttributeName = tTargetStore.targetClassAttributeName,
-				tPositiveClassName = tTargetStore.getClassName('positive')
+				tPositiveClassName = tTargetStore.getClassName('positive'),
+				tResultsCollectionName = tTargetStore.targetResultsCollectionName
 			if (tTargetClassAttributeName !== '' && tPositiveClassName !== '') {
 				const tCollectionListResult: any = await codapInterface.sendRequest({
 					action: 'get',
 					resource: `dataContext[${tTargetDatasetName}].collectionList`
 				})
 				if (tCollectionListResult.values.length === 1) {
-					const tResultsCollectionName = tTargetStore.targetResultsCollectionName
+					// There is not yet any results collection, so create it
 					const tAttributeValues = [
 						{
 							name: 'model name',
@@ -189,13 +198,38 @@ export class ModelManager {
 						console.log(`Exception in creating results collection because ${reason}`)
 					})
 
-					// This unfortunately installs an empty child case for each parent case. We store their IDs so we can delete them
-					// after we create the legitimate cases
+					// This unfortunately installs an empty child case for each parent case. We store their IDs so we can
+					// use them later as the place to store model results
 					const tCaseIDResult: any = await codapInterface.sendRequest({
 						action: 'get',
 						resource: `dataContext[${tTargetDatasetName}].collection[${tResultsCollectionName}].caseFormulaSearch[true]`
 					})
 					tResultCaseIDsToFill = tCaseIDResult.values.map((iValue: any) => Number(iValue.id))
+				}
+				else {	// We add a new case to each parent case for the next set of results
+					const tParentCollectionName = tTargetStore.targetCollectionName,
+						tCreateRequests:{parent:number, values:{}}[] = []
+					// First we get the parent case IDs
+					const tParentCaseIDResults: any = await codapInterface.sendRequest({
+						action: 'get',
+						resource: `dataContext[${tTargetDatasetName}].collection[${tParentCollectionName}].caseFormulaSearch[true]`
+					})
+					// Formulate the requests for the child cases
+					tParentCaseIDResults.values.forEach((iResult:{id:number})=>{
+						tCreateRequests.push( {
+							parent: Number(iResult.id),
+							values:{}
+						})
+					})
+					// Send off the requests
+					const tChildrenRequestResult:any = await codapInterface.sendRequest( {
+						action: 'create',
+						resource: `dataContext[${tTargetDatasetName}].collection[${tResultsCollectionName}].case`,
+						values: tCreateRequests
+					})
+					// Store the IDs for the children for later use
+					tResultCaseIDsToFill = tChildrenRequestResult.values.map((iValue: any) => Number(iValue.id))
+					console.log(tResultCaseIDsToFill)
 				}
 			}
 		}
@@ -210,7 +244,6 @@ export class ModelManager {
 		await guaranteeResultsCollection()
 
 		this.domainStore.trainingStore.resultCaseIDs = tResultCaseIDsToFill
-
 	}
 
 	async cancel() {
