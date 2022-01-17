@@ -5,7 +5,7 @@ import {DomainStore} from "../stores/domain_store";
 import {deselectAllCasesIn} from "../lib/codap-helper";
 import codapInterface from "../lib/CodapInterface";
 import {oneHot} from "../lib/one_hot";
-import {runInAction} from "mobx";
+import {runInAction, toJS} from "mobx";
 import {computeKappa} from "../utilities/utilities";
 import {NgramDetails, StoredModel, Token} from "../stores/store_types_and_constants";
 import {LogisticRegression} from "../lib/jsregression";
@@ -46,23 +46,34 @@ export class ModelManager {
 	 */
 	async prepWeightsCollection(iTokens: Token[]) {
 
-		async function emptyFirstChildWeightCaseExists() {
-			let tIsEmpty = true;
-			const tFirstChildResult: any = await codapInterface.sendRequest({
-				action: 'get',
-				resource: `dataContext[${tFeatureDatasetName}].collection[${tWeightsCollectionName}].caseByIndex[0]`
-			})
-			if (tFirstChildResult.success) {
-				const tName = tFirstChildResult.values.case.values['model name']
-				tIsEmpty = !tName || tName === ''
+		/**
+		 * We test to see if the weight case for each token has an empty model name
+		 */
+		async function allFirstWeightCasesAreEmpty() {
+			const tAttrName = 'name'
+			let tIsEmpty = true,
+				tFoundOne = false;
+			for( let tIndex = 0; tIndex < iTokens.length && tIsEmpty; tIndex++) {
+				const tFormula = `${tAttrName}='${iTokens[tIndex].token}'`,
+					tFirstChildResult: any = await codapInterface.sendRequest({
+					action: 'get',
+					resource: `dataContext[${tFeatureDatasetName}].itemSearch[${tFormula}]`
+				})
+				console.log(`tFormula = ${tFormula}`)
+				if (tFirstChildResult.success && tFirstChildResult.values.length > 0) {
+					tFoundOne = true
+					const tName = tFirstChildResult.values[0].values['model name']
+					tIsEmpty = tIsEmpty && (!tName || tName === '')
+					console.log(`case for ${iTokens[tIndex]} is ${tIsEmpty ? 'empty' : 'not empty'}`)
+				}
 			}
-			return tIsEmpty
+			return tFoundOne && tIsEmpty
 		}
 
 		const tFeatureDatasetName = this.domainStore.featureStore.featureDatasetInfo.datasetName,
 			tFeaturesCollectionName = this.domainStore.featureStore.featureDatasetInfo.collectionName,
 			tWeightsCollectionName = this.domainStore.featureStore.featureDatasetInfo.weightsCollectionName,
-			tUpdatingExistingWeights = await emptyFirstChildWeightCaseExists(),
+			tUpdatingExistingWeights = await allFirstWeightCasesAreEmpty(),
 			tCreationRequests: { parent: number, values: any }[] = [],
 			tUpdateRequests: { id: number, values: any }[] = [],
 			tFeatureWeightCaseIDs: { [index: string]: number } = {},
@@ -150,7 +161,6 @@ export class ModelManager {
 			tCreateResults.values.forEach((iValue:{id:number}, iIndex:number)=> {
 				tFeatureWeightCaseIDs[tTokenArray[iIndex]] = iValue.id
 			})
-			console.log(tFeatureWeightCaseIDs)
 			this.domainStore.featureStore.featureWeightCaseIDs = tFeatureWeightCaseIDs
 		}
 	}
@@ -358,6 +368,8 @@ export class ModelManager {
 
 		await setup()
 
+		console.log(`tokenMap = ${JSON.stringify(toJS(this.domainStore.featureStore.tokenMap))}`)
+
 		const tData: number[][] = [];
 
 		// Logistic can't happen until we've isolated the features and produced a oneHot representation
@@ -423,7 +435,7 @@ export class ModelManager {
 						thresholdAtPoint5: tModel.usePoint5AsProbThreshold
 					},
 					accuracy: tLogisticModel.accuracy || 0,
-					kappa: tLogisticModel.kappa || 0,
+					kappa: (tLogisticModel.accuracy === 0) ? 0 : (tLogisticModel.kappa || 0),
 					featureNames: this.domainStore.featureStore.getChosenFeatureNames(),
 					hasNgram: this.domainStore.featureStore.hasNgram(),
 					storedModel: this.fillOutCurrentStoredModel(tLogisticModel)
@@ -683,7 +695,7 @@ export class ModelManager {
 
 		let computedKappa = computeKappa(iTools.documents.length, tBothPos, tBothNeg, tActualPos, tPredictedPos);
 		iTools.logisticModel.accuracy = computedKappa.observed;
-		iTools.logisticModel.kappa = computedKappa.kappa;
+		iTools.logisticModel.kappa = (computedKappa.observed === 0) ? 0 : computedKappa.kappa;
 
 		// Send the values to CODAP
 		// if (tWeAreUpdating) {

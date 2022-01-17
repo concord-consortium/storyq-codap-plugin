@@ -194,7 +194,7 @@ export class TestingManager {
 				let computedKappa = computeKappa(tPhraseCount, tMatrix.posPos, tMatrix.negNeg,
 					tMatrix.posPos + tMatrix.posNeg, tMatrix.posPos + tMatrix.negPos);
 				tTestingResults.accuracy = Number(computedKappa.observed.toFixed(3));
-				tTestingResults.kappa = Number(computedKappa.kappa.toFixed(3));
+				tTestingResults.kappa = (computedKappa.observed === 0) ? 0 : Number(computedKappa.kappa.toFixed(3));
 			}
 		}
 
