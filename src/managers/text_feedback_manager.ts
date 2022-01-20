@@ -151,6 +151,8 @@ export default class TextFeedbackManager {
 				action: 'get',
 				resource: `dataContext[${tDatasetName}].collection[${tCollectionName}].caseByID[${tUsedCaseIDs[i]}]`
 			})
+			if( i === 1)
+				console.log(`result for caseID ${tUsedCaseIDs[i]} is ${JSON.stringify(tGetCaseResult)}`)
 			if( tGetCaseResult.success && tGetCaseResult.values) {
 				const tChildren = await this.getChildCases(tGetCaseResult.values.case.children, tDatasetName, 'results'),
 					tFoundChild = tChildren.find(iChild => iChild['model name'] === tActiveModelName),

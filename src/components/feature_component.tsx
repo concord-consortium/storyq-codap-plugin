@@ -271,6 +271,8 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 					</div>
 				)
 			} else {
+				const tHint = tFeature.chosen ? 'Click here to remove this feature from the next model you train.' :
+					'Click here to add this feature to the next model you train.'
 				return (
 					<div className='sq-component'>
 						<CheckBox
@@ -280,6 +282,7 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 								await this.props.domainStore.featureStore.toggleChosenFor(tFeature)
 								this.props.domainStore.featureStore.tokenMap = {}
 							})}
+							hint={tHint}
 						/>
 						<p><strong>{tFeature.name}:</strong> {tFeature.description}</p>
 						<Button
@@ -289,6 +292,7 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 							onClick={action(async () => {
 								await this_.props.domainStore.featureStore.deleteFeature(tFeature)
 							})}
+							hint={'Removes this feature completely'}
 						/>
 					</div>
 				)
