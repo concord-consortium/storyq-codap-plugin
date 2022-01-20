@@ -83,7 +83,9 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 			function getButtons() {
 
 				function trainButton() {
-					if (!tInProgress)
+					if (!tInProgress) {
+						const tHint = tInStepMode ? 'Click to complete the training without stepping' :
+							'Click this to train your model.'
 						return (
 							<Button
 								className='sq-button'
@@ -97,9 +99,11 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 										await this_.modelManager.buildModel()
 										this_.modelManager.nextStep()
 									}
-								})}>
+								})}
+								hint={tHint}>
 								{tInStepMode ? 'Finish' : 'Train'}
 							</Button>)
+					}
 				}
 
 				function stepButton() {
@@ -118,7 +122,8 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 									} else {
 										this_.modelManager.nextStep()
 									}
-								})}>
+								})}
+								hint={'Click to move one iteration forward in training this model.'}>
 								Step
 							</Button>
 						)
@@ -131,7 +136,8 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 								className='sq-button'
 								onClick={action(() => {
 									this_.props.uiStore.trainingPanelShowsEditor = !this_.props.uiStore.trainingPanelShowsEditor
-								})}>
+								})}
+								hint={'Click to change the settings your model will use in training.'}>
 								Settings
 							</Button>
 						)
@@ -143,7 +149,8 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 							className='sq-button'
 							onClick={action(async() => {
 								await this_.modelManager.cancel()
-							})}>
+							})}
+							hint={'Click to cancel the training of this model.'}>
 							Cancel
 						</Button>
 					)
@@ -163,6 +170,8 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 			}
 
 			function getSettingsPanel() {
+				const tIterationsHint = 'How many times the algorithm repeats its numerical approximation. More iterations' +
+					' generally yield higher accuracy, up to a point, but training takes longer.'
 
 				function iterationsBox() {
 					return (
@@ -170,6 +179,7 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 							className='sq-fc-part'
 							valueChangeEvent={'keyup'}
 							placeholder="give your model a name"
+							hint={tIterationsHint}
 							onValueChanged={action((e) => {
 								tModel.iterations = Number(e.value)
 							})}
@@ -180,10 +190,11 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 					)
 				}
 
-				function getCheckbox(iValue: boolean, iLabel: string, setter: (e: any) => void) {
+				function getCheckbox(iValue: boolean, iLabel: string, iHint:string, setter: (e: any) => void) {
 					return (
 						<CheckBox
 							text={iLabel}
+							hint={iHint}
 							value={iValue}
 							onValueChanged={
 								action((e) => {
@@ -201,16 +212,18 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 							</div>
 							<div className='sq-training-settings'>
 								<div className='sq-training-iterations'>
-									<span>Iterations:</span>{iterationsBox()}
+									<span title={tIterationsHint}>Iterations:</span>{iterationsBox()}
 								</div>
 								<div className='sq-training-checkboxes'>
 									{getCheckbox(this_.props.domainStore.trainingStore.model.lockInterceptAtZero,
 										'Lock intercept at zero',
+										'Locking simplifies interpretation of feature weights but may introduce bias.',
 										(e) => {
 											this_.props.domainStore.trainingStore.model.lockInterceptAtZero = e.value
 										})}
 									{getCheckbox(this_.props.domainStore.trainingStore.model.usePoint5AsProbThreshold,
 										'Use 0.5 as probability threshold',
+										'The probability threshold defines the boundary between assignment to the two groups.',
 										(e) => {
 											this_.props.domainStore.trainingStore.model.usePoint5AsProbThreshold = e.value
 										})}
@@ -239,7 +252,8 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 						onClick={action(async () => {
 							tModel.reset()
 							tModel.beingConstructed = true
-						})}>
+						})}
+						hint={'Click this to begin training a new model with the current set of features.'}>
 						+ New Model
 					</Button>
 				)
@@ -266,7 +280,9 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 			function getIsActiveButon(iIndex: number) {
 				const tTrainingResult = tResults[iIndex],
 					tIcon = tTrainingResult.isActive ? 'check' : '',
-					tText = tTrainingResult.isActive ? '' : '◻︎'
+					tText = tTrainingResult.isActive ? '' : '◻︎',
+					tHint = tTrainingResult.isActive ? 'Click to make this model no longer active. This will hide its results' +
+						' and weights' : 'Click to make this model active and show its results and weights.'
 				return (
 					<td
 						style={{"textAlign": "center"}}
@@ -279,6 +295,7 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 							onClick={action(() => {
 								this_.props.domainStore.setIsActiveForResultAtIndex(iIndex, !tTrainingResult.isActive)
 							})}
+							hint={tHint}
 						/>
 					</td>
 				)
@@ -302,12 +319,13 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 					<table>
 						<thead>
 						<tr>
-							<th>Active</th>
+							<th title={'If checked, the weights are shown for features as are the model\'s results in the training set'}>
+								Active</th>
 							<th>Model Name</th>
-							<th>Settings</th>
-							<th>Accuracy</th>
-							<th>Kappa</th>
-							<th>Features</th>
+							<th title={'The settings in effect when this model was trained'}>Settings</th>
+							<th title={'The percent of predicted labels that are correct'}>Accuracy</th>
+							<th title={'This number is 0% when the model did no better than chance.'}>Kappa</th>
+							<th title={'The features that were used to define this model'}>Features</th>
 						</tr>
 						</thead>
 						<tbody className='sq-model-table'>

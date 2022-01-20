@@ -40,12 +40,15 @@ export const FeaturePane = observer(class FeaturePane extends Component<Feature_
 		const tFeatureUnderConstruction = this.props.domainStore.featureStore.featureUnderConstruction,
 			tInProgress = tFeatureUnderConstruction.inProgress,
 			tButtonLabel = tFeatureUnderConstruction.inProgress ? 'Cancel' : '+ Add Feature',
+			tButtonHint = tFeatureUnderConstruction.inProgress ? 'Press this to cancel feature construction.' :
+				'Press this button to begin constructing a feature.',
 			tAddButton =
 				(<Button
 						className='sq-button'
 						onClick={action(() => {
 							tFeatureUnderConstruction.inProgress = !tInProgress
 						})}
+						hint={tButtonHint}
 					>
 						{tButtonLabel}
 					</Button>
@@ -63,6 +66,7 @@ export const FeaturePane = observer(class FeaturePane extends Component<Feature_
 							tFeatureUnderConstruction.inProgress = false
 						}
 					})}
+					hint={'You can press this button when you have completed specifying a feature.'}
 				>
 					Done
 				</Button>

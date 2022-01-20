@@ -62,7 +62,8 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 							className='sq-button'
 							onClick={action(async () => {
 								this_.props.domainStore.testingStore.prepareForConstruction()
-							})}>
+							})}
+							hint={'Click to set up a test using a model you have trained to classify texts.'}>
 							+ NewTest
 						</Button>
 					</div>
@@ -73,7 +74,10 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 		function getModelChoice() {
 			if (!tReadyForNewTest) {
 				const tModelChoices = this_.props.domainStore.trainingStore.trainingResults.map(iResult => iResult.name)
-				return choicesMenu('Choose a model to test', 'Choose a model', tModelChoices,
+				return choicesMenu('Choose a model to test', 'Choose a model',
+					'This model will be used to classify the dataset you choose as a test of how well' +
+					' the model performs on a dataset other than the one that was used to train it.',
+					tModelChoices,
 					this_.props.domainStore.testingStore.chosenModelName, async (iChoice) => {
 						this_.props.domainStore.testingStore.chosenModelName = iChoice
 						await this_.updateCodapInfo()
@@ -85,7 +89,10 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 			if (!tReadyForNewTest) {
 				const tDatasetInfoArray = tTestingStore.testingDatasetInfoArray,
 					tDatasetNames = tDatasetInfoArray.map(iEntity => iEntity.title)
-				return choicesMenu('Choose a dataset to classify', 'Choose a dataset', tDatasetNames,
+				return choicesMenu('Choose a dataset to classify', 'Choose a dataset',
+					'This dataset will be analyzed by the chosen model. It should have at least one column' +
+					' containing texts to be classified. It may or may not have a label column.',
+					tDatasetNames,
 					tTestingStore.testingDatasetInfo.title,
 					async (iChoice) => {
 						const tChosenInfo = tDatasetInfoArray.find(iInfo => iInfo.title === iChoice)
@@ -99,7 +106,9 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 		function getTestingAttributeChoice() {
 			if (!tReadyForNewTest && tTestingStore.testingDatasetInfo.title !== '') {
 				const tAttributeNames = tTestingStore.testingAttributeNames
-				return choicesMenu('Choose the column with texts', 'Choose a column', tAttributeNames,
+				return choicesMenu('Choose the column with texts', 'Choose a column',
+					'The chosen column should contain the texts that are to be classified.',
+					tAttributeNames,
 					tTestingStore.testingAttributeName,
 					async (iChoice) => {
 						tTestingStore.testingAttributeName = iChoice
@@ -112,7 +121,9 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 			if (!tReadyForNewTest && tTestingStore.testingDatasetInfo.title !== '') {
 				const tAttributeNames: string[] = toJS(tTestingStore.testingAttributeNames)
 				tAttributeNames.unshift(this_.kNonePresent)
-				return choicesMenu('Choose the column with class labels', 'Choose a column', tAttributeNames,
+				return choicesMenu('Choose the column with labels', 'Choose a column',
+					'If this column is specified, it should contain two unique labels, one for each group.',
+					tAttributeNames,
 					tTestingClassAttributeName,
 					async (iChoice: string) => {
 						tTestingStore.testingClassAttributeName = iChoice
@@ -127,7 +138,14 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 					tTestingDatasetName = tTestingStore.testingDatasetInfo.title,
 					tChosenModelName = tTestingStore.chosenModelName,
 					tTestingAttributeName = tTestingStore.testingAttributeName,
-					tDisabled = tTestingDatasetName === '' || tChosenModelName === '' || tTestingAttributeName === ''
+					tDisabled = tTestingDatasetName === '' || tChosenModelName === '' || tTestingAttributeName === '',
+					// The following hint doesn't display if the button is disabled. See
+					// https://supportcenter.devexpress.com/ticket/details/t844498/button-how-to-add-tooltip-to-disabled-button
+					// for suggested solution
+					tHint = tTestingDatasetName === '' ? 'Please choose a dataset with texts to classify.' :
+						(tChosenModelName === '' ? 'Please choose a model you have trained.' :
+							(tTestingAttributeName === '' ? 'Please choose the attribute that contains the texts you wish to classify' :
+								'Click this button to carry out the classification test.'))
 				return (
 					<div className='sq-training-buttons'>
 						<Button
@@ -135,7 +153,8 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 							disabled={tDisabled}
 							onClick={action(async () => {
 								await this_.testingManager.classify()
-							})}>
+							})}
+							hint={tHint}>
 							{tDisabled ? 'Classify' : `Classify "${tTestingAttributeName}" using model "${tChosenModelName}"`}
 						</Button>
 					</div>
@@ -146,7 +165,7 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 		function showResults() {
 
 			function getRows() {
-				return tTestingResults.map(iResult=>{
+				return tTestingResults.map(iResult => {
 					return (
 						<tr>
 							<td>{iResult.modelName}</td>
@@ -159,16 +178,20 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 			}
 
 			const tTestingResults = tTestingStore.testingResultsArray
-			if( tTestingResults.length > 0) {
+			if (tTestingResults.length > 0) {
 				return (
 					<div>
 						<table>
 							<thead>
 							<tr>
-								<th>Model Name</th>
-								<th>Dataset</th>
-								<th>Accuracy</th>
-								<th>Kappa</th>
+								<th title={'The name of the model used in this test'}>Model Name</th>
+								<th title={'The dataset whose texts were classified in this test'}>Dataset</th>
+								<th title={'If the test dataset has labels, the percent of classifications that were correct'}>
+									Accuracy
+								</th>
+								<th title={'If the test dataset has labels, gives the correctness of the classifications discounting chance'}>
+									Kappa
+								</th>
 							</tr>
 							</thead>
 							<tbody>

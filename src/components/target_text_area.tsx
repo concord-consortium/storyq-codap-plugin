@@ -75,6 +75,7 @@ export const TargetTextArea = observer(class TargetTextArea extends Component<Ta
 									index === 0 ? tLeftColumnKey : tRightColumnKey
 							}
 						})}
+						hint={'This is the label for one of the two groups for the target texts.'}
 					/>
 				</div>
 			)

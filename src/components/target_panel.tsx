@@ -81,12 +81,15 @@ export const TargetPanel = observer(class TargetPanel extends Component<Target_P
 				tDatasetChoices: string[] = (tDatasetInfoArray.map(iInfo => iInfo.title));
 			tDatasetChoices.push(this_.targetPanelConstants.createNewEntityInfo.title);
 			return choicesMenu('Choose or create a dataset', 'Choose or create a dataset',
+				'The dataset you choose or create will be used to train a model. ' +
+				'It should have at least two attributes, one containing texts to analyze and the other containing labels with two values.',
 				tDatasetChoices, tValue, handleChoice)
 		}
 
 		function targetAttributeChoice() {
 			if (this_.props.domainStore.targetStore.targetAttributeNames.length > 0) {
 				return choicesMenu('Target Text', 'Choose a target attribute',
+					'The target attribute should contain the texts to analyze.',
 					this_.props.domainStore.targetStore.targetAttributeNames,
 					this_.props.domainStore.targetStore.targetAttributeName, async (iChoice) => {
 						this_.props.domainStore.targetStore.targetAttributeName = iChoice
@@ -101,7 +104,9 @@ export const TargetPanel = observer(class TargetPanel extends Component<Target_P
 				const tCandidateAttributeNames = this_.props.domainStore.targetStore.targetAttributeNames.filter((iName)=>{
 					return this_.props.domainStore.featureStore.features.findIndex(aFeature=>aFeature.name === iName) < 0
 				})
-				return choicesMenu('Target Class', 'Choose an attribute with classes',
+				return choicesMenu('Target Labels', 'Choose an attribute with labels',
+					'The target labels attribute should have two values. These are the labels of each of the ' +
+					'groups into which the texts will be classified.',
 					tCandidateAttributeNames,
 					this_.props.domainStore.targetStore.targetClassAttributeName, async (iChoice) => {
 						await this_.updateTargetPanelInfo('targetClassAttributeName', iChoice)
