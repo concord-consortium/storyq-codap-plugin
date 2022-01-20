@@ -16,7 +16,7 @@ export function textToObject( iText:string, iSelectedWords:any, iSpecialFeatures
 			});
 	});
 
-	let words:string[] = wordTokenizer(iText, false);
+	let words:string[] = wordTokenizer(iText, false, false);
 	words.forEach((iWord) => {
 		let tRawWord = iWord.toLowerCase();
 		if (iSelectedWords.indexOf(tRawWord) >= 0) {

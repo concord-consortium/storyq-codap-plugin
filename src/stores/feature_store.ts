@@ -21,17 +21,17 @@ export class FeatureStore {
 		weightsCollectionName: 'weights',
 		datasetID: -1
 	}
-	wordListSpecs:WordListSpec[] = []	// no save/restore
+	wordListSpecs: WordListSpec[] = []	// no save/restore
 	targetColumnFeatureNames: string[] = []
 	tokenMap: TokenMap = {}
-	featureWeightCaseIDs:{ [index: string]: number } = {}
+	featureWeightCaseIDs: { [index: string]: number } = {}
 
 	constructor() {
 		makeAutoObservable(this, {tokenMap: false, featureWeightCaseIDs: false}, {autoBind: true})
 	}
 
-	tokenMapIsFilledOut() {
-		return this.tokenMap && Object.keys(this.tokenMap).length > 0
+	tokenMapAlreadyHasUnigrams() {
+		return this.tokenMap && Object.values(this.tokenMap).some(iToken=>iToken.type === 'unigram')
 	}
 
 	asJSON() {
@@ -86,11 +86,11 @@ export class FeatureStore {
 	}
 
 	getChosenFeatures() {
-		return this.features.filter(iFeature=>iFeature.chosen)
+		return this.features.filter(iFeature => iFeature.chosen)
 	}
 
-	getFormulaFor(iFeatureName:string) {
-		const tFoundObject = this.features.find(iFeature=>{
+	getFormulaFor(iFeatureName: string) {
+		const tFoundObject = this.features.find(iFeature => {
 			return iFeature.name === iFeatureName && iFeature.formula !== ''
 		})
 		return tFoundObject ? tFoundObject.formula : ''
@@ -100,16 +100,16 @@ export class FeatureStore {
 		return this.featureDatasetInfo.datasetID
 	}
 
-	guaranteeUniqueFeatureName(iCandidate:string) {
+	guaranteeUniqueFeatureName(iCandidate: string) {
 		const this_ = this
 
-		function isNotUnique(iName:string) {
-			return Boolean(this_.features.find(iFeature=>iFeature.name === iName))
+		function isNotUnique(iName: string) {
+			return Boolean(this_.features.find(iFeature => iFeature.name === iName))
 		}
 
 		let counter = 1,
 			tTest = iCandidate
-		while( isNotUnique(tTest)) {
+		while (isNotUnique(tTest)) {
 			tTest = `${iCandidate}_${counter}`
 			counter++
 		}
@@ -149,9 +149,9 @@ export class FeatureStore {
 		this.featureUnderConstruction = Object.assign({}, starterFeature)
 	}
 
-	async deleteFeature(iFeature:Feature) {
+	async deleteFeature(iFeature: Feature) {
 		const tFoundIndex = this.features.indexOf(iFeature)
-		if( tFoundIndex >= 0) {
+		if (tFoundIndex >= 0) {
 			this.features.splice(tFoundIndex, 1)
 			await codapInterface.sendRequest({
 				action: 'delete',
@@ -160,18 +160,43 @@ export class FeatureStore {
 		}
 	}
 
-	async toggleChosenFor(iFeature:Feature) {
-		iFeature.chosen = !iFeature.chosen
-		const tResult =  await codapInterface.sendRequest({
-			action: 'update',
-			resource: `dataContext[${this.featureDatasetInfo.datasetID}].collection[${this.featureDatasetInfo.collectionName}].caseByID[${iFeature.caseID}]`,
-			values: {
-				values: {
-					chosen: iFeature.chosen
-				}
+	async toggleChosenFor(iFeature: Feature) {
+		const this_ = this
+
+		async function syncUnigramsInFeaturesDataset(iChosen: boolean) {
+			// For every case in Features dataset set the 'chosen' attribute to given value
+			const tCasesRequestResult: any = await codapInterface.sendRequest({
+				action: 'get',
+				resource: `dataContext[${this_.featureDatasetInfo.datasetID}].collection[${this_.featureDatasetInfo.collectionName}].caseFormulaSearch[type='unigram']`
+			})
+			if (tCasesRequestResult.success) {
+				const tUpdateRequests: { id: number, values: { chosen: boolean } }[] = tCasesRequestResult.values.map(
+					(iValue:{id:number}) =>{
+						return { id: Number(iValue.id), values: {chosen:iChosen}}
+					}
+				)
+				await codapInterface.sendRequest( {
+					action: 'update',
+					resource: `dataContext[${this_.featureDatasetInfo.datasetID}].collection[${this_.featureDatasetInfo.collectionName}].case`,
+					values: tUpdateRequests
+				})
 			}
-		})
-		console.log(`tResult = ${JSON.stringify(tResult)}`)
+		}
+
+		iFeature.chosen = !iFeature.chosen
+		if (iFeature.type === 'unigram') {
+			await syncUnigramsInFeaturesDataset(iFeature.chosen)
+		} else {
+			await codapInterface.sendRequest({
+				action: 'update',
+				resource: `dataContext[${this.featureDatasetInfo.datasetID}].collection[${this.featureDatasetInfo.collectionName}].caseByID[${iFeature.caseID}]`,
+				values: {
+					values: {
+						chosen: iFeature.chosen
+					}
+				}
+			})
+		}
 	}
 
 	async updateWordListSpecs() {
@@ -182,8 +207,8 @@ export class FeatureStore {
 		}).catch((reason) => {
 			console.log('unable to get datacontext list because ' + reason);
 		})
-		if(tContextListResult.success) {
-			tContextListResult.values.forEach(async (aValue:any)=> {
+		if (tContextListResult.success) {
+			tContextListResult.values.forEach(async (aValue: any) => {
 				let tCollectionsResult: any = await codapInterface.sendRequest({
 					action: 'get',
 					resource: `dataContext[${aValue.id}].collectionList`
@@ -207,7 +232,6 @@ export class FeatureStore {
 			})
 		}
 	}
-
 
 
 }

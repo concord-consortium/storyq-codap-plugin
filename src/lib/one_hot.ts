@@ -26,10 +26,12 @@ export const kMaxTokens = 1000;
 /**
  * Convert the given string into an array of lowercase words.
  */
-export const wordTokenizer = (text: string, ignoreStopWords: boolean): string[] => {
+export const wordTokenizer = (text: string, ignoreStopWords: boolean, ignorePunctuation: boolean): string[] => {
 	let tokens: string[] = [];
 	if (text) {
-		let tWords: RegExpMatchArray | [] = text.toLowerCase().match(/(\w+['’]{0,1}\w+)|[\u25A0-\u2BFF]|[,!:@#$%^&*()\-_[\]{};'".<>/?`~]/g) || [];
+		let tExpression = ignorePunctuation ? /(\w+['’]{0,1}\w+)|[\u25A0-\u2BFF]/g :
+			/(\w+['’]{0,1}\w+)|[\u25A0-\u2BFF]|[,!:@#$%^&*()\-_[\]{};'".<>/?`~]/g
+		let tWords: RegExpMatchArray | [] = text.toLowerCase().match(tExpression) || [];
 		tWords.forEach((aWord) => {
 			if (!ignoreStopWords || !stopWords[aWord])
 				tokens.push(aWord);
@@ -42,6 +44,7 @@ export interface OneHotConfig {
 	includeUnigrams: boolean,
 	frequencyThreshold: number,
 	ignoreStopWords: boolean,
+	ignorePunctuation: boolean,
 	positiveClass: string,
 	negativeClass: string,
 	features: Feature[],
@@ -101,7 +104,7 @@ export const oneHot = (config: OneHotConfig,
 		// console.log(`config.features = ${JSON.stringify(toJS(config.features))}`)
 		documents.forEach(aDoc => {
 			const tText = config.includeUnigrams ? aDoc.example : '',
-				tokens = new Set(wordTokenizer(tText, config.ignoreStopWords));
+				tokens = new Set(wordTokenizer(tText, config.ignoreStopWords, config.ignorePunctuation));
 			// Add the column features as tokens as well
 			Object.keys(aDoc.columnFeatures).forEach(aFeature => tokens.add(aFeature));
 
@@ -164,7 +167,7 @@ export const oneHot = (config: OneHotConfig,
 	// We have to do both the tokens in the example and the column features
 	let oneHotArray: { oneHotExample: number[], class: string }[] = documents.map(aDoc => {
 		let tText = config.includeUnigrams ? aDoc.example : '',
-			tokens: string[] = wordTokenizer(tText, config.ignoreStopWords),
+			tokens: string[] = wordTokenizer(tText, config.ignoreStopWords, config.ignorePunctuation),
 			tVector: number[] = Array(kVectorLength).fill(0);
 		Object.keys(aDoc.columnFeatures).forEach(aFeature => tokens.push(aFeature));
 		tokens.forEach(aWord => {

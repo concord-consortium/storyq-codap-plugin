@@ -277,7 +277,7 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 							icon={tIcon}
 							stylingMode='text'
 							onClick={action(() => {
-								tTrainingResult.isActive = !tTrainingResult.isActive
+								this_.props.domainStore.setIsActiveForResultAtIndex(iIndex, !tTrainingResult.isActive)
 							})}
 						/>
 					</td>

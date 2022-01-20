@@ -25,8 +25,8 @@ export class DomainStore {
 	textFeedbackManager: TextFeedbackManager
 
 	constructor(iUiStore: UiStore) {
-		this.targetStore = new TargetStore(()=>{
-			return this.featureStore.features.map(iFeature=>iFeature.name)
+		this.targetStore = new TargetStore(() => {
+			return this.featureStore.features.map(iFeature => iFeature.name)
 		})
 		this.featureStore = new FeatureStore()
 		this.trainingStore = new TrainingStore()
@@ -86,11 +86,11 @@ export class DomainStore {
 									{name: 'chosen', type: 'checkbox'},
 									{name: tPositiveAttrName},
 									{name: tNegativeAttrName},
-									{name: 'type', hidden: true },
-/*
-									{name: 'description'},
-									{name: 'formula'},
-*/
+									{name: 'type', hidden: true},
+									/*
+																		{name: 'description'},
+																		{name: 'formula'},
+									*/
 									{name: 'usages', hidden: true}
 								]
 							},
@@ -221,15 +221,15 @@ export class DomainStore {
 						tUnchosenClassKey = tChosenClassKey === 'left' ? 'right' : 'left',
 						tPositiveAttrName = kPosNegConstants.positive.attrKey + tTargetStore.targetClassNames[tChosenClassKey],
 						tNegativeAttrName = kPosNegConstants.negative.attrKey + tTargetStore.targetClassNames[tUnchosenClassKey]
-					let tValuesObject:{values: { [index: string]: {} }} = {
+					let tValuesObject: { values: { [index: string]: {} } } = {
 						values: {
 							chosen: iFeature.chosen,
 							name: iFeature.name,
 							type: iFeature.type,
-/*
-							formula: iFeature.formula,
-							description: iFeature.description,
-*/
+							/*
+														formula: iFeature.formula,
+														description: iFeature.description,
+							*/
 							usages: JSON.stringify(iFeature.usages)
 						}
 					}
@@ -247,7 +247,7 @@ export class DomainStore {
 				if (tCreateResult.success) {
 					tCreateResult.values.forEach(async (iValue: any, iIndex: number) => {
 						tFeaturesToAdd[iIndex].caseID = iValue.id
-						const tGetItemResult:any = await codapInterface.sendRequest({
+						const tGetItemResult: any = await codapInterface.sendRequest({
 							action: 'get',
 							resource: `${resourceString}.itemByCaseID[${iValue.id}]`
 						})
@@ -290,7 +290,7 @@ export class DomainStore {
 	}
 
 	async updateNgramFeatures() {
-		if (this.featureStore.tokenMapIsFilledOut())
+		if (this.featureStore.tokenMapAlreadyHasUnigrams())
 			return
 		const this_ = this
 		const tNgramFeatures = this.featureStore.features.filter(iFeature => iFeature.info.kind === 'ngram')
@@ -321,6 +321,7 @@ export class DomainStore {
 			const tOneHotResult = oneHot({
 				frequencyThreshold: tThreshold - 1,
 				ignoreStopWords: tIgnore,
+				ignorePunctuation: true,
 				includeUnigrams: true,
 				positiveClass: this.targetStore.getClassName('positive'),
 				negativeClass: this.targetStore.getClassName('negative'),
@@ -340,9 +341,9 @@ export class DomainStore {
 						chosen: true,
 						name: iFeature.token,
 						type: 'unigram',
-/*
-						description: `unigram ${tIgnore ? '' : 'not '}ignoring stop words with frequency threshold of ${tThreshold}`,
-*/
+						/*
+												description: `unigram ${tIgnore ? '' : 'not '}ignoring stop words with frequency threshold of ${tThreshold}`,
+						*/
 						usages: JSON.stringify(iFeature.caseIDs)
 					}
 				}
@@ -388,7 +389,7 @@ export class DomainStore {
 	async addTextComponent() {
 		await this.textStore.addTextComponent(this.targetStore.targetDatasetInfo.title, this.targetStore.targetAttributeName)
 		await this.clearText()
-		setTimeout(async ()=>{
+		setTimeout(async () => {
 			// Take the focus away from the newly created text component
 			const tPluginID = await getComponentByTypeAndTitle('game', kStoryQPluginName)
 			await codapInterface.sendRequest({
@@ -398,7 +399,7 @@ export class DomainStore {
 					request: 'select'
 				}
 			})
-			}, 1000)
+		}, 1000)
 	}
 
 	async clearText() {
@@ -416,6 +417,99 @@ export class DomainStore {
 
 	testingPanelCanBeEnabled() {
 		return this.trainingPanelCanBeEnabled() && this.trainingStore.trainingResults.length > 0
+	}
+
+	async setIsActiveForResultAtIndex(iIndex: number, iIsActive: boolean) {
+		this.trainingStore.trainingResults[iIndex].isActive = iIsActive
+		await this.syncWeightsAndResultsWithActiveModels()
+	}
+
+	/**
+	 * When the user changes activity status of models, we go into the Features and target datasets and set aside
+	 * weights and results for all models not currently active.
+	 */
+	async syncWeightsAndResultsWithActiveModels() {
+		if (this.trainingStore.trainingResults.length === 0)
+			return
+		const tTrainingResults = this.trainingStore.trainingResults,
+			tFeatureDatasetName = this.featureStore.featureDatasetInfo.datasetName,
+			tMessages: object[] = [],
+			tWeightsCollectionName = this.featureStore.featureDatasetInfo.weightsCollectionName
+		let tResultIDsToSetaside: number[] = [],
+			tWeightIDsToSetaside: number[] = []
+
+		// Unset-aside all the weights
+		await codapInterface.sendRequest({
+				action: 'notify',
+				resource: `dataContext[${tFeatureDatasetName}]`,
+				values: {
+					request: "restoreSetasides"
+				}
+			}
+		)
+
+		// Gather all the cases from the weights collection
+		const tWeightsRequestResult: any = await codapInterface.sendRequest({
+				action: 'get',
+				resource: `dataContext[${tFeatureDatasetName}].collection[${tWeightsCollectionName}].caseFormulaSearch[true]`
+			}),
+			tWeightNameIDPairs: { modelName: string, id: number }[] = tWeightsRequestResult.success ?
+				tWeightsRequestResult.values.map((iValue: { id: number, values: { 'model name': string } }) => {
+					return {modelName: iValue.values['model name'], id: iValue.id}
+				}) : []
+
+		// Unset-aside results collection for each training result
+		await codapInterface.sendRequest(tTrainingResults.map(iResult => {
+			return {
+				action: 'notify',
+				resource: `dataContext[${iResult.targetDatasetName}]`,
+				values: {
+					request: "restoreSetasides"
+				}
+			}
+		}))
+		// All cases are showing. Now figure out which weights and results to set aside
+		for (let tIndex = 0; tIndex < tTrainingResults.length; tIndex++) {
+			const iResult = tTrainingResults[tIndex]
+			// First the weights
+			if (!iResult.isActive) {
+				const tInactiveWeightPairs = tWeightNameIDPairs.filter(iPair => iPair.modelName === iResult.name),
+					tInactiveWeightIDs = tInactiveWeightPairs.map(iPair => iPair.id)
+				tWeightIDsToSetaside = tWeightIDsToSetaside.concat(tInactiveWeightIDs)
+				tMessages.push({
+					action: 'notify',
+					resource: `dataContext[${tFeatureDatasetName}]`,
+					values: {
+						request: 'setAside',
+						caseIDs: tWeightIDsToSetaside
+					}
+				})
+				// Now the results
+				const tDatasetName = iResult.targetDatasetName
+				const tResultsRequestResult: any = await codapInterface.sendRequest({
+						action: 'get',
+						resource: `dataContext[${tDatasetName}].collection[${'results'}].caseFormulaSearch[true]`
+					}),
+					tResultNameIDPairs: { modelName: string, id: number }[] = tResultsRequestResult.success ?
+						tResultsRequestResult.values.map((iValue: { id: number, values: { 'model name': string } }) => {
+							return {modelName: iValue.values['model name'], id: iValue.id}
+						}) : []
+				const tInactiveResultPairs = tResultNameIDPairs.filter(iPair => iPair.modelName === iResult.name),
+					tInactiveResultIDs = tInactiveResultPairs.map(iPair => iPair.id)
+				tResultIDsToSetaside = tResultIDsToSetaside.concat(tInactiveResultIDs)
+				tMessages.push({
+					action: 'notify',
+					resource: `dataContext[${tDatasetName}]`,
+					values: {
+						request: 'setAside',
+						caseIDs: tResultIDsToSetaside
+					}
+				})
+			}
+		}
+
+		// Do the setting aside all at once
+		await codapInterface.sendRequest(tMessages)
 	}
 
 }

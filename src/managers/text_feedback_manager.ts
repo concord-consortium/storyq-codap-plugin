@@ -57,7 +57,7 @@ export default class TextFeedbackManager {
 		return this.headingsManager;
 	}
 
-	async getChildCases(iCaseIDs:number[], iDatasetName:string, iCollectionName:string) {
+	async getChildCases(iCaseIDs: number[], iDatasetName: string, iCollectionName: string) {
 		// console.log(`iCaseIDs = ${iCaseIDs}`)
 		const tPromises = iCaseIDs.map(async (iID) => {
 			const tResult: any = await codapInterface.sendRequest({
@@ -85,7 +85,7 @@ export default class TextFeedbackManager {
 				action: 'get',
 				resource: `dataContext[${tFeatureDatasetName}].collection[${tFeatureCollectionName}].caseByID[${iID}]}`
 			})
-			return tResult.values.case
+			return tResult.success && tResult.values && tResult.values.case
 		}
 
 		async function handleSelectionInFeaturesDataset() {
@@ -120,19 +120,20 @@ export default class TextFeedbackManager {
 			tFeatures: string[] = [],
 			tUsedIDsSet: Set<number> = new Set(),
 			tChildOfFeatureIsSelected = Boolean(iCases && iCases.length > 0 && iCases[0].parent),
-			tIDsOfFeaturesToSelect:number[] = []
+			tIDsOfFeaturesToSelect: number[] = []
 		let tEndPhrase: string;
 		for (const iCase of iCases) {
 			const tFeatureCase = tChildOfFeatureIsSelected ? await getFeatureCaseByID(Number(iCase.parent)) : iCase,
-				tUsages = tFeatureCase.values.usages;
-			if( tChildOfFeatureIsSelected)
+				tUsages = tFeatureCase && tFeatureCase.values.usages;
+			if (tChildOfFeatureIsSelected && tFeatureCase)
 				tIDsOfFeaturesToSelect.push(tFeatureCase.id)
 			if (typeof tUsages === 'string' && tUsages.length > 0) {
 				(JSON.parse(tUsages)).forEach((anID: number) => {
 					tUsedIDsSet.add(anID);
 				});
 			}
-			tFeatures.push(tFeatureCase.values.name);
+			if (tFeatureCase)
+				tFeatures.push(tFeatureCase.values.name);
 		}
 		handleSelectionInFeaturesDataset()
 		const tUsedCaseIDs: number[] = Array.from(tUsedIDsSet);
@@ -150,13 +151,15 @@ export default class TextFeedbackManager {
 				action: 'get',
 				resource: `dataContext[${tDatasetName}].collection[${tCollectionName}].caseByID[${tUsedCaseIDs[i]}]`
 			})
-			const tChildren = await this.getChildCases(tGetCaseResult.values.case.children, tDatasetName, 'results'),
-				tFoundChild = tChildren.find(iChild => iChild['model name'] === tActiveModelName),
-				tPredictedClass = tFoundChild ? tFoundChild[tPredictedLabelAttributeName] : '',
-				tActualClass = tGetCaseResult.values.case.values[tClassAttributeName],
-				tPhrase = tGetCaseResult.values.case.values[tAttributeName],
-				tTriple = {actual: tActualClass, predicted: tPredictedClass, phrase: tPhrase}
-			tTriples.push((tTriple));
+			if( tGetCaseResult.success && tGetCaseResult.values) {
+				const tChildren = await this.getChildCases(tGetCaseResult.values.case.children, tDatasetName, 'results'),
+					tFoundChild = tChildren.find(iChild => iChild['model name'] === tActiveModelName),
+					tPredictedClass = tFoundChild ? tFoundChild[tPredictedLabelAttributeName] : '',
+					tActualClass = tGetCaseResult.values.case.values[tClassAttributeName],
+					tPhrase = tGetCaseResult.values.case.values[tAttributeName],
+					tTriple = {actual: tActualClass, predicted: tPredictedClass, phrase: tPhrase}
+				tTriples.push((tTriple));
+			}
 		}
 		await this.retitleTextComponent(`Selected texts in ${tDatasetTitle}`)
 		await this.composeText(tTriples, tFeatures, textToObject,
@@ -180,14 +183,14 @@ export default class TextFeedbackManager {
 			return tResult.values.case
 		}
 
-		async function getMatchingChildCase(iCase:Case) {
+		async function getMatchingChildCase(iCase: Case) {
 			const tCaseByID = await getTargetCaseByID(iCase.id),
 				tChildCaseIDs = tCaseByID.children,
 				tChildren = tChildCaseIDs ? await this_.getChildCases(tChildCaseIDs, tDatasetName, 'results') : null
 			console.log(`In getMatchingChildCase, iCase.id = ${iCase.id}; tChildCaseIDs = ${tChildCaseIDs}`)
 			console.log(`In getMatchingChildCase, tChildren = ${JSON.stringify(tChildren)}`)
-			if(tChildren)
-				return tChildren.find(iCase=>iCase['model name'] === tActiveModelName)
+			if (tChildren)
+				return tChildren.find(iCase => iCase['model name'] === tActiveModelName)
 		}
 
 		async function handleSelectionInFeaturesDataset() {
@@ -217,7 +220,7 @@ export default class TextFeedbackManager {
 		}
 
 		async function handleSelectionInTargetDataset() {
-			if( tIDsOfParentCasesToSelect.length > 0) {
+			if (tIDsOfParentCasesToSelect.length > 0) {
 				await codapInterface.sendRequest({
 					action: 'create',
 					resource: `dataContext[${tDatasetName}].selectionList`,
@@ -246,12 +249,12 @@ export default class TextFeedbackManager {
 
 		let tTriples: PhraseTriple[] = [],
 			tIDsOfFeaturesToSelect: number[] = [],
-			tIDsOfParentCasesToSelect:number[] = [];
+			tIDsOfParentCasesToSelect: number[] = [];
 		for (const iCase of iCases) {
 			const tCaseToUseForPhrase = tChildSelected ? await getTargetCaseByID(Number(iCase.parent)) : iCase,
 				tCaseToUseForPredicted = tChildSelected ? iCase.values : await getMatchingChildCase(iCase)
 			if (tCaseToUseForPhrase) {
-				if( tChildSelected) {
+				if (tChildSelected) {
 					tIDsOfParentCasesToSelect.push(tCaseToUseForPhrase.id)
 				}
 				if (tCaseToUseForPhrase.values.featureIDs) {
@@ -266,7 +269,7 @@ export default class TextFeedbackManager {
 			}
 		}
 		await handleSelectionInTargetDataset()
-		if( await datasetExists(tFeatureDatasetName))
+		if (await datasetExists(tFeatureDatasetName))
 			await handleSelectionInFeaturesDataset()
 		await this.retitleTextComponent(`Selected texts in ${tDatasetTitle}`)
 		await this.composeText(tTriples, tFeaturesArray,

@@ -4,9 +4,12 @@
 
 import React, {Component} from "react";
 import {
-	SearchDetails,
 	Feature,
-	featureDescriptors, kKindOfThingOptionList, kKindOfThingOptionPunctuation, kKindOfThingOptionText
+	featureDescriptors,
+	kKindOfThingOptionList,
+	kKindOfThingOptionPunctuation,
+	kKindOfThingOptionText,
+	SearchDetails
 } from "../stores/store_types_and_constants";
 import {DomainStore} from "../stores/domain_store";
 import {observer} from "mobx-react";
@@ -82,10 +85,13 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 			}
 
 			function kindOfContainsChoice() {
-					const tColumns = this_.props.domainStore.targetStore.targetColumnFeatureNames.map(iColumnName=>{
-						return {name: iColumnName, value: `{"kind": "column", "details": {"columName":"${iColumnName}"}}`, key: 'Column Features'}
-					})
-				featureDescriptors.featureKinds[2].items = tColumns
+				featureDescriptors.featureKinds[2].items = this_.props.domainStore.targetStore.targetColumnFeatureNames.map(iColumnName => {
+					return {
+						name: iColumnName,
+						value: `{"kind": "column", "details": {"columName":"${iColumnName}"}}`,
+						key: 'Column Features'
+					}
+				})
 				// console.log(`featureDescriptors = ${JSON.stringify(featureDescriptors.featureKinds)}`)
 				return (
 					<SelectBox
@@ -104,10 +110,8 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 							if (tFeature.info.kind === 'ngram') {
 								tFeature.info.frequencyThreshold = 4
 								tFeature.info.ignoreStopWords = true
-							}
-							else if(tFeature.info.kind === 'column') {
-								const tName = JSON.parse(e.value).details['columName']
-								tFeature.name = tName
+							} else if (tFeature.info.kind === 'column') {
+								tFeature.name = JSON.parse(e.value).details['columName']
 								tFeature.type = 'column'
 							}
 							await this_.updateFeaturesDataset(tFeature)
@@ -188,8 +192,8 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 							style={{display: 'inline-block'}}
 							onValueChange={action((option) => {
 								const tWordListSpec = tWordListSpecs.find((iSpec) => {
-										return iSpec.datasetName === option
-									})
+									return iSpec.datasetName === option
+								})
 								let tAttributeName = ''
 								if (tWordListSpec) {
 									tAttributeName = tWordListSpec.firstAttributeName
@@ -230,7 +234,7 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 								// this.blurInput();
 							}}
 						/>
-{/*
+						{/*
 						<NumericInput
 							label='Frequency threshold'
 							min={1}
@@ -251,7 +255,7 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 			const tContainsOption = tFeature.infoChoice ? tFeature.infoChoice : ''
 			const tKindOption = tFeature.info.details ? (tFeature.info.details as SearchDetails).what : ''
 
-			if(!this.props.shortened) {
+			if (!this.props.shortened) {
 				return (
 					<div className='sq-component'>
 						{nameBox()}
@@ -266,17 +270,17 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 						{ngramSettings()}
 					</div>
 				)
-			}
-			else {
+			} else {
 				return (
 					<div className='sq-component'>
 						<CheckBox
 							text=''
 							value={tFeature.chosen}
-							onValueChange={action(async ()=>{
+							onValueChange={action(async () => {
 								await this.props.domainStore.featureStore.toggleChosenFor(tFeature)
+								this.props.domainStore.featureStore.tokenMap = {}
 							})}
-							/>
+						/>
 						<p><strong>{tFeature.name}:</strong> {tFeature.description}</p>
 						<Button
 							className='sq-feature-delete'

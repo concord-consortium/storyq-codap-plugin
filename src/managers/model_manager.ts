@@ -5,7 +5,7 @@ import {DomainStore} from "../stores/domain_store";
 import {deselectAllCasesIn} from "../lib/codap-helper";
 import codapInterface from "../lib/CodapInterface";
 import {oneHot} from "../lib/one_hot";
-import {runInAction, toJS} from "mobx";
+import {action, runInAction} from "mobx";
 import {computeKappa} from "../utilities/utilities";
 import {NgramDetails, StoredModel, Token} from "../stores/store_types_and_constants";
 import {LogisticRegression} from "../lib/jsregression";
@@ -53,19 +53,16 @@ export class ModelManager {
 			const tAttrName = 'name'
 			let tIsEmpty = true,
 				tFoundOne = false;
-			for( let tIndex = 0; tIndex < iTokens.length && tIsEmpty; tIndex++) {
-				const tFormula = `${tAttrName}='${iTokens[tIndex].token}'`,
+			for (let tIndex = 0; tIndex < iTokens.length && tIsEmpty; tIndex++) {
+				const tFormula = `${tAttrName}==${iTokens[tIndex].token}`,
 					tFirstChildResult: any = await codapInterface.sendRequest({
-					action: 'get',
-					resource: `dataContext[${tFeatureDatasetName}].itemSearch[${tFormula}]`
-				})
-				console.log(`tFormula = ${tFormula}`)
+						action: 'get',
+						resource: `dataContext[${tFeatureDatasetName}].itemSearch[${tFormula}]`
+					})
 				if (tFirstChildResult.success && tFirstChildResult.values.length > 0) {
 					tFoundOne = true
 					const tName = tFirstChildResult.values[0].values['model name']
-					tIsEmpty = tIsEmpty && (!tName || tName === '')
-					console.log(`case for ${iTokens[tIndex]} is ${tIsEmpty ? 'empty' : 'not empty'}`)
-				}
+					tIsEmpty = tIsEmpty && (!tName || tName === '')}
 			}
 			return tFoundOne && tIsEmpty
 		}
@@ -77,7 +74,7 @@ export class ModelManager {
 			tCreationRequests: { parent: number, values: any }[] = [],
 			tUpdateRequests: { id: number, values: any }[] = [],
 			tFeatureWeightCaseIDs: { [index: string]: number } = {},
-			tTokenArray:string[] = [],
+			tTokenArray: string[] = [],
 			tModelName = this.domainStore.trainingStore.model.name
 
 		async function showWeightAttributes() {
@@ -116,7 +113,7 @@ export class ModelManager {
 			})
 		}
 
-		function generateRequests() {
+		function generateFeatureRequests() {
 			iTokens.forEach((aToken: any) => {
 					if (tUpdatingExistingWeights) {
 						tUpdateRequests.push({
@@ -145,7 +142,7 @@ export class ModelManager {
 			await getFeatureWeightCaseIDs()
 			this.domainStore.featureStore.featureWeightCaseIDs = tFeatureWeightCaseIDs
 		}
-		generateRequests()
+		generateFeatureRequests()
 		if (tUpdatingExistingWeights) {
 			await codapInterface.sendRequest({
 				action: 'update',
@@ -153,12 +150,12 @@ export class ModelManager {
 				values: tUpdateRequests
 			})
 		} else {
-			const tCreateResults:any = await codapInterface.sendRequest({
+			const tCreateResults: any = await codapInterface.sendRequest({
 				action: 'create',
 				resource: `dataContext[${tFeatureDatasetName}].collection[${tWeightsCollectionName}].case`,
 				values: tCreationRequests
 			})
-			tCreateResults.values.forEach((iValue:{id:number}, iIndex:number)=> {
+			tCreateResults.values.forEach((iValue: { id: number }, iIndex: number) => {
 				tFeatureWeightCaseIDs[tTokenArray[iIndex]] = iValue.id
 			})
 			this.domainStore.featureStore.featureWeightCaseIDs = tFeatureWeightCaseIDs
@@ -215,31 +212,29 @@ export class ModelManager {
 						resource: `dataContext[${tTargetDatasetName}].collection[${tResultsCollectionName}].caseFormulaSearch[true]`
 					})
 					tResultCaseIDsToFill = tCaseIDResult.values.map((iValue: any) => Number(iValue.id))
-				}
-				else {	// We add a new case to each parent case for the next set of results
+				} else {	// We add a new case to each parent case for the next set of results
 					const tParentCollectionName = tTargetStore.targetCollectionName,
-						tCreateRequests:{parent:number, values:{}}[] = []
+						tCreateRequests: { parent: number, values: {} }[] = []
 					// First we get the parent case IDs
 					const tParentCaseIDResults: any = await codapInterface.sendRequest({
 						action: 'get',
 						resource: `dataContext[${tTargetDatasetName}].collection[${tParentCollectionName}].caseFormulaSearch[true]`
 					})
 					// Formulate the requests for the child cases
-					tParentCaseIDResults.values.forEach((iResult:{id:number})=>{
-						tCreateRequests.push( {
+					tParentCaseIDResults.values.forEach((iResult: { id: number }) => {
+						tCreateRequests.push({
 							parent: Number(iResult.id),
-							values:{}
+							values: {}
 						})
 					})
 					// Send off the requests
-					const tChildrenRequestResult:any = await codapInterface.sendRequest( {
+					const tChildrenRequestResult: any = await codapInterface.sendRequest({
 						action: 'create',
 						resource: `dataContext[${tTargetDatasetName}].collection[${tResultsCollectionName}].case`,
 						values: tCreateRequests
 					})
 					// Store the IDs for the children for later use
 					tResultCaseIDsToFill = tChildrenRequestResult.values.map((iValue: any) => Number(iValue.id))
-					console.log(tResultCaseIDsToFill)
 				}
 			}
 		}
@@ -287,7 +282,7 @@ export class ModelManager {
 				tPredictedLabelAttributeName = tTargetStore.targetPredictedLabelAttributeName,
 				tProbName = `probability of ${this_.domainStore.targetStore.getClassName('positive')}`,
 				tUpdateRequests = tResultCaseIDs.map(iID => {
-					const tRequest:any = {
+					const tRequest: any = {
 						id: iID,
 						values: {
 							'model name': '',
@@ -368,7 +363,7 @@ export class ModelManager {
 
 		await setup()
 
-		console.log(`tokenMap = ${JSON.stringify(toJS(this.domainStore.featureStore.tokenMap))}`)
+		// console.log(`tokenMap = ${JSON.stringify(toJS(this.domainStore.featureStore.tokenMap))}`)
 
 		const tData: number[][] = [];
 
@@ -378,6 +373,7 @@ export class ModelManager {
 		let tOneHot = oneHot({
 				frequencyThreshold: (tUnigramFeature && (Number(tUnigramFeature.info.frequencyThreshold) - 1)) || 0,
 				ignoreStopWords: tIgnore,
+				ignorePunctuation: true,
 				includeUnigrams: Boolean(tUnigramFeature),
 				positiveClass: tPositiveClassName,
 				negativeClass: this.domainStore.targetStore.getClassName('negative'),
@@ -422,24 +418,29 @@ export class ModelManager {
 
 				await this_.computeResults(tModel.logisticModel.fitResult.theta)
 
-				tTrainingStore.inactivateAll()
+				action(()=>{
+					tTrainingStore.inactivateAll()
 
-				tTrainingResults.push({
-					name: tModel.name,
-					isActive: true,
-					threshold: Number(tLogisticModel.threshold),
-					constantWeightTerm: tLogisticModel.fitResult.constantWeightTerm,
-					settings: {
-						iterations: tLogisticModel.iterations,
-						locked: tLogisticModel.lockIntercept,
-						thresholdAtPoint5: tModel.usePoint5AsProbThreshold
-					},
-					accuracy: tLogisticModel.accuracy || 0,
-					kappa: (tLogisticModel.accuracy === 0) ? 0 : (tLogisticModel.kappa || 0),
-					featureNames: this.domainStore.featureStore.getChosenFeatureNames(),
-					hasNgram: this.domainStore.featureStore.hasNgram(),
-					storedModel: this.fillOutCurrentStoredModel(tLogisticModel)
-				})
+					tTrainingResults.push({
+						name: tModel.name,
+						targetDatasetName: this_.domainStore.targetStore.targetDatasetInfo.name,
+						isActive: true,
+						threshold: Number(tLogisticModel.threshold),
+						constantWeightTerm: tLogisticModel.fitResult.constantWeightTerm,
+						settings: {
+							iterations: tLogisticModel.iterations,
+							locked: tLogisticModel.lockIntercept,
+							thresholdAtPoint5: tModel.usePoint5AsProbThreshold
+						},
+						accuracy: tLogisticModel.accuracy || 0,
+						kappa: (tLogisticModel.accuracy === 0) ? 0 : (tLogisticModel.kappa || 0),
+						featureNames: this.domainStore.featureStore.getChosenFeatureNames(),
+						hasNgram: this.domainStore.featureStore.hasNgram(),
+						storedModel: this.fillOutCurrentStoredModel(tLogisticModel)
+					})
+				})()
+
+				await this.domainStore.syncWeightsAndResultsWithActiveModels()
 
 				tModel.reset()
 			}

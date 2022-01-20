@@ -119,7 +119,7 @@ export class TestingManager {
 					tFeatureIDs: number[] = [];
 				if (tTrainingResult && tTrainingResult.hasNgram) {
 					// Find the index of each feature in the phrase
-					wordTokenizer(tPhrase, false).forEach((iWord) => {
+					wordTokenizer(tPhrase, false, true).forEach((iWord) => {
 						let tIndex = tTokens.findIndex(iToken => iToken.name === iWord);
 						if (tIndex >= 0) {	// We've found a feature
 							// Mark it in the array

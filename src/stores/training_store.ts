@@ -50,4 +50,5 @@ export class TrainingStore {
 		if( this.getFirstActiveModelName() === '' && this.trainingResults.length > 0)
 			this.trainingResults[0].isActive = true;
 	}
+
 }

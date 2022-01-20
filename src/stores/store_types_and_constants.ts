@@ -126,6 +126,7 @@ export const starterFeature: Feature = {
 
 export interface TrainingResult {
 	name: string,
+	targetDatasetName: string
 	isActive: boolean
 	threshold: number
 	constantWeightTerm: number
