@@ -24,6 +24,7 @@ import {
 export class TargetStore {
 	[index: string]: any
 
+	targetPanelMode:'welcome' | 'create' | 'chosen' = 'welcome'
 	targetDatasetInfo: entityInfo = kEmptyEntityInfo
 	datasetInfoArray: entityInfo[] = []
 	targetCollectionName: string = ''
@@ -51,6 +52,7 @@ export class TargetStore {
 
 	asJSON() {
 		return {
+			targetPanelMode: toJS(this.targetPanelMode),
 			targetDatasetInfo: toJS(this.targetDatasetInfo),
 			targetAttributeName: toJS(this.targetAttributeName),
 			targetClassAttributeName: toJS(this.targetClassAttributeName),
@@ -61,6 +63,8 @@ export class TargetStore {
 	}
 
 	fromJSON(json: any) {
+		this.targetPanelMode = json.targetPanelMode ||
+			(json.targetDatasetInfo && json.targetDatasetInfo.name !== '' ? 'chosen' : 'welcome')
 		if (Array.isArray(json.targetClassNames))
 			json.targetClassNames = null
 		this.targetDatasetInfo = json.targetDatasetInfo || kEmptyEntityInfo

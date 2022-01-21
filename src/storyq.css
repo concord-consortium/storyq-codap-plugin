@@ -35,6 +35,19 @@ table {
     gap: 0;
 }
 
+.sq-welcome {
+    padding: 5px;
+}
+
+.sq-welcome h1 {
+    text-align: center;
+    font-weight: bold;
+}
+
+.sq-welcome p {
+    font-size: larger;
+}
+
 #tabPanel {
     flex: 1 1 auto;
 }

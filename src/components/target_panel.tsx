@@ -10,6 +10,7 @@ import {DomainStore} from "../stores/domain_store";
 import {observer} from "mobx-react";
 import {UiStore} from "../stores/ui_store";
 import {choicesMenu} from "./component_utilities";
+import {kEmptyEntityInfo} from "../stores/store_types_and_constants";
 
 interface TargetPanelState {
 	count: number,
@@ -29,8 +30,8 @@ export const TargetPanel = observer(class TargetPanel extends Component<Target_P
 	private targetPanelInfo: TargetPanelInfo;
 	private targetPanelConstants = {
 		createNewEntityInfo: {
-			title: ''/*'NEW'*/,
-			name: '',
+			title: 'Create your own'/*'NEW'*/,
+			name: 'NEW',
 			id: 0
 		}
 	}
@@ -58,7 +59,7 @@ export const TargetPanel = observer(class TargetPanel extends Component<Target_P
 		}
 	}
 
-	async updateTargetPanelInfo(iPropName?:string | null, iValue?:any) {
+	async updateTargetPanelInfo(iPropName?: string | null, iValue?: any) {
 		await this.props.domainStore.targetStore.updateFromCODAP(iPropName, iValue)
 	}
 
@@ -69,15 +70,19 @@ export const TargetPanel = observer(class TargetPanel extends Component<Target_P
 			async function handleChoice(iChoice: string) {
 				let newInfo = toJS(tDatasetInfoArray.find(iInfo => iInfo.title === iChoice)) ||
 					this_.targetPanelConstants.createNewEntityInfo;
-				if (newInfo) {
-					this_.props.domainStore.targetStore.targetDatasetInfo = newInfo;
+				if (newInfo.title !== this_.targetPanelConstants.createNewEntityInfo.title) {
+					tTargetStore.targetDatasetInfo = newInfo;
 					await this_.updateTargetPanelInfo()
+					tTargetStore.targetPanelMode = 'chosen'
+				} else {
+					tTargetStore.targetDatasetInfo = kEmptyEntityInfo
+					tTargetStore.targetPanelMode = 'create'
 				}
 			}
 
-			let tDatasetInfoArray = this_.props.domainStore.targetStore.datasetInfoArray,
-				tValue = (this_.props.domainStore.targetStore.targetDatasetInfo === this_.targetPanelConstants.createNewEntityInfo) ?
-					'' : this_.props.domainStore.targetStore.targetDatasetInfo.title,
+			let tDatasetInfoArray = tTargetStore.datasetInfoArray,
+				tValue = (tTargetStore.targetDatasetInfo === this_.targetPanelConstants.createNewEntityInfo) ?
+					'' : tTargetStore.targetDatasetInfo.title,
 				tDatasetChoices: string[] = (tDatasetInfoArray.map(iInfo => iInfo.title));
 			tDatasetChoices.push(this_.targetPanelConstants.createNewEntityInfo.title);
 			return choicesMenu('Choose or create a dataset', 'Choose or create a dataset',
@@ -86,54 +91,88 @@ export const TargetPanel = observer(class TargetPanel extends Component<Target_P
 				tDatasetChoices, tValue, handleChoice)
 		}
 
-		function targetAttributeChoice() {
-			if (this_.props.domainStore.targetStore.targetAttributeNames.length > 0) {
-				return choicesMenu('Target Text', 'Choose a target attribute',
-					'The target attribute should contain the texts to analyze.',
-					this_.props.domainStore.targetStore.targetAttributeNames,
-					this_.props.domainStore.targetStore.targetAttributeName, async (iChoice) => {
-						this_.props.domainStore.targetStore.targetAttributeName = iChoice
-						await this_.updateTargetPanelInfo()
-						this_.props.domainStore.addTextComponent()
-					})
-			}
-		}
-
-		function targetClassChoice() {
-			if (this_.props.domainStore.targetStore.targetAttributeName !== '') {
-				const tCandidateAttributeNames = this_.props.domainStore.targetStore.targetAttributeNames.filter((iName)=>{
-					return this_.props.domainStore.featureStore.features.findIndex(aFeature=>aFeature.name === iName) < 0
-				})
-				return choicesMenu('Target Labels', 'Choose an attribute with labels',
-					'The target labels attribute should have two values. These are the labels of each of the ' +
-					'groups into which the texts will be classified.',
-					tCandidateAttributeNames,
-					this_.props.domainStore.targetStore.targetClassAttributeName, async (iChoice) => {
-						await this_.updateTargetPanelInfo('targetClassAttributeName', iChoice)
-					})
-			}
-		}
-
-		function lowerPanel() {
-			if (this_.props.domainStore.targetStore.targetCases.length > 0) {
+		function welcomeText() {
+			if (tTargetStore.targetPanelMode === 'welcome')
 				return (
-					<TargetTextArea
-						uiStore={this_.props.uiStore}
-						domainStore={this_.props.domainStore}>
-					</TargetTextArea>
+					<div className='sq-welcome'>
+						<h1>Welcome to StoryQ!</h1>
+						<p>StoryQ is an environment for exploring classification of text using machine learning.</p>
+						<p><em>A short introduction to StoryQ appears here.</em></p>
+					</div>
+				)
+		}
+
+		function chosenMode() {
+
+			function targetAttributeChoice() {
+				if (tTargetStore.targetAttributeNames.length > 0) {
+					return choicesMenu('Target Text', 'Choose a target attribute',
+						'The target attribute should contain the texts to analyze.',
+						tTargetStore.targetAttributeNames,
+						tTargetStore.targetAttributeName, async (iChoice) => {
+							tTargetStore.targetAttributeName = iChoice
+							await this_.updateTargetPanelInfo()
+							this_.props.domainStore.addTextComponent()
+						})
+				}
+			}
+
+			function targetClassChoice() {
+				if (tTargetStore.targetAttributeName !== '') {
+					const tCandidateAttributeNames = tTargetStore.targetAttributeNames.filter((iName) => {
+						return this_.props.domainStore.featureStore.features.findIndex(aFeature => aFeature.name === iName) < 0
+					})
+					return choicesMenu('Target Labels', 'Choose an attribute with labels',
+						'The target labels attribute should have two values. These are the labels of each of the ' +
+						'groups into which the texts will be classified.',
+						tCandidateAttributeNames,
+						tTargetStore.targetClassAttributeName, async (iChoice) => {
+							await this_.updateTargetPanelInfo('targetClassAttributeName', iChoice)
+						})
+				}
+			}
+
+			function lowerPanel() {
+				if (tTargetStore.targetCases.length > 0) {
+					return (
+						<TargetTextArea
+							uiStore={this_.props.uiStore}
+							domainStore={this_.props.domainStore}>
+						</TargetTextArea>
+					)
+				}
+			}
+
+			if (tTargetStore.targetPanelMode === 'chosen') {
+				return (
+					<div>
+						<div className='sq-target-choices-panel'>
+							{targetAttributeChoice()}
+							{targetClassChoice()}
+						</div>
+						{lowerPanel()}
+					</div>
 				)
 			}
 		}
 
-		let this_ = this;
+		function createMode() {
+			if (tTargetStore.targetPanelMode === 'create')
+				return (
+					<div className='sq-welcome'>
+						<h1>Sorry, It's not yet possible to create a dataset from scratch.</h1>
+					</div>
+				)
+		}
+
+		const this_ = this,
+			tTargetStore = this.props.domainStore.targetStore;
 		return (
 			<div className='sq-target-panel'>
 				{chooseDatasetMenu()}
-				<div className='sq-target-choices-panel'>
-					{targetAttributeChoice()}
-					{targetClassChoice()}
-				</div>
-				{lowerPanel()}
+				{welcomeText()}
+				{chosenMode()}
+				{createMode()}
 			</div>
 		);
 	}
