@@ -49,7 +49,19 @@ table {
 }
 
 #tabPanel {
-    flex: 1 1 auto;
+    flex: 1 1 content;
+    overflow: hidden;
+/*     display: flex; */
+/*     flex-direction: column; */
+}
+
+.dx-tabpanel-tabs {
+	flex: 0 0 content;
+}
+
+.dx-tab-panel-container {
+	flex-grow: 1;
+	flex-shrink: 1;
 }
 
 .title {
@@ -235,7 +247,7 @@ p {
     color: #187992;
     font-style: italic;
     background-color: white;
-    flex: 0 0 auto;
+    flex: 0 0 content;
 }
 
 .sq-progress-bar-container {
