@@ -31,7 +31,7 @@ export class FeatureStore {
 	}
 
 	tokenMapAlreadyHasUnigrams() {
-		return this.tokenMap && Object.values(this.tokenMap).some(iToken=>iToken.type === 'unigram')
+		return this.tokenMap && Object.values(this.tokenMap).some(iToken => iToken.type === 'unigram')
 	}
 
 	asJSON() {
@@ -153,10 +153,20 @@ export class FeatureStore {
 		const tFoundIndex = this.features.indexOf(iFeature)
 		if (tFoundIndex >= 0) {
 			this.features.splice(tFoundIndex, 1)
+		}
+		if( iFeature.type !== 'unigram') {
 			await codapInterface.sendRequest({
 				action: 'delete',
 				resource: `dataContext[${this.featureDatasetInfo.datasetID}].itemByID[${iFeature.featureItemID}]`
 			})
+		}
+		if (iFeature.type === 'unigram') {
+			// Delete all the items in the Features dataset that have type equal to 'unigram'
+			const tSearchResult: any = await codapInterface.sendRequest({
+				action: 'delete',
+				resource: `dataContext[${this.featureDatasetInfo.datasetID}].itemSearch[type==unigram]`
+			})
+			console.log(`searchResult = ${JSON.stringify(tSearchResult)}`)
 		}
 	}
 
@@ -171,11 +181,11 @@ export class FeatureStore {
 			})
 			if (tCasesRequestResult.success) {
 				const tUpdateRequests: { id: number, values: { chosen: boolean } }[] = tCasesRequestResult.values.map(
-					(iValue:{id:number}) =>{
-						return { id: Number(iValue.id), values: {chosen:iChosen}}
+					(iValue: { id: number }) => {
+						return {id: Number(iValue.id), values: {chosen: iChosen}}
 					}
 				)
-				await codapInterface.sendRequest( {
+				await codapInterface.sendRequest({
 					action: 'update',
 					resource: `dataContext[${this_.featureDatasetInfo.datasetID}].collection[${this_.featureDatasetInfo.collectionName}].case`,
 					values: tUpdateRequests
