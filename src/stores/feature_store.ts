@@ -30,10 +30,6 @@ export class FeatureStore {
 		makeAutoObservable(this, {tokenMap: false, featureWeightCaseIDs: false}, {autoBind: true})
 	}
 
-	tokenMapAlreadyHasUnigrams() {
-		return this.tokenMap && Object.values(this.tokenMap).some(iToken => iToken.type === 'unigram')
-	}
-
 	asJSON() {
 		return {
 			featureDatasetID: toJS(this.featureDatasetInfo.datasetID),
@@ -149,6 +145,19 @@ export class FeatureStore {
 		this.featureUnderConstruction = Object.assign({}, starterFeature)
 	}
 
+	tokenMapAlreadyHasUnigrams() {
+		return this.tokenMap && Object.values(this.tokenMap).some(iToken => iToken.type === 'unigram')
+	}
+
+	deleteUnigramTokens() {
+		if( this.tokenMap) {
+			for(const [key, token] of Object.entries(this.tokenMap)) {
+				if(token.type === 'unigram')
+					delete this.tokenMap[key]
+			}
+		}
+	}
+
 	async deleteFeature(iFeature: Feature) {
 		const tFoundIndex = this.features.indexOf(iFeature)
 		if (tFoundIndex >= 0) {
@@ -161,12 +170,12 @@ export class FeatureStore {
 			})
 		}
 		if (iFeature.type === 'unigram') {
+			this.deleteUnigramTokens()
 			// Delete all the items in the Features dataset that have type equal to 'unigram'
-			const tSearchResult: any = await codapInterface.sendRequest({
+			await codapInterface.sendRequest({
 				action: 'delete',
-				resource: `dataContext[${this.featureDatasetInfo.datasetID}].itemSearch[type==unigram]`
+				resource: `dataContext[${this.featureDatasetInfo.datasetName}].itemSearch[type==unigram]`
 			})
-			console.log(`searchResult = ${JSON.stringify(tSearchResult)}`)
 		}
 	}
 
