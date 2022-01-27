@@ -144,7 +144,7 @@ p {
 .sq-target-lower-panel {
     margin: 5px;
     width: 100%;
-    height: 100vh;
+    height: calc(100vh - 140px);
     flex: 1 1 auto;
     display: flex;
     flex-direction: row;
