@@ -78,7 +78,7 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 					'This model will be used to classify the dataset you choose as a test of how well' +
 					' the model performs on a dataset other than the one that was used to train it.',
 					tModelChoices,
-					this_.props.domainStore.testingStore.chosenModelName, async (iChoice) => {
+					this_.props.domainStore.testingStore.chosenModelName, 'No models to choose from', async (iChoice) => {
 						this_.props.domainStore.testingStore.chosenModelName = iChoice
 						await this_.updateCodapInfo()
 					})
@@ -94,6 +94,7 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 					' containing texts to be classified. It may or may not have a label column.',
 					tDatasetNames,
 					tTestingStore.testingDatasetInfo.title,
+					'',
 					async (iChoice) => {
 						const tChosenInfo = tDatasetInfoArray.find(iInfo => iInfo.title === iChoice)
 						if (tChosenInfo)
@@ -110,6 +111,7 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 					'The chosen column should contain the texts that are to be classified.',
 					tAttributeNames,
 					tTestingStore.testingAttributeName,
+					'',
 					async (iChoice) => {
 						tTestingStore.testingAttributeName = iChoice
 						await this_.updateCodapInfo()
@@ -125,6 +127,7 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 					'If this column is specified, it should contain two unique labels, one for each group.',
 					tAttributeNames,
 					tTestingClassAttributeName,
+					'',
 					async (iChoice: string) => {
 						tTestingStore.testingClassAttributeName = iChoice
 						await this_.updateCodapInfo()

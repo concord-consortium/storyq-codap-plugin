@@ -3,16 +3,16 @@
  */
 
 import {makeAutoObservable, toJS} from 'mobx'
+import {ReactElement} from "react";
 
 export class UiStore {
 	[index: string]: any;
 	tabPanelSelectedIndex: number = 0
 	trainingPanelShowsEditor: boolean = false
-	currentPromptKey:string
+	currentInstruction:ReactElement | null = null
 
 	constructor() {
 		makeAutoObservable(this)
-		this.currentPromptKey = 'blank'
 	}
 
 	getSelectedPanelTitle() {

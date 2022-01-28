@@ -5,12 +5,13 @@
 import React, {Component} from "react";
 import codapInterface, {CODAP_Notification} from "../lib/CodapInterface";
 import {TargetTextArea} from "./target_text_area";
-import {toJS} from "mobx";
+import {action, toJS} from "mobx";
 import {DomainStore} from "../stores/domain_store";
 import {observer} from "mobx-react";
 import {UiStore} from "../stores/ui_store";
 import {choicesMenu} from "./component_utilities";
 import {kEmptyEntityInfo} from "../stores/store_types_and_constants";
+import {Button} from "devextreme-react";
 
 interface TargetPanelState {
 	count: number,
@@ -65,6 +66,18 @@ export const TargetPanel = observer(class TargetPanel extends Component<Target_P
 
 	render() {
 
+		function welcomeText() {
+			if (tMode === 'welcome')
+				return (
+					<div className='sq-welcome'>
+						<h1>Welcome to StoryQ!</h1>
+						<p>StoryQ is a tool for learning how to train computer models to classify text. For example, you
+							can train models to recognize intents, filter spam emails, or detect emotions in social media feeds.
+							The possibilities are endless!</p>
+					</div>
+				)
+		}
+
 		function chooseDatasetMenu() {
 
 			async function handleChoice(iChoice: string) {
@@ -80,24 +93,42 @@ export const TargetPanel = observer(class TargetPanel extends Component<Target_P
 				}
 			}
 
-			let tDatasetInfoArray = tTargetStore.datasetInfoArray,
+			const tDatasetInfoArray = tTargetStore.datasetInfoArray,
 				tValue = (tTargetStore.targetDatasetInfo === this_.targetPanelConstants.createNewEntityInfo) ?
 					'' : tTargetStore.targetDatasetInfo.title,
-				tDatasetChoices: string[] = (tDatasetInfoArray.map(iInfo => iInfo.title));
-			tDatasetChoices.push(this_.targetPanelConstants.createNewEntityInfo.title);
-			return choicesMenu('Choose or create a dataset', 'Choose or create a dataset',
-				'The dataset you choose or create will be used to train a model. ' +
-				'It should have at least two attributes, one containing texts to analyze and the other containing labels with two values.',
-				tDatasetChoices, tValue, handleChoice)
+				tDatasetChoices: string[] = (tDatasetInfoArray.map(iInfo => iInfo.title)),
+				tInstructions = tMode === 'welcome' ?
+					(<div className='sq-info-prompt'>
+						<p>Ready to begin?</p>
+						<p>First, prepare data to train your model.</p>
+					</div>) : '',
+				tChoicesMenu = choicesMenu('Choose the training data', 'Your Choice',
+					'The dataset you choose will be used to train a model. ' +
+					'It should have at least two attributes, one containing texts to analyze and the other containing ' +
+					'labels with two values.',
+					tDatasetChoices, tValue, 'No datasets to choose from', handleChoice)
+			return (
+				<div>
+					{tInstructions}
+					{tChoicesMenu}
+				</div>
+			)
 		}
 
-		function welcomeText() {
-			if (tTargetStore.targetPanelMode === 'welcome')
+		function createButton() {
+			if (tMode === 'welcome')
 				return (
-					<div className='sq-welcome'>
-						<h1>Welcome to StoryQ!</h1>
-						<p>StoryQ is an environment for exploring classification of text using machine learning.</p>
-						<p><em>A short introduction to StoryQ appears here.</em></p>
+					<div>
+						<p className='sq-connect-text'>or</p>
+						<Button
+							className='sq-button'
+							onClick={action(() => {
+								tTargetStore.targetPanelMode = 'create'
+							})}
+							hint={'Click here to classify your text in real time.'}
+						>
+							Create text data from scratch
+						</Button>
 					</div>
 				)
 		}
@@ -109,7 +140,7 @@ export const TargetPanel = observer(class TargetPanel extends Component<Target_P
 					return choicesMenu('Target Text', 'Choose a target attribute',
 						'The target attribute should contain the texts to analyze.',
 						tTargetStore.targetAttributeNames,
-						tTargetStore.targetAttributeName, async (iChoice) => {
+						tTargetStore.targetAttributeName, 'No attributes to choose from', async (iChoice) => {
 							tTargetStore.targetAttributeName = iChoice
 							await this_.updateTargetPanelInfo()
 							this_.props.domainStore.addTextComponent()
@@ -126,7 +157,7 @@ export const TargetPanel = observer(class TargetPanel extends Component<Target_P
 						'The target labels attribute should have two values. These are the labels of each of the ' +
 						'groups into which the texts will be classified.',
 						tCandidateAttributeNames,
-						tTargetStore.targetClassAttributeName, async (iChoice) => {
+						tTargetStore.targetClassAttributeName, 'No attributes to choose from', async (iChoice) => {
 							await this_.updateTargetPanelInfo('targetClassAttributeName', iChoice)
 						})
 				}
@@ -166,11 +197,13 @@ export const TargetPanel = observer(class TargetPanel extends Component<Target_P
 		}
 
 		const this_ = this,
-			tTargetStore = this.props.domainStore.targetStore;
+			tTargetStore = this.props.domainStore.targetStore,
+			tMode = tTargetStore.targetPanelMode
 		return (
 			<div className='sq-target-panel'>
-				{chooseDatasetMenu()}
 				{welcomeText()}
+				{chooseDatasetMenu()}
+				{createButton()}
 				{chosenMode()}
 				{createMode()}
 			</div>

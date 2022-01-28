@@ -316,12 +316,13 @@ export class ModelManager {
 		async function setup() {
 			await deselectAllCasesIn(tTargetDatasetName)
 			tLogisticModel.reset()
+			tLogisticModel.iterations = tTrainingStore.model.iterations
 			tLogisticModel.progressCallback = this_.progressBar
-			tLogisticModel.trace = this_.domainStore.trainingStore.model.trainingInStepMode
-			tLogisticModel.stepModeCallback = this_.domainStore.trainingStore.model.trainingInStepMode ?
+			tLogisticModel.trace = tTrainingStore.model.trainingInStepMode
+			tLogisticModel.stepModeCallback = tTrainingStore.model.trainingInStepMode ?
 				this_.stepModeCallback : null
-			tLogisticModel.lockIntercept = this_.domainStore.trainingStore.model.lockInterceptAtZero
-			const tCases = this_.domainStore.targetStore.targetCases,
+			tLogisticModel.lockIntercept = tTrainingStore.model.lockInterceptAtZero
+			const tCases = tTargetStore.targetCases,
 				tColumnNames = tTargetColumnFeatureNames.concat(
 					this_.domainStore.featureStore.getChosenFeatures().map(iFeature => {
 						return iFeature.name;
@@ -347,19 +348,21 @@ export class ModelManager {
 			})
 		}
 
-		const tTargetDatasetName = this.domainStore.targetStore.targetDatasetInfo.name,
-			tTargetAttributeName = this.domainStore.targetStore.targetAttributeName,
-			tTargetClassAttributeName = this.domainStore.targetStore.targetClassAttributeName,
+		const tTargetStore = this.domainStore.targetStore,
+			tTargetDatasetName = tTargetStore.targetDatasetInfo.name,
+			tTargetAttributeName = tTargetStore.targetAttributeName,
+			tTargetClassAttributeName = tTargetStore.targetClassAttributeName,
 			tTargetColumnFeatureNames = this.domainStore.featureStore.targetColumnFeatureNames,
 			tNonNgramFeatures = this.domainStore.featureStore.getChosenFeatures().filter(iFeature => iFeature.info.kind !== 'ngram'),
 			tNgramFeatures = this.domainStore.featureStore.getChosenFeatures().filter(iFeature => iFeature.info.kind === 'ngram'),
 			tUnigramFeature = tNgramFeatures.find(iFeature => (iFeature.info.details as NgramDetails).n === 'uni'),
-			tPositiveClassName = this.domainStore.targetStore.getClassName('positive'),
+			tPositiveClassName = tTargetStore.getClassName('positive'),
 			tDocuments: {
 				example: string, class: string, caseID: number,
 				columnFeatures: { [key: string]: number | boolean }
 			}[] = [],
-			tLogisticModel = this.domainStore.trainingStore.model.logisticModel
+			tTrainingStore = this.domainStore.trainingStore,
+			tLogisticModel = tTrainingStore.model.logisticModel
 
 		await setup()
 
@@ -376,7 +379,7 @@ export class ModelManager {
 				ignorePunctuation: true,
 				includeUnigrams: Boolean(tUnigramFeature),
 				positiveClass: tPositiveClassName,
-				negativeClass: this.domainStore.targetStore.getClassName('negative'),
+				negativeClass: tTargetStore.getClassName('negative'),
 				features: tNonNgramFeatures,
 				tokenMap: this.domainStore.featureStore.tokenMap
 			},

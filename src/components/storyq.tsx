@@ -15,7 +15,7 @@ import '../storyq.css';
 import {TabPanel} from "devextreme-react/ui/tab-panel";
 import {Item} from "devextreme-react/tab-panel";
 import {TargetPanel} from "./target_panel";
-import {Prompt} from "./prompt";
+import {Instructions} from "./instructions";
 import {FeaturePanel} from "./feature_panel";
 import dxTabPanel from "devextreme/ui/tab_panel";
 import {StoryqStorage} from "../storyq_types";
@@ -25,15 +25,13 @@ import {DomainStore} from "../stores/domain_store";
 import {action} from "mobx";
 import {TrainingPanel} from "./training_panel";
 import {TestingPanel} from "./testing_panel";
-import {PromptsManager} from "../managers/promptsManager";
 import {kStoryQPluginName} from "../stores/store_types_and_constants";
 
 const Storyq = observer(class Storyq extends Component<{}, {}> {
 		private uiStore: UiStore
 		private domainStore: DomainStore
-		private promptsManager: PromptsManager
 		private kPluginName = kStoryQPluginName;
-		private kVersion = "1.79";
+		private kVersion = "1.80";
 		private kInitialDimensions = {
 			width: 429,
 			height: 420
@@ -44,7 +42,6 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 			super(props);
 			this.uiStore = new UiStore()
 			this.domainStore = new DomainStore(this.uiStore)
-			this.promptsManager = new PromptsManager(this.uiStore, this.domainStore)
 			this.restorePluginFromStore = this.restorePluginFromStore.bind(this);
 			this.getPluginStore = this.getPluginStore.bind(this);
 			this.saveTabPanelInstance = this.saveTabPanelInstance.bind(this);
@@ -127,7 +124,6 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 				<div>
 					<div className="storyq">
 						{this.renderTabPanel()}
-						<Prompt promptsManager={this.promptsManager}/>
 					</div>
 				</div>
 			);

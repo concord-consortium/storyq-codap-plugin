@@ -65,6 +65,7 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 		render() {
 			const this_ = this
 
+/*
 			function nameBox() {
 				return (
 					<TextBox
@@ -83,6 +84,7 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 					/>
 				)
 			}
+*/
 
 			function kindOfContainsChoice() {
 				featureDescriptors.featureKinds[2].items = this_.props.domainStore.targetStore.targetColumnFeatureNames.map(iColumnName => {
@@ -258,10 +260,9 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 			if (!this.props.shortened) {
 				return (
 					<div className='sq-component'>
-						{nameBox()}
 						<span
 							className='sq-fc-part'
-						>is defined as</span>
+						>This feature is defined as</span>
 						{kindOfContainsChoice()}
 						{kindOfThingContainedChoice()}
 						{freeFormTextBox()}
@@ -284,7 +285,7 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 							})}
 							hint={tHint}
 						/>
-						<p><strong>{tFeature.name}:</strong> {tFeature.description}</p>
+						<p><strong>{tFeature.name}</strong></p>
 						<Button
 							className='sq-feature-delete'
 							text=''

@@ -420,7 +420,19 @@ export class DomainStore {
 	}
 
 	async setIsActiveForResultAtIndex(iIndex: number, iIsActive: boolean) {
-		this.trainingStore.trainingResults[iIndex].isActive = iIsActive
+		const tTrainingResults = this.trainingStore.trainingResults
+		let tNumActive = 0
+		tTrainingResults[iIndex].isActive = iIsActive
+		tTrainingResults.forEach(iResult => {
+			tNumActive += iResult.isActive ? 1 : 0
+		})
+		if (tNumActive === 0) {
+			// Always have at least one result active
+			let currIndex = iIndex - 1
+				if( currIndex < 0)
+					currIndex = tTrainingResults.length - 1
+				tTrainingResults[currIndex].isActive = true
+		}
 		await this.syncWeightsAndResultsWithActiveModels()
 	}
 

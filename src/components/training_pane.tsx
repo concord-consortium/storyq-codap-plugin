@@ -279,20 +279,19 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 
 			function getIsActiveButon(iIndex: number) {
 				const tTrainingResult = tResults[iIndex],
-					tIcon = tTrainingResult.isActive ? 'check' : '',
-					tText = tTrainingResult.isActive ? '' : '◻︎',
+					tIsDisabled = tResults.length < 2,
 					tHint = tTrainingResult.isActive ? 'Click to make this model no longer active. This will hide its results' +
 						' and weights' : 'Click to make this model active and show its results and weights.'
 				return (
 					<td
 						style={{"textAlign": "center"}}
 					>
-						<Button
-							text={tText}
+						<CheckBox
+							text=''
+							value={tTrainingResult.isActive}
+							disabled={tIsDisabled}
 							style={{'fontSize': 'large'}}
-							icon={tIcon}
-							stylingMode='text'
-							onClick={action(() => {
+							onValueChange={action(() => {
 								this_.props.domainStore.setIsActiveForResultAtIndex(iIndex, !tTrainingResult.isActive)
 							})}
 							hint={tHint}

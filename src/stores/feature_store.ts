@@ -5,7 +5,8 @@
 
 import {makeAutoObservable, toJS} from 'mobx'
 import {
-	Feature, kKindOfThingOptionText,
+	ColumnDetails,
+	Feature, kKindOfThingOptionText, namingAbbreviations,
 	NgramDetails,
 	SearchDetails, starterFeature, TokenMap, WordListSpec
 } from "./store_types_and_constants";
@@ -53,13 +54,32 @@ export class FeatureStore {
 	constructionIsDone() {
 		const tFeature = this.featureUnderConstruction,
 			tDetails = this.featureUnderConstruction.info.details as SearchDetails,
-			tNameAndKindOK = [tFeature.name, tFeature.info.kind].every(iString => iString !== ''),
-			tDoneNgram = tNameAndKindOK && tFeature.info.kind === 'ngram',
-			tDoneSearch = tNameAndKindOK && tFeature.info.kind === 'search' &&
+			tKindOK = tFeature.info.kind !== '',
+			tDoneNgram = tKindOK && tFeature.info.kind === 'ngram',
+			tDoneSearch = tKindOK && tFeature.info.kind === 'search' &&
 				[tDetails.where, tDetails.what].every(iString => iString !== '') &&
 				(tDetails.what !== kKindOfThingOptionText || tDetails.freeFormText !== ''),
-			tDoneColumn = tNameAndKindOK && tFeature.info.kind === 'column'
+			tDoneColumn = tKindOK && tFeature.info.kind === 'column'
 		return tDoneNgram || tDoneSearch || tDoneColumn
+	}
+
+	constructNameFor( iFeature: Feature) {
+		if (iFeature.info.kind === 'search') {
+			const tDetails = iFeature.info.details as SearchDetails,
+				tFirstPart = namingAbbreviations[tDetails.where],
+				tMatch = tDetails.freeFormText.match( /[a-z]+/),
+				tSecondPart = tDetails.freeFormText !== '' ? `"${tMatch ? tMatch[0] : ''}"` :
+					tDetails.punctuation !== '' ? tDetails.punctuation :
+					tDetails.wordList && tDetails.wordList.datasetName !== '' ? tDetails.wordList.datasetName :
+					tDetails.what === 'any number' ? 'anyNumber' : ''
+			return `${tFirstPart}:${tSecondPart}`
+		} else if (iFeature.info.kind === 'ngram') {
+			return `${(iFeature.info.details as NgramDetails).n}grams`
+		} else if( iFeature.info.kind === 'column')
+			return (iFeature.info.details as ColumnDetails).columnName
+		else
+			return ''
+
 	}
 
 	getDescriptionFor(iFeature: Feature) {
@@ -126,8 +146,9 @@ export class FeatureStore {
 	}
 
 	addFeatureUnderConstruction() {
+		const tFeature = this.featureUnderConstruction
 		let tType
-		switch (this.featureUnderConstruction.info.kind) {
+		switch (tFeature.info.kind) {
 			case 'ngram':
 				tType = 'unigram'
 				break
@@ -137,11 +158,12 @@ export class FeatureStore {
 			default:
 				tType = 'constructed'
 		}
-		this.featureUnderConstruction.inProgress = false
-		this.featureUnderConstruction.chosen = true
-		this.featureUnderConstruction.type = tType
-		this.featureUnderConstruction.description = this.getDescriptionFor(this.featureUnderConstruction)
-		this.features.unshift(this.featureUnderConstruction)
+		tFeature.name = this.constructNameFor(tFeature)
+		tFeature.inProgress = false
+		tFeature.chosen = true
+		tFeature.type = tType
+		tFeature.description = this.getDescriptionFor(tFeature)
+		this.features.unshift(tFeature)
 		this.featureUnderConstruction = Object.assign({}, starterFeature)
 	}
 

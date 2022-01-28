@@ -109,11 +109,17 @@ p {
 
 .sq-target-panel {
     margin: 5px;
+    padding: 5px;
     display: flex;
     flex-direction: column;
     flex: 1 1 auto;
     height: 100%;
 }
+
+.sq-connect-text {
+    padding-left: 10px;
+}
+
 .sq-feature-panel {
     display: flex;
     flex-direction: column;
@@ -240,12 +246,9 @@ p {
 
 .sq-info-prompt {
     width: 100%;
-    height: 20px;
-    padding-top: 10px;
-    padding-bottom: 10px;
-    text-align: center;
+    font-size: larger;
+    padding: 5px;
     color: #187992;
-    font-style: italic;
     background-color: white;
     flex: 0 0 content;
 }
