@@ -59,10 +59,10 @@ export interface SearchDetails {
 }
 
 export const namingAbbreviations:{[index:string]:string} = {
-	'starts with': 'sw',
-	contains: 'c',
-	'does not contain': 'nc',
-	'ends with': 'ew'
+	'starts with': 'startsWith',
+	contains: 'contains',
+	'does not contain': 'not contains',
+	'ends with': 'endsWith'
 }
 
 export interface CountDetails {

@@ -524,5 +524,10 @@ export class DomainStore {
 		await codapInterface.sendRequest(tMessages)
 	}
 
+	setPanel(iPanelIndex:number) {
+		this.uiStore.tabPanelSelectedIndex = iPanelIndex
+		this.targetStore.updateFromCODAP()
+	}
+
 }
 

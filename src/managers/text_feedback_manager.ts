@@ -191,8 +191,6 @@ export default class TextFeedbackManager {
 			const tCaseByID = await getTargetCaseByID(iCase.id),
 				tChildCaseIDs = tCaseByID.children,
 				tChildren = tChildCaseIDs ? await this_.getChildCases(tChildCaseIDs, tDatasetName, 'results') : null
-			console.log(`In getMatchingChildCase, iCase.id = ${iCase.id}; tChildCaseIDs = ${tChildCaseIDs}`)
-			console.log(`In getMatchingChildCase, tChildren = ${JSON.stringify(tChildren)}`)
 			if (tChildren)
 				return tChildren.find(iCase => iCase['model name'] === tActiveModelName)
 		}

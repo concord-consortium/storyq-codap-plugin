@@ -52,7 +52,27 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 		const this_ = this,
 			tTestingStore = this.props.domainStore.testingStore,
 			tTestingClassAttributeName = tTestingStore.testingClassAttributeName,
-			tReadyForNewTest = !tTestingStore.currentTestingResults.testBeingConstructed
+			tReadyForNewTest = !tTestingStore.currentTestingResults.testBeingConstructed,
+			tNumModels = this.props.domainStore.trainingStore.trainingResults.length,
+			tTestingResults = tTestingStore.testingResultsArray
+
+
+		function testingInstructions() {
+			if(tTestingResults.length === 0) {
+				return (
+					<div className='sq-info-prompt'>
+						<p>Test your model{tNumModels > 1 ? 's' : ''} on new data.</p>
+					</div>
+				)
+			}
+			else {
+				return (
+					<div className='sq-info-prompt'>
+						<p>You've tested {tTestingResults.length} time{tTestingResults.length > 1 ? 's' : ''}. Test again?</p>
+					</div>
+				)
+			}
+		}
 
 		function getNewTestButton() {
 			if (tReadyForNewTest) {
@@ -89,7 +109,7 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 			if (!tReadyForNewTest) {
 				const tDatasetInfoArray = tTestingStore.testingDatasetInfoArray,
 					tDatasetNames = tDatasetInfoArray.map(iEntity => iEntity.title)
-				return choicesMenu('Choose a dataset to classify', 'Choose a dataset',
+				return choicesMenu('Choose testing data', 'Your choice',
 					'This dataset will be analyzed by the chosen model. It should have at least one column' +
 					' containing texts to be classified. It may or may not have a label column.',
 					tDatasetNames,
@@ -107,7 +127,7 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 		function getTestingAttributeChoice() {
 			if (!tReadyForNewTest && tTestingStore.testingDatasetInfo.title !== '') {
 				const tAttributeNames = tTestingStore.testingAttributeNames
-				return choicesMenu('Choose the column with texts', 'Choose a column',
+				return choicesMenu('Choose the column with text', 'Choose a column',
 					'The chosen column should contain the texts that are to be classified.',
 					tAttributeNames,
 					tTestingStore.testingAttributeName,
@@ -123,7 +143,7 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 			if (!tReadyForNewTest && tTestingStore.testingDatasetInfo.title !== '') {
 				const tAttributeNames: string[] = toJS(tTestingStore.testingAttributeNames)
 				tAttributeNames.unshift(this_.kNonePresent)
-				return choicesMenu('Choose the column with labels', 'Choose a column',
+				return choicesMenu('Choose the column with the labels (optional)', 'Choose a column',
 					'If this column is specified, it should contain two unique labels, one for each group.',
 					tAttributeNames,
 					tTestingClassAttributeName,
@@ -158,7 +178,7 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 								await this_.testingManager.classify()
 							})}
 							hint={tHint}>
-							{tDisabled ? 'Classify' : `Classify "${tTestingAttributeName}" using model "${tChosenModelName}"`}
+							Test
 						</Button>
 					</div>
 				)
@@ -168,19 +188,17 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 		function showResults() {
 
 			function getRows() {
-				return tTestingResults.map(iResult => {
+				return tTestingResults.map((iResult, iIndex) => {
 					return (
-						<tr>
+						<tr key={iIndex}>
 							<td>{iResult.modelName}</td>
 							<td>{iResult.targetDatasetTitle}</td>
-							<td>{iResult.accuracy.toFixed(2)}</td>
-							<td>{iResult.kappa.toFixed(2)}</td>
+							<td>{iResult.accuracy !== 0 ? iResult.accuracy.toFixed(2) : 'NA'}</td>
 						</tr>
 					)
 				})
 			}
 
-			const tTestingResults = tTestingStore.testingResultsArray
 			if (tTestingResults.length > 0) {
 				return (
 					<div>
@@ -191,9 +209,6 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 								<th title={'The dataset whose texts were classified in this test'}>Dataset</th>
 								<th title={'If the test dataset has labels, the percent of classifications that were correct'}>
 									Accuracy
-								</th>
-								<th title={'If the test dataset has labels, gives the correctness of the classifications discounting chance'}>
-									Kappa
 								</th>
 							</tr>
 							</thead>
@@ -208,6 +223,7 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 
 		return (
 			<div className='sq-feature-panel'>
+				{testingInstructions()}
 				{getNewTestButton()}
 				{getModelChoice()}
 				{getTestingDatasetChoice()}

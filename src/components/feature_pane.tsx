@@ -59,6 +59,7 @@ export const FeaturePane = observer(class FeaturePane extends Component<Feature_
 					disabled={!this.props.domainStore.featureStore.constructionIsDone()}
 					onClick={action(async () => {
 						if( tFeatureUnderConstruction.inProgress) {
+							tFeatureUnderConstruction.name = this.props.domainStore.featureStore.constructNameFor(tFeatureUnderConstruction)
 							await this.props.domainStore.targetStore.addOrUpdateFeatureToTarget(tFeatureUnderConstruction)
 							await this.props.domainStore.featureStore.addFeatureUnderConstruction()
 							await this.props.domainStore.updateNonNtigramFeaturesDataset()
@@ -80,8 +81,32 @@ export const FeaturePane = observer(class FeaturePane extends Component<Feature_
 	}
 
 	render() {
+		const this_ = this,
+			tFeatureStore = this.props.domainStore.featureStore
+
+		function featureInstructions() {
+			if (!tFeatureStore.featureUnderConstruction.inProgress) {
+				const
+					tFeatures =tFeatureStore.features,
+					tInstructions = tFeatures.length === 0 ?
+					<p>What features of the training data should StoryQ use to train the model?</p> :
+					<p>You have {tFeatures.length} feature{tFeatures.length > 1 ? 's' : ''}. You can add more or
+					go on to <span
+							onClick={action(()=>this_.props.domainStore.setPanel(2))}
+							style={{cursor: 'pointer'}}
+						>
+								<strong>Training</strong></span>.</p>
+				return (
+					<div className='sq-info-prompt'>
+						{tInstructions}
+					</div>
+				)
+			}
+		}
+
 		return (
 			<div className='sq-pane'>
+				{featureInstructions()}
 				<FeatureConstructor
 					uiStore={this.props.uiStore}
 					domainStore={this.props.domainStore}

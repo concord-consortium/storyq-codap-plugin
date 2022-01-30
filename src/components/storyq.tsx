@@ -15,7 +15,6 @@ import '../storyq.css';
 import {TabPanel} from "devextreme-react/ui/tab-panel";
 import {Item} from "devextreme-react/tab-panel";
 import {TargetPanel} from "./target_panel";
-import {Instructions} from "./instructions";
 import {FeaturePanel} from "./feature_panel";
 import dxTabPanel from "devextreme/ui/tab_panel";
 import {StoryqStorage} from "../storyq_types";
@@ -90,7 +89,7 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 						this.handleSelectionChanged(e)
 					})}
 				>
-					<Item title='Target'>
+					<Item title='Target' text='Specify the text data you want to work with'>
 						<TargetPanel
 							uiStore={this.uiStore}
 							domainStore={this.domainStore}

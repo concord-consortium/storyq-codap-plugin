@@ -14,52 +14,81 @@ import {ModelManager} from "../managers/model_manager";
 import {ProgressBar} from "./progress_bar";
 import {TrainingResult} from "../stores/store_types_and_constants";
 
-interface TrainingPaneState {
-	count: number,
-}
-
-interface TrainingPaneInfo {
-	subscriberIndex: number
-}
-
 export interface Training_Props {
 	uiStore: UiStore
 	domainStore: DomainStore
 }
 
-export const TrainingPane = observer(class TrainingPane extends Component<Training_Props, TrainingPaneState> {
+export const TrainingPane = observer(class TrainingPane extends Component<Training_Props, {}> {
 
-	private trainingPaneInfo: TrainingPaneInfo;
 	private modelManager: ModelManager
+	private nameBoxRef:any
 
 	constructor(props: any) {
 		super(props);
-		this.state = {
-			count: 0
-		};
-		this.trainingPaneInfo = {subscriberIndex: -1}
+		this.nameBoxRef = React.createRef()
 		this.modelManager = new ModelManager(this.props.domainStore)
 	}
 
 	render() {
-		const this_ = this
-		const tModel = this.props.domainStore.trainingStore.model
-		const tFeatureString = this.props.domainStore.featureStore.features.length < 2 ? 'feature' : 'features'
+		const this_ = this,
+			tModel = this.props.domainStore.trainingStore.model,
+			tNumResults = this.props.domainStore.trainingStore.trainingResults.length
+
+		function modelTrainerInstructions() {
+			if (!tModel.beingConstructed) {
+				if (tNumResults === 0) {
+					return (
+						<div className='sq-info-prompt'>
+							<p>Train your model with the features you have prepared.</p>
+						</div>
+					)
+				}
+				else {
+					return (
+						<div className='sq-info-prompt'>
+							<p>You have trained {tNumResults} model{tNumResults > 1 ? 's' : ''}. Train another or
+							proceed to <span
+									onClick={action(()=>this_.props.domainStore.setPanel(3))}
+									style={{cursor: 'pointer'}}
+								>
+								<strong>Testing</strong></span>.</p>
+						</div>
+					)
+				}
+			} else if (tModel.name === '') {
+				return (
+					<div className='sq-info-prompt'>
+						<p>Your model must have a name before you can train it.</p>
+					</div>
+				)
+			}
+			else {
+				return (
+					<div className='sq-info-prompt'>
+						<p>You can start training your model.</p>
+					</div>
+				)
+			}
+		}
 
 		function modelTrainer() {
+			const tFeatureString = this_.props.domainStore.featureStore.features.length < 2 ? 'this feature' : 'these features'
 
 			function nameBox() {
 				return (
 					<TextBox
 						className='sq-fc-part'
-						valueChangeEvent={'keyup'}
-						placeholder="give your model a name"
+						ref = {this_.nameBoxRef}
+						valueChangeEvent={'blur'}
+						placeholder="Name"
 						onValueChanged={action((e) => {
 							tModel.name = e.value
 						})}
 						onFocusOut={action(() => {
 							tModel.name = this_.modelManager.guaranteeUniqueModelName(tModel.name)
 						})}
+						onEnterKey={()=>this_.nameBoxRef.current.instance.blur()}
 						value={tModel.name}
 						maxLength={20}
 					/>
@@ -147,7 +176,7 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 					return (
 						<Button
 							className='sq-button'
-							onClick={action(async() => {
+							onClick={action(async () => {
 								await this_.modelManager.cancel()
 							})}
 							hint={'Click to cancel the training of this model.'}>
@@ -190,7 +219,7 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 					)
 				}
 
-				function getCheckbox(iValue: boolean, iLabel: string, iHint:string, setter: (e: any) => void) {
+				function getCheckbox(iValue: boolean, iLabel: string, iHint: string, setter: (e: any) => void) {
 					return (
 						<CheckBox
 							text={iLabel}
@@ -261,10 +290,12 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 				return (
 					<div className='sq-component'>
 						<div className='sq-component'>
-							<span className='sq-fc-part'> Model Name:</span>{nameBox()}
-							<p>This model will be trained
-								using <strong>{this_.props.domainStore.targetStore.targetDatasetInfo.title + ' '}</strong>
-								and the following {tFeatureString}:</p>
+							<span className='sq-fc-part'> Give your model a name:</span>{nameBox()}
+						</div>
+						<div>
+							<p>Once trained,
+								<strong>{tModel.name === '' ? 'your model ' : ' ' + (tModel.name + ' ')}</strong>
+								will contain {tFeatureString}:</p>
 							{featureList()}
 						</div>
 						{getButtons()}
@@ -318,12 +349,14 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 					<table>
 						<thead>
 						<tr>
-							<th title={'If checked, the weights are shown for features as are the model\'s results in the training set'}>
-								Active</th>
+							<th
+								title={'If checked, the weights are shown for features as are the model\'s results in the training set'}>
+								Active
+							</th>
 							<th>Model Name</th>
 							<th title={'The settings in effect when this model was trained'}>Settings</th>
 							<th title={'The percent of predicted labels that are correct'}>Accuracy</th>
-							<th title={'This number is 0% when the model did no better than chance.'}>Kappa</th>
+							{/*<th title={'This number is 0% when the model did no better than chance.'}>Kappa</th>*/}
 							<th title={'The features that were used to define this model'}>Features</th>
 						</tr>
 						</thead>
@@ -336,7 +369,7 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 									<td>{iResult.name}</td>
 									<td>{getSettings(iResult)}</td>
 									<td>{(100 * iResult.accuracy).toFixed(1)}%</td>
-									<td>{(100 * iResult.kappa).toFixed(1)}%</td>
+									{/*<td>{(100 * iResult.kappa).toFixed(1)}%</td>*/}
 									<td>{tFeatureNames}</td>
 								</tr>)
 
@@ -349,6 +382,7 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 
 		return (
 			<div className='sq-training-pane'>
+				{modelTrainerInstructions()}
 				{modelTrainer()}
 				{getModelResults()}
 			</div>

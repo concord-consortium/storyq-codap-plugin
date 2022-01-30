@@ -124,6 +124,7 @@ p {
     display: flex;
     flex-direction: column;
     height: 100%;
+    overflow: auto;
 }
 
 .sq-feature-ngram-settings {
@@ -134,12 +135,13 @@ p {
 }
 
 .sq-target-choices-panel {
-    padding: 5px;
+    padding-top: 5px;
+    padding-bottom: 5px;
     display: flex;
 }
 
 .sq-target-text-panel {
-    margin: 2%;
+    /*margin: 2%;*/
     border: lightskyblue solid thin;
     flex: 1 1 auto;
     width: 46%;
@@ -150,10 +152,11 @@ p {
 .sq-target-lower-panel {
     margin: 5px;
     width: 100%;
-    height: calc(100vh - 140px);
+    height: calc(100vh - 175px);
     flex: 1 1 auto;
     display: flex;
     flex-direction: row;
+    gap: 10px
 }
 
 .sq-target-choice {
@@ -276,6 +279,7 @@ p {
 
 .sq-choice {
     display: flex;
+    width: fit-content;
     gap: 5px;
     margin-left: 5px;
     margin-right: 5px;
@@ -304,7 +308,7 @@ p {
 }
 
 .sq-training-pane {
-
+    overflow: auto;
 }
 
 .sq-training-buttons {
@@ -387,6 +391,7 @@ td .dx-button {
 }
 
 .sq-feature-list .dx-button {
+    padding-left: 10px;
     background-color: transparent;
     border: none;
     box-shadow: none;
@@ -398,5 +403,5 @@ td .dx-button {
 }
 
 .sq-feature-list .dx-icon {
-    color: chocolate;
+    color: #337ab7;
 }

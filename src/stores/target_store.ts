@@ -38,7 +38,7 @@ export class TargetStore {
 	targetClassNames: { [index: string]: string, left: string, right: string } = {left: '', right: ''}
 	targetColumnFeatureNames:string[] = []
 	targetLeftColumnKey: 'left' | 'right' = 'left'
-	targetChosenClassColumnKey: 'left' | 'right' = 'left'
+	targetChosenClassColumnKey: '' | 'left' | 'right' = ''
 	textRefs: { ownerCaseID: number, ref: React.RefObject<any> }[] = []
 	getFeatureNamesFunc:()=>string[]
 
