@@ -76,7 +76,7 @@ export class FeatureStore {
 		} else if (iFeature.info.kind === 'ngram') {
 			return `single words with frequency ≥ ${iFeature.info.frequencyThreshold}${iFeature.info.ignoreStopWords ? '; ignoring stopwords': ''}`
 		} else if( iFeature.info.kind === 'column')
-			return (iFeature.info.details as ColumnDetails).columnName
+			return toJS(iFeature.info.details as ColumnDetails).columnName
 		else
 			return ''
 

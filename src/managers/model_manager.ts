@@ -444,6 +444,7 @@ export class ModelManager {
 				})()
 
 				await this.domainStore.syncWeightsAndResultsWithActiveModels()
+				await this.domainStore.recreateUsagesAndFeatureIDs()
 
 				tModel.reset()
 			}

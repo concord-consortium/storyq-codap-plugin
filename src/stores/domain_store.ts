@@ -3,10 +3,10 @@
  * be accessed in more than one file or needs to be saved and restored.
  */
 
-import {getComponentByTypeAndTitle, openTable} from "../lib/codap-helper";
+import {getCaseValues, getComponentByTypeAndTitle, openTable} from "../lib/codap-helper";
 import codapInterface from "../lib/CodapInterface";
 import TextFeedbackManager from "../managers/text_feedback_manager";
-import {oneHot} from "../lib/one_hot";
+import {oneHot, wordTokenizer} from "../lib/one_hot";
 import {Feature, kPosNegConstants, kStoryQPluginName} from "./store_types_and_constants";
 import {TargetStore} from "./target_store";
 import {FeatureStore} from "./feature_store";
@@ -191,6 +191,7 @@ export class DomainStore {
 
 			tFeatureItems = (await getExistingFeatureItems()).filter(iItem => iItem.values.type !== 'unigram')
 			await updateFrequenciesUsagesAndFeatureIDs()
+			// todo: Figure out why sometimes a feature is deleted that shouldn't be
 			tItemsToDelete = tFeatureItems.filter(iItem => {
 				return !tNonNgramFeatures.find(iFeature => iFeature.featureItemID === iItem.id)
 			})
@@ -435,6 +436,7 @@ export class DomainStore {
 			tTrainingResults[currIndex].isActive = true
 		}
 		await this.syncWeightsAndResultsWithActiveModels()
+		await this.recreateUsagesAndFeatureIDs()
 	}
 
 	/**
@@ -530,5 +532,90 @@ export class DomainStore {
 		this.targetStore.updateFromCODAP()
 	}
 
+	/**
+	 * The end result will be that
+	 * 		* target cases featureIDs will be updated
+	 * 		* feature cases usages will be updated
+	 */
+	async recreateUsagesAndFeatureIDs() {
+
+		function targetTextHasUnigram(iText:string, iUnigram:string) {
+			return wordTokenizer(iText, true, true).indexOf(iUnigram) >= 0
+		}
+
+		const tTargetDatasetName = this.targetStore.targetDatasetInfo.name,
+			tTargetCollectionName = this.targetStore.targetCollectionName,
+			tTargetAttributeName = this.targetStore.targetAttributeName,
+			tTargetCases = await getCaseValues(tTargetDatasetName, tTargetCollectionName),
+			tFeatureDatasetName = this.featureStore.featureDatasetInfo.datasetName,
+			tFeatureCollectionName = this.featureStore.featureDatasetInfo.collectionName,
+			tFeatureCases = await getCaseValues(tFeatureDatasetName, tFeatureCollectionName),
+			tUsageResults:{ [index:number]:number[]} = {}, // Contains IDs of target texts that contain a given feature
+			tTextResults: {[index:number]:number[]} = {}	// Contains IDs of features found in a given text
+		tFeatureCases.forEach(iFeatureCase=>{
+			const tFeatureName = iFeatureCase.values.name,
+				tFeatureType = iFeatureCase.values.type
+
+			tTargetCases.forEach(iTargetCase=>{
+				const tTargetHasFeature =
+						['constructed', 'column'].includes(tFeatureType) ? iTargetCase.values[tFeatureName] :
+							tFeatureType === 'unigram' ? targetTextHasUnigram( iTargetCase.values[tTargetAttributeName], tFeatureName) :
+								false
+				if( tTargetHasFeature) {
+					if( !tUsageResults[iFeatureCase.id])
+						tUsageResults[iFeatureCase.id] = []
+					tUsageResults[iFeatureCase.id].push( iTargetCase.id)
+					if( !tTextResults[iTargetCase.id])
+						tTextResults[iTargetCase.id] = []
+					tTextResults[iTargetCase.id].push( iFeatureCase.id)
+				}
+			})
+		})
+/*
+		console.log(`tTextResults = ${JSON.stringify(tTextResults)}`)
+		console.log(`tUsageResults = ${JSON.stringify(tUsageResults)}`)
+*/
+		// Now we can update the target and feature cases
+		const tMsgs:Message[] = [
+			{
+				action: 'update',
+				resource: `dataContext[${tTargetDatasetName}].collection[${tTargetCollectionName}].case`,
+				values:[]
+			},
+			{
+				action: 'update',
+				resource: `dataContext[${tFeatureDatasetName}].collection[${tFeatureCollectionName}].case`,
+				values:[]
+			}
+		]
+		for (let tTextResultsKey in tTextResults) {
+			tMsgs[0].values.push( {
+				id: tTextResultsKey,
+				values: { featureIDs: tTextResults[tTextResultsKey]}
+			})
+		}
+		for (let tUsageResultsKey in tUsageResults) {
+			tMsgs[1].values.push( {
+				id: tUsageResultsKey,
+				values: {usages: tUsageResults[tUsageResultsKey]}
+			})
+		}
+		tMsgs[0].values.forEach(iValue=>{
+				iValue.values.featureIDs = JSON.stringify(iValue.values.featureIDs)
+			})
+		tMsgs[1].values.forEach(iValue=>{
+				iValue.values.usages = JSON.stringify(iValue.values.usages)
+			})
+		// console.log(`tMsgs = ${JSON.stringify(tMsgs)}`)
+		await codapInterface.sendRequest(tMsgs)
+		// console.log(`result: ${JSON.stringify(tUpdateResult)}`)
+	}
+
+}
+
+interface Message {
+	action:string,
+	resource:string
+	values:any[]
 }
 

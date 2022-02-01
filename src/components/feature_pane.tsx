@@ -8,7 +8,7 @@ import {observer} from "mobx-react";
 import {UiStore} from "../stores/ui_store";
 import {Button} from "devextreme-react";
 import {FeatureConstructor} from "./feature_constructor";
-import {action} from "mobx";
+import {action, toJS} from "mobx";
 import {FeatureList} from "./feature_list";
 import {starterFeature} from "../stores/store_types_and_constants";
 
@@ -74,6 +74,7 @@ export const FeaturePane = observer(class FeaturePane extends Component<Feature_
 								await this.props.domainStore.updateNonNtigramFeaturesDataset()
 								await this.props.domainStore.updateNgramFeatures()
 								tFeatureUnderConstruction.inProgress = false
+								console.log(toJS(tFeatureUnderConstruction.name))
 							}
 						}
 					})}
