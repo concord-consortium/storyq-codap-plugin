@@ -191,7 +191,6 @@ export class DomainStore {
 
 			tFeatureItems = (await getExistingFeatureItems()).filter(iItem => iItem.values.type !== 'unigram')
 			await updateFrequenciesUsagesAndFeatureIDs()
-			// todo: Figure out why sometimes a feature is deleted that shouldn't be
 			tItemsToDelete = tFeatureItems.filter(iItem => {
 				return !tNonNgramFeatures.find(iFeature => iFeature.featureItemID === iItem.id)
 			})
@@ -536,6 +535,7 @@ export class DomainStore {
 	 * The end result will be that
 	 * 		* target cases featureIDs will be updated
 	 * 		* feature cases usages will be updated
+	 * 		* The target store's features will get updated IDs for both cases and items
 	 */
 	async recreateUsagesAndFeatureIDs() {
 
@@ -551,8 +551,10 @@ export class DomainStore {
 			tFeatureCollectionName = this.featureStore.featureDatasetInfo.collectionName,
 			tFeatureCases = await getCaseValues(tFeatureDatasetName, tFeatureCollectionName),
 			tUsageResults:{ [index:number]:number[]} = {}, // Contains IDs of target texts that contain a given feature
-			tTextResults: {[index:number]:number[]} = {}	// Contains IDs of features found in a given text
+			tTextResults: {[index:number]:number[]} = {},	// Contains IDs of features found in a given text
+			tFeatureItemRequests:{action:'get', resource:string}[] = []
 		tFeatureCases.forEach(iFeatureCase=>{
+			tFeatureItemRequests.push({action:'get', resource:`dataContext[${tFeatureDatasetName}].itemByCaseID[${iFeatureCase.id}]`})
 			const tFeatureName = iFeatureCase.values.name,
 				tFeatureType = iFeatureCase.values.type
 
@@ -571,10 +573,6 @@ export class DomainStore {
 				}
 			})
 		})
-/*
-		console.log(`tTextResults = ${JSON.stringify(tTextResults)}`)
-		console.log(`tUsageResults = ${JSON.stringify(tUsageResults)}`)
-*/
 		// Now we can update the target and feature cases
 		const tMsgs:Message[] = [
 			{
@@ -606,9 +604,19 @@ export class DomainStore {
 		tMsgs[1].values.forEach(iValue=>{
 				iValue.values.usages = JSON.stringify(iValue.values.usages)
 			})
-		// console.log(`tMsgs = ${JSON.stringify(tMsgs)}`)
 		await codapInterface.sendRequest(tMsgs)
-		// console.log(`result: ${JSON.stringify(tUpdateResult)}`)
+
+		// Now we update the case and item ids of the stored features
+		const tItemResults:any = await codapInterface.sendRequest(tFeatureItemRequests)
+		tFeatureCases.forEach((iFeature, iIndex)=>{
+			const tStoredFeature = this.featureStore.features.find(iStoredFeature=>{
+				return iStoredFeature.name === iFeature.values.name
+			})
+			if( tStoredFeature) {
+				tStoredFeature.featureItemID = tItemResults[iIndex].values.id
+				tStoredFeature.caseID = String(iFeature.id)
+			}
+		})
 	}
 
 }
