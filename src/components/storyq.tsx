@@ -29,7 +29,7 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 		private uiStore: UiStore
 		private domainStore: DomainStore
 		private kPluginName = kStoryQPluginName;
-		private kVersion = "1.85";
+		private kVersion = "1.86";
 		private kInitialDimensions = {
 			width: 429,
 			height: 420

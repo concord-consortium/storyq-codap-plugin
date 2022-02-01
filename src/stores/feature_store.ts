@@ -5,7 +5,6 @@
 
 import {makeAutoObservable, toJS} from 'mobx'
 import {
-	ColumnDetails,
 	Feature, kKindOfThingOptionText, namingAbbreviations,
 	NgramDetails,
 	SearchDetails, starterFeature, TokenMap, WordListSpec
@@ -76,7 +75,7 @@ export class FeatureStore {
 		} else if (iFeature.info.kind === 'ngram') {
 			return `single words with frequency ≥ ${iFeature.info.frequencyThreshold}${iFeature.info.ignoreStopWords ? '; ignoring stopwords': ''}`
 		} else if( iFeature.info.kind === 'column')
-			return toJS(iFeature.info.details as ColumnDetails).columnName
+			return iFeature.name	// already has column name stashed here
 		else
 			return ''
 

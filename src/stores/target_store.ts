@@ -93,7 +93,7 @@ export class TargetStore {
 		 */
 		function chooseClassNames() {
 			const tTargetClassAttributeName = iPropName === 'targetClassAttributeName' ? iValue : this_.targetClassAttributeName
-			if (tTargetClassAttributeName !== '') {
+			if (tTargetClassAttributeName !== '' && tCaseValues.length > 0) {
 				tPositiveClassName = tCaseValues[0].values[tTargetClassAttributeName]
 				const tNegativeClassCase = tCaseValues.find(iCase => iCase.values[tTargetClassAttributeName] !== tPositiveClassName)
 				tNegativeClassName = tNegativeClassCase ? tNegativeClassCase.values[tTargetClassAttributeName] : ''

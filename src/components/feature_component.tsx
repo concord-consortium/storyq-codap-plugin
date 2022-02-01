@@ -107,7 +107,7 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 						placeholder={'choose a method'}
 						value={tContainsOption}
 						style={{display: 'inline-block'}}
-						onValueChanged={action(async (e) => {
+						onValueChanged={action( (e) => {
 							tFeature.infoChoice = e.value
 							tFeature.info.kind = JSON.parse(e.value).kind
 							tFeature.info.details = Object.assign(tFeature.info.details || {}, JSON.parse(e.value).details)
@@ -118,7 +118,7 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 								tFeature.name = JSON.parse(e.value).details['columName']
 								tFeature.type = 'column'
 							}
-							await this_.updateFeaturesDataset(tFeature)
+							// await this_.updateFeaturesDataset(tFeature)
 						})}
 					/>
 				)

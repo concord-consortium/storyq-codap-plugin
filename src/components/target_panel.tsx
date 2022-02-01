@@ -10,8 +10,6 @@ import {DomainStore} from "../stores/domain_store";
 import {observer} from "mobx-react";
 import {UiStore} from "../stores/ui_store";
 import {choicesMenu} from "./component_utilities";
-import {kEmptyEntityInfo} from "../stores/store_types_and_constants";
-import {Button} from "devextreme-react";
 
 interface TargetPanelInfo {
 	subscriberIndex: number
@@ -78,12 +76,23 @@ export const TargetPanel = observer(class TargetPanel extends Component<Target_P
 
 			function instructions() {
 				if (this_.currState === 'welcome')
-					return (
-						<div className='sq-info-prompt'>
-							<p>Ready to begin?</p>
-							<p>First, prepare data to train your model.</p>
-						</div>
-					)
+					if(tDatasetInfoArray.length === 0) {
+						return (
+							<div className='sq-info-prompt'>
+								<p>Ready to begin?</p>
+								<p>First, prepare data to train your model by
+dragging a 'csv' data file with your data into CODAP or choosing <em>Create a new dataset</em> from the dropdown menu.</p>
+							</div>
+						)
+					}
+				else {
+						return (
+							<div className='sq-info-prompt'>
+								<p>Ready to begin?</p>
+								<p>First, prepare data to train your model.</p>
+							</div>
+						)
+					}
 			}
 
 			function menu() {
@@ -96,16 +105,58 @@ export const TargetPanel = observer(class TargetPanel extends Component<Target_P
 						await this_.updateTargetPanelInfo()
 						tTargetStore.targetPanelMode = 'chosen'
 					} else {
+/*
 						tTargetStore.targetDatasetInfo = kEmptyEntityInfo
 						tTargetStore.targetPanelMode = 'create'
+*/
+						const tContextName = 'Training Data',
+							tResults:any = await codapInterface.sendRequest([
+							{
+								"action": "create",
+								"resource": "dataContext",
+								"values": {
+									"name": tContextName,
+									"title": tContextName,
+									"collections": [ {
+										"name": "Texts",
+										"title": "Texts",
+										"labels": {
+											"singleCase": "text",
+											"pluralCase": "texts"
+										},
+										"attrs": [
+											{ "name": "text" },
+											{ "name": "label" }
+										]
+									}]
+								}
+							},
+							{
+								action: 'create',
+								resource: 'component',
+								values: {
+									type: 'caseTable',
+									name: tContextName,
+									title: tContextName,
+									dataContext: tContextName
+								}
+							}
+						])
+						tTargetStore.targetDatasetInfo = {
+							title: tContextName,
+							name: tContextName,
+							id: tResults[0].values.id
+						}
+						tTargetStore.targetPanelMode = 'chosen'
 					}
 				}
 
-				const tDatasetInfoArray = tTargetStore.datasetInfoArray,
+				const tNewDatasetChoice = 'Create a new dataset',
 					tPrompt = this_.currState === 'welcome' ? 'Choose the training data' : 'Training data',
 					tValue = (tTargetStore.targetDatasetInfo === this_.targetPanelConstants.createNewEntityInfo) ?
 						'' : tTargetStore.targetDatasetInfo.title,
 					tDatasetChoices: string[] = (tDatasetInfoArray.map(iInfo => iInfo.title))
+				tDatasetChoices.push( tNewDatasetChoice)
 				return (
 					choicesMenu(tPrompt, 'Your choice',
 						'The dataset you choose will be used to train a model. ' +
@@ -212,19 +263,27 @@ export const TargetPanel = observer(class TargetPanel extends Component<Target_P
 
 			function positiveClassInstructions() {
 				if (this_.currState === 'chosen-no-chosen-pos-class') {
-					const tLeftColumnKey = tTargetStore.targetLeftColumnKey,
-						tLeftColumnValue = tTargetStore.targetClassNames[tLeftColumnKey],
-						tRightColumnKey = tLeftColumnKey === 'left' ? 'right' : 'left',
-						tRightColumnValue = tTargetStore.targetClassNames[tRightColumnKey]
-					return (
-						<div className='sq-info-prompt'>
-							<p
-								title={'The model will pay attention to one of the labels, with the remaining labels as ' +
-									'“not” the label in question. The label we pay attention to is called the target label. \n' +
-									'A target label is the most important among all labels for your model to recognize.'}>
-								Choose either "{tLeftColumnValue}" or "{tRightColumnValue}" as your target label.</p>
-						</div>
-					)
+					if (tTargetStore.targetCases.length > 0) {
+						const tLeftColumnKey = tTargetStore.targetLeftColumnKey,
+							tLeftColumnValue = tTargetStore.targetClassNames[tLeftColumnKey],
+							tRightColumnKey = tLeftColumnKey === 'left' ? 'right' : 'left',
+							tRightColumnValue = tTargetStore.targetClassNames[tRightColumnKey]
+						return (
+							<div className='sq-info-prompt'>
+								<p
+									title={'The model will pay attention to one of the labels, with the remaining labels as ' +
+										'“not” the label in question. The label we pay attention to is called the target label. \n' +
+										'A target label is the most important among all labels for your model to recognize.'}>
+									Choose either "{tLeftColumnValue}" or "{tRightColumnValue}" as your target label.</p>
+							</div>
+						)
+					} else {
+						return (
+							<div className='sq-info-prompt'>
+								<p>You will need to provide some text data before you can proceed.</p>
+							</div>
+						)
+					}
 				}
 			}
 
@@ -290,6 +349,7 @@ export const TargetPanel = observer(class TargetPanel extends Component<Target_P
 
 		const this_ = this,
 			tTargetStore = this.props.domainStore.targetStore,
+			tDatasetInfoArray = tTargetStore.datasetInfoArray,
 			tMode = tTargetStore.targetPanelMode
 		computeState()
 		return (
