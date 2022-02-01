@@ -107,7 +107,7 @@ export const TargetPanel = observer(class TargetPanel extends Component<Target_P
 						'' : tTargetStore.targetDatasetInfo.title,
 					tDatasetChoices: string[] = (tDatasetInfoArray.map(iInfo => iInfo.title))
 				return (
-					choicesMenu(tPrompt, 'Your Choice',
+					choicesMenu(tPrompt, 'Your choice',
 						'The dataset you choose will be used to train a model. ' +
 						'It should have at least two attributes, one containing texts to analyze and the other containing ' +
 						'labels with two values.',
@@ -123,6 +123,7 @@ export const TargetPanel = observer(class TargetPanel extends Component<Target_P
 			)
 		}
 
+/*
 		function createButton() {
 			if (tMode === 'welcome')
 				return (
@@ -140,6 +141,7 @@ export const TargetPanel = observer(class TargetPanel extends Component<Target_P
 					</div>
 				)
 		}
+*/
 
 		function chosenMode() {
 
@@ -167,7 +169,7 @@ export const TargetPanel = observer(class TargetPanel extends Component<Target_P
 				const tPrompt = this_.currState === 'chosen-no-target-attribute' ?
 					'Choose the column that has the text' : 'Text'
 				if (tTargetStore.targetAttributeNames.length > 0) {
-					return choicesMenu(tPrompt, 'Choose a target attribute',
+					return choicesMenu(tPrompt, 'Choose from',
 						'The target attribute should contain the texts to analyze.',
 						tTargetStore.targetAttributeNames,
 						tTargetStore.targetAttributeName, 'No attributes to choose from',
@@ -294,7 +296,7 @@ export const TargetPanel = observer(class TargetPanel extends Component<Target_P
 			<div className='sq-target-panel'>
 				{welcomeText()}
 				{chooseDatasetMenu()}
-				{createButton()}
+				{/*{createButton()}*/}
 				{chosenMode()}
 				{createMode()}
 				{onwardInstructions()}

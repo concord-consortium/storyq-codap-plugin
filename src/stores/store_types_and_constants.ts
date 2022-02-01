@@ -5,7 +5,7 @@ import {makeAutoObservable, toJS} from "mobx";
  * These types and constants are used primarily by the various store classes
  */
 
-export const kStoryQPluginName = "StoryQ Studio"
+export const kStoryQPluginName = "StoryQ"
 
 export const kEmptyEntityInfo = {name: '', title: '', id: 0},
 	kPosNegConstants = {
@@ -20,38 +20,39 @@ export const kEmptyEntityInfo = {name: '', title: '', id: 0},
 	}
 
 export let featureDescriptors = {
-	featureKinds: [{
-		key: "N-grams",
+	featureKinds: [
+		{
+			key: "Extract one feature at a time",
+			items: [
+				{name: "contain", value: `{"kind": "search", "details": {"where": "contain"}}`},
+				{name: "not contain", value: `{"kind": "search", "details": {"where": "not contain"}}`},
+				{name: "start with", value: `{"kind": "search", "details": {"where": "start with"}}`},
+				{name: "end with", value: `{"kind": "search", "details": {"where": "end with"}}`}
+			]
+		},
+		{
+		key: "Extract features of the same kind",
 		items: [
-			{name: "unigrams", value: `{"kind": "ngram", "details": {"n":"uni"}}`}/*,
+			{name: "single words", value: `{"kind": "ngram", "details": {"n":"uni"}}`}/*,
 				{name: "bigrams", value: `{"kind": "ngram", "details": {"n":"bi"}}`}*/
 		]
 	},
 		{
-			key: "Rules",
-			items: [
-				{name: "starts with", value: `{"kind": "search", "details": {"where": "starts with"}}`},
-				{name: "contains", value: `{"kind": "search", "details": {"where": "contains"}}`},
-				{name: "does not contain", value: `{"kind": "search", "details": {"where": "does not contain"}}`},
-				{name: "ends with", value: `{"kind": "search", "details": {"where": "ends with"}}`}
-			]
-		},
-		{
-			key: "Column Features",
+			key: "Choose other columns as features",
 			items: []
 		}],
-	containsOptions: ['starts with', 'contains', 'does not contain', 'ends with'],
-	kindOfThingContainedOptions: ['any number', 'any from list', 'free form text', 'punctuation mark'/*, 'part of speech'*/],
+	containsOptions: ['contain', 'not contain', 'start with', 'end with'],
+	kindOfThingContainedOptions: ['text', 'punctuation', 'any number', 'any item from a list'/*, 'part of speech'*/],
 	caseOptions: ['sensitive', 'insensitive']
 }
 
-export const kKindOfThingOptionList = featureDescriptors.kindOfThingContainedOptions[1]
-export const kKindOfThingOptionText = featureDescriptors.kindOfThingContainedOptions[2]
-export const kKindOfThingOptionPunctuation = featureDescriptors.kindOfThingContainedOptions[3]
+export const kKindOfThingOptionList = featureDescriptors.kindOfThingContainedOptions[3]
+export const kKindOfThingOptionText = featureDescriptors.kindOfThingContainedOptions[0]
+export const kKindOfThingOptionPunctuation = featureDescriptors.kindOfThingContainedOptions[1]
 
 export interface SearchDetails {
-	where: 'startsWith' | 'contains' | 'notContains' | 'endsWith' | '',
-	what: 'any number' | 'any from list' | 'free form text' | 'punctuation mark' | 'part of speech' | '',
+	where: 'startWith' | 'contain' | 'notContain' | 'endWith' | '',
+	what: 'any number' | 'any item from a list' | 'text' | 'punctuation' | 'part of speech' | '',
 	caseOption: 'any' | 'upper' | 'lower' | '',
 	freeFormText: string,
 	punctuation: string,
@@ -59,10 +60,10 @@ export interface SearchDetails {
 }
 
 export const namingAbbreviations:{[index:string]:string} = {
-	'starts with': 'startsWith',
-	contains: 'contains',
-	'does not contain': 'not contains',
-	'ends with': 'endsWith'
+	'start with': 'startWith',
+	contain: 'contain',
+	'not contain': 'not contain',
+	'end with': 'endWith'
 }
 
 export interface CountDetails {

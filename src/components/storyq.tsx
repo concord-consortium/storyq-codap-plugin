@@ -17,7 +17,6 @@ import {Item} from "devextreme-react/tab-panel";
 import {TargetPanel} from "./target_panel";
 import {FeaturePanel} from "./feature_panel";
 import dxTabPanel from "devextreme/ui/tab_panel";
-import {StoryqStorage} from "../storyq_types";
 import {UiStore} from "../stores/ui_store";
 import {observer} from "mobx-react";
 import {DomainStore} from "../stores/domain_store";
@@ -30,7 +29,7 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 		private uiStore: UiStore
 		private domainStore: DomainStore
 		private kPluginName = kStoryQPluginName;
-		private kVersion = "1.80";
+		private kVersion = "1.83";
 		private kInitialDimensions = {
 			width: 429,
 			height: 420
@@ -52,7 +51,7 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 				.then(() => registerObservers());
 		}
 
-		getPluginStore(): StoryqStorage {
+		getPluginStore() {
 			return {
 				success: true,
 				values: {
@@ -89,7 +88,7 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 						this.handleSelectionChanged(e)
 					})}
 				>
-					<Item title='Target' text='Specify the text data you want to work with'>
+					<Item title='Setup' text='Specify the text data you want to work with'>
 						<TargetPanel
 							uiStore={this.uiStore}
 							domainStore={this.domainStore}

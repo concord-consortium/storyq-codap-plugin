@@ -409,6 +409,7 @@ export class DomainStore {
 	featuresPanelCanBeEnabled() {
 		return this.targetStore.targetAttributeName !== ''
 			&& this.targetStore.targetClassAttributeName !== ''
+			&& this.targetStore.targetChosenClassColumnKey !== ''
 	}
 
 	trainingPanelCanBeEnabled() {
@@ -429,9 +430,9 @@ export class DomainStore {
 		if (tNumActive === 0) {
 			// Always have at least one result active
 			let currIndex = iIndex - 1
-				if( currIndex < 0)
-					currIndex = tTrainingResults.length - 1
-				tTrainingResults[currIndex].isActive = true
+			if (currIndex < 0)
+				currIndex = tTrainingResults.length - 1
+			tTrainingResults[currIndex].isActive = true
 		}
 		await this.syncWeightsAndResultsWithActiveModels()
 	}
@@ -524,7 +525,7 @@ export class DomainStore {
 		await codapInterface.sendRequest(tMessages)
 	}
 
-	setPanel(iPanelIndex:number) {
+	setPanel(iPanelIndex: number) {
 		this.uiStore.tabPanelSelectedIndex = iPanelIndex
 		this.targetStore.updateFromCODAP()
 	}

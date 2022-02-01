@@ -74,7 +74,7 @@ export class FeatureStore {
 					tDetails.what === 'any number' ? 'anyNumber' : ''
 			return `${tFirstPart}:${tSecondPart}`
 		} else if (iFeature.info.kind === 'ngram') {
-			return `${(iFeature.info.details as NgramDetails).n}grams`
+			return `single words with frequency ≥ ${iFeature.info.frequencyThreshold}${iFeature.info.ignoreStopWords ? '; ignoring stopwords': ''}`
 		} else if( iFeature.info.kind === 'column')
 			return (iFeature.info.details as ColumnDetails).columnName
 		else

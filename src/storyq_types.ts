@@ -1,4 +1,3 @@
-import {FCState} from "./components/old_feature_constructor";
 import {entityInfo} from "./lib/codap-helper";
 
 /**
@@ -16,7 +15,6 @@ export interface StoryqStorage {
 
 export interface FMStorage {
 	datasetName: string | null;
-	featureConstructorStorage: FCState | null,
 	targetDatasetInfo: entityInfo | null,
 	targetDatasetInfoArray: entityInfo[] | null,
 	targetCollectionName: string,

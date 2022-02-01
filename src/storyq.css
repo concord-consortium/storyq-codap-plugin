@@ -128,10 +128,12 @@ p {
 }
 
 .sq-feature-ngram-settings {
-    display: flex;
     width: 100%;
-    align-items: center;
-    justify-content: space-evenly;
+}
+
+.sq-feature-ngram-ignore-settings {
+    display: flex;
+    padding: 5px;
 }
 
 .sq-target-choices-panel {
@@ -197,8 +199,9 @@ p {
 }
 
 .sq-target-info-pane h1 {
+
     text-align: center;
-    font-size: larger;
+    font-size: unset;
     font-weight: bold;
 }
 
@@ -210,7 +213,6 @@ p {
 }
 
 .sq-container {
-    height: 1vh;
     overflow: auto;
     flex: 1 1 auto;
 }
@@ -279,7 +281,6 @@ p {
 
 .sq-choice {
     display: flex;
-    width: fit-content;
     gap: 5px;
     margin-left: 5px;
     margin-right: 5px;

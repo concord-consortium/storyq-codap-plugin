@@ -10,6 +10,7 @@ import {Button} from "devextreme-react";
 import {FeatureConstructor} from "./feature_constructor";
 import {action} from "mobx";
 import {FeatureList} from "./feature_list";
+import {starterFeature} from "../stores/store_types_and_constants";
 
 interface FeaturePaneState {
 	count: number,
@@ -37,15 +38,19 @@ export const FeaturePane = observer(class FeaturePane extends Component<Feature_
 	}
 
 	getButtons() {
-		const tFeatureUnderConstruction = this.props.domainStore.featureStore.featureUnderConstruction,
+		const tFeatureStore = this.props.domainStore.featureStore,
+			tFeatureUnderConstruction = tFeatureStore.featureUnderConstruction,
 			tInProgress = tFeatureUnderConstruction.inProgress,
-			tButtonLabel = tFeatureUnderConstruction.inProgress ? 'Cancel' : '+ Add Feature',
+			tButtonLabel = tFeatureUnderConstruction.inProgress ? 'Cancel' : 'Add Features',
 			tButtonHint = tFeatureUnderConstruction.inProgress ? 'Press this to cancel feature construction.' :
 				'Press this button to begin constructing a feature.',
 			tAddButton =
 				(<Button
 						className='sq-button'
 						onClick={action(() => {
+							if( tInProgress) {	// Cancel
+								tFeatureStore.featureUnderConstruction = Object.assign({}, starterFeature)
+							}
 							tFeatureUnderConstruction.inProgress = !tInProgress
 						})}
 						hint={tButtonHint}
@@ -59,12 +64,17 @@ export const FeaturePane = observer(class FeaturePane extends Component<Feature_
 					disabled={!this.props.domainStore.featureStore.constructionIsDone()}
 					onClick={action(async () => {
 						if( tFeatureUnderConstruction.inProgress) {
-							tFeatureUnderConstruction.name = this.props.domainStore.featureStore.constructNameFor(tFeatureUnderConstruction)
-							await this.props.domainStore.targetStore.addOrUpdateFeatureToTarget(tFeatureUnderConstruction)
-							await this.props.domainStore.featureStore.addFeatureUnderConstruction()
-							await this.props.domainStore.updateNonNtigramFeaturesDataset()
-							await this.props.domainStore.updateNgramFeatures()
-							tFeatureUnderConstruction.inProgress = false
+							if(tFeatureUnderConstruction.info.kind === 'ngram' && tFeatureStore.hasNgram()) {
+								window.alert('Sorry, you already have this feature.')
+							}
+							else {
+								tFeatureUnderConstruction.name = this.props.domainStore.featureStore.constructNameFor(tFeatureUnderConstruction)
+								await this.props.domainStore.targetStore.addOrUpdateFeatureToTarget(tFeatureUnderConstruction)
+								await this.props.domainStore.featureStore.addFeatureUnderConstruction()
+								await this.props.domainStore.updateNonNtigramFeaturesDataset()
+								await this.props.domainStore.updateNgramFeatures()
+								tFeatureUnderConstruction.inProgress = false
+							}
 						}
 					})}
 					hint={'You can press this button when you have completed specifying a feature.'}
@@ -90,12 +100,11 @@ export const FeaturePane = observer(class FeaturePane extends Component<Feature_
 					tFeatures =tFeatureStore.features,
 					tInstructions = tFeatures.length === 0 ?
 					<p>What features of the training data should StoryQ use to train the model?</p> :
-					<p>You have {tFeatures.length} feature{tFeatures.length > 1 ? 's' : ''}. You can add more or
-					go on to <span
+					<p>Add more features or go to <span
 							onClick={action(()=>this_.props.domainStore.setPanel(2))}
 							style={{cursor: 'pointer'}}
 						>
-								<strong>Training</strong></span>.</p>
+								<strong>Training</strong></span> to train your model.</p>
 				return (
 					<div className='sq-info-prompt'>
 						{tInstructions}

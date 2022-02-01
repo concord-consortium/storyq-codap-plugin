@@ -22,13 +22,12 @@ export const TargetInfoPane = observer(class TargetInfoPane extends Component<Ta
 				return (
 					<div className='sq-info-row'>
 						<div className='sq-info-column'>
-							<p>Training Set: <strong>{tTargetStore.targetDatasetInfo.title}</strong></p>
-							<p>Target Text: <strong>{tTargetStore.targetAttributeName}</strong></p>
+							<p>Text: <strong>{tTargetStore.targetAttributeName}</strong></p>
+							<p>Labels: <strong>{tTargetStore.targetClassAttributeName}</strong></p>
 						</div>
 						<div className='sq-info-column'>
-							<p>Target Class: <strong>{tTargetStore.targetClassAttributeName}</strong></p>
 							<p>Target Label: <strong>{tPosName}</strong></p>
-							<p>Other Label: <strong>{tNegName}</strong></p>
+							<p>Other Label(s): <strong>{tNegName}</strong></p>
 						</div>
 					</div>
 				)
@@ -39,7 +38,7 @@ export const TargetInfoPane = observer(class TargetInfoPane extends Component<Ta
 
 		return (
 			<div className='sq-target-info-pane'>
-				<h1>Target Summary</h1>
+				<h1>Training Data: {tTargetStore.targetDatasetInfo.title}</h1>
 				{getInfo()}
 			</div>
 		);

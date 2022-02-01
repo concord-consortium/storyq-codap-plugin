@@ -15,7 +15,7 @@ import {DomainStore} from "../stores/domain_store";
 import {observer} from "mobx-react";
 import {UiStore} from "../stores/ui_store";
 import {TextBox} from "devextreme-react";
-import {action} from "mobx";
+import {action, toJS} from "mobx";
 import {SelectBox} from "devextreme-react/select-box";
 import {stopWords} from "../lib/stop_words";
 import {CheckBox} from "devextreme-react/check-box";
@@ -65,44 +65,46 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 		render() {
 			const this_ = this
 
-/*
-			function nameBox() {
-				return (
-					<TextBox
-						className='sq-fc-part'
-						valueChangeEvent={'keyup'}
-						placeholder="type the feature's name"
-						onValueChanged={action(async (e) => {
-							tFeature.name = e.value
-							await this_.updateFeaturesDataset(tFeature)
-						})}
-						value={tFeature.name}
-						onFocusOut={action(() => {
-							tFeature.name = this_.props.domainStore.featureStore.guaranteeUniqueFeatureName(tFeature.name)
-						})}
-						maxLength={20}
-					/>
-				)
-			}
-*/
+			/*
+						function nameBox() {
+							return (
+								<TextBox
+									className='sq-fc-part'
+									valueChangeEvent={'keyup'}
+									placeholder="type the feature's name"
+									onValueChanged={action(async (e) => {
+										tFeature.name = e.value
+										await this_.updateFeaturesDataset(tFeature)
+									})}
+									value={tFeature.name}
+									onFocusOut={action(() => {
+										tFeature.name = this_.props.domainStore.featureStore.guaranteeUniqueFeatureName(tFeature.name)
+									})}
+									maxLength={20}
+								/>
+							)
+						}
+			*/
 
 			function kindOfContainsChoice() {
-				featureDescriptors.featureKinds[2].items = this_.props.domainStore.targetStore.targetColumnFeatureNames.map(iColumnName => {
+				const tFeatureDescriptors = toJS(featureDescriptors)
+				tFeatureDescriptors.featureKinds[2].items = this_.props.domainStore.targetStore.targetColumnFeatureNames.map(iColumnName => {
 					return {
 						name: iColumnName,
 						value: `{"kind": "column", "details": {"columName":"${iColumnName}"}}`,
-						key: 'Column Features'
+						key: 'Choose other columns as features'
 					}
 				})
-				// console.log(`featureDescriptors = ${JSON.stringify(featureDescriptors.featureKinds)}`)
+				if (this_.props.domainStore.featureStore.hasNgram())
+					tFeatureDescriptors.featureKinds.splice(1, 1)
 				return (
 					<SelectBox
 						className='sq-new-feature-item sq-fc-part'
-						dataSource={featureDescriptors.featureKinds}
+						dataSource={tFeatureDescriptors.featureKinds}
 						valueExpr='value'
 						displayExpr='name'
 						grouped={true}
-						placeholder={'choose kind'}
+						placeholder={'choose a method'}
 						value={tContainsOption}
 						style={{display: 'inline-block'}}
 						onValueChanged={action(async (e) => {
@@ -128,7 +130,7 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 						<SelectBox
 							className='sq-new-feature-item sq-fc-part'
 							dataSource={featureDescriptors.kindOfThingContainedOptions}
-							placeholder={'choose thing'}
+							placeholder={'choose from'}
 							value={tKindOption}
 							style={{display: 'inline-block'}}
 							onValueChanged={action(async (e) => {
@@ -214,7 +216,7 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 				if (tFeature.info.kind === 'ngram')
 					return (<div className='sq-feature-ngram-settings'>
 						<CheckBox
-							text=' Ignore stop words'
+							text=' Ignore stopwords'
 							value={tFeature.info.ignoreStopWords}
 							hint={Object.keys(stopWords).join(', ')}
 							onValueChange={
@@ -223,19 +225,23 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 								})
 							}
 						/>
-						<NumberBox
-							width={40}
-							// onInitialized={this.saveInputInstance}
-							min={0}
-							max={100}
-							value={tFeature.info.frequencyThreshold}
-							onValueChanged={action((e) => {
-								tFeature.info.frequencyThreshold = e.value
-							})}
-							onEnterKey={() => {
-								// this.blurInput();
-							}}
-						/>
+						<div className='sq-feature-ngram-ignore-settings'>
+							<span>Ignore words that appear fewer than </span>
+							<NumberBox
+								width={40}
+								// onInitialized={this.saveInputInstance}
+								min={0}
+								max={100}
+								value={tFeature.info.frequencyThreshold}
+								onValueChanged={action((e) => {
+									tFeature.info.frequencyThreshold = e.value
+								})}
+								onEnterKey={() => {
+									// this.blurInput();
+								}}
+							/>
+							<span> times</span>
+						</div>
 						{/*
 						<NumericInput
 							label='Frequency threshold'
@@ -260,9 +266,6 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 			if (!this.props.shortened) {
 				return (
 					<div className='sq-component'>
-						<span
-							className='sq-fc-part'
-						>This feature is defined as</span>
 						{kindOfContainsChoice()}
 						{kindOfThingContainedChoice()}
 						{freeFormTextBox()}

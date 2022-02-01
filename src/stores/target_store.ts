@@ -59,6 +59,7 @@ export class TargetStore {
 			targetClassNames: toJS(this.targetClassNames),
 			targetPredictedLabelAttributeName: toJS(this.targetPredictedLabelAttributeName),
 			targetColumnFeatureNames: toJS(this.targetColumnFeatureNames),
+			targetChosenClassColumnKey: toJS(this.targetChosenClassColumnKey)
 		}
 	}
 
@@ -74,6 +75,7 @@ export class TargetStore {
 			this.targetClassNames = json.targetClassNames
 		this.targetPredictedLabelAttributeName = json.targetPredictedLabelAttributeName || ''
 		this.targetColumnFeatureNames = json.targetColumnFeatureNames || []
+		this.targetChosenClassColumnKey = json.targetChosenClassColumnKey || ''
 	}
 
 	getClassName(iClass: 'positive' | 'negative') {
@@ -175,19 +177,19 @@ export class TargetStore {
 
 		function freeFormFormula() {
 			const option = (iNewFeature.info.details as SearchDetails).where;
-			const tBegins = option === featureDescriptors.containsOptions[0] ? '^' : '';
+			const tBegins = option === featureDescriptors.containsOptions[2] ? '^' : '';
 			const tEnds = option === featureDescriptors.containsOptions[3] ? '$' : '';
 			const tParamString = `${this_.targetAttributeName},"${tBegins}\\\\\\\\b${(iNewFeature.info.details as SearchDetails).freeFormText}\\\\\\\\b${tEnds}"`;
 			let tResult = '';
-			switch (option) {//['starts with', 'contains', 'does not contain', 'ends with']
-				case featureDescriptors.containsOptions[0]:	// starts with
+			switch (option) {//['contain', 'not contain', 'start with', 'end with']
+				case featureDescriptors.containsOptions[0]:	// contain
 					tResult = `patternMatches(${tParamString})>0`
 					break;
-				case featureDescriptors.containsOptions[1]:	// contains
-					tResult = `patternMatches(${tParamString})>0`
-					break;
-				case featureDescriptors.containsOptions[2]:	// does not contain
+				case featureDescriptors.containsOptions[1]:	// not contain
 					tResult = `patternMatches(${tParamString})=0`
+					break;
+				case featureDescriptors.containsOptions[2]:	// start with
+					tResult = `patternMatches(${tParamString})>0`
 					break;
 				case featureDescriptors.containsOptions[3]:	// ends with
 					tResult = `patternMatches(${tParamString})>0`
@@ -199,17 +201,17 @@ export class TargetStore {
 		function anyNumberFormula() {
 			const kNumberPattern = `[0-9]+`;
 			let tExpression = '';
-			switch ((iNewFeature.info.details as SearchDetails).where) {//['starts with', 'contains', 'does not contain', 'ends with']
-				case featureDescriptors.containsOptions[0]:	// starts with
-					tExpression = `patternMatches(${tTargetAttr}, "^${kNumberPattern}")>0`
-					break;
-				case featureDescriptors.containsOptions[1]:	// contains
+			switch ((iNewFeature.info.details as SearchDetails).where) {//['contain', 'not contain', 'start with', 'end with']
+				case featureDescriptors.containsOptions[0]:	// contain
 					tExpression = `patternMatches(${tTargetAttr}, "${kNumberPattern}")>0`
 					break;
-				case featureDescriptors.containsOptions[2]:	// does not contain
+				case featureDescriptors.containsOptions[1]:	// not contain
 					tExpression = `patternMatches(${tTargetAttr}, "${kNumberPattern}")=0`
 					break;
-				case featureDescriptors.containsOptions[3]:	// ends with
+				case featureDescriptors.containsOptions[2]:	// start with
+					tExpression = `patternMatches(${tTargetAttr}, "^${kNumberPattern}")>0`
+					break;
+				case featureDescriptors.containsOptions[3]:	// end with
 					tExpression = `patternMatches(${tTargetAttr}, "${kNumberPattern}$")>0`
 					break;
 			}
@@ -219,17 +221,17 @@ export class TargetStore {
 		function punctuationFormula() {
 			const tPunc = `\\\\\\\\${(iNewFeature.info.details as SearchDetails).punctuation}`
 			let tExpression = '';
-			switch ((iNewFeature.info.details as SearchDetails).where) {//['starts with', 'contains', 'does not contain', 'ends with']
-				case featureDescriptors.containsOptions[0]:	// starts with
-					tExpression = `patternMatches(${tTargetAttr}, "^${tPunc}")>0`
-					break;
-				case featureDescriptors.containsOptions[1]:	// contains
+			switch ((iNewFeature.info.details as SearchDetails).where) {//['contain', 'not contain', 'start with', 'end with']
+				case featureDescriptors.containsOptions[0]:	// contain
 					tExpression = `patternMatches(${tTargetAttr}, "${tPunc}")>0`
 					break;
-				case featureDescriptors.containsOptions[2]:	// does not contain
+				case featureDescriptors.containsOptions[1]:	// not contain
 					tExpression = `patternMatches(${tTargetAttr}, "${tPunc}")=0`
 					break;
-				case featureDescriptors.containsOptions[3]:	// ends with
+				case featureDescriptors.containsOptions[2]:	// start with
+					tExpression = `patternMatches(${tTargetAttr}, "^${tPunc}")>0`
+					break;
+				case featureDescriptors.containsOptions[3]:	// end with
 					tExpression = `patternMatches(${tTargetAttr}, "${tPunc}$")>0`
 					break;
 			}
@@ -240,22 +242,27 @@ export class TargetStore {
 			let tExpression;
 			const kListName = (iNewFeature.info.details as SearchDetails).wordList.datasetName,
 				kListAttributeName = (iNewFeature.info.details as SearchDetails).wordList.firstAttributeName,
-				kWords = SQ.lists[kListName];
+				kWords = SQ.lists[kListName],
+				tWhere = (iNewFeature.info.details as SearchDetails).where,
+				tStartsWithOption = featureDescriptors.containsOptions[0],
+				tEndsWithOption = featureDescriptors.containsOptions[3],
+				tCaret = tWhere === tStartsWithOption ? '^' : '',
+				tDollar = tWhere === tEndsWithOption ? '$' : ''
 			if (kWords) {
 				tExpression = kWords.reduce((iSoFar, iWord) => {
-					return iSoFar === '' ? `\\\\\\\\b${iWord}\\\\\\\\b` : iSoFar + `|\\\\\\\\b${iWord}\\\\\\\\b`;
+					return iSoFar === '' ? `${tCaret}\\\\\\\\b${iWord}\\\\\\\\b${tDollar}` : iSoFar + `|${tCaret}\\\\\\\\b${iWord}\\\\\\\\b${tDollar}`;
 				}, '');
-				switch ((iNewFeature.info.details as SearchDetails).where) {//['starts with', 'contains', 'does not contain', 'ends with']
-					case featureDescriptors.containsOptions[0]:	// starts with
-						tExpression = `patternMatches(${tTargetAttr}, "^${tExpression}")>0`;
-						break;
-					case featureDescriptors.containsOptions[1]:	// contains
+				switch (tWhere) {//['contain', 'not contain', 'start with', 'end with']
+					case featureDescriptors.containsOptions[0]:	// contain
 						tExpression = `patternMatches(${tTargetAttr}, "${tExpression}")>0`;
 						break;
-					case featureDescriptors.containsOptions[2]:	// does not contain
+					case featureDescriptors.containsOptions[1]:	// not contain
 						tExpression = `patternMatches(${tTargetAttr}, "${tExpression}")=0`;
 						break;
-					case featureDescriptors.containsOptions[3]:	// ends with
+					case featureDescriptors.containsOptions[2]:	// start with
+						tExpression = `patternMatches(${tTargetAttr}, "^${tExpression}")>0`;
+						break;
+					case featureDescriptors.containsOptions[3]:	// end with
 						tExpression = `patternMatches(${tTargetAttr}, "${tExpression}$")>0`;
 						break;
 				}
@@ -270,13 +277,13 @@ export class TargetStore {
 			case 'any number':
 				tFormula = anyNumberFormula()
 				break;
-			case 'any from list':
+			case 'any item from a list':
 				tFormula = anyListFormula()
 				break;
-			case 'free form text':
+			case 'text':
 				tFormula = freeFormFormula()
 				break;
-			case 'punctuation mark':
+			case 'punctuation':
 				tFormula = punctuationFormula()
 				break;
 			case 'part of speech':
