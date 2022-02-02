@@ -28,15 +28,13 @@ export const TargetTextArea = observer(class TargetTextArea extends Component<Ta
 	}
 
 	render() {
-		let this_ = this
-
 		// const tTextRefs = this.props.domainStore.targetStore.textRefs
 
 		function getTexts(iClassName: string) {
-			const tTargetAttr = this_.props.domainStore.targetStore.targetAttributeName
-			const tClassAttr = this_.props.domainStore.targetStore.targetClassAttributeName
-			if (this_.props.domainStore.targetStore.targetCases.length > 0) {
-				const tFilteredCases = this_.props.domainStore.targetStore.targetCases.filter(iCase => {
+			const tTargetAttr = tTargetStore.targetAttributeName
+			const tClassAttr = tTargetStore.targetClassAttributeName
+			if (tTargetStore.targetCases.length > 0) {
+				const tFilteredCases = tTargetStore.targetCases.filter(iCase => {
 					return iClassName === '' || iCase.values[tClassAttr] === iClassName
 				})
 				// const tTempRef = React.createRef()
@@ -62,33 +60,36 @@ export const TargetTextArea = observer(class TargetTextArea extends Component<Ta
 		 * @param index
 		 */
 		function getTargetClassName(index: number) {
-			const
-				tDesiredColumnValue = index === 0 ? tLeftColumnValue : tRightColumnValue
-			return (
-				<div className='sq-target-choice'>
-					<RadioGroup
-						items={[tDesiredColumnValue]}
-						value={tChosenColumnValue}
-						onValueChange={action((e) => {
-							if (e) {
-								this_.props.domainStore.targetStore.targetChosenClassColumnKey =
-									index === 0 ? tLeftColumnKey : tRightColumnKey
-							}
-						})}
-						hint={'This is the label for one of the two groups for the target texts.'}
-					/>
-				</div>
-			)
+			if( tTargetStore.targetClassAttributeValues.length === 2) {
+				const
+					tDesiredColumnValue = index === 0 ? tLeftColumnValue : tRightColumnValue
+				return (
+					<div className='sq-target-choice'>
+						<RadioGroup
+							items={[tDesiredColumnValue]}
+							value={tChosenColumnValue}
+							onValueChange={action((e) => {
+								if (e) {
+									tTargetStore.targetChosenClassColumnKey =
+										index === 0 ? tLeftColumnKey : tRightColumnKey
+								}
+							})}
+							hint={'This is the label for one of the two groups for the target texts.'}
+						/>
+					</div>
+				)
+			}
 		}
 
-		const tTargetClassNames = this.props.domainStore.targetStore.targetClassNames,
-			tLeftColumnKey = this_.props.domainStore.targetStore.targetLeftColumnKey,
-			tLeftColumnValue = this_.props.domainStore.targetStore.targetClassNames[tLeftColumnKey],
+		const tTargetStore = this.props.domainStore.targetStore,
+			tTargetClassNames = tTargetStore.targetClassNames,
+			tLeftColumnKey = tTargetStore.targetLeftColumnKey,
+			tLeftColumnValue = tTargetStore.targetClassNames[tLeftColumnKey],
 			tRightColumnKey = tLeftColumnKey === 'left' ? 'right' : 'left',
-			tRightColumnValue = this_.props.domainStore.targetStore.targetClassNames[tRightColumnKey],
-			tChosenColumnKey = this_.props.domainStore.targetStore.targetChosenClassColumnKey,
-			tChosenColumnValue = this_.props.domainStore.targetStore.targetClassNames[tChosenColumnKey]
-		if (this.props.domainStore.targetStore.targetClassAttributeName !== '') {
+			tRightColumnValue = tTargetStore.targetClassNames[tRightColumnKey],
+			tChosenColumnKey = tTargetStore.targetChosenClassColumnKey,
+			tChosenColumnValue = tTargetStore.targetClassNames[tChosenColumnKey]
+		if (tTargetStore.targetClassAttributeName !== '') {
 			const tLeftClassName = tTargetClassNames[tLeftColumnKey],
 				tRightClassName = tTargetClassNames[tRightColumnKey]
 			this.showRefs()
@@ -104,10 +105,9 @@ export const TargetTextArea = observer(class TargetTextArea extends Component<Ta
 					</div>
 				</div>
 			);
-		} else if (this.props.domainStore.targetStore.targetAttributeName !== '') {
+		} else if (tTargetStore.targetAttributeName !== '') {
 			return (
 				<div className='sq-target-lower-panel'>
-					{/*{getTargetClassName(0)}*/}
 					<div className='sq-target-text-panel'>
 						{getTexts('')}
 					</div>

@@ -54,6 +54,8 @@ export const FeaturePanel = observer(class FeaturePanel extends Component<Featur
 				action(async () => {
 					await this.props.domainStore.featureStore.updateWordListSpecs()
 				})()
+			} else if (['createAttributes', 'updateAttributes'].includes(tOperation)) {
+				await this.props.domainStore.targetStore.updateFromCODAP()
 			}
 		}
 	}

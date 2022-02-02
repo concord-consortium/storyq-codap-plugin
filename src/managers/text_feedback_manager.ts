@@ -184,12 +184,13 @@ export default class TextFeedbackManager {
 				action: 'get',
 				resource: `dataContext[${tDatasetName}].collection[${tCollectionName}].caseByID[${iID}]}`
 			})
-			return tResult.values.case
+			if( tResult.success)
+				return tResult.values.case
 		}
 
 		async function getMatchingChildCase(iCase: Case) {
 			const tCaseByID = await getTargetCaseByID(iCase.id),
-				tChildCaseIDs = tCaseByID.children,
+				tChildCaseIDs = tCaseByID && tCaseByID.children,
 				tChildren = tChildCaseIDs ? await this_.getChildCases(tChildCaseIDs, tDatasetName, 'results') : null
 			if (tChildren)
 				return tChildren.find(iCase => iCase['model name'] === tActiveModelName)

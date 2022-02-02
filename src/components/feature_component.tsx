@@ -87,7 +87,6 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 			*/
 
 			function kindOfContainsChoice() {
-				const tFeatureDescriptors = toJS(featureDescriptors)
 				tFeatureDescriptors.featureKinds[2].items = this_.props.domainStore.targetStore.targetColumnFeatureNames.map(iColumnName => {
 					return {
 						name: iColumnName,
@@ -260,6 +259,7 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 			}
 
 			const tFeature = this.props.feature
+			const tFeatureDescriptors = toJS(featureDescriptors)
 			const tContainsOption = tFeature.infoChoice ? tFeature.infoChoice : ''
 			const tKindOption = tFeature.info.details ? (tFeature.info.details as SearchDetails).what : ''
 

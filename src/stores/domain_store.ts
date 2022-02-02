@@ -483,6 +483,11 @@ export class DomainStore {
 			}
 		}))
 		// All cases are showing. Now figure out which weights and results to set aside
+		// First gather all the weight cases with no model name
+/*
+		const tNoNamePairs = tWeightNameIDPairs.filter(iPair=>iPair.modelName === '')
+		tWeightIDsToSetaside = tWeightIDsToSetaside.concat(tNoNamePairs.map(iPair=>iPair.id))
+*/
 		for (let tIndex = 0; tIndex < tTrainingResults.length; tIndex++) {
 			const iResult = tTrainingResults[tIndex]
 			// First the weights

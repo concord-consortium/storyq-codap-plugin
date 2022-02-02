@@ -35,6 +35,7 @@ export class TargetStore {
 	targetFeatureIDsAttributeName = 'featureIDs'
 	targetCases: Case[] = []
 	targetClassAttributeName: string = ''
+	targetClassAttributeValues: string[] = []
 	targetClassNames: { [index: string]: string, left: string, right: string } = {left: '', right: ''}
 	targetColumnFeatureNames:string[] = []
 	targetLeftColumnKey: 'left' | 'right' = 'left'
@@ -56,6 +57,7 @@ export class TargetStore {
 			targetDatasetInfo: toJS(this.targetDatasetInfo),
 			targetAttributeName: toJS(this.targetAttributeName),
 			targetClassAttributeName: toJS(this.targetClassAttributeName),
+			targetClassAttributeValues: toJS(this.targetClassAttributeValues),
 			targetClassNames: toJS(this.targetClassNames),
 			targetPredictedLabelAttributeName: toJS(this.targetPredictedLabelAttributeName),
 			targetColumnFeatureNames: toJS(this.targetColumnFeatureNames),
@@ -70,6 +72,7 @@ export class TargetStore {
 			json.targetClassNames = null
 		this.targetDatasetInfo = json.targetDatasetInfo || kEmptyEntityInfo
 		this.targetAttributeName = json.targetAttributeName || ''
+		this.targetClassAttributeValues = json.targetClassAttributeValues || []
 		this.targetClassAttributeName = json.targetClassAttributeName || ''
 		if (json.targetClassNames)
 			this.targetClassNames = json.targetClassNames
@@ -98,10 +101,17 @@ export class TargetStore {
 				const tNegativeClassCase = tCaseValues.find(iCase => iCase.values[tTargetClassAttributeName] !== tPositiveClassName)
 				tNegativeClassName = tNegativeClassCase ? tNegativeClassCase.values[tTargetClassAttributeName] : ''
 				tClassNames = {left: tPositiveClassName, right: tNegativeClassName}
+
+				// Also make a set of the unique values of the class attribute
+				const tClassAttributeValuesSet:Set<string> = new Set()
+				tCaseValues.forEach(iCase=>{
+					tClassAttributeValuesSet.add(iCase.values[tTargetClassAttributeName])
+				})
+				tClassAttributeValues = Array.from(tClassAttributeValuesSet)
 			}
 		}
 
-		async function gatherColumnFeatures() {
+		function gatherColumnFeatures() {
 			if( tAttrNames.length > 0 && this_.targetAttributeName !== '' &&
 					this_.targetClassAttributeName !== '') {
 				tColumnFeatureNames = tAttrNames.filter(iName=>{
@@ -121,6 +131,7 @@ export class TargetStore {
 		let tPositiveClassName = ''
 		let tNegativeClassName = ''
 		let tClassNames = {left: '', right: ''}
+		let tClassAttributeValues:string[]
 		let tColumnFeatureNames:string[] = []
 		const tTargetDatasetName = this.targetDatasetInfo.name
 		if (tTargetDatasetName !== '') {
@@ -145,6 +156,7 @@ export class TargetStore {
 			this.targetClassNames = tClassNames
 			if (iPropName)
 				this[iPropName] = iValue
+			this.targetClassAttributeValues = tClassAttributeValues
 			this.targetPredictedLabelAttributeName = 'predicted ' + this.targetClassAttributeName
 			this.targetColumnFeatureNames = tColumnFeatureNames
 		})
@@ -152,6 +164,21 @@ export class TargetStore {
 			await guaranteeAttribute({name: this.targetFeatureIDsAttributeName, hidden: true},
 				tTargetDatasetName, this.targetCollectionName)
 		}
+	}
+
+	resetTargetDataForNewTarget() {
+		this.targetCollectionName = ''
+		this.targetAttributeNames = []
+		this.targetAttributeName = ''
+		this.targetPredictedLabelAttributeName = ''
+		this.targetCases = []
+		this.targetClassAttributeName = ''
+		this.targetClassAttributeValues = []
+		this.targetClassNames = {left: '', right: ''}
+		this.targetColumnFeatureNames = []
+		this.targetLeftColumnKey = 'left'
+		this.targetChosenClassColumnKey = ''
+
 	}
 
 	async updateTargetCases() {

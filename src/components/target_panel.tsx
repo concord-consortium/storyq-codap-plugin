@@ -48,7 +48,7 @@ export const TargetPanel = observer(class TargetPanel extends Component<Target_P
 	async handleNotification(iNotification: CODAP_Notification) {
 		if (iNotification.action === 'notify') {
 			let tOperation = iNotification.values.operation;
-			if (tOperation === 'dataContextCountChanged') {
+			if(['dataContextCountChanged', 'createAttributes', 'updateAttributes'].includes(tOperation)) {
 				await this.updateTargetPanelInfo();
 			}
 		}
@@ -98,17 +98,14 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 			function menu() {
 
 				async function handleChoice(iChoice: string) {
+					tTargetStore.resetTargetDataForNewTarget()
 					let newInfo = toJS(tDatasetInfoArray.find(iInfo => iInfo.title === iChoice)) ||
 						this_.targetPanelConstants.createNewEntityInfo;
 					if (newInfo.title !== this_.targetPanelConstants.createNewEntityInfo.title) {
 						tTargetStore.targetDatasetInfo = newInfo;
 						await this_.updateTargetPanelInfo()
 						tTargetStore.targetPanelMode = 'chosen'
-					} else {
-/*
-						tTargetStore.targetDatasetInfo = kEmptyEntityInfo
-						tTargetStore.targetPanelMode = 'create'
-*/
+					} else if(iChoice === tNewDatasetChoice) {
 						const tContextName = 'Training Data',
 							tResults:any = await codapInterface.sendRequest([
 							{
@@ -264,25 +261,37 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 			function positiveClassInstructions() {
 				if (this_.currState === 'chosen-no-chosen-pos-class') {
 					if (tTargetStore.targetCases.length > 0) {
-						const tLeftColumnKey = tTargetStore.targetLeftColumnKey,
-							tLeftColumnValue = tTargetStore.targetClassNames[tLeftColumnKey],
-							tRightColumnKey = tLeftColumnKey === 'left' ? 'right' : 'left',
-							tRightColumnValue = tTargetStore.targetClassNames[tRightColumnKey]
-						return (
-							<div className='sq-info-prompt'>
-								<p
-									title={'The model will pay attention to one of the labels, with the remaining labels as ' +
-										'“not” the label in question. The label we pay attention to is called the target label. \n' +
-										'A target label is the most important among all labels for your model to recognize.'}>
-									Choose either "{tLeftColumnValue}" or "{tRightColumnValue}" as your target label.</p>
-							</div>
-						)
-					} else {
-						return (
-							<div className='sq-info-prompt'>
-								<p>You will need to provide some text data before you can proceed.</p>
-							</div>
-						)
+						if(tTargetStore.targetClassAttributeValues.length === 2) {
+							const tLeftColumnKey = tTargetStore.targetLeftColumnKey,
+								tLeftColumnValue = tTargetStore.targetClassNames[tLeftColumnKey],
+								tRightColumnKey = tLeftColumnKey === 'left' ? 'right' : 'left',
+								tRightColumnValue = tTargetStore.targetClassNames[tRightColumnKey]
+							return (
+								<div className='sq-info-prompt'>
+									<p
+										title={'The model will pay attention to one of the labels, with the remaining labels as ' +
+											'“not” the label in question. The label we pay attention to is called the target label. \n' +
+											'A target label is the most important among all labels for your model to recognize.'}>
+										Choose either "{tLeftColumnValue}" or "{tRightColumnValue}" as your target label.</p>
+								</div>
+							)
+						}
+						else {
+							const tRightColumnKey = 'right',
+								tLeftColumnKey = 'left',
+								tLeftColumnValue = tTargetStore.targetClassNames[tLeftColumnKey]
+							return (
+								choicesMenu('Choose a target label', 'Your choice',
+									'This will be the label your model tries to predict.',
+									tTargetStore.targetClassAttributeValues,
+									tLeftColumnValue, 'No labels were found',
+									action((e)=>{
+										tTargetStore.targetClassNames[tLeftColumnKey] = e
+										tTargetStore.targetClassNames[tRightColumnKey] = tTargetStore.targetClassAttributeValues.slice(0, 3)
+											.filter((iValue:string)=>iValue!== e).join(',') + '…'
+									}))
+							)
+						}
 					}
 				}
 			}
