@@ -48,8 +48,10 @@ export const TargetPanel = observer(class TargetPanel extends Component<Target_P
 	async handleNotification(iNotification: CODAP_Notification) {
 		if (iNotification.action === 'notify') {
 			let tOperation = iNotification.values.operation;
-			if(['dataContextCountChanged', 'createAttributes', 'updateAttributes'].includes(tOperation)) {
-				await this.updateTargetPanelInfo();
+			if (['dataContextCountChanged', 'createAttributes', 'updateAttributes'].includes(tOperation)) {
+				action(async () => {
+					await this.updateTargetPanelInfo();
+				})()
 			}
 		}
 	}

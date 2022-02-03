@@ -362,7 +362,9 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 						</thead>
 						<tbody className='sq-model-table'>
 						{tResults.map((iResult, iIndex) => {
-							const tFeatureNames = iResult.featureNames ? iResult.featureNames.join() : ''
+							const tFeatureNames = iResult.featureNames && iResult.featureNames.map(iName=>{
+								return <p>{iName}</p>
+							})
 							return (
 								<tr key={iIndex}>
 									{getIsActiveButon(iIndex)}

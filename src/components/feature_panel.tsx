@@ -10,30 +10,20 @@ import {TargetInfoPane} from "./target_info_pane";
 import {FeaturePane} from "./feature_pane";
 import codapInterface, {CODAP_Notification} from "../lib/CodapInterface";
 import {action} from "mobx";
-
-interface FeaturePanelState {
-	count: number,
-}
-
-interface FeaturePanelInfo {
-	subscriberIndex: number
-}
+import {starterFeature} from "../stores/store_types_and_constants";
 
 export interface Feature_Props {
 	uiStore: UiStore
 	domainStore: DomainStore
 }
 
-export const FeaturePanel = observer(class FeaturePanel extends Component<Feature_Props, FeaturePanelState> {
-
-	private featurePanelInfo: FeaturePanelInfo;
+export const FeaturePanel = observer(class FeaturePanel extends Component<Feature_Props, {}> {
 
 	constructor(props: any) {
 		super(props);
 		this.state = {
 			count: 0
 		};
-		this.featurePanelInfo = {subscriberIndex: -1}
 		this.handleNotification = this.handleNotification.bind(this)
 		this.handleDeleteFeatureCase = this.handleDeleteFeatureCase.bind(this)
 		this.handleUpdateFeatureCase = this.handleUpdateFeatureCase.bind(this)
@@ -41,6 +31,8 @@ export const FeaturePanel = observer(class FeaturePanel extends Component<Featur
 
 	async componentDidMount() {
 		codapInterface.on('notify', '*', 'dataContextCountChanged', this.handleNotification);
+		codapInterface.on('notify', '*', 'createAttributes', this.handleNotification);
+		codapInterface.on('notify', '*', 'updateAttributes', this.handleNotification);
 		codapInterface.on('notify', '*', 'deleteCases', this.handleDeleteFeatureCase);
 		codapInterface.on('notify', '*', 'updateCases', this.handleUpdateFeatureCase);
 		await this.updateFeaturesDataset();
@@ -55,7 +47,10 @@ export const FeaturePanel = observer(class FeaturePanel extends Component<Featur
 					await this.props.domainStore.featureStore.updateWordListSpecs()
 				})()
 			} else if (['createAttributes', 'updateAttributes'].includes(tOperation)) {
-				await this.props.domainStore.targetStore.updateFromCODAP()
+				action(async () => {
+					// await this.props.domainStore.targetStore.updateFromCODAP()
+					this.props.domainStore.featureStore.featureUnderConstruction = Object.assign({}, starterFeature)
+				})()
 			}
 		}
 	}

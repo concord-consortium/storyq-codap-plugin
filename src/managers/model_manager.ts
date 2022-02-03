@@ -134,6 +134,7 @@ export class ModelManager {
 					}
 				}
 			)
+			console.log(`tCreationRequests = ${JSON.stringify(tCreationRequests)}`)
 		}
 
 		// Start with features/weights collection

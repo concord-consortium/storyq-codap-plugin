@@ -541,6 +541,7 @@ export class DomainStore {
 	 * 		* target cases featureIDs will be updated
 	 * 		* feature cases usages will be updated
 	 * 		* The target store's features will get updated IDs for both cases and items
+	 * 	 	* The featureStore's tokenMap's tokens get updated array of case IDs and featureIDs
 	 */
 	async recreateUsagesAndFeatureIDs() {
 
@@ -554,6 +555,7 @@ export class DomainStore {
 			tTargetCases = await getCaseValues(tTargetDatasetName, tTargetCollectionName),
 			tFeatureDatasetName = this.featureStore.featureDatasetInfo.datasetName,
 			tFeatureCollectionName = this.featureStore.featureDatasetInfo.collectionName,
+			tTokenMap = this.featureStore.tokenMap,
 			tFeatureCases = await getCaseValues(tFeatureDatasetName, tFeatureCollectionName),
 			tUsageResults:{ [index:number]:number[]} = {}, // Contains IDs of target texts that contain a given feature
 			tTextResults: {[index:number]:number[]} = {},	// Contains IDs of features found in a given text
@@ -622,6 +624,19 @@ export class DomainStore {
 				tStoredFeature.caseID = String(iFeature.id)
 			}
 		})
+
+		// Finally, we update featureStore.tokenMap. Each token has caseIDs corresponding to usages and a featureID
+		//	that is the ID of the feature in the features collection.
+		for (let tTokenMapKey in tTokenMap) {
+			const tToken = tTokenMap[tTokenMapKey],
+				tStoredFeature = this.featureStore.features.find(iStoredFeature=>{
+					return iStoredFeature.name === tTokenMapKey
+				})
+			if(tToken && tStoredFeature) {
+				tToken.featureCaseID = Number(tStoredFeature.caseID)
+				tToken.caseIDs = tUsageResults[Number(tStoredFeature.caseID)]
+			}
+		}
 	}
 
 }

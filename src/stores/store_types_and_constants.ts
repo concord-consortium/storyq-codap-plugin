@@ -62,7 +62,7 @@ export interface SearchDetails {
 export const namingAbbreviations:{[index:string]:string} = {
 	'start with': 'startWith',
 	contain: 'contain',
-	'not contain': 'not contain',
+	'not contain': 'notContain',
 	'end with': 'endWith'
 }
 
