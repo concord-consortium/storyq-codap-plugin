@@ -191,9 +191,9 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 				return tTestingResults.map((iResult, iIndex) => {
 					return (
 						<tr key={iIndex}>
-							<td>{iResult.modelName}</td>
+							<td style={{textAlign:'center'}}>{iResult.modelName}</td>
 							<td>{iResult.targetDatasetTitle}</td>
-							<td>{iResult.accuracy !== 0 ? iResult.accuracy.toFixed(2) : 'NA'}</td>
+							<td style={{textAlign:'right'}}>{iResult.accuracy !== 0 ? (100 * iResult.accuracy).toFixed(1)+'%' : 'NA'}</td>
 						</tr>
 					)
 				})
@@ -205,9 +205,9 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 						<table>
 							<thead>
 							<tr>
-								<th title={'The name of the model used in this test'}>Model Name</th>
-								<th title={'The dataset whose texts were classified in this test'}>Dataset</th>
-								<th title={'If the test dataset has labels, the percent of classifications that were correct'}>
+								<th style={{textAlign:'center'}} title={'The name of the model used in this test'}>Model Name</th>
+								<th style={{textAlign:'center'}} title={'The dataset whose texts were classified in this test'}>Dataset</th>
+								<th style={{textAlign:'center'}} title={'If the test dataset has labels, the percent of classifications that were correct'}>
 									Accuracy
 								</th>
 							</tr>

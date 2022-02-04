@@ -62,7 +62,8 @@ export class ModelManager {
 				if (tFirstChildResult.success && tFirstChildResult.values.length > 0) {
 					tFoundOne = true
 					const tName = tFirstChildResult.values[0].values['model name']
-					tIsEmpty = tIsEmpty && (!tName || tName === '')}
+					tIsEmpty = tIsEmpty && (!tName || tName === '')
+				}
 			}
 			return tFoundOne && tIsEmpty
 		}
@@ -134,7 +135,6 @@ export class ModelManager {
 					}
 				}
 			)
-			console.log(`tCreationRequests = ${JSON.stringify(tCreationRequests)}`)
 		}
 
 		// Start with features/weights collection
@@ -422,7 +422,7 @@ export class ModelManager {
 
 				await this_.computeResults(tModel.logisticModel.fitResult.theta)
 
-				action(()=>{
+				action(() => {
 					tTrainingStore.inactivateAll()
 
 					tTrainingResults.push({
@@ -512,26 +512,29 @@ export class ModelManager {
 
 		function generateRequests() {
 			iTokens.forEach((aToken: any, iIndex: number) => {
+				const tFeature = tFeatures.find(iFeature=>aToken.token === iFeature.name),
+					tFeatureIsChosen = tFeature && tFeature.chosen,
+					tWeight = tFeatureIsChosen ? iWeights[iIndex] : ''
 					tUpdateRequests.push({
 						id: tFeatureWeightCaseIDs[aToken.token],
 						values: {
 							'model name': iModelName,
-							weight: iWeights[iIndex]
+							weight: tWeight
 						}
 					})
 					// Also update in stored features
-					let tFoundFeature = tFeatures.find(iFeature => iFeature.name === aToken.token)
-					if (tFoundFeature)
-						tFoundFeature.weight = iWeights[iIndex]
+					if (tFeature && tFeatureIsChosen)
+						tFeature.weight = tWeight
 				}
 			)
 		}
 
-		const tFeatureDatasetName = this.domainStore.featureStore.featureDatasetInfo.datasetName,
-			tWeightsCollectionName = this.domainStore.featureStore.featureDatasetInfo.weightsCollectionName,
-			tFeatures = this.domainStore.featureStore.getChosenFeatures(),
+		const tFeatureStore = this.domainStore.featureStore,
+			tFeatureDatasetName = tFeatureStore.featureDatasetInfo.datasetName,
+			tWeightsCollectionName = tFeatureStore.featureDatasetInfo.weightsCollectionName,
+			tFeatures = tFeatureStore.getChosenFeatures(),
 			tUpdateRequests: { id: number, values: any }[] = [],
-			tFeatureWeightCaseIDs = this.domainStore.featureStore.featureWeightCaseIDs
+			tFeatureWeightCaseIDs = tFeatureStore.featureWeightCaseIDs
 
 		generateRequests()
 

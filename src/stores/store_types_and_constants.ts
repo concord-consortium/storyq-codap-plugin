@@ -102,7 +102,7 @@ export interface Feature {
 	caseID: string		// ID of the feature as a case in the feature table
 	attrID: string		// ID of the attribute in the target dataset corresponding to this feature
 	featureItemID: string	// ID of the item in the feature table corresponding to this feature
-	weight: number
+	weight: number | ''
 }
 
 export interface WordListSpec {

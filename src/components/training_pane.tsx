@@ -354,7 +354,7 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 								Active
 							</th>
 							<th>Model Name</th>
-							<th title={'The settings in effect when this model was trained'}>Settings</th>
+							<th style={{textAlign:'center'}} title={'The settings in effect when this model was trained'}>Settings</th>
 							<th title={'The percent of predicted labels that are correct'}>Accuracy</th>
 							{/*<th title={'This number is 0% when the model did no better than chance.'}>Kappa</th>*/}
 							<th title={'The features that were used to define this model'}>Features</th>
@@ -368,9 +368,9 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 							return (
 								<tr key={iIndex}>
 									{getIsActiveButon(iIndex)}
-									<td>{iResult.name}</td>
+									<td style={{textAlign:'center'}}>{iResult.name}</td>
 									<td>{getSettings(iResult)}</td>
-									<td>{(100 * iResult.accuracy).toFixed(1)}%</td>
+									<td style={{textAlign:'right'}}>{(100 * iResult.accuracy).toFixed(1)}%</td>
 									{/*<td>{(100 * iResult.kappa).toFixed(1)}%</td>*/}
 									<td>{tFeatureNames}</td>
 								</tr>)

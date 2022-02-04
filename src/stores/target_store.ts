@@ -45,7 +45,7 @@ export class TargetStore {
 
 	constructor(iGetFeatureNamesFunc:()=>string[]) {
 		makeAutoObservable(this,
-			{targetCases: false, textRefs: false, targetLeftColumnKey: false,
+			{textRefs: false, targetLeftColumnKey: false,
 					getFeatureNamesFunc: false},
 			{autoBind: true})
 		this.getFeatureNamesFunc = iGetFeatureNamesFunc

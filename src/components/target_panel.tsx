@@ -38,16 +38,21 @@ export const TargetPanel = observer(class TargetPanel extends Component<Target_P
 		super(props);
 		this.handleNotification = this.handleNotification.bind(this);
 		this.targetPanelInfo = {subscriberIndex: -1}
+		this.targetPanelInfo.subscriberIndex = codapInterface.on('notify', '*', '', this.handleNotification);
 	}
 
 	public async componentDidMount() {
-		this.targetPanelInfo.subscriberIndex = codapInterface.on('notify', '*', '', this.handleNotification);
 		await this.updateTargetPanelInfo();
 	}
 
 	async handleNotification(iNotification: CODAP_Notification) {
 		if (iNotification.action === 'notify') {
 			let tOperation = iNotification.values.operation;
+			if(tOperation === 'createCases') {
+				action(async ()=>{
+					await this.updateTargetPanelInfo()
+				})()
+			}
 			if (['dataContextCountChanged', 'createAttributes', 'updateAttributes'].includes(tOperation)) {
 				action(async () => {
 					await this.updateTargetPanelInfo();
@@ -108,8 +113,13 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 						await this_.updateTargetPanelInfo()
 						tTargetStore.targetPanelMode = 'chosen'
 					} else if(iChoice === tNewDatasetChoice) {
-						const tContextName = 'Training Data',
-							tResults:any = await codapInterface.sendRequest([
+						let tContextName = 'Training Data',
+							n = 1
+						while(tDatasetChoices.includes(tContextName)) {
+							tContextName = 'Training Data ' + n
+							n++
+						}
+						const tResults:any = await codapInterface.sendRequest([
 							{
 								"action": "create",
 								"resource": "dataContext",
