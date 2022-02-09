@@ -12,10 +12,6 @@ import Button from "devextreme-react/button";
 import {action, toJS} from "mobx";
 import {TestingManager} from "../managers/testing_manager";
 
-interface TestingPanelInfo {
-	subscriberIndex: number
-}
-
 export interface Testing_Props {
 	uiStore: UiStore
 	domainStore: DomainStore
@@ -23,15 +19,13 @@ export interface Testing_Props {
 
 export const TestingPanel = observer(class TestingPanel extends Component<Testing_Props> {
 
-	private testingPanelInfo: TestingPanelInfo;
 	testingManager: TestingManager
 	kNonePresent = 'None present'
 
 	constructor(props: any) {
 		super(props);
 		this.handleNotification = this.handleNotification.bind(this)
-		this.testingPanelInfo = {subscriberIndex: -1}
-		this.testingPanelInfo.subscriberIndex = codapInterface.on('notify', '*', '', this.handleNotification);
+		codapInterface.on('notify', '*', '', this.handleNotification);
 
 		this.testingManager = new TestingManager(this.props.domainStore, this.kNonePresent)
 	}

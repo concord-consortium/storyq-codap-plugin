@@ -3,17 +3,13 @@
  */
 
 import React, {Component} from "react";
-import codapInterface, {CODAP_Notification} from "../lib/CodapInterface";
+import codapInterface from "../lib/CodapInterface";
 import {TargetTextArea} from "./target_text_area";
 import {action, toJS} from "mobx";
 import {DomainStore} from "../stores/domain_store";
 import {observer} from "mobx-react";
 import {UiStore} from "../stores/ui_store";
 import {choicesMenu} from "./component_utilities";
-
-interface TargetPanelInfo {
-	subscriberIndex: number
-}
 
 export interface Target_Props {
 	uiStore: UiStore
@@ -22,7 +18,6 @@ export interface Target_Props {
 
 export const TargetPanel = observer(class TargetPanel extends Component<Target_Props, {}> {
 
-	private targetPanelInfo: TargetPanelInfo;
 	private targetPanelConstants = {
 		createNewEntityInfo: {
 			title: 'Create your own'/*'NEW'*/,
@@ -34,31 +29,8 @@ export const TargetPanel = observer(class TargetPanel extends Component<Target_P
 	private currState: 'welcome' | 'chosen-no-target-attribute' | 'chosen-no-target-label-attribute' |
 		'chosen-no-chosen-pos-class' | 'chosen-complete' | 'create' = 'welcome'
 
-	constructor(props: any) {
-		super(props);
-		this.handleNotification = this.handleNotification.bind(this);
-		this.targetPanelInfo = {subscriberIndex: -1}
-		this.targetPanelInfo.subscriberIndex = codapInterface.on('notify', '*', '', this.handleNotification);
-	}
-
 	public async componentDidMount() {
 		await this.updateTargetPanelInfo();
-	}
-
-	async handleNotification(iNotification: CODAP_Notification) {
-		if (iNotification.action === 'notify') {
-			let tOperation = iNotification.values.operation;
-			if(tOperation === 'createCases') {
-				action(async ()=>{
-					await this.updateTargetPanelInfo()
-				})()
-			}
-			if (['dataContextCountChanged', 'createAttributes', 'updateAttributes'].includes(tOperation)) {
-				action(async () => {
-					await this.updateTargetPanelInfo();
-				})()
-			}
-		}
 	}
 
 	async updateTargetPanelInfo(iPropName?: string | null, iValue?: any) {

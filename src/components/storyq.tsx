@@ -24,12 +24,14 @@ import {action} from "mobx";
 import {TrainingPanel} from "./training_panel";
 import {TestingPanel} from "./testing_panel";
 import {kStoryQPluginName} from "../stores/store_types_and_constants";
+import NotificationManager from "../managers/notification_manager";
 
 const Storyq = observer(class Storyq extends Component<{}, {}> {
 		private uiStore: UiStore
 		private domainStore: DomainStore
+		private notificationManager: NotificationManager
 		private kPluginName = kStoryQPluginName;
-		private kVersion = "1.93";
+		private kVersion = "1.94";
 		private kInitialDimensions = {
 			width: 429,
 			height: 420
@@ -40,6 +42,7 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 			super(props);
 			this.uiStore = new UiStore()
 			this.domainStore = new DomainStore(this.uiStore)
+			this.notificationManager = new NotificationManager(this.domainStore)
 			this.restorePluginFromStore = this.restorePluginFromStore.bind(this);
 			this.getPluginStore = this.getPluginStore.bind(this);
 			this.saveTabPanelInstance = this.saveTabPanelInstance.bind(this);
