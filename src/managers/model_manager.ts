@@ -7,7 +7,7 @@ import codapInterface from "../lib/CodapInterface";
 import {oneHot} from "../lib/one_hot";
 import {action, runInAction} from "mobx";
 import {computeKappa} from "../utilities/utilities";
-import {NgramDetails, StoredModel, Token} from "../stores/store_types_and_constants";
+import {Feature, NgramDetails, StoredModel, Token} from "../stores/store_types_and_constants";
 import {LogisticRegression} from "../lib/jsregression";
 
 export class ModelManager {
@@ -367,8 +367,6 @@ export class ModelManager {
 
 		await setup()
 
-		// console.log(`tokenMap = ${JSON.stringify(toJS(this.domainStore.featureStore.tokenMap))}`)
-
 		const tData: number[][] = [];
 
 		// Logistic can't happen until we've isolated the features and produced a oneHot representation
@@ -512,9 +510,16 @@ export class ModelManager {
 
 		function generateRequests() {
 			iTokens.forEach((aToken: any, iIndex: number) => {
-				const tFeature = tFeatures.find(iFeature=>aToken.token === iFeature.name),
-					tFeatureIsChosen = tFeature && tFeature.chosen,
-					tWeight = tFeatureIsChosen ? iWeights[iIndex] : ''
+					let tWeight: number | '',
+						tFeature: Feature | undefined,
+						tFeatureIsChosen: boolean | undefined = false
+					if (aToken.type === 'unigram') {
+						tWeight = iWeights[iIndex]
+					} else {
+						tFeature = tFeatures.find(iFeature => aToken.token === iFeature.name)
+						tFeatureIsChosen = tFeature && tFeature.chosen
+						tWeight = tFeatureIsChosen ? iWeights[iIndex] : ''
+					}
 					tUpdateRequests.push({
 						id: tFeatureWeightCaseIDs[aToken.token],
 						values: {

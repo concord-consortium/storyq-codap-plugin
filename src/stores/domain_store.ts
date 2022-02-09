@@ -579,6 +579,10 @@ export class DomainStore {
 					tTextResults[iTargetCase.id].push( iFeatureCase.id)
 				}
 			})
+			// We need to store the featureCaseID in the token map while we've got it
+			if( tTokenMap[tFeatureName]) {
+				tTokenMap[tFeatureName].featureCaseID = iFeatureCase.id
+			}
 		})
 		// Now we can update the target and feature cases
 		const tMsgs:Message[] = [
