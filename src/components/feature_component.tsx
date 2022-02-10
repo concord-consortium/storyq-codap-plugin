@@ -94,8 +94,8 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 						key: 'Choose other columns as features'
 					}
 				})
-				if (this_.props.domainStore.featureStore.hasNgram())
-					tFeatureDescriptors.featureKinds.splice(1, 1)
+				// @ts-ignore
+				tFeatureDescriptors.featureKinds[1].items[0].disabled = this_.props.domainStore.featureStore.hasNgram()
 				return (
 					<SelectBox
 						className='sq-new-feature-item sq-fc-part'
@@ -106,7 +106,7 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 						placeholder={'choose a method'}
 						value={tContainsOption}
 						style={{display: 'inline-block'}}
-						onValueChanged={action( (e) => {
+						onValueChanged={action((e) => {
 							tFeature.infoChoice = e.value
 							tFeature.info.kind = JSON.parse(e.value).kind
 							tFeature.info.details = Object.assign(tFeature.info.details || {}, JSON.parse(e.value).details)

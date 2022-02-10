@@ -33,7 +33,7 @@ export let featureDescriptors = {
 		{
 		key: "Extract features of the same kind",
 		items: [
-			{name: "single words", value: `{"kind": "ngram", "details": {"n":"uni"}}`}/*,
+			{name: "single words", disabled: false, value: `{"kind": "ngram", "details": {"n":"uni"}}`}/*,
 				{name: "bigrams", value: `{"kind": "ngram", "details": {"n":"bi"}}`}*/
 		]
 	},
