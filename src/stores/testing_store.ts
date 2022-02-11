@@ -30,10 +30,10 @@ export class TestingStore {
 	constructor(iGetFeatureSetIDCallback:any) {
 		makeAutoObservable(this, {getFeatureSetIDCallback: false}, {autoBind: true})
 		this.getFeatureSetIDCallback = iGetFeatureSetIDCallback
-		this.currentTestingResults = this.emptyTestingResults()
+		this.currentTestingResults = this.emptyTestingResult()
 	}
 
-	emptyTestingResults():TestingResult {
+	emptyTestingResult():TestingResult {
 		return {
 			targetDatasetName: '', targetDatasetTitle: '', modelName: '', numPositive: 0, numNegative: 0,
 			accuracy: 0, kappa: 0, testBeingConstructed: false
@@ -41,7 +41,7 @@ export class TestingStore {
 	}
 
 	prepareForConstruction() {
-		this.currentTestingResults = this.emptyTestingResults()
+		this.currentTestingResults = this.emptyTestingResult()
 		this.currentTestingResults.testBeingConstructed = true
 	}
 
@@ -67,7 +67,7 @@ export class TestingStore {
 				return anInfo.id !== tFeatureDatasetID
 			})
 		let tCollectionNames: string[] = [],
-			tCollectionName: string,
+			tCollectionName: string = '',
 			tAttributeNames: string[] = []
 		if (tTestingDatasetName !== '') {
 			tCollectionNames = await getCollectionNames(tTestingDatasetName)

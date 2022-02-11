@@ -3,7 +3,7 @@
  * be accessed in more than one file or needs to be saved and restored.
  */
 
-import {getCaseValues, getComponentByTypeAndTitle, openTable} from "../lib/codap-helper";
+import {getCaseValues, getComponentByTypeAndTitleOrName, openTable} from "../lib/codap-helper";
 import codapInterface from "../lib/CodapInterface";
 import TextFeedbackManager from "../managers/text_feedback_manager";
 import {oneHot, wordTokenizer} from "../lib/one_hot";
@@ -391,7 +391,7 @@ export class DomainStore {
 		await this.clearText()
 		setTimeout(async () => {
 			// Take the focus away from the newly created text component
-			const tPluginID = await getComponentByTypeAndTitle('game', kStoryQPluginName)
+			const tPluginID = await getComponentByTypeAndTitleOrName('game', kStoryQPluginName, kStoryQPluginName)
 			await codapInterface.sendRequest({
 				action: 'notify',
 				resource: `component[${tPluginID}]`,

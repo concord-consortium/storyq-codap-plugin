@@ -56,7 +56,7 @@ export async function openTable(dataContextName: string) {
  */
 export async function guaranteeTableOrCardIsVisibleFor(iDatasetInfo: entityInfo) {
 	if (iDatasetInfo.name !== '' && iDatasetInfo.title !== '') {
-		const tTableID = await getComponentByTypeAndTitle('caseTable', iDatasetInfo.title),
+		const tTableID = await getComponentByTypeAndTitleOrName('caseTable', iDatasetInfo.title, iDatasetInfo.name),
 			tFoundTable = tTableID >= 0,
 			tType = tFoundTable ? 'caseTable' : 'caseCard'
 
@@ -313,7 +313,7 @@ export async function attributeExists(iDatasetName: string, iCollectionName: str
 	return tNames.includes(iAttributeName)
 }
 
-export async function getComponentByTypeAndTitle(iType: string, iTitle: string): Promise<number> {
+export async function getComponentByTypeAndTitleOrName(iType: string, iTitle: string, iName:string): Promise<number> {
 	const tListResult: any = await codapInterface.sendRequest(
 		{
 			action: 'get',
@@ -327,7 +327,7 @@ export async function getComponentByTypeAndTitle(iType: string, iTitle: string):
 	let tID = -1;
 	if (tListResult.success) {
 		let tFoundValue = tListResult.values.find((iValue: any) => {
-			return iValue.type === iType && iValue.title === iTitle;
+			return iValue.type === iType && (iValue.title === iTitle || iValue.name === iName);
 		});
 		if (tFoundValue)
 			tID = tFoundValue.id;

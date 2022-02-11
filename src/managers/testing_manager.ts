@@ -24,7 +24,7 @@ export class TestingManager {
 		this.kNonePresent = iNonePresentPrompt
 	}
 
-	async classify() {
+	async classify(iStoreTest:boolean) {
 		const this_ = this,
 			tChosenModelName = this.domainStore.testingStore.chosenModelName,
 			tTrainingResult = this.domainStore.trainingStore.getTrainingResultByName(tChosenModelName),
@@ -44,7 +44,7 @@ export class TestingManager {
 			tTargetFeatureIDsAttributeName = this_.domainStore.targetStore.targetFeatureIDsAttributeName,
 			tLabelValues:{id:number, values:any}[] = [],
 			tMatrix = {posPos: 0, negPos: 0, posNeg: 0, negNeg: 0},
-			tTestingResults: TestingResult = {
+			tTestingResult: TestingResult = {
 				targetDatasetName: tTestingDatasetName,
 				targetDatasetTitle: tTestingDatasetTitle,
 				modelName: tChosenModelName,
@@ -155,13 +155,13 @@ export class TestingManager {
 				// Increment results
 				let tActualBool = tActual === tPositiveClassName;
 				if (tPrediction.class) {
-					tTestingResults.numPositive++;
+					tTestingResult.numPositive++;
 					if (tActualBool)
 						tMatrix.posPos++;
 					else
 						tMatrix.negPos++;
 				} else {
-					tTestingResults.numNegative++;
+					tTestingResult.numNegative++;
 					if (tActualBool)
 						tMatrix.posNeg++;
 					else
@@ -193,8 +193,8 @@ export class TestingManager {
 			if (tClassAttributeName !== '') {
 				let computedKappa = computeKappa(tPhraseCount, tMatrix.posPos, tMatrix.negNeg,
 					tMatrix.posPos + tMatrix.posNeg, tMatrix.posPos + tMatrix.negPos);
-				tTestingResults.accuracy = Number(computedKappa.observed.toFixed(3));
-				tTestingResults.kappa = (computedKappa.observed === 0) ? 0 : Number(computedKappa.kappa.toFixed(3));
+				tTestingResult.accuracy = Number(computedKappa.observed.toFixed(3));
+				tTestingResult.kappa = (computedKappa.observed === 0) ? 0 : Number(computedKappa.kappa.toFixed(3));
 			}
 		}
 
@@ -207,14 +207,22 @@ export class TestingManager {
 		await classifyEachPhrase()
 		await updateTargetAndFeatures()
 		action(() => {
-			tTestingStore.testingResultsArray.push(tTestingResults)
-			tTestingStore.currentTestingResults = tTestingStore.emptyTestingResults()
+			if( iStoreTest) {
+				tTestingStore.testingResultsArray.push(tTestingResult)
+			}
+			else {
+				tTestingStore.testingResultsArray.pop()
+				tTestingStore.testingResultsArray.push(tTestingResult)
+			}
+/*
+			tTestingStore.currentTestingResults = tTestingStore.emptyTestingResult()
 			tTestingStore.testingDatasetInfo.name = ''
 			tTestingStore.testingDatasetInfo.title = ''
 			tTestingStore.chosenModelName = ''
 			tTestingStore.testingCollectionName = ''
 			tTestingStore.testingAttributeName = ''
 			tTestingStore.testingClassAttributeName = ''
+*/
 		})()
 	}
 }
