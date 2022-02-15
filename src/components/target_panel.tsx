@@ -10,6 +10,7 @@ import {DomainStore} from "../stores/domain_store";
 import {observer} from "mobx-react";
 import {UiStore} from "../stores/ui_store";
 import {choicesMenu} from "./component_utilities";
+import {SQ} from "../lists/lists";
 
 export interface Target_Props {
 	uiStore: UiStore
@@ -140,9 +141,7 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 				tDatasetChoices.push( tNewDatasetChoice)
 				return (
 					choicesMenu(tPrompt, 'Your choice',
-						'The dataset you choose will be used to train a model. ' +
-						'It should have at least two attributes, one containing texts to analyze and the other containing ' +
-						'labels with two values.',
+						SQ.hints.targetDatasetChoices,
 						tDatasetChoices, tValue, 'No datasets to choose from', handleChoice)
 				)
 			}
@@ -202,7 +201,7 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 					'Choose the column that has the text' : 'Text'
 				if (tTargetStore.targetAttributeNames.length > 0) {
 					return choicesMenu(tPrompt, 'Choose from',
-						'The target attribute should contain the texts to analyze.',
+						SQ.hints.targetAttributeChoices,
 						tTargetStore.targetAttributeNames,
 						tTargetStore.targetAttributeName, 'No attributes to choose from',
 						async (iChoice) => {
@@ -222,8 +221,7 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 					})
 					return choicesMenu(tPrompt,
 						'Choose an attribute with labels',
-						'The target labels attribute should have two values. These are the labels of each of the ' +
-						'groups into which the texts will be classified.',
+						SQ.hints.targetClassAttributeChoices,
 						tCandidateAttributeNames,
 						tTargetStore.targetClassAttributeName, 'No attributes to choose from', async (iChoice) => {
 							await this_.updateTargetPanelInfo('targetClassAttributeName', iChoice)
@@ -253,9 +251,7 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 							return (
 								<div className='sq-info-prompt'>
 									<p
-										title={'The model will pay attention to one of the labels, with the remaining labels as ' +
-											'“not” the label in question. The label we pay attention to is called the target label. \n' +
-											'A target label is the most important among all labels for your model to recognize.'}>
+										title={SQ.hints.positiveClassInstructions}>
 										Choose either "{tLeftColumnValue}" or "{tRightColumnValue}" as your target label.</p>
 								</div>
 							)
@@ -266,7 +262,7 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 								tLeftColumnValue = tTargetStore.targetClassNames[tLeftColumnKey]
 							return (
 								choicesMenu('Choose a target label', 'Your choice',
-									'This will be the label your model tries to predict.',
+									SQ.hints.targetLabelChoices,
 									tTargetStore.targetClassAttributeValues,
 									tLeftColumnValue, 'No labels were found',
 									action((e)=>{
@@ -309,7 +305,7 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 			if (this_.currState === 'chosen-complete') {
 				return (
 					<div className='sq-info-prompt'
-							 title={'Let StoryQ know what to pay attention to in the texts.'}>
+							 title={SQ.hints.onwardInstructions}>
 						<p>Continue preparing your training data in <span
 							onClick={action(() => this_.props.domainStore.setPanel(1))}
 							style={{cursor: 'pointer'}}

@@ -11,6 +11,7 @@ import {FeatureConstructor} from "./feature_constructor";
 import {action} from "mobx";
 import {FeatureList} from "./feature_list";
 import {starterFeature} from "../stores/store_types_and_constants";
+import {SQ} from "../lists/lists";
 
 interface FeaturePaneState {
 	count: number,
@@ -42,8 +43,8 @@ export const FeaturePane = observer(class FeaturePane extends Component<Feature_
 			tFeatureUnderConstruction = tFeatureStore.featureUnderConstruction,
 			tInProgress = tFeatureUnderConstruction.inProgress,
 			tButtonLabel = tFeatureUnderConstruction.inProgress ? 'Cancel' : 'Add Features',
-			tButtonHint = tFeatureUnderConstruction.inProgress ? 'Press this to cancel feature construction.' :
-				'Press this button to begin constructing a feature.',
+			tButtonHint = tFeatureUnderConstruction.inProgress ? SQ.hints.featureCancel :
+				SQ.hints.featureAdd,
 			tAddButton =
 				(<Button
 						className='sq-button'
@@ -77,7 +78,7 @@ export const FeaturePane = observer(class FeaturePane extends Component<Feature_
 							}
 						}
 					})}
-					hint={'You can press this button when you have completed specifying a feature.'}
+					hint={SQ.hints.featureDone}
 				>
 					Done
 				</Button>

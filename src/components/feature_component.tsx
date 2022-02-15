@@ -275,8 +275,8 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 					</div>
 				)
 			} else {
-				const tHint = tFeature.chosen ? 'Click here to remove this feature from the next model you train.' :
-					'Click here to add this feature to the next model you train.'
+				const tHint = tFeature.chosen ? SQ.hints.featureTableCheckboxRemove :
+					SQ.hints.featureTableCheckboxAdd
 				return (
 					<div className='sq-component'>
 						<CheckBox
@@ -295,8 +295,9 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 							icon='clear'
 							onClick={action(async () => {
 								await this_.props.domainStore.featureStore.deleteFeature(tFeature)
+								await this_.props.domainStore.clearText()
 							})}
-							hint={'Removes this feature completely'}
+							hint={SQ.hints.featureTableRemove}
 						/>
 					</div>
 				)

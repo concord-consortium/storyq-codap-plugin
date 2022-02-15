@@ -8,6 +8,7 @@ import {DomainStore} from "../stores/domain_store";
 import {UiStore} from "../stores/ui_store";
 import {RadioGroup} from "devextreme-react";
 import {action} from "mobx";
+import {SQ} from "../lists/lists";
 
 export interface TargetTextArea_Props {
 	domainStore: DomainStore
@@ -74,7 +75,7 @@ export const TargetTextArea = observer(class TargetTextArea extends Component<Ta
 										index === 0 ? tLeftColumnKey : tRightColumnKey
 								}
 							})}
-							hint={'This is the label for one of the two groups for the target texts.'}
+							hint={SQ.hints.targetTwoGroups}
 						/>
 					</div>
 				)

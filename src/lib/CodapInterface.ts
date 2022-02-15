@@ -158,12 +158,9 @@ function notificationHandler(request: CODAP_Notification, callback: (arg0: { suc
 		}
 	} else if (action === 'notify') {
 		requestValues.forEach(function (value: { operation: any; }) {
-			console.log(`requestValues = ${JSON.stringify(requestValues)}`)
 			notificationSubscribers.forEach(function (subscription) {
 				// pass this notification to matching subscriptions
-				handled = false;
-				console.log(' subscription.operation', subscription.operation)
-				if ((subscription.actionSpec === action) &&
+				handled = false;if ((subscription.actionSpec === action) &&
 					matchResource(resource, subscription.resourceSpec) &&
 					(!subscription.operation || subscription.operation === value.operation || (
 						Array.isArray(subscription.operation) && subscription.operation.includes(value.operation)

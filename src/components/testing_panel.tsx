@@ -11,6 +11,7 @@ import {choicesMenu} from "./component_utilities";
 import Button from "devextreme-react/button";
 import {action, toJS} from "mobx";
 import {TestingManager} from "../managers/testing_manager";
+import {SQ} from "../lists/lists";
 
 export interface Testing_Props {
 	uiStore: UiStore
@@ -46,10 +47,8 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 	}
 
 	async handleCaseNotification(iNotification: CODAP_Notification) {
-		const tOperation = iNotification.values.operation,
-		tDataContextName = iNotification.resource && iNotification.resource.match(/\[(.+)]/)[1]
-		console.log(`tDataContextName = ${tDataContextName}`)
-		if( tOperation !== 'updateCases')
+		const tDataContextName = iNotification.resource && iNotification.resource.match(/\[(.+)]/)[1]
+		if (tDataContextName === this.props.domainStore.testingStore.testingDatasetInfo.name)
 			await this.testingManager.classify(false)
 	}
 
@@ -61,7 +60,6 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 		const this_ = this,
 			tTestingStore = this.props.domainStore.testingStore,
 			tTestingClassAttributeName = tTestingStore.testingClassAttributeName,
-			tReadyForNewTest = !tTestingStore.currentTestingResults.testBeingConstructed,
 			tNumModels = this.props.domainStore.trainingStore.trainingResults.length,
 			tTestingResults = tTestingStore.testingResultsArray
 
@@ -87,8 +85,7 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 		function getModelChoice() {
 			const tModelChoices = this_.props.domainStore.trainingStore.trainingResults.map(iResult => iResult.name)
 			return choicesMenu('Choose a model to test', 'Choose a model',
-				'This model will be used to classify the dataset you choose as a test of how well' +
-				' the model performs on a dataset other than the one that was used to train it.',
+				SQ.hints.testingModelChoices,
 				tModelChoices,
 				this_.props.domainStore.testingStore.chosenModelName, 'No models to choose from', async (iChoice) => {
 					this_.props.domainStore.testingStore.chosenModelName = iChoice
@@ -100,8 +97,7 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 			const tDatasetInfoArray = tTestingStore.testingDatasetInfoArray,
 				tDatasetNames = tDatasetInfoArray.map(iEntity => iEntity.title)
 			return choicesMenu('Choose testing data', 'Your choice',
-				'This dataset will be analyzed by the chosen model. It should have at least one column' +
-				' containing texts to be classified. It may or may not have a label column.',
+				SQ.hints.testingDatasetChoices,
 				tDatasetNames,
 				tTestingStore.testingDatasetInfo.title,
 				'',
@@ -117,7 +113,7 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 			if (tTestingStore.testingDatasetInfo.title !== '') {
 				const tAttributeNames = tTestingStore.testingAttributeNames
 				return choicesMenu('Choose the column with text', 'Choose a column',
-					'The chosen column should contain the texts that are to be classified.',
+					SQ.hints.testingColumnChoices,
 					tAttributeNames,
 					tTestingStore.testingAttributeName,
 					'',
@@ -133,7 +129,7 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 				const tAttributeNames: string[] = toJS(tTestingStore.testingAttributeNames)
 				tAttributeNames.unshift(this_.kNonePresent)
 				return choicesMenu('Choose the column with the labels (optional)', 'Choose a column',
-					'If this column is specified, it should contain two unique labels, one for each group.',
+					SQ.hints.testingLabelsChoices,
 					tAttributeNames,
 					tTestingClassAttributeName,
 					'',
@@ -153,10 +149,10 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 				// The following hint doesn't display if the button is disabled. See
 				// https://supportcenter.devexpress.com/ticket/details/t844498/button-how-to-add-tooltip-to-disabled-button
 				// for suggested solution
-				tHint = tTestingDatasetName === '' ? 'Please choose a dataset with texts to classify.' :
-					(tChosenModelName === '' ? 'Please choose a model you have trained.' :
-						(tTestingAttributeName === '' ? 'Please choose the attribute that contains the texts you wish to classify' :
-							'Click this button to carry out the classification test.'))
+				tHint = tTestingDatasetName === '' ? SQ.hints.testingChooseDataset :
+					(tChosenModelName === '' ? SQ.hints.testingChooseModel :
+						(tTestingAttributeName === '' ? SQ.hints.testingChooseAttribute :
+							SQ.hints.testingTest))
 			return (
 				<div className='sq-training-buttons'>
 					<Button
@@ -193,12 +189,12 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 						<table>
 							<thead>
 							<tr>
-								<th style={{textAlign: 'center'}} title={'The name of the model used in this test'}>Model Name</th>
+								<th style={{textAlign: 'center'}} title={SQ.hints.testResultsName}>Model Name</th>
 								<th style={{textAlign: 'center'}}
-										title={'The dataset whose texts were classified in this test'}>Dataset
+										title={SQ.hints.testResultsDataset}>Dataset
 								</th>
 								<th style={{textAlign: 'center'}}
-										title={'If the test dataset has labels, the percent of classifications that were correct'}>
+										title={SQ.hints.testResultsAccuracy}>
 									Accuracy
 								</th>
 							</tr>

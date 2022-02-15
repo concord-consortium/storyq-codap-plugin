@@ -13,6 +13,7 @@ import {CheckBox} from "devextreme-react/check-box";
 import {ModelManager} from "../managers/model_manager";
 import {ProgressBar} from "./progress_bar";
 import {TrainingResult} from "../stores/store_types_and_constants";
+import {SQ} from "../lists/lists";
 
 export interface Training_Props {
 	uiStore: UiStore
@@ -113,8 +114,7 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 
 				function trainButton() {
 					if (!tInProgress) {
-						const tHint = tInStepMode ? 'Click to complete the training without stepping' :
-							'Click this to train your model.'
+						const tHint = tInStepMode ? SQ.hints.trainingStep : SQ.hints.trainingTrain
 						return (
 							<Button
 								className='sq-button'
@@ -152,7 +152,7 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 										this_.modelManager.nextStep()
 									}
 								})}
-								hint={'Click to move one iteration forward in training this model.'}>
+								hint={SQ.hints.trainingOneStep}>
 								Step
 							</Button>
 						)
@@ -166,7 +166,7 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 								onClick={action(() => {
 									this_.props.uiStore.trainingPanelShowsEditor = !this_.props.uiStore.trainingPanelShowsEditor
 								})}
-								hint={'Click to change the settings your model will use in training.'}>
+								hint={SQ.hints.trainingSettings}>
 								Settings
 							</Button>
 						)
@@ -179,7 +179,7 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 							onClick={action(async () => {
 								await this_.modelManager.cancel()
 							})}
-							hint={'Click to cancel the training of this model.'}>
+							hint={SQ.hints.trainingCancel}>
 							Cancel
 						</Button>
 					)
@@ -199,16 +199,13 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 			}
 
 			function getSettingsPanel() {
-				const tIterationsHint = 'How many times the algorithm repeats its numerical approximation. More iterations' +
-					' generally yield higher accuracy, up to a point, but training takes longer.'
-
 				function iterationsBox() {
 					return (
 						<TextBox
 							className='sq-fc-part'
 							valueChangeEvent={'keyup'}
 							placeholder="give your model a name"
-							hint={tIterationsHint}
+							hint={SQ.hints.trainingSetupIteration}
 							onValueChanged={action((e) => {
 								tModel.iterations = Number(e.value)
 							})}
@@ -241,18 +238,18 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 							</div>
 							<div className='sq-training-settings'>
 								<div className='sq-training-iterations'>
-									<span title={tIterationsHint}>Iterations:</span>{iterationsBox()}
+									<span title={SQ.hints.trainingSetupIteration}>Iterations:</span>{iterationsBox()}
 								</div>
 								<div className='sq-training-checkboxes'>
 									{getCheckbox(this_.props.domainStore.trainingStore.model.lockInterceptAtZero,
 										'Lock intercept at zero',
-										'Locking simplifies interpretation of feature weights but may introduce bias.',
+										SQ.hints.trainingLockIntercept,
 										(e) => {
 											this_.props.domainStore.trainingStore.model.lockInterceptAtZero = e.value
 										})}
 									{getCheckbox(this_.props.domainStore.trainingStore.model.usePoint5AsProbThreshold,
 										'Use 0.5 as probability threshold',
-										'The probability threshold defines the boundary between assignment to the two groups.',
+										SQ.hints.trainingPointFiveAsThreshold,
 										(e) => {
 											this_.props.domainStore.trainingStore.model.usePoint5AsProbThreshold = e.value
 										})}
@@ -282,7 +279,7 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 							tModel.reset()
 							tModel.beingConstructed = true
 						})}
-						hint={'Click this to begin training a new model with the current set of features.'}>
+						hint={SQ.hints.trainingNewModel}>
 						+ New Model
 					</Button>
 				)
@@ -311,8 +308,7 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 			function getIsActiveButon(iIndex: number) {
 				const tTrainingResult = tResults[iIndex],
 					tIsDisabled = tResults.length < 2,
-					tHint = tTrainingResult.isActive ? 'Click to make this model no longer active. This will hide its results' +
-						' and weights' : 'Click to make this model active and show its results and weights.'
+					tHint = tTrainingResult.isActive ? SQ.hints.trainingMakeModelInactive : SQ.hints.trainingMakeModelActive
 				return (
 					<td
 						style={{"textAlign": "center"}}
@@ -350,14 +346,14 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 						<thead>
 						<tr>
 							<th
-								title={'If checked, the weights are shown for features as are the model\'s results in the training set'}>
+								title={SQ.hints.trainingResultsActive}>
 								Active
 							</th>
 							<th>Model Name</th>
-							<th style={{textAlign:'center'}} title={'The settings in effect when this model was trained'}>Settings</th>
-							<th title={'The percent of predicted labels that are correct'}>Accuracy</th>
+							<th style={{textAlign:'center'}} title={SQ.hints.trainingResultsSettings}>Settings</th>
+							<th title={SQ.hints.trainingResultsAccuracy}>Accuracy</th>
 							{/*<th title={'This number is 0% when the model did no better than chance.'}>Kappa</th>*/}
-							<th title={'The features that were used to define this model'}>Features</th>
+							<th title={SQ.hints.trainingResultsFeatures}>Features</th>
 						</tr>
 						</thead>
 						<tbody className='sq-model-table'>
