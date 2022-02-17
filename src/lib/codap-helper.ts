@@ -134,12 +134,17 @@ export async function getNumChildAttributesInContext(iDataContextID: number) {
 		.catch(() => {
 			console.log('Error getting collection list')
 		});
-	const tCollectionID = tListResult.values.pop().id
-	const tAttrsResult: any = await codapInterface.sendRequest({
-		action: 'get',
-		resource: `dataContext[${iDataContextID}].collection[${tCollectionID}].attributeList`
-	})
-	return tAttrsResult.values.length
+	const tCollectionID = tListResult && tListResult.values && Array.isArray(tListResult.values) &&
+		tListResult.values.length > 0 && tListResult.values.pop().id
+	if( tCollectionID) {
+		const tAttrsResult: any = await codapInterface.sendRequest({
+			action: 'get',
+			resource: `dataContext[${iDataContextID}].collection[${tCollectionID}].attributeList`
+		})
+		return tAttrsResult.values.length
+	}
+	else
+		return 0
 }
 
 /**

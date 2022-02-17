@@ -66,6 +66,21 @@ export class DomainStore {
 			tFeatureCollectionName = this.featureStore.featureDatasetInfo.collectionName,
 			tWeightsCollectionName = this.featureStore.featureDatasetInfo.weightsCollectionName,
 			tTargetStore = this.targetStore
+
+		async function hideWeightsAttributes() {
+			const tShowRequests = [{
+				action: 'update',
+				resource: `dataContext[${tDatasetName}].collection[${tWeightsCollectionName}].attribute[weight]`,
+				values: {hidden: true}
+			},
+				{
+					action: 'update',
+					resource: `dataContext[${tDatasetName}].collection[${tWeightsCollectionName}].attribute[model name]`,
+					values: {hidden: true}
+				}]
+			await codapInterface.sendRequest(tShowRequests)
+		}
+
 		if (tFeatureStore.features.length > 0) {
 			if (tFeatureStore.featureDatasetInfo.datasetID === -1) {
 				const tChosenClassKey = this.targetStore.targetChosenClassColumnKey,
@@ -99,8 +114,8 @@ export class DomainStore {
 									title: tWeightsCollectionName,
 									parent: tFeatureCollectionName,
 									attrs: [
-										{name: 'model name', type: 'categorical', hidden: true},
-										{name: 'weight', hidden: true}
+										{name: 'model name', type: 'categorical', hidden: false},
+										{name: 'weight', hidden: false}
 									]
 								}]
 						}
@@ -110,6 +125,9 @@ export class DomainStore {
 					tFeatureStore.featureDatasetInfo.datasetName = tDatasetName
 					tFeatureStore.featureDatasetInfo.datasetTitle = tCreateResult.values.title
 					await openTable(tDatasetName)
+					// The 'model name' and 'weight' attributes were created as visible as a workaround to a bug.
+					// Now we can hide them
+					await hideWeightsAttributes()
 				}
 			}
 			return true
@@ -450,9 +468,7 @@ export class DomainStore {
 			tMessages: object[] = [],
 			tWeightsCollectionName = this.featureStore.featureDatasetInfo.weightsCollectionName
 		let tResultIDsToSetaside: number[] = [],
-			tWeightIDsToSetaside: number[] = []
-
-		// Unset-aside all the weights
+			tWeightIDsToSetaside: number[] = []// Unset-aside all the weights
 		await codapInterface.sendRequest({
 				action: 'notify',
 				resource: `dataContext[${tFeatureDatasetName}]`,
@@ -473,10 +489,14 @@ export class DomainStore {
 				}) : []
 
 		// Unset-aside results collection for each training result
-		await codapInterface.sendRequest(tTrainingResults.map(iResult => {
+		const datasetNames = tTrainingResults.map(iResult=>iResult.targetDatasetName)
+			.filter(iName=>iName!==null && iName!==undefined),
+			datasetNamesSet = new Set(datasetNames),
+			uniqueNames = Array.from(datasetNamesSet)
+		await codapInterface.sendRequest(uniqueNames.map(iName => {
 			return {
 				action: 'notify',
-				resource: `dataContext[${iResult.targetDatasetName}]`,
+				resource: `dataContext[${iName}]`,
 				values: {
 					request: "restoreSetasides"
 				}
@@ -505,25 +525,27 @@ export class DomainStore {
 				})
 				// Now the results
 				const tDatasetName = iResult.targetDatasetName
-				const tResultsRequestResult: any = await codapInterface.sendRequest({
-						action: 'get',
-						resource: `dataContext[${tDatasetName}].collection[${'results'}].caseFormulaSearch[true]`
-					}),
-					tResultNameIDPairs: { modelName: string, id: number }[] = tResultsRequestResult.success ?
-						tResultsRequestResult.values.map((iValue: { id: number, values: { 'model name': string } }) => {
-							return {modelName: iValue.values['model name'], id: iValue.id}
-						}) : []
-				const tInactiveResultPairs = tResultNameIDPairs.filter(iPair => iPair.modelName === iResult.name),
-					tInactiveResultIDs = tInactiveResultPairs.map(iPair => iPair.id)
-				tResultIDsToSetaside = tResultIDsToSetaside.concat(tInactiveResultIDs)
-				tMessages.push({
-					action: 'notify',
-					resource: `dataContext[${tDatasetName}]`,
-					values: {
-						request: 'setAside',
-						caseIDs: tResultIDsToSetaside
-					}
-				})
+				if( tDatasetName) {
+					const tResultsRequestResult: any = await codapInterface.sendRequest({
+							action: 'get',
+							resource: `dataContext[${tDatasetName}].collection[${'results'}].caseFormulaSearch[true]`
+						}),
+						tResultNameIDPairs: { modelName: string, id: number }[] = tResultsRequestResult.success ?
+							tResultsRequestResult.values.map((iValue: { id: number, values: { 'model name': string } }) => {
+								return {modelName: iValue.values['model name'], id: iValue.id}
+							}) : []
+					const tInactiveResultPairs = tResultNameIDPairs.filter(iPair => iPair.modelName === iResult.name),
+						tInactiveResultIDs = tInactiveResultPairs.map(iPair => iPair.id)
+					tResultIDsToSetaside = tResultIDsToSetaside.concat(tInactiveResultIDs)
+					tMessages.push({
+						action: 'notify',
+						resource: `dataContext[${tDatasetName}]`,
+						values: {
+							request: 'setAside',
+							caseIDs: tResultIDsToSetaside
+						}
+					})
+				}
 			}
 		}
 

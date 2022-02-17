@@ -165,6 +165,7 @@ function notificationHandler(request: CODAP_Notification, callback: (arg0: { suc
 					(!subscription.operation || subscription.operation === value.operation || (
 						Array.isArray(subscription.operation) && subscription.operation.includes(value.operation)
 					)) && subscription.handler) {
+					// console.log(`resource = ${resource}, operation = ${subscription.operation}, value = ${JSON.stringify(value)}`)
 					let rtn = subscription.handler({action: action, resource: resource, values: value});
 					if (rtn && rtn.success) {
 						stats.countCodapRplSuccess++;
@@ -319,6 +320,7 @@ const codapInterface = {
 	 * @return {Promise} The promise of the response from CODAP.
 	 */
 	sendRequest: function (message: any, callback?: any) {
+		// console.log(`sending operation ${JSON.stringify(message)}`)
 		return new Promise(function (resolve, reject) {
 			function handleResponse(request: any, response: { success: boolean } | undefined, callback: (arg0: any, arg1: any) => void) {
 				if (response === undefined) {

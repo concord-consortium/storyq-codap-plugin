@@ -84,7 +84,9 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 					if (newInfo.title !== this_.targetPanelConstants.createNewEntityInfo.title) {
 						tTargetStore.targetDatasetInfo = newInfo;
 						await this_.updateTargetPanelInfo()
-						tTargetStore.targetPanelMode = 'chosen'
+						action(()=> {
+							tTargetStore.targetPanelMode = 'chosen'
+						})()
 					} else if(iChoice === tNewDatasetChoice) {
 						let tContextName = 'Training Data',
 							n = 1
@@ -129,7 +131,9 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 							name: tContextName,
 							id: tResults[0].values.id
 						}
-						tTargetStore.targetPanelMode = 'chosen'
+						action(()=> {
+							tTargetStore.targetPanelMode = 'chosen'
+						})()
 					}
 				}
 

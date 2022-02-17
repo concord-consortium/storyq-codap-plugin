@@ -15,7 +15,6 @@ export default class TextFeedbackManager {
 	domainStore: DomainStore
 	uiStore: UiStore
 	headingsManager: HeadingsManager
-	subscriberIndex: number
 	isSelectingFeatures = false
 	isSelectingTargetPhrases = false
 
@@ -24,7 +23,7 @@ export default class TextFeedbackManager {
 		this.domainStore = iDomainStore;
 		this.uiStore = iUiStore;
 		this.headingsManager = new HeadingsManager();
-		this.subscriberIndex = codapInterface.on('notify', '*', 'selectCases', this.handleNotification);
+		codapInterface.on('notify', '*', 'selectCases', this.handleNotification);
 	}
 
 	async handleNotification(iNotification: CODAP_Notification) {
@@ -34,15 +33,22 @@ export default class TextFeedbackManager {
 
 		if (iNotification.action === 'notify' && iNotification.values.operation === 'selectCases' &&
 			iNotification.values.result.cases) {
-			const tDataContextName = iNotification.resource && iNotification.resource.match(/\[(.+)]/)[1];
-			if (tDataContextName === tFeatureDatasetName && !this.isSelectingFeatures) {
-				this.isSelectingTargetPhrases = true;
-				await this.handleFeatureSelection(iNotification.values.result.cases);
-				this.isSelectingTargetPhrases = false;
-			} else if ([tTestingDatasetName, tTargetDatasetName].includes(tDataContextName) && !this.isSelectingTargetPhrases) {
-				this.isSelectingFeatures = true;
-				await this.handleTargetDatasetSelection(iNotification.values.result.cases);
-				this.isSelectingFeatures = false;
+			try {
+				// console.log(`isSelectingFeatures = ${this.isSelectingFeatures}`)
+				const tDataContextName = iNotification.resource && iNotification.resource.match(/\[(.+)]/)[1];
+				if (tDataContextName === tFeatureDatasetName && !this.isSelectingFeatures) {
+					this.isSelectingTargetPhrases = true;
+					await this.handleFeatureSelection(iNotification.values.result.cases);
+					this.isSelectingTargetPhrases = false;
+				} else if ([tTestingDatasetName, tTargetDatasetName].includes(tDataContextName) && !this.isSelectingTargetPhrases) {
+					this.isSelectingFeatures = true;
+					await this.handleTargetDatasetSelection(iNotification.values.result.cases);
+					this.isSelectingFeatures = false;
+				}
+			}
+			finally {
+				this.isSelectingFeatures = false
+				this.isSelectingTargetPhrases = false
 			}
 		}
 	}

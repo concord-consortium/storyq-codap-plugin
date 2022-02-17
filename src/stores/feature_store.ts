@@ -71,7 +71,7 @@ export class FeatureStore {
 					tDetails.punctuation !== '' ? tDetails.punctuation :
 					tDetails.wordList && tDetails.wordList.datasetName !== '' ? tDetails.wordList.datasetName :
 					tDetails.what === 'any number' ? 'anyNumber' : ''
-			return `${tFirstPart}:${tSecondPart}`
+			return `${tFirstPart}: ${tSecondPart}`
 		} else if (iFeature.info.kind === 'ngram') {
 			return `single words with frequency ≥ ${iFeature.info.frequencyThreshold}${iFeature.info.ignoreStopWords ? '; ignoring stopwords': ''}`
 		} else if( iFeature.info.kind === 'column')
@@ -162,7 +162,7 @@ export class FeatureStore {
 		tFeature.chosen = true
 		tFeature.type = tType
 		tFeature.description = this.getDescriptionFor(tFeature)
-		this.features.unshift(tFeature)
+		this.features.push(tFeature)
 		this.featureUnderConstruction = Object.assign({}, starterFeature)
 	}
 
