@@ -384,7 +384,9 @@ export class DomainStore {
 				// Put together update messages for the target cases
 				const tUpdateMsgs: { id: number, values: { featureIDs: number[] | string } }[] = []
 				tTargetCases.forEach(iCase => {
-					const tUpdateValue = {id: iCase.id, values: {featureIDs: []}}
+					// console.log(`iCase = ${JSON.stringify(toJS(iCase))}`)
+					const tTheseFeatureIDs = iCase.values.featureIDs
+					const tUpdateValue = {id: iCase.id, values: {featureIDs: tTheseFeatureIDs ? JSON.parse(tTheseFeatureIDs) : []}}
 					tTokenArray.forEach(iFeature => {
 						if (iFeature.caseIDs.indexOf(iCase.id) >= 0) {
 							// @ts-ignore

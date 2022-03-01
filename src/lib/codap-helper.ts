@@ -26,6 +26,7 @@ export function initializePlugin(pluginName: string, version: string, dimensions
 		version: version,
 		dimensions: dimensions,
 		preventDataContextReorg: false,
+		preventBringToFront: true,
 		cannotClose: true
 	};
 	return codapInterface.init(interfaceConfig, iRestoreStateHandler);

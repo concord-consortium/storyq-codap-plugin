@@ -2,8 +2,8 @@
  * Utility for use in constructing headings to show in text component for each kind of statement.
  */
 
-export interface PhraseTriple {
-	actual:string, predicted:string, phrase:string
+export interface PhraseQuadruple {
+	actual:string, predicted:string, phrase:string, nonNtigramFeatures:(string | number)[]
 }
 export interface ClassLabel { negLabel: string, posLabel: string, blankLabel:string}
 export interface HeadingSpec {negNeg:any, negPos:any, negBlank:any, blankNeg:any, posNeg:any, posPos:any, posBlank:any, blankPos:any, blankBlank:any}

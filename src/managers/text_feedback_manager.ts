@@ -4,8 +4,8 @@
  */
 
 import codapInterface, {CODAP_Notification} from "../lib/CodapInterface";
-import {ClassLabel, HeadingsManager, HeadingSpec, PhraseTriple} from "./headings_manager";
-import {Case, datasetExists, deselectAllCasesIn, getSelectedCasesFrom} from "../lib/codap-helper";
+import {ClassLabel, HeadingsManager, HeadingSpec, PhraseQuadruple} from "./headings_manager";
+import {datasetExists, getSelectedCasesFrom} from "../lib/codap-helper";
 import {phraseToFeatures, textToObject} from "../utilities/utilities";
 import {DomainStore} from "../stores/domain_store";
 import {UiStore} from "../stores/ui_store";
@@ -31,22 +31,20 @@ export default class TextFeedbackManager {
 			tTestingDatasetName = this.domainStore.testingStore.testingDatasetInfo.name,
 			tFeatureDatasetName = this.domainStore.featureStore.featureDatasetInfo.datasetName
 
-		if (iNotification.action === 'notify' && iNotification.values.operation === 'selectCases' &&
-			iNotification.values.result.cases) {
+		if (iNotification.action === 'notify' && iNotification.values.operation === 'selectCases'/* &&
+			iNotification.values.result.cases*/) {
 			try {
-				// console.log(`isSelectingFeatures = ${this.isSelectingFeatures}`)
 				const tDataContextName = iNotification.resource && iNotification.resource.match(/\[(.+)]/)[1];
 				if (tDataContextName === tFeatureDatasetName && !this.isSelectingFeatures) {
 					this.isSelectingTargetPhrases = true;
-					await this.handleFeatureSelection(iNotification.values.result.cases);
+					await this.handleFeatureSelection();
 					this.isSelectingTargetPhrases = false;
 				} else if ([tTestingDatasetName, tTargetDatasetName].includes(tDataContextName) && !this.isSelectingTargetPhrases) {
 					this.isSelectingFeatures = true;
-					await this.handleTargetDatasetSelection(iNotification.values.result.cases);
+					await this.handleTargetDatasetSelection();
 					this.isSelectingFeatures = false;
 				}
-			}
-			finally {
+			} finally {
 				this.isSelectingFeatures = false
 				this.isSelectingTargetPhrases = false
 			}
@@ -64,7 +62,6 @@ export default class TextFeedbackManager {
 	}
 
 	async getChildCases(iCaseIDs: number[], iDatasetName: string, iCollectionName: string) {
-		// console.log(`iCaseIDs = ${iCaseIDs}`)
 		const tPromises = iCaseIDs.map(async (iID) => {
 			const tResult: any = await codapInterface.sendRequest({
 				action: 'get',
@@ -74,7 +71,6 @@ export default class TextFeedbackManager {
 			})
 			return tResult.success ? tResult.values.case.values : {}
 		})
-		// console.log(`In getChildCases, children = ${JSON.stringify(children)}`)
 		return await Promise.all(tPromises)
 	}
 
@@ -84,19 +80,10 @@ export default class TextFeedbackManager {
 	 * 	- Select these cases in that dataset
 	 * 	- Pull the phrase from the target case
 	 */
-	async handleFeatureSelection(iCases: Case[]) {
-
-		async function getFeatureCaseByID(iID: number) {
-			const tResult: any = await codapInterface.sendRequest({
-				action: 'get',
-				resource: `dataContext[${tFeatureDatasetName}].collection[${tFeatureCollectionName}].caseByID[${iID}]}`
-			})
-			return tResult.success && tResult.values && tResult.values.case
-		}
+	async handleFeatureSelection() {
 
 		async function handleSelectionInFeaturesDataset() {
 			if (tIDsOfFeaturesToSelect.length > 0) {
-				await deselectAllCasesIn(tFeatureDatasetName)
 				// Select the features
 				await codapInterface.sendRequest({
 					action: 'create',
@@ -123,56 +110,93 @@ export default class TextFeedbackManager {
 			tPredictedLabelAttributeName = this.domainStore.targetStore.targetPredictedLabelAttributeName,
 			tColumnFeatureNames = this.domainStore.featureStore.targetColumnFeatureNames,
 			tConstructedFeatureNames = this.domainStore.featureStore.features.map(iFeature => iFeature.name),
-			tFeatures: string[] = [],
+			tFeaturesMap: {[index:number]:string} = {},
+			tSelectedFeaturesSet: Set<number> = new Set(),
 			tUsedIDsSet: Set<number> = new Set(),
-			tChildOfFeatureIsSelected = Boolean(iCases && iCases.length > 0 && iCases[0].parent),
-			tIDsOfFeaturesToSelect: number[] = []
-		let tEndPhrase: string;
-		for (const iCase of iCases) {
-			const tFeatureCase = tChildOfFeatureIsSelected ? await getFeatureCaseByID(Number(iCase.parent)) : iCase,
-				tUsages = tFeatureCase && tFeatureCase.values.usages;
-			if (tChildOfFeatureIsSelected && tFeatureCase)
-				tIDsOfFeaturesToSelect.push(tFeatureCase.id)
+			// Get all the selected cases in the Features dataset. Some will be features and some will be weights
+			tSelectionListResult: any = await codapInterface.sendRequest({
+				action: 'get',
+				resource: `dataContext[${tFeatureDatasetName}].selectionList`
+			}),
+			tCaseRequests: { action: string, resource: string }[] = []
+
+		// For the features, we just need to record their caseIDs. For the weights, we record a request to get parents
+		tSelectionListResult.values.forEach((iValue: any) => {
+			if (iValue.collectionName === tFeatureCollectionName) {
+				tSelectedFeaturesSet.add(iValue.caseID)
+			} else {
+				tCaseRequests.push({
+					action: 'get',
+					resource: `dataContext[${tFeatureDatasetName}].collection[${iValue.collectionName}].caseByID[${iValue.caseID}]`
+				})
+			}
+		})
+		// Get the parents
+		if (tCaseRequests.length > 0) {
+			const tCaseResults: any = await codapInterface.sendRequest(tCaseRequests)
+			tCaseResults.forEach((iResult: any) => {
+				tSelectedFeaturesSet.add(iResult.values.case.parent)
+			})
+		}
+		const tIDsOfFeaturesToSelect = Array.from(tSelectedFeaturesSet)
+		// We need all the features as cases so we can get their used caseIDs from the target dataset
+		const tFeatureCasesResult: any = await codapInterface.sendRequest(
+			tIDsOfFeaturesToSelect.map(iID => {
+				return {
+					action: 'get',
+					resource: `dataContext[${tFeatureDatasetName}].collection[${tFeatureCollectionName}].caseByID[${iID}]`
+				}
+			})
+		)
+		// For each selected feature stash its usages and name
+		tFeatureCasesResult.forEach((iResult: any) => {
+			const tUsages = iResult.values.case.values.usages
 			if (typeof tUsages === 'string' && tUsages.length > 0) {
 				(JSON.parse(tUsages)).forEach((anID: number) => {
 					tUsedIDsSet.add(anID);
-				});
+				})
+				tFeaturesMap[iResult.values.case.id] = iResult.values.case.values.name
 			}
-			if (tFeatureCase)
-				tFeatures.push(tFeatureCase.values.name);
-		}
+		})
+
 		handleSelectionInFeaturesDataset()
+		// Select the target texts that make use of the selected features
 		const tUsedCaseIDs: number[] = Array.from(tUsedIDsSet);
 		await codapInterface.sendRequest({
 			action: 'create',
 			resource: `dataContext[${tDatasetName}].selectionList`,
 			values: tUsedCaseIDs
 		});
-		const tTriples: { actual: string, predicted: string, phrase: string }[] = [];
-		tEndPhrase = (tUsedCaseIDs.length > kMaxStatementsToDisplay) ? 'Not all statements could be displayed' : '';
+		const tQuadruples: PhraseQuadruple[] = [],
+			tEndPhrase = (tUsedCaseIDs.length > kMaxStatementsToDisplay) ? 'Not all statements could be displayed' : '';
 		const tTargetPhrasesToShow = Math.min(tUsedCaseIDs.length, kMaxStatementsToDisplay);
 		// Here is where we put the contents of the text component together
 		for (let i = 0; i < tTargetPhrasesToShow; i++) {
 			const tGetCaseResult: any = await codapInterface.sendRequest({
 				action: 'get',
 				resource: `dataContext[${tDatasetName}].collection[${tCollectionName}].caseByID[${tUsedCaseIDs[i]}]`
-			})
-/*
-			if( i === 1)
-				console.log(`result for caseID ${tUsedCaseIDs[i]} is ${JSON.stringify(tGetCaseResult)}`)
-*/
-			if( tGetCaseResult.success && tGetCaseResult.values) {
+			}),
+				tFeatureIDs:number[] = []
+			if (tGetCaseResult.success && tGetCaseResult.values) {
+				const tFeatureValue = tGetCaseResult.values.case.values.featureIDs
+				if (typeof tFeatureValue === 'string' && tFeatureValue.length > 0) {
+					JSON.parse(tFeatureValue).forEach( (iValue:string | number)=>{
+						tFeatureIDs.push(Number(iValue))
+					})
+				}
+
 				const tChildren = await this.getChildCases(tGetCaseResult.values.case.children, tDatasetName, 'results'),
 					tFoundChild = tChildren.find(iChild => iChild['model name'] === tActiveModelName),
 					tPredictedClass = tFoundChild ? tFoundChild[tPredictedLabelAttributeName] : '',
 					tActualClass = tGetCaseResult.values.case.values[tClassAttributeName],
 					tPhrase = tGetCaseResult.values.case.values[tAttributeName],
-					tTriple = {actual: tActualClass, predicted: tPredictedClass, phrase: tPhrase}
-				tTriples.push((tTriple));
+					tQuadruple = {actual: tActualClass, predicted: tPredictedClass, phrase: tPhrase,
+						nonNtigramFeatures: tFeatureIDs.map(anID=>tFeaturesMap[anID])}
+				tQuadruples.push((tQuadruple));
 			}
 		}
 		await this.retitleTextComponent(`Selected texts in ${tDatasetTitle}`)
-		await this.composeText(tTriples, tFeatures, textToObject,
+		await this.composeText(tQuadruples, textToObject,
 			tColumnFeatureNames.concat(tConstructedFeatureNames), tEndPhrase);
 	}
 
@@ -182,29 +206,11 @@ export default class TextFeedbackManager {
 	 * Second, under headings for the classification, display each selected target phrase as text with
 	 * features highlighted and non-features grayed out
 	 */
-	public async handleTargetDatasetSelection(iCases: Case[]) {
+	public async handleTargetDatasetSelection() {
 		const this_ = this
 
-		async function getTargetCaseByID(iID: number) {
-			const tResult: any = await codapInterface.sendRequest({
-				action: 'get',
-				resource: `dataContext[${tDatasetName}].collection[${tCollectionName}].caseByID[${iID}]}`
-			})
-			if( tResult.success)
-				return tResult.values.case
-		}
-
-		async function getMatchingChildCase(iCase: Case) {
-			const tCaseByID = await getTargetCaseByID(iCase.id),
-				tChildCaseIDs = tCaseByID && tCaseByID.children,
-				tChildren = tChildCaseIDs ? await this_.getChildCases(tChildCaseIDs, tDatasetName, 'results') : null
-			if (tChildren)
-				return tChildren.find(iCase => iCase['model name'] === tActiveModelName)
-		}
-
 		async function handleSelectionInFeaturesDataset() {
-			// console.log(`In handleSelectionInFeaturesDataset with ${tFeatureDatasetName}`)
-			await deselectAllCasesIn(tFeatureDatasetName)
+			// await deselectAllCasesIn(tFeatureDatasetName)
 			if (tIDsOfFeaturesToSelect.length > 0) {
 				// Select the features
 				await codapInterface.sendRequest({
@@ -214,16 +220,12 @@ export default class TextFeedbackManager {
 				});
 			}
 
-			let tSelectedFeatureCases: any[] = [],
-				tFeatures = new Set<string>()
+			let tSelectedFeatureCases: any[] = []
 			if (this_.domainStore.featureStore.features.length > 0) {
 				// Get the features and stash them in a set
 				tSelectedFeatureCases = await getSelectedCasesFrom(tFeatureDatasetName, tFeatureCollectionName)
 				tSelectedFeatureCases.forEach((iCase: any) => {
-					tFeatures.add(iCase.values.name);
-				});
-				tFeatures.forEach(iFeature => {
-					tFeaturesArray.push(iFeature);
+					tFeaturesMap[Number(iCase.id)] = iCase.values.name;
 				});
 			}
 		}
@@ -251,52 +253,115 @@ export default class TextFeedbackManager {
 			tFeatureCollectionName = this.domainStore.featureStore.featureDatasetInfo.collectionName,
 			tClassAttributeName = tUseTestingDataset ? tStore.testingClassAttributeName : tStore.targetClassAttributeName,
 			tPredictedLabelAttributeName = this.domainStore.targetStore.targetPredictedLabelAttributeName,
-			tChildSelected = Boolean(iCases.length > 0 && iCases[0].parent),
 			tColumnFeatureNames = this.domainStore.featureStore.targetColumnFeatureNames,
 			tConstructedFeatureNames = this.domainStore.featureStore.features.map(iFeature => iFeature.name),
-			tFeaturesArray: string[] = []
+			tFeaturesMap: {[index:number]:string} = {},
+			// Get all the selected cases in the target dataset. Some will be results and some will be texts
+			tSelectionListResult: any = await codapInterface.sendRequest({
+				action: 'get',
+				resource: `dataContext[${tDatasetName}].selectionList`
+			}),
+			tSelectedTextsSet: Set<number> = new Set(),
+			tCaseRequests: { action: string, resource: string }[] = [],
+			tFeatureIDsSet: Set<number> = new Set(),
+			tQuadruples: PhraseQuadruple[] = []
 
-		let tTriples: PhraseTriple[] = [],
-			tIDsOfFeaturesToSelect: number[] = [],
-			tIDsOfParentCasesToSelect: number[] = [];
-		for (const iCase of iCases) {
-			const tCaseToUseForPhrase = tChildSelected ? await getTargetCaseByID(Number(iCase.parent)) : iCase,
-				tCaseToUseForPredicted = tChildSelected ? iCase.values : await getMatchingChildCase(iCase)
-			if (tCaseToUseForPhrase) {
-				if (tChildSelected) {
-					tIDsOfParentCasesToSelect.push(tCaseToUseForPhrase.id)
-				}
-				if (tCaseToUseForPhrase.values.featureIDs) {
-					let tFeatureIDs: number[] = JSON.parse(tCaseToUseForPhrase.values.featureIDs);
-					tIDsOfFeaturesToSelect = tIDsOfFeaturesToSelect.concat(tFeatureIDs);
-				}
-				tTriples.push({
-					actual: tCaseToUseForPhrase.values[tClassAttributeName],
-					predicted: tCaseToUseForPredicted ? tCaseToUseForPredicted[tPredictedLabelAttributeName] : '',
-					phrase: tCaseToUseForPhrase.values[tAttributeName]
-				});
+
+		// For the texts, we just need to record their caseIDs. For the results, we record a request to get parents
+		tSelectionListResult.values.forEach((iValue: any) => {
+			if (iValue.collectionName === tCollectionName) {
+				tSelectedTextsSet.add(iValue.caseID)
+			} else {
+				tCaseRequests.push({
+					action: 'get',
+					resource: `dataContext[${tDatasetName}].collection[${iValue.collectionName}].caseByID[${iValue.caseID}]`
+				})
 			}
+		})
+		// Get the parents
+		if (tCaseRequests.length > 0) {
+			const tCaseResults: any = await codapInterface.sendRequest(tCaseRequests)
+			tCaseResults.forEach((iResult: any) => {
+				tSelectedTextsSet.add(iResult.values.case.parent)
+			})
 		}
+		const tIDsOfTextsToSelect = Array.from(tSelectedTextsSet)
+		// We need all the texts as cases so we can get their used caseIDs from the target dataset
+		const tTextCasesResult: any = await codapInterface.sendRequest(
+			tIDsOfTextsToSelect.map(iID => {
+				return {
+					action: 'get',
+					resource: `dataContext[${tDatasetName}].collection[${tCollectionName}].caseByID[${iID}]`
+				}
+			})
+		)
+		// For each selected text stash its list of features, and stash the phrase, actual and predicted
+		// labels in tQuadruples
+		tTextCasesResult.forEach(async (iResult: any) => {
+			const tCaseValues = iResult.values.case.values,
+				tChildIDs = iResult.values.case.children,
+				tFeaturesInText = tCaseValues.featureIDs
+				let tFeatureIDsForThisText:(number | string)[] = [],
+					tPredictedResult = ''
+			if (typeof tFeaturesInText === 'string' && tFeaturesInText.length > 0) {
+				tFeatureIDsForThisText = JSON.parse(tFeaturesInText)
+				tFeatureIDsForThisText.forEach((anID: string | number) => {
+					tFeatureIDsSet.add(Number(anID));
+				})
+			}
+			// The predicted value, if there is one, belongs to the child case that has the correct
+			// model name
+			if (tChildIDs && tChildIDs.length > 0) {
+				const tChildRequests = tChildIDs.map((iID: number) => {
+						return {
+							action: 'get',
+							resource: `dataContext[${tDatasetName}].collection[results].caseByID[${iID}]`
+						}
+					}),
+					tChildRequestResults: any = await codapInterface.sendRequest(tChildRequests),
+				tFoundChild = tChildRequestResults.find((iChildResult:any)=> {
+					return iChildResult.values.case.values['model name'] === tActiveModelName
+				})
+				tPredictedResult = tFoundChild ? tFoundChild.values.case.values[tPredictedLabelAttributeName] : ''
+			}
+
+			tQuadruples.push({
+				phrase: tCaseValues[tAttributeName],
+				predicted: tPredictedResult,
+				actual: tCaseValues[tClassAttributeName],
+				nonNtigramFeatures: tFeatureIDsForThisText	// Numbers for now. Strings later
+			})
+		})
+
+
+		const tIDsOfFeaturesToSelect: number[] = Array.from(tFeatureIDsSet),
+			tIDsOfParentCasesToSelect: number[] = Array.from(tSelectedTextsSet);
 		await handleSelectionInTargetDataset()
 		if (await datasetExists(tFeatureDatasetName))
 			await handleSelectionInFeaturesDataset()
+
+		// We can now convert each quad's array of feature IDs to features
+		tQuadruples.forEach(iQuad=>{
+			iQuad.nonNtigramFeatures = iQuad.nonNtigramFeatures.map(iID=>{
+				return tFeaturesMap[Number(iID)]
+			})
+		})
+
 		await this.retitleTextComponent(`Selected texts in ${tDatasetTitle}`)
-		await this.composeText(tTriples, tFeaturesArray,
-			phraseToFeatures, tColumnFeatureNames.concat(tConstructedFeatureNames));
+		await this.composeText(tQuadruples, phraseToFeatures, tColumnFeatureNames.concat(tConstructedFeatureNames));
 	}
 
 	/**
 	 * Cause the text component to display phrases with the feature highlighting determined by
 	 * 	given function
-	 * @param iPhraseTriples  Specifications for the phrases to be displayed
-	 * @param iFeatures {string[]}	The features to be highlighted
+	 * @param iPhraseQuadruples  Specifications for the phrases to be displayed
 	 * @param iHighlightFunc {Function}	Function called to do the highlighting
 	 * @param iSpecialFeatures {string[]} Typically "column features" true of the phrase, but the strings
 	 * 					themselves do not appear in the phrase
 	 * @param iEndPhrase {string} The text to display at the bottom of the list of phrases
 	 * @public
 	 */
-	public async composeText(iPhraseTriples: PhraseTriple[], iFeatures: string[], iHighlightFunc: Function,
+	public async composeText(iPhraseQuadruples: PhraseQuadruple[], iHighlightFunc: Function,
 													 iSpecialFeatures: string[], iEndPhrase?: string) {
 		const kHeadingsManager = this.getHeadingsManager();
 		const kProps = ['negNeg', 'negPos', 'negBlank', 'posNeg', 'posPos', 'posBlank', 'blankNeg', 'blankPos', 'blankBlank'];
@@ -309,15 +374,15 @@ export default class TextFeedbackManager {
 		let tItems: any = [];
 
 
-		function addOnePhrase(iTriple: PhraseTriple) {
+		function addOnePhrase(iQuadruple: PhraseQuadruple) {
 			// @ts-ignore
 			const kLabels: ClassLabel = kHeadingsManager.classLabels;
 
 			let tGroup: string,
 				tColor: string;
-			switch (iTriple.actual) {
+			switch (iQuadruple.actual) {
 				case kLabels.negLabel:
-					switch (iTriple.predicted) {
+					switch (iQuadruple.predicted) {
 						case kLabels.negLabel:
 							tGroup = 'negNeg';
 							// @ts-ignore
@@ -334,7 +399,7 @@ export default class TextFeedbackManager {
 					}
 					break;
 				case kLabels.posLabel:
-					switch (iTriple.predicted) {
+					switch (iQuadruple.predicted) {
 						case kLabels.negLabel:
 							tGroup = 'posNeg';
 							// @ts-ignore
@@ -351,7 +416,7 @@ export default class TextFeedbackManager {
 					}
 					break;
 				default:
-					switch (iTriple.predicted) {
+					switch (iQuadruple.predicted) {
 						case kLabels.negLabel:
 							tGroup = 'blankNeg';
 							tColor = kHeadingsManager.colors.orange;
@@ -372,11 +437,11 @@ export default class TextFeedbackManager {
 			// @ts-ignore
 			tClassItems[tGroup].push({
 				type: 'list-item',
-				children: [tSquare].concat(iHighlightFunc(iTriple.phrase, iFeatures, iSpecialFeatures))
+				children: [tSquare].concat(iHighlightFunc(iQuadruple.phrase, iQuadruple.nonNtigramFeatures, iSpecialFeatures))
 			})
 		}
 
-		iPhraseTriples.forEach(iTriple => {
+		iPhraseQuadruples.forEach(iTriple => {
 			addOnePhrase(iTriple);
 		});
 
