@@ -284,7 +284,9 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 							value={tFeature.chosen}
 							onValueChange={action(async () => {
 								await this.props.domainStore.featureStore.toggleChosenFor(tFeature)
-								this.props.domainStore.featureStore.tokenMap = {}
+								console.log(`type = ${tFeature.type}; chosen = ${tFeature.chosen}`)
+								if( tFeature.type === 'unigram' && tFeature.chosen)
+									this.props.domainStore.updateNgramFeatures()
 							})}
 							hint={tHint}
 						/>

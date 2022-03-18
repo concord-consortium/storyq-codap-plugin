@@ -204,6 +204,8 @@ export class FeatureStore {
 		const this_ = this
 
 		async function syncUnigramsInFeaturesDataset(iChosen: boolean) {
+			if(!iChosen)
+				this_.deleteUnigramTokens()
 			// For every case in Features dataset set the 'chosen' attribute to given value
 			const tCasesRequestResult: any = await codapInterface.sendRequest({
 				action: 'get',
@@ -226,6 +228,7 @@ export class FeatureStore {
 		iFeature.chosen = !iFeature.chosen
 		if (iFeature.type === 'unigram') {
 			await syncUnigramsInFeaturesDataset(iFeature.chosen)
+
 		} else {
 			await codapInterface.sendRequest({
 				action: 'update',
