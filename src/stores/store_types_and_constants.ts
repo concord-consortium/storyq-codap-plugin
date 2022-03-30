@@ -138,6 +138,7 @@ export interface TrainingResult {
 	isActive: boolean
 	threshold: number
 	constantWeightTerm: number
+	ignoreStopWords: boolean
 	settings: {
 		iterations: number
 		locked: boolean
@@ -183,6 +184,7 @@ export class Model {
 	iteration = 0
 	iterations = 20
 	lockInterceptAtZero = true
+	ignoreStopWords = true
 	usePoint5AsProbThreshold = true
 	frequencyThreshold = 4
 	beingConstructed = false

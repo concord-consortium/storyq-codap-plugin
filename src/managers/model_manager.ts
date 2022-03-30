@@ -372,6 +372,7 @@ export class ModelManager {
 		// Logistic can't happen until we've isolated the features and produced a oneHot representation
 		const tIgnore = tUnigramFeature && (tUnigramFeature.info.ignoreStopWords === true ||
 			tUnigramFeature.info.ignoreStopWords === false) ? tUnigramFeature.info.ignoreStopWords : true
+		tTrainingStore.model.ignoreStopWords = tIgnore
 		let tOneHot = oneHot({
 				frequencyThreshold: (tUnigramFeature && (Number(tUnigramFeature.info.frequencyThreshold) - 1)) || 0,
 				ignoreStopWords: tIgnore,
@@ -429,6 +430,7 @@ export class ModelManager {
 						isActive: true,
 						threshold: Number(tLogisticModel.threshold),
 						constantWeightTerm: tLogisticModel.fitResult.constantWeightTerm,
+						ignoreStopWords: tModel.ignoreStopWords,
 						settings: {
 							iterations: tLogisticModel.iterations,
 							locked: tLogisticModel.lockIntercept,
@@ -443,7 +445,7 @@ export class ModelManager {
 				})()
 
 				await this.domainStore.syncWeightsAndResultsWithActiveModels()
-				await this.domainStore.recreateUsagesAndFeatureIDs()
+				await this.domainStore.recreateUsagesAndFeatureIDs(tModel.ignoreStopWords)
 
 				tModel.reset()
 			}

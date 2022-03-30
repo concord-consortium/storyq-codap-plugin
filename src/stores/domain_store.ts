@@ -454,8 +454,10 @@ export class DomainStore {
 				currIndex = tTrainingResults.length - 1
 			tTrainingResults[currIndex].isActive = true
 		}
+		const tFirstActiveResult = tTrainingResults.find(iResult=>iResult.isActive),
+			tIgnore = tFirstActiveResult ? tFirstActiveResult.ignoreStopWords : true
 		await this.syncWeightsAndResultsWithActiveModels()
-		await this.recreateUsagesAndFeatureIDs()
+		await this.recreateUsagesAndFeatureIDs(tIgnore)
 	}
 
 	/**
@@ -567,10 +569,10 @@ export class DomainStore {
 	 * 		* The target store's features will get updated IDs for both cases and items
 	 * 	 	* The featureStore's tokenMap's tokens get updated array of case IDs and featureIDs
 	 */
-	async recreateUsagesAndFeatureIDs() {
+	async recreateUsagesAndFeatureIDs(iIgnoreStopwords:boolean) {
 
 		function targetTextHasUnigram(iText:string, iUnigram:string) {
-			return wordTokenizer(iText, true, true).indexOf(iUnigram) >= 0
+			return wordTokenizer(iText, iIgnoreStopwords, true).indexOf(iUnigram) >= 0
 		}
 
 		const tTargetDatasetName = this.targetStore.targetDatasetInfo.name,

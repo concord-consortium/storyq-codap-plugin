@@ -229,7 +229,7 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 							<NumberBox
 								width={40}
 								// onInitialized={this.saveInputInstance}
-								min={0}
+								min={1}
 								max={100}
 								value={tFeature.info.frequencyThreshold}
 								onValueChanged={action((e) => {
