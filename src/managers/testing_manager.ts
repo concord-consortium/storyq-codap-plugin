@@ -85,7 +85,8 @@ export class TestingManager {
 						{
 							name: tTargetPredictedProbabilityName,
 							description: 'The probability predicted by the model that the classification is positive',
-							precision: 5
+							unit: '%',
+							precision: 3
 						})
 				}
 				const tFeatureIDsAttributeExists = await attributeExists(tTestingDatasetName, tTestingCollectionName,
@@ -146,7 +147,7 @@ export class TestingManager {
 					tPrediction = tPredictor.predict(tGiven);
 				tCaseValues[tTargetPredictedLabelAttributeName] = tPrediction.class ?
 					tPositiveClassName : tNegativeClassName;
-				tCaseValues[tTargetPredictedProbabilityName] = tPrediction.probability;
+				tCaseValues[tTargetPredictedProbabilityName] = tPrediction.probability * 100;	// Convert to %
 				tCaseValues[tTargetFeatureIDsAttributeName] = JSON.stringify(tFeatureIDs);
 				tLabelValues.push({
 					id: tPhraseID,

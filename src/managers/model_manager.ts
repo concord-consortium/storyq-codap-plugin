@@ -190,7 +190,8 @@ export class ModelManager {
 						},
 						{
 							name: 'probability of ' + tPositiveClassName,
-							precision: 5,
+							unit: '%',
+							precision: 3,
 							description: 'A computed probability based on the logistic regression model'
 						}
 					]
@@ -687,7 +688,7 @@ export class ModelManager {
 			tProbability = tMapFromCaseIDToProbability[aDoc.caseID];
 			tPredictedLabel = tProbability > tThresholdResult ? iTools.positiveClassName : iTools.negativeClassName;
 			tValues[tPredictedLabelAttributeName] = tPredictedLabel;
-			tValues[tProbName] = tProbability;
+			tValues[tProbName] = tProbability * 100;	// Convert o %
 			tActualLabel = aDoc.class;
 			tActualPos += tActualLabel === iTools.positiveClassName ? 1 : 0;
 			tPredictedPos += tPredictedLabel === iTools.positiveClassName ? 1 : 0;
