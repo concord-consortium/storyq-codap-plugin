@@ -242,13 +242,13 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 								</div>
 								<div className='sq-training-checkboxes'>
 									{getCheckbox(this_.props.domainStore.trainingStore.model.lockInterceptAtZero,
-										'Lock intercept at zero',
+										'Lock intercept at 0',
 										SQ.hints.trainingLockIntercept,
 										(e) => {
 											this_.props.domainStore.trainingStore.model.lockInterceptAtZero = e.value
 										})}
 									{getCheckbox(this_.props.domainStore.trainingStore.model.usePoint5AsProbThreshold,
-										'Use 0.5 as probability threshold',
+										'Use 50% as probability threshold',
 										SQ.hints.trainingPointFiveAsThreshold,
 										(e) => {
 											this_.props.domainStore.trainingStore.model.usePoint5AsProbThreshold = e.value
@@ -333,7 +333,7 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 						<div style={{"fontSize": "smaller", "textAlign": "left"}}>
 							<p>{aResult.settings.iterations} iterations</p>
 							<p>intercept {aResult.settings.locked ? '' : 'not'} locked</p>
-							<p>threshold = {aResult.threshold.toFixed(2)}</p>
+							<p>threshold = {(100 * aResult.threshold).toFixed(0)}%</p>
 						</div>
 					)
 				}

@@ -13,50 +13,65 @@ export const SQ: { lists: { [key: string]: string[] }, hints: { [key:string]:str
 		positiveClassInstructions: 'The model will pay attention to one of the labels, with the remaining labels as ' +
 			'“not” the label in question. The label we pay attention to is called the target label. \n' +
 			'A target label is the most important among all labels for your model to recognize.',
-		onwardInstructions: 'Let StoryQ know what to pay attention to in the texts.',
-		testResultsName: 'The name of the model used in this test',
-		testResultsDataset: 'The dataset whose texts were classified in this test',
-		testResultsAccuracy: 'If the test dataset has labels, the percent of classifications that were correct',
-		trainingSetupIteration: 'How many times the algorithm repeats its numerical approximation. More iterations' +
-			' generally yield higher accuracy, up to a point, but training takes longer.',
-		trainingResultsActive: 'If checked, the weights are shown for features as are the model\'s results in the training set',
-		trainingResultsSettings: 'The settings in effect when this model was trained',
-		trainingResultsAccuracy: 'The percent of predicted labels that are correct',
-		trainingResultsFeatures: 'The features that were used to define this model',
-		targetDatasetChoices: 'The dataset you choose will be used to train a model. ' +
-			'It should have at least two attributes, one containing texts to analyze and the other containing ' +
-			'labels with two values.',
-		targetAttributeChoices: 'The target attribute should contain the texts to analyze.',
-		targetClassAttributeChoices: 'The target labels attribute should have two values. These are the labels of each of the ' +
-			'groups into which the texts will be classified.',
+		onwardInstructions: '',
+		featuresDef: 'A feature is anything about the text that helps you distinguish between the labels. It can be a word, ' +
+			'a phrase, punctuation, vocabulary, etc. A feature is perceived by humans, and also detectable by computing tools.',
+		testResultsName: 'This is the name of the model used for this test.',
+		testResultsDataset: 'This is the data set whose texts were classified for this test.',
+		testResultsAccuracy: 'If the testing data set has labels, this is the percentage of predictions this ' +
+			'model made correctly',
+		trainingSetupIteration: 'Iterations is the number of times the machine learning algorithm adjusts the weights ' +
+			'of the features to improve the model. More iterations generally make the model more accurate, ' +
+			'but the training process will take longer.',
+		trainingResultsActive: 'If checked, the model’s results and feature weights are shown in your tables and graphs.',
+		trainingResultsSettings: 'The settings used to train the model(s).',
+		trainingResultsAccuracy: 'The percentage of correctly predicted cases.',
+		trainingResultsFeatures: 'The feature(s) used to train this model.',
+		targetDatasetChoices: 'Here are all the data tables available in this document. ' +
+			'To train your model, choose a data table that has at least two columns, one with text and the other with labels.',
+		targetDatasetChosen: 'This is your training data. ' +
+			'If you choose a different data set, your setup will be cleared and you will need to create ' +
+			'a new setup for the new data set.',
+		targetAttributeChoices: 'Here are all the column headers in the training data. ' +
+			'Which column in your data set contains the text you want to train your model with?',
+		targetClassAttributeChoices: 'Here are all the column headers in the training data. ' +
+			'Which column contains the labels that you want to train your model with? ' +
+			'These labels will be used to classify your text into categories.',
+		targetTwoGroups: 'This is one of the labels.',
 		targetLabelChoices: 'This will be the label your model tries to predict.',
-		testingModelChoices: 'This model will be used to classify the dataset you choose as a test of how well' +
-			' the model performs on a dataset other than the one that was used to train it.',
-		testingDatasetChoices: 'This dataset will be analyzed by the chosen model. It should have at least one column' +
-			' containing texts to be classified. It may or may not have a label column.',
-		testingColumnChoices: 'The chosen column should contain the texts that are to be classified.',
-		testingLabelsChoices: 'If this column is specified, it should contain two unique labels, one for each group.',
-		featureTableCheckboxRemove: 'Click here to remove this feature from the next model you train.',
-		featureTableCheckboxAdd: 'Click here to add this feature to the next model you train.',
-		featureTableRemove: 'Removes this feature completely',
-		featureCancel: 'Press this to cancel feature construction.',
-		featureAdd: 'Press this button to begin constructing a feature.',
-		featureDone: 'You can press this button when you have completed specifying a feature.',
-		targetTwoGroups: 'This is the label for one of the two groups for the target texts.',
+		testingModelChoices: 'Which model do you want to try out on a new data set? This model will be tested to see ' +
+			'how well it performs on a new data set.',
+		testingDatasetChoices: 'What data set do you want to use to test the model? The data set should have at least one ' +
+			'column containing texts to classify. The data set is not required to have a column for the labels, ' +
+			'but that can help.',
+		testingColumnChoices: 'Which column in the data set contains the texts you want the model to classify?',
+		testingLabelsChoices: 'Here are all the column headers in the testing data. Which column contains the labels ' +
+			'that you want to test your model with? These labels will be used to classify your text into categories.',
+		featureTableCheckboxRemove: 'Uncheck this box to remove this feature from the next model you train.',
+		featureTableCheckboxAdd: 'Check this box to add this feature to the next model you train.',
+		featureTableRemove: 'Remove this feature completely',
+		featureCancel: 'Click to cancel feature creation.',
+		featureAdd: 'Click to create a feature.',
+		featureDone: 'Click when you have completed creating the feature.',
 		testingChooseDataset: 'Please choose a dataset with texts to classify.',
 		testingChooseModel: 'Please choose a model you have trained.',
 		testingChooseAttribute: 'Please choose the attribute that contains the texts you wish to classify',
-		testingTest: 'Click this button to carry out the classification test.',
+		testingTest: 'Click to test the model on the chosen testing data.',
 		trainingStep: 'Click to complete the training without stepping',
-		trainingTrain: 'Click this to train your model.',
-		trainingOneStep: 'Click to move one iteration forward in training this model.',
-		trainingSettings: 'Click to change the settings your model will use in training.',
+		trainingTrain: 'Click to train your model.',
+		trainingOneStep: 'Click to train your model one iteration at a time.',
+		trainingSettings: 'Click to change the training settings.',
 		trainingCancel: 'Click to cancel the training of this model.',
-		trainingNewModel: 'Click this to begin training a new model with the current set of features.',
-		trainingMakeModelInactive: 'Click to make this model no longer active. This will hide its results' +
+		trainingNewModel: 'Click to begin training a new model with features you created.',
+		trainingMakeModelInactive: 'Uncheck this box to hide this model’s results and feature weights.' +
 			' and weights',
-		trainingMakeModelActive: 'Click to make this model active and show its results and weights.',
-		trainingLockIntercept: 'Locking simplifies interpretation of feature weights but may introduce bias.',
-		trainingPointFiveAsThreshold: 'The probability threshold defines the boundary between assignment to the two groups.',
+		trainingMakeModelActive: 'Check this box to show this model’s results and feature weights.',
+		trainingLockIntercept: 'The intercept is a term in the logistic regression formula. ' +
+			'When the intercept is locked at 0, it is easy to interpret the coefficients, which are the feature weights. ' +
+			'However, locking intercept may introduce bias.',
+		trainingPointFiveAsThreshold: 'The machine learning algorithm will compute the probability of each case to have ' +
+			'the target label. 100% is the most probable and 0% is the least probable. A probability threshold is a cutoff ' +
+			'value for assigning the target label. A probability greater than the threshold is assigned the target label. ' +
+			'A probability equal to or less than it will not.',
 	}
 };

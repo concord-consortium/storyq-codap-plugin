@@ -141,12 +141,12 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 					tPrompt = this_.currState === 'welcome' ? 'Choose the training data' : 'Training data',
 					tValue = (tTargetStore.targetDatasetInfo === this_.targetPanelConstants.createNewEntityInfo) ?
 						'' : tTargetStore.targetDatasetInfo.title,
-					tDatasetChoices: string[] = (tDatasetInfoArray.map(iInfo => iInfo.title))
+					tDatasetChoices: string[] = (tDatasetInfoArray.map(iInfo => iInfo.title)),
+					tHint = tValue === '' ? SQ.hints.targetDatasetChoices : SQ.hints.targetDatasetChosen
 				tDatasetChoices.push( tNewDatasetChoice)
 				return (
 					choicesMenu(tPrompt, 'Your choice',
-						SQ.hints.targetDatasetChoices,
-						tDatasetChoices, tValue, 'No datasets to choose from', handleChoice)
+						tHint, tDatasetChoices, tValue, 'No datasets to choose from', handleChoice)
 				)
 			}
 
@@ -311,10 +311,11 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 					<div className='sq-info-prompt'
 							 title={SQ.hints.onwardInstructions}>
 						<p>Continue preparing your training data in <span
+							title={SQ.hints.featuresDef}
 							onClick={action(() => this_.props.domainStore.setPanel(1))}
 							style={{cursor: 'pointer'}}
 						>
-								<strong>Features</strong></span>.</p>
+								<strong>Features.</strong></span></p>
 					</div>
 				)
 			}

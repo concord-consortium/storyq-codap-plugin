@@ -75,7 +75,7 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 				return (
 					<div className='sq-info-prompt'>
 						<p>You've tested {tTestingResults.length} time{tTestingResults.length > 1 ? 's' : ''}. Test again?</p>
-						<p>Note that when you add new texts to {tTestingStore.testingDatasetInfo.title}, the testing results will
+						<p>Note that if you add new texts to {tTestingStore.testingDatasetInfo.title}, the testing results will
 							update.</p>
 					</div>
 				)
@@ -83,8 +83,10 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 		}
 
 		function getModelChoice() {
-			const tModelChoices = this_.props.domainStore.trainingStore.trainingResults.map(iResult => iResult.name)
-			return choicesMenu('Choose a model to test', 'Choose a model',
+			const tModelChoices = this_.props.domainStore.trainingStore.trainingResults.map(iResult => iResult.name),
+				tPrompt = this_.props.domainStore.testingStore.chosenModelName === '' ? 'Choose a model to test'
+					: 'The model to test'
+			return choicesMenu(tPrompt, 'Choose a model',
 				SQ.hints.testingModelChoices,
 				tModelChoices,
 				this_.props.domainStore.testingStore.chosenModelName, 'No models to choose from', async (iChoice) => {
@@ -96,7 +98,7 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 		function getTestingDatasetChoice() {
 			const tDatasetInfoArray = tTestingStore.testingDatasetInfoArray,
 				tDatasetNames = tDatasetInfoArray.map(iEntity => iEntity.title)
-			return choicesMenu('Choose testing data', 'Your choice',
+			return choicesMenu('Choose a dataset', 'Your choice',
 				SQ.hints.testingDatasetChoices,
 				tDatasetNames,
 				tTestingStore.testingDatasetInfo.title,
@@ -191,7 +193,7 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 							<tr>
 								<th style={{textAlign: 'center'}} title={SQ.hints.testResultsName}>Model Name</th>
 								<th style={{textAlign: 'center'}}
-										title={SQ.hints.testResultsDataset}>Dataset
+										title={SQ.hints.testResultsDataset}>Data set
 								</th>
 								<th style={{textAlign: 'center'}}
 										title={SQ.hints.testResultsAccuracy}>
