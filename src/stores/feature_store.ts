@@ -10,6 +10,7 @@ import {
 	SearchDetails, starterFeature, TokenMap, WordListSpec
 } from "./store_types_and_constants";
 import codapInterface from "../lib/CodapInterface";
+import {entityInfo} from "../lib/codap-helper";
 
 export class FeatureStore {
 	features: Feature[] = []
@@ -25,9 +26,12 @@ export class FeatureStore {
 	targetColumnFeatureNames: string[] = []
 	tokenMap: TokenMap = {}
 	featureWeightCaseIDs: { [index: string]: number } = {}
+	getTargetDatasetCallback:()=>entityInfo
 
-	constructor() {
-		makeAutoObservable(this, {tokenMap: false, featureWeightCaseIDs: false}, {autoBind: true})
+	constructor(iGetTargetDatasetCallback:()=>entityInfo) {
+		makeAutoObservable(this, {tokenMap: false, featureWeightCaseIDs: false,
+			getTargetDatasetCallback: false}, {autoBind: true})
+		this.getTargetDatasetCallback = iGetTargetDatasetCallback
 	}
 
 	asJSON() {
@@ -185,10 +189,22 @@ export class FeatureStore {
 			this.features.splice(tFoundIndex, 1)
 		}
 		if( iFeature.type !== 'unigram') {
+			const tTargetDatasetInfo = this.getTargetDatasetCallback()
 			await codapInterface.sendRequest({
 				action: 'delete',
 				resource: `dataContext[${this.featureDatasetInfo.datasetID}].itemByID[${iFeature.featureItemID}]`
 			})
+			const tCollectionListResult:any = await codapInterface.sendRequest({
+				action: 'get',
+				resource: `dataContext[${tTargetDatasetInfo.id}].collectionList`
+			})
+			if( tCollectionListResult.success) {
+				const tCollectionID = tCollectionListResult.values[0].id
+				await codapInterface.sendRequest({
+					action: 'delete',
+					resource: `dataContext[${tTargetDatasetInfo.id}].collection[${tCollectionID}].attribute[${iFeature.attrID}]`
+				})
+			}
 		}
 		if (iFeature.type === 'unigram') {
 			this.deleteUnigramTokens()

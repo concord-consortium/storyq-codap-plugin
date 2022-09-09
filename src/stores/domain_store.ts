@@ -28,7 +28,7 @@ export class DomainStore {
 		this.targetStore = new TargetStore(() => {
 			return this.featureStore.features.map(iFeature => iFeature.name)
 		})
-		this.featureStore = new FeatureStore()
+		this.featureStore = new FeatureStore(() => this.targetStore.targetDatasetInfo)
 		this.trainingStore = new TrainingStore()
 		this.testingStore = new TestingStore(this.featureStore.getFeatureDatasetID)
 		this.textStore = new TextStore()

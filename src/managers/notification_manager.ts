@@ -21,6 +21,7 @@ export default class NotificationManager {
 		this.handleUpdateFeatureCase = this.handleUpdateFeatureCase.bind(this)
 		codapInterface.on('notify', '*', 'dataContextCountChanged', this.handleDataContextChange);
 		codapInterface.on('notify', '*', 'createCases', this.handleDataContextChange);
+		codapInterface.on('notify', '*', 'titleChange', this.handleDataContextChange);
 		codapInterface.on('notify', '*', 'createAttributes', this.handleAttributesChange);
 		codapInterface.on('notify', '*', 'updateAttributes', this.handleAttributesChange);
 		codapInterface.on('notify', '*', 'deleteCases', this.handleDeleteFeatureCase);
@@ -55,7 +56,7 @@ export default class NotificationManager {
 				tDeletedFeatureNames.forEach((iName: string) => {
 					const tIndex = tFeatures.findIndex(iFeature => iFeature.name === iName && iFeature.type !== 'unigram')
 					if (tIndex >= 0)
-						tFeatures.splice(tIndex, 1)
+						tFeatureStore.deleteFeature(tFeatures[tIndex])
 				})
 			})()
 		}
