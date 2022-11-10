@@ -98,7 +98,7 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 		function getTestingDatasetChoice() {
 			const tDatasetInfoArray = tTestingStore.testingDatasetInfoArray,
 				tDatasetNames = tDatasetInfoArray.map(iEntity => iEntity.title)
-			return choicesMenu('Choose a dataset', 'Your choice',
+			return choicesMenu('Choose a data set', 'Your choice',
 				SQ.hints.testingDatasetChoices,
 				tDatasetNames,
 				tTestingStore.testingDatasetInfo.title,

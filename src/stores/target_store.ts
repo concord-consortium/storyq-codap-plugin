@@ -198,7 +198,7 @@ export class TargetStore {
 	 */
 	async addOrUpdateFeatureToTarget(iNewFeature: Feature, iUpdate ?: boolean) {
 		const this_ = this,
-			tTargetAttr = `${this_.targetAttributeName}`
+			tTargetAttr = `\`${this_.targetAttributeName}\``
 		if (!this_.targetDatasetInfo || iNewFeature.info.kind === 'ngram' || iNewFeature.info.kind === 'column')
 			return;
 
@@ -206,7 +206,7 @@ export class TargetStore {
 			const option = (iNewFeature.info.details as SearchDetails).where;
 			const tBegins = option === featureDescriptors.containsOptions[2] ? '^' : '';
 			const tEnds = option === featureDescriptors.containsOptions[3] ? '$' : '';
-			const tParamString = `${this_.targetAttributeName},"${tBegins}\\\\\\\\b${(iNewFeature.info.details as SearchDetails).freeFormText}\\\\\\\\b${tEnds}"`;
+			const tParamString = `${tTargetAttr},"${tBegins}\\\\\\\\b${(iNewFeature.info.details as SearchDetails).freeFormText}\\\\\\\\b${tEnds}"`;
 			let tResult = '';
 			switch (option) {//['contain', 'not contain', 'start with', 'end with']
 				case featureDescriptors.containsOptions[0]:	// contain
