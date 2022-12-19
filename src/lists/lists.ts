@@ -10,33 +10,36 @@ export const SQ: { lists: { [key: string]: string[] }, hints: { [key:string]:str
 			"opposite","past","than","to","underneath","upon","without"],
 	},
 	hints: {
-		positiveClassInstructions: 'The model will pay attention to one of the labels, with the remaining labels as ' +
-			'“not” the label in question. The label we pay attention to is called the target label. \n' +
-			'A target label is the most important among all labels for your model to recognize.',
+		positiveClassInstructions: 'The TARGET LABEL is the label that your model will be trained to identify. ' +
+			'The model will compute the probability that a text should have this label. Any other labels will be ' +
+			'considered “not the [target label]”.',
 		onwardInstructions: '',
 		featuresDef: 'A feature is anything about the text that helps you distinguish between the labels. It can be a word, ' +
-			'a phrase, punctuation, vocabulary, etc. A feature is perceived by humans, and also detectable by computing tools.',
+			'a phrase, punctuation, etc. A feature is perceived by humans, and also detectable by computing tools.',
 		testResultsName: 'This is the name of the model used for this test.',
 		testResultsDataset: 'This is the data set whose texts were classified for this test.',
 		testResultsAccuracy: 'If the testing data set has labels, this is the percentage of predictions this ' +
-			'model made correctly',
+			'model made correctly.',
 		trainingSetupIteration: 'Iterations is the number of times the machine learning algorithm adjusts the weights ' +
 			'of the features to improve the model. More iterations generally make the model more accurate, ' +
 			'but the training process will take longer.',
 		trainingResultsActive: 'If checked, the model’s results and feature weights are shown in your tables and graphs.',
 		trainingResultsSettings: 'The settings used to train the model(s).',
-		trainingResultsAccuracy: 'The percentage of correctly predicted cases.',
+		trainingResultsAccuracy: 'ACCURACY is percentage of correctly predicted texts.',
 		trainingResultsFeatures: 'The feature(s) used to train this model.',
 		targetDatasetChoices: 'Here are all the data tables available in this document. ' +
 			'To train your model, choose a data table that has at least two columns, one with text and the other with labels.',
 		targetDatasetChosen: 'This is your training data. ' +
 			'If you choose a different data set, your setup will be cleared and you will need to create ' +
 			'a new setup for the new data set.',
-		targetAttributeChoices: 'Here are all the column headers in the training data. ' +
-			'Which column in your data set contains the text you want to train your model with?',
+		targetAttributeChoices: 'Which column in your data set contains the texts you want to analyze?',
+		targetAttributeChosen: 'This is the column that contains the text you want to train your model with. ' +
+			'If you choose a different column, your setup will be updated with the new text.',
 		targetClassAttributeChoices: 'Here are all the column headers in the training data. ' +
 			'Which column contains the labels that you want to train your model with? ' +
 			'These labels will be used to classify your text into categories.',
+		targetClassAttributeChosen: 'This is the column that contains the labels you want to train your model with. ' +
+			'If you choose a different column, your setup will be updated with the new labels.',
 		targetTwoGroups: 'This is one of the labels.',
 		targetLabelChoices: 'This will be the label your model tries to predict.',
 		testingModelChoices: 'Which model do you want to try out on a new data set? This model will be tested to see ' +
@@ -47,7 +50,7 @@ export const SQ: { lists: { [key: string]: string[] }, hints: { [key:string]:str
 		testingColumnChoices: 'Which column in the data set contains the texts you want the model to classify?',
 		testingLabelsChoices: 'Here are all the column headers in the testing data. Which column contains the labels ' +
 			'that you want to test your model with? These labels will be used to classify your text into categories.',
-		featureTableCheckboxRemove: 'Uncheck this box to remove this feature from the next model you train.',
+		featureTableCheckboxRemove: 'Uncheck this box to exclude this feature from the next model you train.',
 		featureTableCheckboxAdd: 'Check this box to add this feature to the next model you train.',
 		featureTableRemove: 'Remove this feature completely',
 		featureCancel: 'Click to cancel feature creation.',
@@ -63,8 +66,7 @@ export const SQ: { lists: { [key: string]: string[] }, hints: { [key:string]:str
 		trainingSettings: 'Click to change the training settings.',
 		trainingCancel: 'Click to cancel the training of this model.',
 		trainingNewModel: 'Click to begin training a new model with features you created.',
-		trainingMakeModelInactive: 'Uncheck this box to hide this model’s results and feature weights.' +
-			' and weights',
+		trainingMakeModelInactive: 'Uncheck this box to hide this model’s results and feature weights.',
 		trainingMakeModelActive: 'Check this box to show this model’s results and feature weights.',
 		trainingLockIntercept: 'The intercept is a term in the logistic regression formula. ' +
 			'When the intercept is locked at 0, it is easy to interpret the coefficients, which are the feature weights. ' +

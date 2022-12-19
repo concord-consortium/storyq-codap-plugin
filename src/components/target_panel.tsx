@@ -145,7 +145,7 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 					tHint = tValue === '' ? SQ.hints.targetDatasetChoices : SQ.hints.targetDatasetChosen
 				tDatasetChoices.push( tNewDatasetChoice)
 				return (
-					choicesMenu(tPrompt, 'Your choice',
+					choicesMenu(tPrompt, 'Choose from',
 						tHint, tDatasetChoices, tValue, 'No datasets to choose from', handleChoice)
 				)
 			}
@@ -202,10 +202,12 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 
 			function targetAttributeChoice() {
 				const tPrompt = this_.currState === 'chosen-no-target-attribute' ?
-					'Choose the column that has the text' : 'Text'
+					'Choose the column that has the text' : 'Text',
+					tHint = this_.currState === 'chosen-no-target-attribute' ?
+						SQ.hints.targetAttributeChoices : SQ.hints.targetAttributeChosen
 				if (tTargetStore.targetAttributeNames.length > 0) {
 					return choicesMenu(tPrompt, 'Choose from',
-						SQ.hints.targetAttributeChoices,
+						tHint,
 						tTargetStore.targetAttributeNames,
 						tTargetStore.targetAttributeName, 'No attributes to choose from',
 						async (iChoice) => {
@@ -218,14 +220,16 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 
 			function targetClassChoice() {
 				const tPrompt = this_.currState === 'chosen-no-target-label-attribute' ?
-					'Choose the column that has the labels' : 'Labels'
+					'Choose the column that has the labels' : 'Labels',
+					tHint = this_.currState === 'chosen-no-target-label-attribute' ?
+						SQ.hints.targetClassAttributeChoices : SQ.hints.targetClassAttributeChosen
 				if (tTargetStore.targetAttributeName !== '') {
 					const tCandidateAttributeNames = tTargetStore.targetAttributeNames.filter((iName) => {
 						return this_.props.domainStore.featureStore.features.findIndex(aFeature => aFeature.name === iName) < 0
 					})
 					return choicesMenu(tPrompt,
 						'Choose an attribute with labels',
-						SQ.hints.targetClassAttributeChoices,
+						tHint,
 						tCandidateAttributeNames,
 						tTargetStore.targetClassAttributeName, 'No attributes to choose from', async (iChoice) => {
 							await this_.updateTargetPanelInfo('targetClassAttributeName', iChoice)
@@ -248,15 +252,11 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 				if (this_.currState === 'chosen-no-chosen-pos-class') {
 					if (tTargetStore.targetCases.length > 0) {
 						if(tTargetStore.targetClassAttributeValues.length === 2) {
-							const tLeftColumnKey = tTargetStore.targetLeftColumnKey,
-								tLeftColumnValue = tTargetStore.targetClassNames[tLeftColumnKey],
-								tRightColumnKey = tLeftColumnKey === 'left' ? 'right' : 'left',
-								tRightColumnValue = tTargetStore.targetClassNames[tRightColumnKey]
 							return (
 								<div className='sq-info-prompt'>
 									<p
 										title={SQ.hints.positiveClassInstructions}>
-										Choose either "{tLeftColumnValue}" or "{tRightColumnValue}" as your target label.</p>
+										Choose your target label.</p>
 								</div>
 							)
 						}

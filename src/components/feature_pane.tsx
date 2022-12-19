@@ -105,7 +105,7 @@ export const FeaturePane = observer(class FeaturePane extends Component<Feature_
 							onClick={action(()=>this_.props.domainStore.setPanel(2))}
 							style={{cursor: 'pointer'}}
 						>
-								<strong>Training</strong></span> to train your model.</p>
+								<strong>Training</strong></span>to train your model.</p>
 				return (
 					<div className='sq-info-prompt'>
 						{tInstructions}
