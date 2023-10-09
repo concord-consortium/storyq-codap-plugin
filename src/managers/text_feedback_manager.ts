@@ -5,7 +5,7 @@
 
 import codapInterface, {CODAP_Notification} from "../lib/CodapInterface";
 import {ClassLabel, HeadingsManager, HeadingSpec, PhraseQuadruple} from "./headings_manager";
-import {datasetExists, getSelectedCasesFrom} from "../lib/codap-helper";
+import {datasetExists, getCaseValues, getSelectedCasesFrom} from "../lib/codap-helper";
 import {phraseToFeatures, textToObject} from "../utilities/utilities";
 import {DomainStore} from "../stores/domain_store";
 import {UiStore} from "../stores/ui_store";
@@ -120,6 +120,11 @@ export default class TextFeedbackManager {
 			}),
 			tCaseRequests: { action: string, resource: string }[] = []
 
+		// If we have a testing dataset but no test has been run, we're done
+		if (tUseTestingDataset && tStore.testingResultsArray.length === 0) {
+			return
+		}
+
 		// For the features, we just need to record their caseIDs. For the weights, we record a request to get parents
 		tSelectionListResult.values.forEach((iValue: any) => {
 			if (iValue.collectionName === tFeatureCollectionName) {
@@ -148,18 +153,37 @@ export default class TextFeedbackManager {
 				}
 			})
 		)
-		// For each selected feature stash its usages and name
-		tFeatureCasesResult.forEach((iResult: any) => {
-			const tUsages = iResult.values.case.values.usages
-			if (typeof tUsages === 'string' && tUsages.length > 0) {
-				(JSON.parse(tUsages)).forEach((anID: number) => {
-					tUsedIDsSet.add(anID);
-				})
-				tFeaturesMap[iResult.values.case.id] = iResult.values.case.values.name
-			}
-		})
+		// If we're using the testing dataset, we go through each of the target phrases and pull out the case IDs
+		// of the cases that use the selected features. We determine this by looking at the featureIDs attribute
+		// of each target phrase case and checking whether that array contains any of the selected feature IDs.
+		if (tUseTestingDataset) {
+			const tTestCases = await getCaseValues(tDatasetName, tCollectionName)
+			tTestCases.forEach((iCase: any) => {
+				const tFeatureIDs = iCase.values.featureIDs
+				if (typeof tFeatureIDs === 'string' && tFeatureIDs.length > 0) {
+					JSON.parse(tFeatureIDs).forEach((anID: number) => {
+						if (tIDsOfFeaturesToSelect.includes(anID)) {
+							tUsedIDsSet.add(iCase.id);
+						}
+					})
+				}
+			})
+		}
+		else {
+			// For each selected feature stash its usages and name
+			tFeatureCasesResult.forEach((iResult: any) => {
+				const tUsages = iResult.values.case.values.usages
+				if (typeof tUsages === 'string' && tUsages.length > 0) {
+					(JSON.parse(tUsages)).forEach((anID: number) => {
+						tUsedIDsSet.add(anID);
+					})
+					tFeaturesMap[iResult.values.case.id] = iResult.values.case.values.name
+				}
+			})
+		}
 
-		handleSelectionInFeaturesDataset()
+		await handleSelectionInFeaturesDataset()
+
 		// Select the target texts that make use of the selected features
 		const tUsedCaseIDs: number[] = Array.from(tUsedIDsSet);
 		await codapInterface.sendRequest({
@@ -306,20 +330,26 @@ export default class TextFeedbackManager {
 					tFeatureIDsSet.add(Number(anID));
 				})
 			}
-			// The predicted value, if there is one, belongs to the child case that has the correct
-			// model name
-			if (tChildIDs && tChildIDs.length > 0) {
-				const tChildRequests = tChildIDs.map((iID: number) => {
-						return {
-							action: 'get',
-							resource: `dataContext[${tDatasetName}].collection[results].caseByID[${iID}]`
-						}
-					}),
-					tChildRequestResults: any = await codapInterface.sendRequest(tChildRequests),
-				tFoundChild = tChildRequestResults.find((iChildResult:any)=> {
-					return iChildResult.values.case.values['model name'] === tActiveModelName
-				})
-				tPredictedResult = tFoundChild ? tFoundChild.values.case.values[tPredictedLabelAttributeName] : ''
+			// If we're using the testing dataset, the predicted value belongs is to be found
+			// in tCaseValues
+			if (tUseTestingDataset) {
+				tPredictedResult = tCaseValues[tPredictedLabelAttributeName] || ''
+			} else {
+				// The predicted value, if there is one, belongs to the child case that has the correct
+				// model name
+				if (tChildIDs && tChildIDs.length > 0) {
+					const tChildRequests = tChildIDs.map((iID: number) => {
+							return {
+								action: 'get',
+								resource: `dataContext[${tDatasetName}].collection[results].caseByID[${iID}]`
+							}
+						}),
+						tChildRequestResults: any = await codapInterface.sendRequest(tChildRequests),
+						tFoundChild = tChildRequestResults.find((iChildResult: any) => {
+							return iChildResult.values.case.values['model name'] === tActiveModelName
+						})
+					tPredictedResult = tFoundChild ? tFoundChild.values.case.values[tPredictedLabelAttributeName] : ''
+				}
 			}
 
 			tQuadruples.push({

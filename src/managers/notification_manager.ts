@@ -23,6 +23,7 @@ export default class NotificationManager {
 		codapInterface.on('notify', '*', 'createCases', this.handleDataContextChange);
 		codapInterface.on('notify', '*', 'titleChange', this.handleDataContextChange);
 		codapInterface.on('notify', '*', 'createAttributes', this.handleAttributesChange);
+		codapInterface.on('notify', '*', 'deleteAttributes', this.handleAttributesChange);
 		codapInterface.on('notify', '*', 'updateAttributes', this.handleAttributesChange);
 		codapInterface.on('notify', '*', 'deleteCases', this.handleDeleteFeatureCase);
 		codapInterface.on('notify', '*', 'updateCases', this.handleUpdateFeatureCase);
@@ -35,12 +36,13 @@ export default class NotificationManager {
 		})()
 	}
 
-	handleAttributesChange(/*iNotification: CODAP_Notification*/) {
+	async handleAttributesChange(/*iNotification: CODAP_Notification*/) {
 		action(async () => {
 			action(() => {
 				this.domainStore.featureStore.featureUnderConstruction = Object.assign({}, starterFeature)
 			})()
 		})()
+		await this.handleDataContextChange()
 	}
 
 	handleDeleteFeatureCase(iNotification: CODAP_Notification) {
