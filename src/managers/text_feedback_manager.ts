@@ -210,15 +210,12 @@ export default class TextFeedbackManager {
 		const this_ = this
 
 		async function handleSelectionInFeaturesDataset() {
-			// await deselectAllCasesIn(tFeatureDatasetName)
-			if (tIDsOfFeaturesToSelect.length > 0) {
-				// Select the features
-				await codapInterface.sendRequest({
-					action: 'create',
-					resource: `dataContext[${tFeatureDatasetName}].selectionList`,
-					values: tIDsOfFeaturesToSelect
-				});
-			}
+			// Select the features or, possibly, deselect all features
+			await codapInterface.sendRequest({
+				action: 'create',
+				resource: `dataContext[${tFeatureDatasetName}].selectionList`,
+				values: tIDsOfFeaturesToSelect
+			});
 
 			let tSelectedFeatureCases: any[] = []
 			if (this_.domainStore.featureStore.features.length > 0) {
