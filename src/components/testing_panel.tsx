@@ -13,24 +13,24 @@ import {action, toJS} from "mobx";
 import {TestingManager} from "../managers/testing_manager";
 import {SQ} from "../lists/lists";
 
+export const kNonePresent = 'None present';
+
 export interface Testing_Props {
 	uiStore: UiStore
 	domainStore: DomainStore
+	testingManager: TestingManager
 }
 
 export const TestingPanel = observer(class TestingPanel extends Component<Testing_Props> {
 
 	testingManager: TestingManager
-	kNonePresent = 'None present'
 
-	constructor(props: any) {
+	constructor(props: Testing_Props) {
 		super(props);
 		this.handleDataContextNotification = this.handleDataContextNotification.bind(this)
-		this.handleCaseNotification = this.handleCaseNotification.bind(this)
 		codapInterface.on('notify', '*', '', this.handleDataContextNotification);
-		codapInterface.on('notify', '*', 'createCases', this.handleCaseNotification);
 
-		this.testingManager = new TestingManager(this.props.domainStore, this.kNonePresent)
+		this.testingManager = props.testingManager;
 	}
 
 	async handleDataContextNotification(iNotification: CODAP_Notification) {
@@ -44,12 +44,6 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 				await this.updateCodapInfo()
 			}
 		}
-	}
-
-	async handleCaseNotification(iNotification: CODAP_Notification) {
-		const tDataContextName = iNotification.resource && iNotification.resource.match(/\[(.+)]/)[1]
-		if (tDataContextName === this.props.domainStore.testingStore.testingDatasetInfo.name)
-			await this.testingManager.classify(false)
 	}
 
 	async updateCodapInfo() {
@@ -129,7 +123,7 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 		function getClassAttributeChoice() {
 			if (tTestingStore.testingDatasetInfo.title !== '') {
 				const tAttributeNames: string[] = toJS(tTestingStore.testingAttributeNames)
-				tAttributeNames.unshift(this_.kNonePresent)
+				tAttributeNames.unshift(kNonePresent)
 				return choicesMenu('Choose the column with the labels (optional)', 'Choose a column',
 					SQ.hints.testingLabelsChoices,
 					tAttributeNames,

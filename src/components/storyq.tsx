@@ -5,7 +5,7 @@ import 'devextreme/dist/css/dx.light.compact.css';
 import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
 import {faArrowLeft, faQuestionCircle} from '@fortawesome/free-solid-svg-icons'
 */
-import codapInterface from "../lib/CodapInterface";
+import codapInterface, { CODAP_Notification } from "../lib/CodapInterface";
 // import Button from 'devextreme-react/button';
 import {
 	initializePlugin,
@@ -22,9 +22,10 @@ import {observer} from "mobx-react";
 import {DomainStore} from "../stores/domain_store";
 import {action} from "mobx";
 import {TrainingPanel} from "./training_panel";
-import {TestingPanel} from "./testing_panel";
+import {TestingPanel, kNonePresent} from "./testing_panel";
 import {kStoryQPluginName} from "../stores/store_types_and_constants";
 import NotificationManager from "../managers/notification_manager";
+import {TestingManager} from "../managers/testing_manager";
 
 const Storyq = observer(class Storyq extends Component<{}, {}> {
 		private uiStore: UiStore
@@ -37,6 +38,7 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 			height: 420
 		};
 		private tabPanel: dxTabPanel | null = null;	// Todo: necessary?
+		private testingManager: TestingManager;
 
 		constructor(props: any) {
 			super(props);
@@ -47,6 +49,14 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 			this.getPluginStore = this.getPluginStore.bind(this);
 			this.saveTabPanelInstance = this.saveTabPanelInstance.bind(this);
 			this.handleSelectionChanged = this.handleSelectionChanged.bind(this);
+
+			// Listen for CODAP changes here on the root component so it does not matter if the plugin
+			// is collapsed in CODAP (which causes the tab not to render the tab panels).
+			// This code to initialize the testing manager and listen for cases being created used
+			// to live in TestingPanel.
+			this.testingManager = new TestingManager(this.domainStore, kNonePresent)
+			this.handleCaseNotification = this.handleCaseNotification.bind(this)
+			codapInterface.on('notify', '*', 'createCases', this.handleCaseNotification);
 
 			codapInterface.on('update', 'interactiveState', '', this.restorePluginFromStore);
 			codapInterface.on('get', 'interactiveState', '', this.getPluginStore);
@@ -62,6 +72,13 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 					uiStore: this.uiStore.asJSON()
 				}
 			};
+		}
+
+		async handleCaseNotification(iNotification: CODAP_Notification) {
+			const tDataContextName = iNotification.resource && iNotification.resource.match(/\[(.+)]/)[1]
+			if (tDataContextName === this.domainStore.testingStore.testingDatasetInfo.name) {
+				await this.testingManager.classify(false)
+			}
 		}
 
 		async restorePluginFromStore(iStorage: any) {
@@ -113,6 +130,7 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 						<TestingPanel
 							uiStore={this.uiStore}
 							domainStore={this.domainStore}
+							testingManager={this.testingManager}
 						/>
 					</Item>
 				</TabPanel>
