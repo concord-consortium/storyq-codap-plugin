@@ -30,7 +30,7 @@ export const wordTokenizer = (text: string, ignoreStopWords: boolean, ignorePunc
 	let tokens: string[] = [];
 	if (text) {
 		let tExpression = ignorePunctuation ? /(\w+['’]{0,1}\w+)|[\u25A0-\u2BFF]/g :
-			/(\w+['’]{0,1}\w+)|[\u25A0-\u2BFF]|[,!:@#$%^&*()\-_[\]{};'".<>/?`~]/g
+			/(\w+['’]{0,1}\w+)|[\u25A0-\u2BFF]|[,!:@#$%^&*()\-_[\]{};'".<>/?`~]|\d+/g
 		let tWords: RegExpMatchArray | [] = text.toLowerCase().match(tExpression) || [];
 		tWords.forEach((aWord) => {
 			if (!ignoreStopWords || !stopWords[aWord])
