@@ -33,6 +33,7 @@ export class NumericInput extends Component<NumericInputProps, {}> {
 			<label>
 				<span>{this.props.label}</span>
 				<NumberBox
+					width={40}
 					onInitialized={this.saveInputInstance}
 					min={this.props.min}
 					max={this.props.max}

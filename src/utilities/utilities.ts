@@ -1,4 +1,4 @@
-import {wordTokenizer} from "./lib/one_hot";
+import {wordTokenizer} from "../lib/one_hot";
 
 /**
  *
@@ -16,7 +16,7 @@ export function textToObject( iText:string, iSelectedWords:any, iSpecialFeatures
 			});
 	});
 
-	let words:string[] = wordTokenizer(iText, false);
+	let words:string[] = wordTokenizer(iText, false, false);
 	words.forEach((iWord) => {
 		let tRawWord = iWord.toLowerCase();
 		if (iSelectedWords.indexOf(tRawWord) >= 0) {
@@ -50,31 +50,32 @@ export function textToObject( iText:string, iSelectedWords:any, iSpecialFeatures
  */
 export function phraseToFeatures( iPhrase:string, iFeatures:string[], iSpecialFeatures:string[]):any {
 	let tResultArray:any = [];
-	// First prepend any special features that are given as regular features
-	iSpecialFeatures.forEach( iFeature => {
-		if( iFeatures.indexOf( iFeature) >= 0)
-			tResultArray.push( {
-				text: `<${iFeature}> `, bold: true, underlined: true
-			});
-	});
-	let words:RegExpMatchArray | [] = iPhrase.match(/[^ ]+/g) || [];
-	words.forEach((iWord) => {
-		let tRawWordArray = iWord.match(/\w+/),
-			tRawWord = (tRawWordArray && tRawWordArray.length > 0 ? tRawWordArray[0] : '').toLowerCase();
-		if (iFeatures.indexOf(tRawWord) >= 0) {
+	if( iPhrase) {
+		// First prepend any special features that are given as regular features
+		iSpecialFeatures.forEach(iFeature => {
+			if (iFeatures.indexOf(iFeature) >= 0)
+				tResultArray.push({
+					text: `<${iFeature}> `, bold: true, underlined: true
+				});
+		});
+		let words: RegExpMatchArray | [] = iPhrase.match(/[^ ]+/g) || [];
+		words.forEach((iWord) => {
+			let tRawWordArray = iWord.match(/\w+/),
+				tRawWord = (tRawWordArray && tRawWordArray.length > 0 ? tRawWordArray[0] : '').toLowerCase();
+			if (iFeatures.indexOf(tRawWord) >= 0) {
+				tResultArray.push({
+					text: iWord, bold: true, underlined: true
+				});
+			} else {
+				tResultArray.push({
+					text: iWord, color: "#888888"
+				});
+			}
 			tResultArray.push({
-				text: iWord, bold: true, underlined: true
-			});
-		}
-		else {
-			tResultArray.push({
-				text: iWord, color: "#888888"
-			});
-		}
-		tResultArray.push({
-			text: ' '
+				text: ' '
+			})
 		})
-	});
+	}
 	return tResultArray;
 }
 

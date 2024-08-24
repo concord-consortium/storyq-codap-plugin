@@ -3,7 +3,20 @@ import codapInterface from "./CodapInterface";
 export interface entityInfo {
 	name: string,
 	title: string,
-	id: number
+	id: number,
+	numAttributes?: number
+}
+
+/**
+ * Cases retrieved from dataset have this form
+ */
+export interface Case {
+	id: number,
+	parent?: number,
+	children?: number[],
+	values: {
+		[index: string]: string
+	}
 }
 
 export function initializePlugin(pluginName: string, version: string, dimensions: { width: number, height: number },
@@ -13,6 +26,7 @@ export function initializePlugin(pluginName: string, version: string, dimensions
 		version: version,
 		dimensions: dimensions,
 		preventDataContextReorg: false,
+		preventBringToFront: true,
 		cannotClose: true
 	};
 	return codapInterface.init(interfaceConfig, iRestoreStateHandler);
@@ -24,8 +38,8 @@ export function registerObservers() {
 
 // const dataSetString = (contextName: string) => `dataContext[${contextName}]`;
 
-export function openTable(dataContextName: string) {
-	codapInterface.sendRequest({
+export async function openTable(dataContextName: string) {
+	await codapInterface.sendRequest({
 		action: 'create',
 		resource: 'component',
 		values: {
@@ -35,6 +49,29 @@ export function openTable(dataContextName: string) {
 			dataContext: dataContextName
 		}
 	});
+}
+
+/**
+ * Find the case table or case card corresponding to the given dataset
+ * @param iDatasetInfo
+ */
+export async function guaranteeTableOrCardIsVisibleFor(iDatasetInfo: entityInfo) {
+	if (iDatasetInfo.name !== '' && iDatasetInfo.title !== '') {
+		const tTableID = await getComponentByTypeAndTitleOrName('caseTable', iDatasetInfo.title, iDatasetInfo.name),
+			tFoundTable = tTableID >= 0,
+			tType = tFoundTable ? 'caseTable' : 'caseCard'
+
+		await codapInterface.sendRequest({
+			action: 'create',
+			resource: `component`,
+			values: {
+				type: tType,
+				name: iDatasetInfo.name,
+				title: iDatasetInfo.name,
+				dataContext: iDatasetInfo.name
+			}
+		})
+	}
 }
 
 export async function openStory(iTextComponentName: string): Promise<number> {
@@ -57,7 +94,7 @@ export async function openStory(iTextComponentName: string): Promise<number> {
 			console.log(`Could not open text component`);
 			return 0;
 		});
-	console.log(`openStoryResult is ${JSON.stringify(theResult)}`);
+	// console.log(`openStoryResult is ${JSON.stringify(theResult)}`);
 	return theResult.values.id;
 }
 
@@ -74,31 +111,126 @@ export function isAModel(iValue: any): boolean {
 	return iValue.title.toLowerCase().indexOf('model') >= 0;
 }
 
-/**
- * Return the names of datasets that pass the given filter
- * @param iFilter
- */
-export async function getDatasetInfoWithFilter(iFilter: (value: any) => boolean): Promise<entityInfo[]> {
-	let tDatasetInfoArray: entityInfo[] = [];
-	let tContextListResult: any = await codapInterface.sendRequest({
+export async function datasetExists(iDatasetName: string): Promise<boolean> {
+	const tContextListResult: any = await codapInterface.sendRequest({
 		"action": "get",
 		"resource": "dataContextList"
 	}).catch((reason) => {
 		console.log('unable to get datacontext list because ' + reason);
 	});
-	tContextListResult.values.forEach((aValue: any) => {
-		if (iFilter(aValue))
-			tDatasetInfoArray.push(
-				{
-					title: aValue.title,
-					name: aValue.name,
-					id: aValue.id
-				});
-	});
-	return tDatasetInfoArray;
+	return tContextListResult.values.some((aContext: any) => aContext.name === iDatasetName)
 }
 
-export async function getSelectedCasesFrom(iDatasetName: string | null): Promise<any[]> {
+/**
+ * Return the number of attributes in the rightmost collection
+ * @param iDataContextID
+ */
+export async function getNumChildAttributesInContext(iDataContextID: number) {
+	const tListResult: any = await codapInterface.sendRequest(
+		{
+			action: 'get',
+			resource: `dataContext[${iDataContextID}].collectionList`
+		}
+	)
+		.catch(() => {
+			console.log('Error getting collection list')
+		});
+	const tCollectionID = tListResult && tListResult.values && Array.isArray(tListResult.values) &&
+		tListResult.values.length > 0 && tListResult.values.pop().id
+	if( tCollectionID) {
+		const tAttrsResult: any = await codapInterface.sendRequest({
+			action: 'get',
+			resource: `dataContext[${iDataContextID}].collection[${tCollectionID}].attributeList`
+		})
+		return tAttrsResult.values.length
+	}
+	else
+		return 0
+}
+
+/**
+ * Return the names of datasets that pass the given filter
+ * @param iFilter
+ */
+export async function getDatasetInfoWithFilter(iFilter: (value: any) => boolean): Promise<entityInfo[]> {
+	const tDatasetInfoArray: entityInfo[] = [],
+		tContextListResult: any = await codapInterface.sendRequest({
+			"action": "get",
+			"resource": "dataContextList"
+		}).catch((reason) => {
+			console.log('unable to get datacontext list because ' + reason);
+		});
+	if (!(tContextListResult && tContextListResult.success))
+		return []
+	else {
+		for (let tIndex = 0; tIndex < tContextListResult.values.length; tIndex++) {
+			let aValue = tContextListResult.values[tIndex]
+			aValue.numAttributes = await getNumChildAttributesInContext(aValue.id)
+			if (iFilter(aValue))
+				tDatasetInfoArray.push(
+					{
+						title: aValue.title,
+						name: aValue.name,
+						id: aValue.id,
+						numAttributes: aValue.numAttributes
+					});
+		}
+	}
+	return tDatasetInfoArray
+}
+
+export async function guaranteeAttribute(iAttributeInfo: { name: string, hidden: boolean },
+																				 iDatasetName: string, iCollectionName: string): Promise<void> {
+	const tNamesResult: any = await codapInterface.sendRequest({
+		action: 'get',
+		resource: `dataContext[${iDatasetName}].collection[${iCollectionName}].attributeList`
+	}).catch(reason => console.log(`Unable to get attribute names because ${reason}`))
+	if (tNamesResult.success) {
+		if (!tNamesResult.values.map((iValue: any) => iValue.name).includes(iAttributeInfo.name)) {
+			// The attribute doesn't exist, so create it
+			await codapInterface.sendRequest({
+				action: 'create',
+				resource: `dataContext[${iDatasetName}].collection[${iCollectionName}].attribute`,
+				values: [iAttributeInfo]
+			}).catch(reason => {
+				console.log(`could not create attribute because ${reason}`)
+			})
+		}
+	}
+}
+
+export async function getAttributeNames(iDatasetName: string, iCollectionName: string): Promise<string[]> {
+	// console.log(`Begin getAttributeNames with ${iDatasetName}(${iCollectionName})`)
+	const tNamesResult: any = await codapInterface.sendRequest({
+		action: 'get',
+		resource: `dataContext[${iDatasetName}].collection[${iCollectionName}].attributeList`
+	}).catch(reason => console.log(`Unable to get attribute names because ${reason}`))
+	// console.log('About to return from getAttributeNames')
+	return tNamesResult.success ? tNamesResult.values.map((iValue: any) => iValue.name) : []
+}
+
+/**
+ * Return all the cases in the given dataset/collection.
+ * @param iDatasetName
+ * @param iCollectionName
+ */
+export async function getCaseValues(iDatasetName: string,
+																		iCollectionName: string): Promise<Case[]> {
+	const tResult: any = await codapInterface.sendRequest({
+		action: 'get',
+		resource: `dataContext[${iDatasetName}].collection[${iCollectionName}].caseFormulaSearch[true]`
+	}).catch(reason => console.log(`Unable to get cases in ${iDatasetName} because ${reason}`))
+	if (tResult.success) {
+		return tResult.values.map((iValue: any) => {
+			delete iValue.parent
+			delete iValue.collections
+			return iValue
+		})
+	} else
+		return []
+}
+
+export async function getSelectedCasesFrom(iDatasetName: string | null, iCollectionName: string): Promise<any[]> {
 	let tCasesRequest = [],
 		tSelectedCases = [],
 		tResult: any = await codapInterface.sendRequest({
@@ -106,10 +238,12 @@ export async function getSelectedCasesFrom(iDatasetName: string | null): Promise
 			resource: `dataContext[${iDatasetName}].selectionList`
 		});
 	if (tResult.success && Array.isArray(tResult.values)) {
-		tCasesRequest = tResult.values.map(function (iValue: any) {
+		const tIDsOfSelectedCasesFromCollection =
+			tResult.values.filter((iValue: any) => iValue.collectionName === iCollectionName).map((iObject: any) => iObject.caseID)
+		tCasesRequest = tIDsOfSelectedCasesFromCollection.map(function (iID: any) {
 			return {
 				action: 'get',
-				resource: `dataContext[${iDatasetName}].caseByID[${iValue.caseID}]`
+				resource: `dataContext[${iDatasetName}].caseByID[${iID}]`
 			}
 		});
 		tResult = await codapInterface.sendRequest(tCasesRequest);
@@ -165,36 +299,6 @@ export async function getCollectionNames(iDatasetName: string | null): Promise<s
 	});
 }
 
-export async function addAttributesToTarget(iPredictionClass: string, iDatasetName: string,
-																						iCollectionName: string, iAttributeName: string) {
-	// Add the predicted label and probability attributes to the target collection
-	await codapInterface.sendRequest(
-		{
-			action: 'create',
-			resource: `dataContext[${iDatasetName}].collection[${iCollectionName}].attribute`,
-			values: [
-				{
-					name: iAttributeName,
-					description: 'The label predicted by the model'
-				},
-				{
-					name: 'probability of ' + iPredictionClass,
-					precision: 5,
-					description: 'A computed probability based on the logistic regression model'
-				},
-				{
-					name: 'featureIDs',
-					hidden: true
-				}
-			]
-		}
-	)
-		.catch(() => {
-			console.log('Error showing adding target attributes')
-		});
-
-}
-
 export async function getAttributeNameByIndex(iDatasetName: string, iCollectionName: string, iIndex: number): Promise<string> {
 	const tListResult: any = await codapInterface.sendRequest(
 		{
@@ -210,7 +314,12 @@ export async function getAttributeNameByIndex(iDatasetName: string, iCollectionN
 	else return '';
 }
 
-export async function getComponentByTypeAndTitle(iType: string, iTitle: string): Promise<number> {
+export async function attributeExists(iDatasetName: string, iCollectionName: string, iAttributeName: string): Promise<boolean> {
+	const tNames = await getAttributeNames(iDatasetName, iCollectionName)
+	return tNames.includes(iAttributeName)
+}
+
+export async function getComponentByTypeAndTitleOrName(iType: string, iTitle: string, iName:string): Promise<number> {
 	const tListResult: any = await codapInterface.sendRequest(
 		{
 			action: 'get',
@@ -220,11 +329,11 @@ export async function getComponentByTypeAndTitle(iType: string, iTitle: string):
 		.catch(() => {
 			console.log('Error getting component list')
 		});
-
+	// console.log(`tListResult = ${JSON.stringify(tListResult)}`)
 	let tID = -1;
 	if (tListResult.success) {
 		let tFoundValue = tListResult.values.find((iValue: any) => {
-			return iValue.type === 'text' && iValue.title === iTitle;
+			return iValue.type === iType && (iValue.title === iTitle || iValue.name === iName);
 		});
 		if (tFoundValue)
 			tID = tFoundValue.id;
@@ -246,7 +355,7 @@ export async function getIdOfCaseTableForDataContext(iDataContextName: string): 
 	let tCaseTableID;
 	if (tListResult.success) {
 		let tFoundValue = tListResult.values.find((iValue: any) => {
-			return iValue.type === 'caseTable' && iValue.title === iDataContextName;
+			return iValue.type === 'caseTable' && [iValue.title, iValue.name].includes(iDataContextName)
 		});
 		if (tFoundValue)
 			tCaseTableID = tFoundValue.id;
