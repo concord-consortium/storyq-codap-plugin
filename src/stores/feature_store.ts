@@ -148,8 +148,7 @@ export class FeatureStore {
 		return Boolean(this.features.find(iFeature => iFeature.info.kind === 'ngram'))
 	}
 
-	addFeatureUnderConstruction() {
-		const tFeature = this.featureUnderConstruction
+	addFeatureUnderConstruction(tFeature: Feature) {
 		let tType
 		switch (tFeature.info.kind) {
 			case 'ngram':
