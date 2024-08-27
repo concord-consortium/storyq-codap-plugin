@@ -47,6 +47,7 @@ export class HeadingsManager {
 					bold: true
 				})
 			}
+			if (children.length === 0) children.push({ text: "" })
 			return {
 				type: "paragraph",
 				children
