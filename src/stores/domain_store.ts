@@ -140,7 +140,7 @@ export class DomainStore {
 			values: {
 				features: Feature[]
 			}
-		};
+		}
 		const this_ = this,
 			tFeatureStore = this.featureStore,
 			tNonNgramFeatures = tFeatureStore.features.filter(iFeature => iFeature.info.kind !== 'ngram'),
@@ -202,7 +202,7 @@ export class DomainStore {
 						iFeature.usages.push(iCase.id)
 						const iCaseId = `${iCase.id}`
 						if (!caseUpdateRequests[iCaseId]) {
-							caseUpdateRequests[iCaseId] = {values: {features: []}}
+							caseUpdateRequests[iCaseId] = { values: { features: [] } }
 						}
 						caseUpdateRequests[iCaseId].values.features.push(iFeature)
 					}
@@ -301,7 +301,7 @@ export class DomainStore {
 			const caseUpdateRequestKeys = Object.keys(caseUpdateRequests)
 			if (caseUpdateRequestKeys.length > 0) {
 				const tValues = caseUpdateRequestKeys.map(iIndex => {
-					const iRequest = caseUpdateRequests[iIndex];
+					const iRequest = caseUpdateRequests[iIndex]
 					return {
 						id: iIndex,
 						values: {featureIDs: JSON.stringify(iRequest.values.features.map(iFeature => iFeature.caseID))}
