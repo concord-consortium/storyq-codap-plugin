@@ -320,6 +320,7 @@ export class DomainStore {
 		if (this.featureStore.tokenMapAlreadyHasUnigrams())
 			return
 		const this_ = this
+		await this.targetStore.updateTargetCases()
 		const tNgramFeatures = this.featureStore.features.filter(iFeature => iFeature.info.kind === 'ngram')
 		await this.guaranteeFeaturesDataset()
 		for (const iNtgramFeature of tNgramFeatures) {

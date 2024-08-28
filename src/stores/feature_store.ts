@@ -66,7 +66,7 @@ export class FeatureStore {
 		return tDoneNgram || tDoneSearch || tDoneColumn
 	}
 
-	constructNameFor( iFeature: Feature) {
+	constructNameFor(iFeature: Feature) {
 		if (iFeature.info.kind === 'search') {
 			const tDetails = iFeature.info.details as SearchDetails,
 				tFirstPart = namingAbbreviations[tDetails.where],
@@ -78,11 +78,10 @@ export class FeatureStore {
 			return `${tFirstPart}: ${tSecondPart}`
 		} else if (iFeature.info.kind === 'ngram') {
 			return `single words with frequency ≥ ${iFeature.info.frequencyThreshold}${iFeature.info.ignoreStopWords ? '; ignoring stopwords': ''}`
-		} else if( iFeature.info.kind === 'column')
+		} else if (iFeature.info.kind === 'column')
 			return iFeature.name	// already has column name stashed here
 		else
 			return ''
-
 	}
 
 	getDescriptionFor(iFeature: Feature) {
@@ -160,7 +159,6 @@ export class FeatureStore {
 			default:
 				tType = 'constructed'
 		}
-		tFeature.name = this.constructNameFor(tFeature)
 		tFeature.inProgress = false
 		tFeature.chosen = true
 		tFeature.type = tType
