@@ -1,6 +1,6 @@
 {
-  "name": "codap-plugin-starter-project",
-  "version": "0.1.0",
+  "name": "storyq",
+  "version": "2.15.0",
   "homepage": ".",
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^1.2.34",

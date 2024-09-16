@@ -68,7 +68,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: ${{ github.ref_type == 'branch' && 'branches' || 'versions' }}
-      url: https://models-resources.concord.org/starter-projects/${{ steps.s3-deploy.outputs.deployPath }}/index.html
+      url: https://models-resources.concord.org/storyq/${{ steps.s3-deploy.outputs.deployPath }}/index.html
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -82,7 +82,7 @@ jobs:
         id: s3-deploy
         with:
           bucket: models-resources
-          prefix: starter-projects
+          prefix: storyq
           awsAccessKeyId: ${{ secrets.AWS_ACCESS_KEY_ID }}
           awsSecretAccessKey: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           # Parameters to GHActions have to be strings, so a regular yaml array cannot
