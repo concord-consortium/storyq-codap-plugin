@@ -14,7 +14,7 @@ export default defineConfig({
     setupNodeEvents(on, config) {
       return require("@cypress/code-coverage/task")(on, config);
     },
-    baseUrl: 'http://localhost:8080',
+    baseUrl: 'http://localhost:3000',
     specPattern: 'cypress/e2e/**/*.{js,jsx,ts,tsx}',
   },
 })

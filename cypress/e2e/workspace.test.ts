@@ -7,7 +7,7 @@ context("Test the overall app", () => {
 
   describe("Desktop functionalities", () => {
     it("renders with text", () => {
-      ae.getApp().should("have.text", "Hello World");
+      ae.getWelcome().invoke("text").should("include", "Welcome to StoryQ!");
     });
   });
 });

@@ -242,8 +242,8 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 					return (
 						<TargetTextArea
 							uiStore={this_.props.uiStore}
-							domainStore={this_.props.domainStore}>
-						</TargetTextArea>
+							domainStore={this_.props.domainStore}
+						/>
 					)
 				}
 			}
