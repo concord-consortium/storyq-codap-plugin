@@ -136,14 +136,19 @@ export class DomainStore {
 	}
 
 	async updateNonNtigramFeaturesDataset() {
+		interface UpdateRequest {
+			values: {
+				features: Feature[]
+			}
+		}
 		const this_ = this,
 			tFeatureStore = this.featureStore,
 			tNonNgramFeatures = tFeatureStore.features.filter(iFeature => iFeature.info.kind !== 'ngram'),
 			tTargetStore = this.targetStore,
-			caseUpdateRequests: { values: { features: Feature[] } }[] = [],
+			caseUpdateRequests: Record<string, UpdateRequest> = {},
 			tTargetDatasetName = tTargetStore.targetDatasetInfo.name,
 			tTargetCollectionName = tTargetStore.targetCollectionName
-		let resourceString: string = '',
+		let featureDatasetResourceString: string = '',
 			tFeatureItems: { values: { type: string }, id: string }[] = [],
 			tItemsToDelete: { values: object, id: string }[] = [],
 			tFeaturesToAdd: Feature[] = [],
@@ -152,7 +157,7 @@ export class DomainStore {
 		async function getExistingFeatureItems(): Promise<{ values: any, id: string }[]> {
 			const tItemsRequestResult: any = await codapInterface.sendRequest({
 				action: 'get',
-				resource: `${resourceString}.itemSearch[*]`
+				resource: `${featureDatasetResourceString}.itemSearch[*]`
 			})
 			if (tItemsRequestResult.success)
 				return tItemsRequestResult.values
@@ -170,8 +175,7 @@ export class DomainStore {
 		async function updateFrequenciesUsagesAndFeatureIDs() {
 			const tClassAttrName = this_.targetStore.targetClassAttributeName,
 				tChosenClassKey = this_.targetStore.targetChosenClassColumnKey,
-				tPosClassLabel = this_.targetStore.targetClassNames[tChosenClassKey],
-				tTargetCases = await this_.targetStore.updateTargetCases()
+				tPosClassLabel = this_.targetStore.targetClassNames[tChosenClassKey]
 
 			tNonNgramFeatures.forEach(iFeature => {
 				iFeature.numberInPositive = 0
@@ -179,15 +183,16 @@ export class DomainStore {
 				iFeature.usages = []
 			})
 			/**
-			 * We go through each target case
-			 * 		For each feature, if the case has the feature, we increment that feature's positive or negative count
+			 * We go through each feature
+			 * 		For each target case, if the case has the feature, we increment that feature's positive or negative count
 			 * 			as appropriate
 			 * 		If the feature is present,
 			 * 			- we push the case's ID into the feature's usages
 			 * 			- 	we add the feature's case ID to the array of feature IDs for that case
 			 */
-			tTargetCases.forEach((iCase) => {
-				tNonNgramFeatures.forEach((iFeature) => {
+			const countFeaturePromises = tNonNgramFeatures.map(async (iFeature) => {
+				const tTargetCases = await this_.targetStore.updateTargetCases(`\`${iFeature.name}\`=true`)
+				tTargetCases.forEach(iCase => {
 					if (iCase.values[iFeature.name]) {
 						if (iCase.values[tClassAttrName] === tPosClassLabel) {
 							iFeature.numberInPositive++
@@ -195,17 +200,19 @@ export class DomainStore {
 							iFeature.numberInNegative++
 						}
 						iFeature.usages.push(iCase.id)
-						if (!caseUpdateRequests[iCase.id]) {
-							caseUpdateRequests[iCase.id] = {values: {features: []}}
+						const iCaseId = `${iCase.id}`
+						if (!caseUpdateRequests[iCaseId]) {
+							caseUpdateRequests[iCaseId] = { values: { features: [] } }
 						}
-						caseUpdateRequests[iCase.id].values.features.push(iFeature)
+						caseUpdateRequests[iCaseId].values.features.push(iFeature)
 					}
 				})
 			})
+			await Promise.all(countFeaturePromises)
 		}
 
 		if (await this.guaranteeFeaturesDataset()) {
-			resourceString = `dataContext[${tFeatureStore.featureDatasetInfo.datasetID}]`
+			featureDatasetResourceString = `dataContext[${tFeatureStore.featureDatasetInfo.datasetID}]`
 
 			tFeatureItems = (await getExistingFeatureItems()).filter(iItem => iItem.values.type !== 'unigram')
 			await updateFrequenciesUsagesAndFeatureIDs()
@@ -228,7 +235,7 @@ export class DomainStore {
 					tItemsToDelete.map(iItem => {
 						return {
 							action: 'delete',
-							resource: `${resourceString}.itemByID[${iItem.id}]`
+							resource: `${featureDatasetResourceString}.itemByID[${iItem.id}]`
 						}
 					})
 				)
@@ -258,7 +265,7 @@ export class DomainStore {
 				const tCreateResult: any = await codapInterface.sendRequest(
 					{
 						action: 'create',
-						resource: `${resourceString}.collection[${tFeatureStore.featureDatasetInfo.collectionName}].case`,
+						resource: `${featureDatasetResourceString}.collection[${tFeatureStore.featureDatasetInfo.collectionName}].case`,
 						values: tValues
 					}
 				)
@@ -267,7 +274,7 @@ export class DomainStore {
 						tFeaturesToAdd[iIndex].caseID = iValue.id
 						const tGetItemResult: any = await codapInterface.sendRequest({
 							action: 'get',
-							resource: `${resourceString}.itemByCaseID[${iValue.id}]`
+							resource: `${featureDatasetResourceString}.itemByCaseID[${iValue.id}]`
 						})
 						tFeaturesToAdd[iIndex].featureItemID = tGetItemResult.values.id
 					})
@@ -278,7 +285,7 @@ export class DomainStore {
 					tFeaturesToUpdate.map(iFeature => {
 						return {
 							action: 'update',
-							resource: `${resourceString}.itemByID[${iFeature.caseID}]`,
+							resource: `${featureDatasetResourceString}.itemByID[${iFeature.caseID}]`,
 							values: {
 								chosen: iFeature.chosen,
 								name: iFeature.name,
@@ -291,8 +298,10 @@ export class DomainStore {
 			}
 			// We've waited until now to update target cases with feature IDs so that we can be sure
 			//	features do have caseIDs to stash in target cases
-			if (caseUpdateRequests.length > 0) {
-				const tValues = caseUpdateRequests.map((iRequest, iIndex) => {
+			const caseUpdateRequestKeys = Object.keys(caseUpdateRequests)
+			if (caseUpdateRequestKeys.length > 0) {
+				const tValues = caseUpdateRequestKeys.map(iIndex => {
+					const iRequest = caseUpdateRequests[iIndex]
 					return {
 						id: iIndex,
 						values: {featureIDs: JSON.stringify(iRequest.values.features.map(iFeature => iFeature.caseID))}
@@ -311,6 +320,7 @@ export class DomainStore {
 		if (this.featureStore.tokenMapAlreadyHasUnigrams())
 			return
 		const this_ = this
+		await this.targetStore.updateTargetCases()
 		const tNgramFeatures = this.featureStore.features.filter(iFeature => iFeature.info.kind === 'ngram')
 		await this.guaranteeFeaturesDataset()
 		for (const iNtgramFeature of tNgramFeatures) {
