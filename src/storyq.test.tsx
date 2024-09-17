@@ -1,9 +1,8 @@
 import React from 'react';
-import ReactDOM from 'react-dom';
+import { render, screen } from '@testing-library/react';
 import Storyq from './components/storyq';
 
-it('renders without crashing', () => {
-  const div = document.createElement('div');
-  ReactDOM.render(<Storyq />, div);
-  ReactDOM.unmountComponentAtNode(div);
+it('renders without crashing', async () => {
+  render(<Storyq />)
+  expect(await screen.findByText("Welcome to StoryQ!")).toBeInTheDocument()
 });
