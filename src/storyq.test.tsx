@@ -4,5 +4,5 @@ import Storyq from './components/storyq';
 
 it('renders without crashing', async () => {
   render(<Storyq />)
-  expect(await screen.findByText("Welcome to StoryQ!")).toBeInTheDocument()
+  expect(screen.getByText("Welcome to StoryQ!")).toBeInTheDocument()
 });

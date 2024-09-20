@@ -1,6 +1,6 @@
 // Taken from ChatGPT
 module.exports = {
-  preset: 'ts-jest',
+  preset: 'ts-jest/presets/js-with-ts',
   testEnvironment: 'jsdom', // Use 'jsdom' for JSX rendering support
   transform: {
     '^.+\\.js$': 'babel-jest', // Transforms JavaScript files with babel-jest
@@ -10,7 +10,7 @@ module.exports = {
   testPathIgnorePatterns: ['/cypress/'],
   moduleNameMapper: {
     // Mock CSS imports, suggested by ChatGPT
-    '\\.(css|less|scss|sass)$': '<rootDir>/src/test/style-mock.js',
+    '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
   },
   setupFilesAfterEnv: ['@testing-library/jest-dom'],
 };
