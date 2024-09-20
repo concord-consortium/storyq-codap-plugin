@@ -17,10 +17,6 @@
     "react-scripts": "5.0.1"
   },
   "devDependencies": {
-    "@babel/core": "^7.25.2",
-    "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
-    "@babel/preset-env": "^7.25.4",
-    "@babel/preset-react": "^7.24.7",
     "@cypress/code-coverage": "^3.12.11",
     "@cypress/webpack-preprocessor": "^6.0.0",
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
@@ -37,7 +33,6 @@
     "@typescript-eslint/eslint-plugin": "^6.12.0",
     "@typescript-eslint/parser": "^6.12.0",
     "autoprefixer": "^10.4.16",
-    "babel-jest": "^29.7.0",
     "caniuse-lite": "^1.0.30001565",
     "clean-webpack-plugin": "^4.0.0",
     "cross-env": "^7.0.3",
