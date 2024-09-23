@@ -219,8 +219,8 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 							value={tFeature.info.ignoreStopWords}
 							hint={Object.keys(stopWords).join(', ')}
 							onValueChange={
-								action((e: boolean) => {
-									tFeature.info.ignoreStopWords = e
+								action((e: boolean | null) => {
+									tFeature.info.ignoreStopWords = !!e
 								})
 							}
 						/>

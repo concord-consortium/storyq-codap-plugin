@@ -7,12 +7,9 @@ import {faArrowLeft, faQuestionCircle} from '@fortawesome/free-solid-svg-icons'
 */
 import codapInterface, { CODAP_Notification } from "../lib/CodapInterface";
 // import Button from 'devextreme-react/button';
-import {
-	initializePlugin,
-	registerObservers
-} from '../lib/codap-helper';
+import { initializePlugin, registerObservers } from '../lib/codap-helper';
 import '../storyq.css';
-import {TabPanel} from "devextreme-react/ui/tab-panel";
+import TabPanel from "devextreme-react/tab-panel";
 import {Item} from "devextreme-react/tab-panel";
 import {TargetPanel} from "./target_panel";
 import {FeaturePanel} from "./feature_panel";
@@ -61,7 +58,7 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 			codapInterface.on('update', 'interactiveState', '', this.restorePluginFromStore);
 			codapInterface.on('get', 'interactiveState', '', this.getPluginStore);
 			initializePlugin(this.kPluginName, this.kVersion, this.kInitialDimensions, this.restorePluginFromStore)
-				.then(() => registerObservers());
+				.then(registerObservers).catch(registerObservers);
 		}
 
 		getPluginStore() {
@@ -104,7 +101,7 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 					id='tabPanel'
 					selectedIndex={this.uiStore.tabPanelSelectedIndex}
 					onInitialized={this.saveTabPanelInstance}
-					onSelectionChanged={action(e => {
+					onSelectionChanged={action((e: any) => {
 						this.handleSelectionChanged(e)
 					})}
 				>
