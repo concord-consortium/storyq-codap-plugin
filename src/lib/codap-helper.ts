@@ -29,7 +29,13 @@ export function initializePlugin(pluginName: string, version: string, dimensions
 		preventBringToFront: true,
 		cannotClose: true
 	};
-	return codapInterface.init(interfaceConfig, iRestoreStateHandler);
+	try {
+		return codapInterface.init(interfaceConfig, iRestoreStateHandler);
+	} catch (error) {
+		const errorMessage = `Error initializing interactiveFrame: ${error}`;
+		console.warn(errorMessage);
+		return new Promise((resolve, reject) => resolve(errorMessage));
+	}
 }
 
 export function registerObservers() {

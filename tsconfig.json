@@ -4,11 +4,13 @@
     "sourceMap": true,
     "noImplicitAny": true,
     "module": "esnext",
+    "moduleResolution": "node",
     "target": "es5",
     "allowJs": true,
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
     "experimentalDecorators": true,
+    "importHelpers": true,
     "strictNullChecks": true,
     "types": [
       "jest"
@@ -23,7 +25,6 @@
     "esModuleInterop": true,
     "strict": true,
     "forceConsistentCasingInFileNames": true,
-    "moduleResolution": "node",
     "noEmit": true,
     "isolatedModules": true,
     "noFallthroughCasesInSwitch": true,

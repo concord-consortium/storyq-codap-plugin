@@ -224,7 +224,7 @@ export class Model {
 	}
 
 	asJSON() {
-		const tCopy = Object.assign({}, toJS(this))
+		const tCopy: Partial<Model> = Object.assign({}, toJS(this))
 		delete tCopy.logisticModel
 		return tCopy
 	}

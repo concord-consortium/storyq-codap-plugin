@@ -6,7 +6,6 @@ import React, {Component} from "react";
 import {DomainStore} from "../stores/domain_store";
 import {observer} from "mobx-react";
 import {UiStore} from "../stores/ui_store";
-import {TargetInfoPane} from "./target_info_pane";
 import {FeaturePane} from "./feature_pane";
 
 export interface Feature_Props {
@@ -36,9 +35,6 @@ export const FeaturePanel = observer(class FeaturePanel extends Component<Featur
 
 		return (
 			<div className='sq-feature-panel'>
-				<TargetInfoPane
-					domainStore={this.props.domainStore}
-				/>
 				<FeaturePane
 					uiStore={this.props.uiStore}
 					domainStore={this.props.domainStore}
