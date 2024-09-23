@@ -1,4 +1,0 @@
-// Suggested by ChatGPT
-{
-  "presets": ["@babel/preset-env"]
-}
