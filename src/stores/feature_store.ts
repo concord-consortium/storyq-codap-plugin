@@ -70,8 +70,7 @@ export class FeatureStore {
 		if (iFeature.info.kind === 'search') {
 			const tDetails = iFeature.info.details as SearchDetails,
 				tFirstPart = namingAbbreviations[tDetails.where],
-				tMatch = tDetails.freeFormText.match( /\w+/),
-				tSecondPart = tDetails.freeFormText !== '' ? `"${tMatch ? tMatch[0] : ''}"` :
+				tSecondPart = tDetails.freeFormText !== '' ? `"${tDetails.freeFormText.trim()}"` :
 					tDetails.punctuation !== '' ? tDetails.punctuation :
 					tDetails.wordList && tDetails.wordList.datasetName !== '' ? tDetails.wordList.datasetName :
 					tDetails.what === 'any number' ? 'anyNumber' : ''
