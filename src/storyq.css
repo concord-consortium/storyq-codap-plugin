@@ -51,11 +51,11 @@ table {
 /*     flex-direction: column; */
 }
 
-.dx-tabpanel-tabs {
+.ui-tabpanel-tabs {
 	flex: 0 0 content;
 }
 
-.dx-tab-panel-container {
+.ui-tab-panel-container {
 	flex-grow: 1;
 	flex-shrink: 1;
 }
@@ -344,50 +344,50 @@ p {
 
 }
 
-td .dx-button {
+td .ui-button {
     text-align: center;
 }
 
-.sq-model-table .dx-button-content {
+.sq-model-table .ui-button-content {
     padding: 0!important;
 }
 
-.dx-dropdowneditor-button.dx-button-mode-contained,
-.dx-dropdowneditor-button.dx-button-mode-outlined,
-.dx-dropdowneditor-button.dx-button-mode-text {
+.ui-dropdowneditor-button.ui-button-mode-contained,
+.ui-dropdowneditor-button.ui-button-mode-outlined,
+.ui-dropdowneditor-button.ui-button-mode-text {
     margin-left: 0 !important;
 }
 
-.dx-item-content label {
+.ui-item-content label {
     display: flex;
     margin: 2px;
 }
 
-.dx-item-content span {
+.ui-item-content span {
     flex-shrink: 0;
     padding-right: 3px;
     padding-top: 5px;
 }
 
-.dx-dropdowneditor-field-clickable {
+.ui-dropdowneditor-field-clickable {
     flex-shrink: 1;
 }
 
-.dx-button-mode-contained {
+.ui-button-mode-contained {
     border-color: #aaa;
     box-shadow: 2px 2px lightgray;
     margin-left: 20px !important;
 }
 
-.dx-button .dx-button-content {
+.ui-button .ui-button-content {
     padding: 10px;
 }
 
-.sq-feature-list .dx-button-content {
+.sq-feature-list .ui-button-content {
     padding: 0;
 }
 
-.sq-feature-list .dx-button {
+.sq-feature-list .ui-button {
     padding-left: 10px;
     background-color: transparent;
     border: none;
@@ -399,6 +399,6 @@ td .dx-button {
     /*alignment: right;*/
 }
 
-.sq-feature-list .dx-icon {
+.sq-feature-list .ui-icon {
     color: #337ab7;
 }
