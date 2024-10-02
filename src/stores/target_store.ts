@@ -206,7 +206,30 @@ export class TargetStore {
 			const option = (iNewFeature.info.details as SearchDetails).where;
 			const tBegins = option === featureDescriptors.containsOptions[2] ? '^' : '';
 			const tEnds = option === featureDescriptors.containsOptions[3] ? '$' : '';
-			const tParamString = `${tTargetAttr},"${tBegins}\\\\\\\\b${(iNewFeature.info.details as SearchDetails).freeFormText}\\\\\\\\b${tEnds}"`;
+			const text = (iNewFeature.info.details as SearchDetails).freeFormText.trim();
+			// note: the multiple slash escaping is due to all the layers between this code and the CODAP formula evaluator
+			const escapedText = text
+				.replace(/[.*+?^${}()|[\]\\]/g, '\\\\\\\\$&') // escape regex modifiers
+				.replace(/\s+/g, '\\\\\\\\s+') // allow multiple spaces between words
+				.replace(/['"“”‘’]/g, (match) => { // allow both regular and smart quotes to match each other
+					switch (match) {
+						case '"':
+						case '“':
+						case '”':
+							return `["“”]`;
+						case "'":
+						case '‘':
+						case '’':
+							return `['‘’]`;
+						default:
+							return match;
+					}
+				});
+			// don't add word boundaries when the user input starts/ends with non-word characters, like ! or , as that would fail matching
+			const wordBoundary = `\\\\\\\\b`;
+			const maybeStartingWordBoundary = /^\w/.test(text) ? wordBoundary : '';
+			const maybeEndingWordBoundary = /\w$/.test(text) ? wordBoundary : '';
+			const tParamString = `${tTargetAttr},"${tBegins}${maybeStartingWordBoundary}${escapedText}${maybeEndingWordBoundary}${tEnds}"`;
 			let tResult = '';
 			switch (option) {//['contain', 'not contain', 'start with', 'end with']
 				case featureDescriptors.containsOptions[0]:	// contain

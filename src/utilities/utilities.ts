@@ -1,4 +1,4 @@
-import {wordTokenizer} from "../lib/one_hot";
+// import {wordTokenizer} from "../lib/one_hot";
 
 /**
  *
@@ -7,7 +7,7 @@ import {wordTokenizer} from "../lib/one_hot";
  * @param iSpecialFeatures - an array of features that don't appear in the text but may appear in iSelectedWords
  */
 export function textToObject( iText:string, iSelectedWords:any, iSpecialFeatures:string[]):any {
-	let segment = '';
+	// let segment = '';
 	let tResultArray:any = [];
 	iSpecialFeatures.forEach( iFeature => {
 		if( iSelectedWords.indexOf( iFeature) >= 0)
@@ -15,6 +15,12 @@ export function textToObject( iText:string, iSelectedWords:any, iSpecialFeatures
 				text: `<${iFeature}> `, bold: true, underlined: true, color: "#0432ff"
 			});
 	});
+
+	// do not highlight text for now
+	tResultArray.push({text: iText});
+
+	/*
+	NOTE: this code is broken and doesn't match phrases or match lists like personal pronoun lists
 
 	let words:string[] = wordTokenizer(iText, false, false);
 	words.forEach((iWord) => {
@@ -39,6 +45,8 @@ export function textToObject( iText:string, iSelectedWords:any, iSpecialFeatures
 	});
 	if( segment !== '')
 		tResultArray.push({ text: segment });
+	*/
+
 	return tResultArray;
 }
 
