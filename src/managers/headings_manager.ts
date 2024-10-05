@@ -68,7 +68,7 @@ export class HeadingsManager {
 			posBlank: fillInHeading(iPosLabel, null, this.colors.green),
 			blankNeg: fillInHeading(null, iNegLabel, this.colors.orange),
 			blankPos: fillInHeading(null, iPosLabel, this.colors.blue),
-			blankBlank: {}
+			blankBlank: { text: "" }
 		}
 	}
 
