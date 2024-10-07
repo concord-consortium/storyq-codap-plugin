@@ -3,7 +3,7 @@
  */
 
 import React from "react";
-import {SelectBox} from "devextreme-react/select-box";
+import {SelectBox} from "./ui/select-box";
 import {action} from "mobx";
 
 export function choicesMenu(iPrompt: string, iPlaceHolder: string, iHint:string,
@@ -20,8 +20,7 @@ export function choicesMenu(iPrompt: string, iPlaceHolder: string, iHint:string,
 				style={{display: 'inline-block'}}
 				onValueChange={action(async (e) => iCallback(e))}
 				width={'100%'}
-			>
-			</SelectBox>
+			/>
 		</div>
 	)
 }

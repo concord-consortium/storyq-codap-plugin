@@ -262,7 +262,7 @@ export class FeatureStore {
 		}).catch((reason) => {
 			console.log('unable to get datacontext list because ' + reason);
 		})
-		if (tContextListResult.success) {
+		if (tContextListResult?.success) {
 			tContextListResult.values.forEach(async (aValue: any) => {
 				let tCollectionsResult: any = await codapInterface.sendRequest({
 					action: 'get',

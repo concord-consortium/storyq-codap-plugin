@@ -6,10 +6,10 @@ import React, {Component} from "react";
 import {DomainStore} from "../stores/domain_store";
 import {observer} from "mobx-react";
 import {UiStore} from "../stores/ui_store";
-import {TextBox} from "devextreme-react";
+import {TextBox} from "./ui/text-box";
 import {action} from "mobx";
-import Button from "devextreme-react/button";
-import {CheckBox} from "devextreme-react/check-box";
+import {Button} from "./ui/button";
+import {CheckBox} from "./ui/check-box";
 import {ModelManager} from "../managers/model_manager";
 import {ProgressBar} from "./progress_bar";
 import {TrainingResult} from "../stores/store_types_and_constants";
@@ -23,11 +23,9 @@ export interface Training_Props {
 export const TrainingPane = observer(class TrainingPane extends Component<Training_Props, {}> {
 
 	private modelManager: ModelManager
-	private nameBoxRef:any
 
 	constructor(props: any) {
 		super(props);
-		this.nameBoxRef = React.createRef()
 		this.modelManager = new ModelManager(this.props.domainStore)
 	}
 
@@ -80,8 +78,7 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 				return (
 					<TextBox
 						className='sq-fc-part'
-						ref = {this_.nameBoxRef}
-						valueChangeEvent={'blur'}
+						valueChangeEvent={'enter'}
 						placeholder="Name"
 						onValueChanged={action((e) => {
 							tModel.name = e.value
@@ -89,7 +86,6 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 						onFocusOut={action(() => {
 							tModel.name = this_.modelManager.guaranteeUniqueModelName(tModel.name)
 						})}
-						onEnterKey={()=>this_.nameBoxRef.current.instance.blur()}
 						value={tModel.name}
 						maxLength={20}
 					/>
@@ -204,7 +200,7 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 						<TextBox
 							className='sq-fc-part'
 							valueChangeEvent={'keyup'}
-							placeholder="give your model a name"
+							placeholder=""
 							hint={SQ.hints.trainingSetupIteration}
 							onValueChanged={action((e) => {
 								tModel.iterations = Number(e.value)
@@ -318,7 +314,7 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 							value={tTrainingResult.isActive}
 							disabled={tIsDisabled}
 							style={{'fontSize': 'large'}}
-							onValueChange={action(() => {
+							onValueChanged={action(() => {
 								this_.props.domainStore.setIsActiveForResultAtIndex(iIndex, !tTrainingResult.isActive)
 							})}
 							hint={tHint}

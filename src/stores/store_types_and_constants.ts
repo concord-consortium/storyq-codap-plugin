@@ -31,16 +31,17 @@ export let featureDescriptors = {
 			]
 		},
 		{
-		key: "Extract features of the same kind",
-		items: [
-			{name: "single words", disabled: false, value: `{"kind": "ngram", "details": {"n":"uni"}}`}/*,
-				{name: "bigrams", value: `{"kind": "ngram", "details": {"n":"bi"}}`}*/
-		]
-	},
+			key: "Extract features of the same kind",
+			items: [
+				{name: "single words", disabled: false, value: `{"kind": "ngram", "details": {"n":"uni"}}`}/*,
+					{name: "bigrams", value: `{"kind": "ngram", "details": {"n":"bi"}}`}*/
+			]
+		},
 		{
 			key: "Choose other columns as features",
 			items: []
-		}],
+		}
+	],
 	containsOptions: ['contain', 'not contain', 'start with', 'end with'],
 	kindOfThingContainedOptions: ['text', 'punctuation', 'any number', 'any item from a list'/*, 'part of speech'*/],
 	caseOptions: ['sensitive', 'insensitive']

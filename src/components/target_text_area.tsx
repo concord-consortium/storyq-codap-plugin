@@ -6,7 +6,7 @@ import React, {Component} from "react";
 import {observer} from "mobx-react";
 import {DomainStore} from "../stores/domain_store";
 import {UiStore} from "../stores/ui_store";
-import {RadioGroup} from "devextreme-react";
+import {RadioGroup} from "./ui/radio-group";
 import {action} from "mobx";
 import {SQ} from "../lists/lists";
 

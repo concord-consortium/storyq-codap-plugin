@@ -14,14 +14,14 @@ import {
 import {DomainStore} from "../stores/domain_store";
 import {observer} from "mobx-react";
 import {UiStore} from "../stores/ui_store";
-import {TextBox} from "devextreme-react";
+import {TextBox} from "./ui/text-box";
 import {action, toJS} from "mobx";
-import {SelectBox} from "devextreme-react/select-box";
+import {SelectBox} from "./ui/select-box";
 import {stopWords} from "../lib/stop_words";
-import {CheckBox} from "devextreme-react/check-box";
+import {CheckBox} from "./ui/check-box";
 import {SQ} from "../lists/lists";
-import Button from "devextreme-react/button";
-import {NumberBox} from "devextreme-react/number-box";
+import {Button} from "./ui/button";
+import {NumberBox} from "./ui/number-box";
 
 interface FeatureComponentInfo {
 	subscriberIndex: number
@@ -100,9 +100,6 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 					<SelectBox
 						className='sq-new-feature-item sq-fc-part'
 						dataSource={tFeatureDescriptors.featureKinds}
-						valueExpr='value'
-						displayExpr='name'
-						grouped={true}
 						placeholder={'choose a method'}
 						value={tContainsOption}
 						style={{display: 'inline-block'}}
@@ -133,7 +130,7 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 							value={tKindOption}
 							style={{display: 'inline-block'}}
 							onValueChanged={action(async (e) => {
-								(tFeature.info.details as SearchDetails).what = e.value
+								(tFeature.info.details as SearchDetails).what = e.value as any
 								await this_.updateFeaturesDataset(tFeature)
 							})}
 						/>
@@ -216,11 +213,11 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 					return (<div className='sq-feature-ngram-settings'>
 						<CheckBox
 							text=' Ignore stopwords'
-							value={tFeature.info.ignoreStopWords}
+							value={!!tFeature.info.ignoreStopWords}
 							hint={Object.keys(stopWords).join(', ')}
-							onValueChange={
-								action((e: boolean | null) => {
-									tFeature.info.ignoreStopWords = !!e
+							onValueChanged={
+								action((e) => {
+									tFeature.info.ignoreStopWords = !tFeature.info.ignoreStopWords;
 								})
 							}
 						/>
@@ -228,33 +225,15 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 							<span>Ignore words that appear fewer than </span>
 							<NumberBox
 								width={40}
-								// onInitialized={this.saveInputInstance}
 								min={1}
 								max={100}
 								value={tFeature.info.frequencyThreshold}
 								onValueChanged={action((e) => {
 									tFeature.info.frequencyThreshold = e.value
 								})}
-								onEnterKey={() => {
-									// this.blurInput();
-								}}
 							/>
 							<span> times</span>
 						</div>
-						{/*
-						<NumericInput
-							label='Frequency threshold'
-							min={1}
-							max={100}
-							getter={() => {
-								return tFeature.info.frequencyThreshold
-							}}
-							setter={action((newValue: number) => {
-								tFeature.info.frequencyThreshold = newValue
-							})
-							}
-						/>
-*/}
 					</div>)
 			}
 
@@ -282,7 +261,7 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 						<CheckBox
 							text=''
 							value={tFeature.chosen}
-							onValueChange={action(async () => {
+							onValueChanged={action(async () => {
 								await this.props.domainStore.featureStore.toggleChosenFor(tFeature)
 								console.log(`type = ${tFeature.type}; chosen = ${tFeature.chosen}`)
 								if( tFeature.type === 'unigram' && tFeature.chosen)

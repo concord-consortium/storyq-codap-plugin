@@ -1,19 +1,12 @@
 import React, {Component} from 'react';
-import 'devextreme/dist/css/dx.common.css';
-import 'devextreme/dist/css/dx.light.compact.css';
-/*
-import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
-import {faArrowLeft, faQuestionCircle} from '@fortawesome/free-solid-svg-icons'
-*/
+import '../styles/light.compact.css';
 import codapInterface, { CODAP_Notification } from "../lib/CodapInterface";
-// import Button from 'devextreme-react/button';
 import { initializePlugin, registerObservers } from '../lib/codap-helper';
 import '../storyq.css';
-import TabPanel from "devextreme-react/tab-panel";
-import {Item} from "devextreme-react/tab-panel";
+import {TabPanel} from './ui/tab-panel';
+import {Item} from './ui/item';
 import {TargetPanel} from "./target_panel";
 import {FeaturePanel} from "./feature_panel";
-import dxTabPanel from "devextreme/ui/tab_panel";
 import {UiStore} from "../stores/ui_store";
 import {observer} from "mobx-react";
 import {DomainStore} from "../stores/domain_store";
@@ -34,7 +27,6 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 			width: 429,
 			height: 420
 		};
-		private tabPanel: dxTabPanel | null = null;	// Todo: necessary?
 		private testingManager: TestingManager;
 
 		constructor(props: any) {
@@ -44,7 +36,6 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 			this.notificationManager = new NotificationManager(this.domainStore)
 			this.restorePluginFromStore = this.restorePluginFromStore.bind(this);
 			this.getPluginStore = this.getPluginStore.bind(this);
-			this.saveTabPanelInstance = this.saveTabPanelInstance.bind(this);
 			this.handleSelectionChanged = this.handleSelectionChanged.bind(this);
 
 			// Listen for CODAP changes here on the root component so it does not matter if the plugin
@@ -86,12 +77,8 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 			}
 		}
 
-		saveTabPanelInstance(iInstance: any) {
-			this.tabPanel = iInstance.component;
-		}
-
 		async handleSelectionChanged(e: any) {
-			this.uiStore.tabPanelSelectedIndex = e.component.option('selectedIndex')
+			this.uiStore.tabPanelSelectedIndex = e.selectedIndex;
 			await this.domainStore.targetStore.updateFromCODAP()
 		}
 
@@ -100,7 +87,6 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 				<TabPanel
 					id='tabPanel'
 					selectedIndex={this.uiStore.tabPanelSelectedIndex}
-					onInitialized={this.saveTabPanelInstance}
 					onSelectionChanged={action((e: any) => {
 						this.handleSelectionChanged(e)
 					})}
