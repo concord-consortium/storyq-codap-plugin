@@ -8,7 +8,7 @@ import {observer} from "mobx-react";
 import {UiStore} from "../stores/ui_store";
 import codapInterface, {CODAP_Notification} from "../lib/CodapInterface";
 import {choicesMenu} from "./component_utilities";
-import Button from "devextreme-react/button";
+import {Button} from "./ui/button";
 import {action, toJS} from "mobx";
 import {TestingManager} from "../managers/testing_manager";
 import {SQ} from "../lists/lists";

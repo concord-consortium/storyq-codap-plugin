@@ -6,7 +6,7 @@ import React, {Component} from "react";
 import {DomainStore} from "../stores/domain_store";
 import {observer} from "mobx-react";
 import {UiStore} from "../stores/ui_store";
-import {Button} from "devextreme-react";
+import {Button} from "./ui/button";
 import {FeatureConstructor} from "./feature_constructor";
 import {action} from "mobx";
 import {FeatureList} from "./feature_list";
