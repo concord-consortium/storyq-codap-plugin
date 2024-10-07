@@ -14,7 +14,7 @@ interface SelectBoxGroup {
 }
 
 interface ISelectBoxProps {
-  dataSource: string[] | SelectBoxGroup[];
+  dataSource: string[] | number[] | SelectBoxGroup[];
   placeholder: string;
   hint?: string;
   value?: any;
@@ -67,7 +67,7 @@ export const SelectBox = (props: ISelectBoxProps) => {
             >
               {placeholder && <option value="" disabled selected={value === undefined}>{placeholder}</option>}
               {dataSource.map((item, index) => {
-                if (typeof item === "string") {
+                if ((typeof item === "string") || (typeof item === "number")) {
                   return <option key={`${item}-${index}`} value={item}>{item}</option>
                 }
                 if (item.items.length === 0) {
