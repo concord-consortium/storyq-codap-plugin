@@ -264,20 +264,20 @@ export class FeatureStore {
 		})
 		if (tContextListResult?.success) {
 			tContextListResult.values.forEach(async (aValue: any) => {
-				let tCollectionsResult: any = await codapInterface.sendRequest({
+				const tCollectionsResult: any = await codapInterface.sendRequest({
 					action: 'get',
 					resource: `dataContext[${aValue.id}].collectionList`
 				}).catch((reason) => {
 					console.log('unable to get collection list because ' + reason);
 				});
-				if (tCollectionsResult.values.length === 1) {
-					let tAttributesResult: any = await codapInterface.sendRequest({
+				if (tCollectionsResult.values.length >= 1) {
+					const tAttributesResult: any = await codapInterface.sendRequest({
 						action: 'get',
 						resource: `dataContext[${aValue.id}].collection[${tCollectionsResult.values[0].id}].attributeList`
 					}).catch((reason) => {
 						console.log('unable to get attribute list because ' + reason);
 					});
-					if (tAttributesResult.values.length === 1) {
+					if (tAttributesResult.values.length >= 1) {
 						this.wordListSpecs.push({
 							datasetName: aValue.title,
 							firstAttributeName: tAttributesResult.values[0].name
