@@ -203,6 +203,7 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 									firstAttributeName: tAttributeName
 								}
 							})}
+							value={tContainsDetails?.wordList.datasetName}
 						/>
 					)
 				}
