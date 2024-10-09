@@ -19,40 +19,39 @@ export class HeadingsManager {
 	public setupHeadings(iNegLabel:string, iPosLabel:string, iBlankLabel:string,
 											 iActual:string | null, iPredicted:string | null) {
 		function fillInHeading( iFirst:string | null, iSecond:string | null, iColor:string) {
-			let tFirstPhrase = !iFirst ? '{},{},' : `
-				{
-					"text": "${iActual} = ",
-					"color": "${iColor}",
-					"italic": true
-				},
-				{
-					"text": "${iFirst}",
-					"color": "${iColor}",
-					"italic": true,
-					"bold": true
-				}, 
-				{
-					"text": ", "
-				}, 
-			`;
-			let	tSecondPhrase = !Boolean(iSecond) ? '{},{}' : `
-					{
-						"text": "${iPredicted} = ",
-						"color": "${iColor}",
-						"italic": true
-					},
-					{
-						"text": "${iSecond}",
-						"color": "${iColor}",
-						"italic": true,
-						"bold": true
-					}
-				`;
-			let	tHeading = `{
-        "type": "paragraph",
-        "children": [${tFirstPhrase}${tSecondPhrase}]
-      }`;
-			return JSON.parse( tHeading);
+			const children = []
+			if (iFirst) {
+				children.push({
+					text: `${iActual} =`,
+					color: iColor,
+					italic: true
+				})
+				children.push({
+					text: iFirst,
+					color: iColor,
+					italic: true,
+					bold: true
+				})
+				children.push({ text: ", " })
+			}
+			if (iSecond) {
+				children.push({
+					text: `${iPredicted} = `,
+					color: iColor,
+					italic: true
+				})
+				children.push({
+					text: iSecond,
+					color: iColor,
+					italic: true,
+					bold: true
+				})
+			}
+			if (children.length === 0) children.push({ text: "" })
+			return {
+				type: "paragraph",
+				children
+			}
 		}
 		this.classLabels = {
 			negLabel: iNegLabel,
@@ -69,7 +68,7 @@ export class HeadingsManager {
 			posBlank: fillInHeading(iPosLabel, null, this.colors.green),
 			blankNeg: fillInHeading(null, iNegLabel, this.colors.orange),
 			blankPos: fillInHeading(null, iPosLabel, this.colors.blue),
-			blankBlank: {}
+			blankBlank: { text: "" }
 		}
 	}
 
