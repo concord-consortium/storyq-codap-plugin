@@ -274,9 +274,10 @@ export class FeatureStore {
 					console.log('unable to get collection list because ' + reason);
 				});
 				if (tCollectionsResult.values.length >= 1) {
+					const collectionId = tCollectionsResult.values[tCollectionsResult.values.length - 1].id
 					const tAttributesResult: any = await codapInterface.sendRequest({
 						action: 'get',
-						resource: `dataContext[${aValue.id}].collection[${tCollectionsResult.values[0].id}].attributeList`
+						resource: `dataContext[${aValue.id}].collection[${collectionId}].attributeList`
 					}).catch((reason) => {
 						console.log('unable to get attribute list because ' + reason);
 					});
