@@ -12,6 +12,7 @@ import {starterFeature} from "../stores/store_types_and_constants";
 export default class NotificationManager {
 
 	domainStore: DomainStore
+	updatingStores = false
 
 	constructor(iDomainStore: DomainStore) {
 		this.domainStore = iDomainStore;
@@ -30,11 +31,17 @@ export default class NotificationManager {
 	}
 
 	async handleDataContextChange(/*iNotification: CODAP_Notification*/) {
-		action(async () => {
-			console.log(`ooo handleDataContextChange`);
-			await this.domainStore.featureStore.updateWordListSpecs()
-			await this.domainStore.targetStore.updateFromCODAP()
-		})()
+		if (!this.updatingStores) {
+			this.updatingStores = true;
+			action(async () => {
+				console.log(`ooo handleDataContextChange`);
+				await this.domainStore.featureStore.updateWordListSpecs()
+				await this.domainStore.targetStore.updateFromCODAP()
+			})()
+			this.updatingStores = false;
+		} else {
+			console.log(`^^^ already updating stores`);
+		}
 	}
 
 	async handleAttributesChange(/*iNotification: CODAP_Notification*/) {
