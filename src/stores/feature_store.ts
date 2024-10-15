@@ -258,7 +258,9 @@ export class FeatureStore {
 	}
 
 	async updateWordListSpecs() {
-		this.wordListSpecs = []
+		while (this.wordListSpecs.length > 0) {
+			this.wordListSpecs.pop();
+		}
 		const tContextListResult: any = await codapInterface.sendRequest({
 			"action": "get",
 			"resource": "dataContextList"
