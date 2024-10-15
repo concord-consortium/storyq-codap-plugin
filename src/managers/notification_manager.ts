@@ -31,17 +31,17 @@ export default class NotificationManager {
 	}
 
 	async handleDataContextChange(/*iNotification: CODAP_Notification*/) {
-		if (!this.updatingStores) {
-			this.updatingStores = true;
-			action(async () => {
+		action(async () => {
+			if (!this.updatingStores) {
+				this.updatingStores = true;
 				console.log(`ooo handleDataContextChange`);
 				await this.domainStore.featureStore.updateWordListSpecs()
 				await this.domainStore.targetStore.updateFromCODAP()
-			})()
-			this.updatingStores = false;
-		} else {
-			console.log(`^^^ already updating stores`);
-		}
+				this.updatingStores = false;
+			} else {
+				console.log(`^^^ already updating stores`);
+			}
+		})()
 	}
 
 	async handleAttributesChange(/*iNotification: CODAP_Notification*/) {
