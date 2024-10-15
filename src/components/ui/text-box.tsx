@@ -1,11 +1,10 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import clsx from "clsx";
 
 type TextBoxChangeEvent = CustomEvent<{value: string}> & {value: string};
 
 interface ITextBoxProps {
   className: string;
-  valueChangeEvent: 'keyup' | 'enter';
   placeholder: string;
   value: string;
   maxLength: number;
@@ -16,31 +15,22 @@ interface ITextBoxProps {
 }
 
 export const TextBox = (props: ITextBoxProps) => {
-  const {className, valueChangeEvent, placeholder, value, maxLength, onValueChanged, hint, width, onFocusOut} = props;
+  const {className, placeholder, value, maxLength, onValueChanged, hint, width, onFocusOut} = props;
   const style: React.CSSProperties = width !== undefined ? {width} : {};
   const [internalValue, setInternalValue] = useState(value);
   const hasValue = internalValue.length > 0;
-  const internalValueRef = useRef(value);
 
   useEffect(() => {
     setInternalValue(value);
   }, [value]);
 
-  const callOnValueChanged = () => {
-    const syntheticEvent = new CustomEvent('customEvent', { detail: { value: internalValueRef.current } }) as any;
-    syntheticEvent.value = internalValueRef.current;
-    onValueChanged(syntheticEvent);
-  }
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setInternalValue(e.target.value);
-    internalValueRef.current = e.target.value;
-  };
+    const newValue = e.target.value;
+    setInternalValue(newValue);
 
-  const handleKeyUp = (e: React.KeyboardEvent) => {
-    if ((valueChangeEvent === "keyup") || (valueChangeEvent === "enter" && e.key === "Enter")) {
-      callOnValueChanged();
-    }
+    const syntheticEvent = new CustomEvent('customEvent', { detail: { value: newValue } }) as any;
+    syntheticEvent.value = newValue;
+    onValueChanged(syntheticEvent);
   };
 
   return (
@@ -59,7 +49,6 @@ export const TextBox = (props: ITextBoxProps) => {
             value={internalValue}
             onChange={handleChange}
             onBlur={onFocusOut}
-            onKeyUp={handleKeyUp}
           />
           <div className={clsx("ui-placeholder", {"ui-state-invisible": hasValue})}>
             {placeholder}

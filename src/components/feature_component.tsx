@@ -144,7 +144,6 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 					return (
 						<TextBox
 							className='sq-fc-part'
-							valueChangeEvent={'keyup'}
 							placeholder="type something here"
 							onValueChanged={action(async (e) => {
 								tContainsDetails.freeFormText = e.value
@@ -163,7 +162,6 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 					return (
 						<TextBox
 							className='sq-fc-part'
-							valueChangeEvent={'keyup'}
 							placeholder="punctuation mark"
 							onValueChanged={action(async (e) => {
 								tContainsDetails.punctuation = e.value
