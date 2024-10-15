@@ -2,7 +2,7 @@
  * This component provides the space for a user to construct and edit a feature
  */
 
-import React, {Component} from "react";
+import React, {Component, CSSProperties} from "react";
 import {
 	Feature,
 	featureDescriptors,
@@ -182,25 +182,33 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 							return iDataset.datasetName;
 						}),
 						tLists = Object.keys(SQ.lists).concat(tWordListDatasetNames)
+
+					const handleValueChange = action((option: string) => {
+						const tWordListSpec = tWordListSpecs.find((iSpec) => {
+							return iSpec.datasetName === option
+						})
+						let tAttributeName = ''
+						if (tWordListSpec) {
+							tAttributeName = tWordListSpec.firstAttributeName
+						}
+						(tFeature.info.details as SearchDetails).wordList = {
+							datasetName: option,
+							firstAttributeName: tAttributeName
+						}
+					})
+
+					const style: CSSProperties = {
+						display: 'inline-block',
+						minWidth: '140px' // Ensures that the dropdown appears on a second line
+					}
+
 					return (
 						<SelectBox
 							dataSource={tLists}
 							defaultValue={tContainsDetails.wordList}
 							placeholder={'choose list'}
-							style={{display: 'inline-block'}}
-							onValueChange={action((option) => {
-								const tWordListSpec = tWordListSpecs.find((iSpec) => {
-									return iSpec.datasetName === option
-								})
-								let tAttributeName = ''
-								if (tWordListSpec) {
-									tAttributeName = tWordListSpec.firstAttributeName
-								}
-								(tFeature.info.details as SearchDetails).wordList = {
-									datasetName: option,
-									firstAttributeName: tAttributeName
-								}
-							})}
+							style={style}
+							onValueChange={handleValueChange}
 							value={tContainsDetails?.wordList.datasetName}
 						/>
 					)
