@@ -2,7 +2,7 @@
  * This component provides the space for a user to construct and edit a feature
  */
 
-import React, {Component, CSSProperties} from "react";
+import React, {Component} from "react";
 import {
 	Feature,
 	featureDescriptors,
@@ -22,6 +22,8 @@ import {CheckBox} from "./ui/check-box";
 import {SQ} from "../lists/lists";
 import {Button} from "./ui/button";
 import {NumberBox} from "./ui/number-box";
+
+import "./feature_component.scss";
 
 interface FeatureComponentInfo {
 	subscriberIndex: number
@@ -197,17 +199,13 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 						}
 					})
 
-					const style: CSSProperties = {
-						display: 'inline-block',
-						minWidth: '140px' // Ensures that the dropdown appears on a second line
-					}
-
 					return (
 						<SelectBox
+							className='word-list-select'
 							dataSource={tLists}
 							defaultValue={tContainsDetails.wordList}
 							placeholder={'choose list'}
-							style={style}
+							style={{display: 'inline-block'}}
 							onValueChange={handleValueChange}
 							value={tContainsDetails?.wordList.datasetName}
 						/>
