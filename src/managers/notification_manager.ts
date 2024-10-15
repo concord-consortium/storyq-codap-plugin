@@ -34,9 +34,14 @@ export default class NotificationManager {
 		action(async () => {
 			if (!this.updatingStores) {
 				this.updatingStores = true;
-				await this.domainStore.featureStore.updateWordListSpecs()
-				await this.domainStore.targetStore.updateFromCODAP()
-				this.updatingStores = false;
+				try {
+					await this.domainStore.featureStore.updateWordListSpecs()
+					await this.domainStore.targetStore.updateFromCODAP()
+				} catch (e) {
+					console.log(`Unable to update feature or target store because`, e);
+				} finally {
+					this.updatingStores = false;
+				}
 			}
 		})()
 	}
