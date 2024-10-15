@@ -184,6 +184,8 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 							return iDataset.datasetName;
 						}),
 						tLists = Object.keys(SQ.lists).concat(tWordListDatasetNames)
+					console.log(`*** tWordListSpecs`, tWordListSpecs);
+					console.log(` ** tWordListDatasetNames`, tWordListDatasetNames);
 					return (
 						<SelectBox
 							dataSource={tLists}

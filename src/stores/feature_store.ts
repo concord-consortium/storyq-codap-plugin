@@ -258,9 +258,11 @@ export class FeatureStore {
 	}
 
 	async updateWordListSpecs() {
+		console.log(`!!! wordListSpecs`, JSON.stringify(this.wordListSpecs));
 		while (this.wordListSpecs.length > 0) {
 			this.wordListSpecs.pop();
 		}
+		console.log(` !! purged`, this.wordListSpecs);
 		const tContextListResult: any = await codapInterface.sendRequest({
 			"action": "get",
 			"resource": "dataContextList"
@@ -268,6 +270,7 @@ export class FeatureStore {
 			console.log('unable to get datacontext list because ' + reason);
 		})
 		if (tContextListResult?.success) {
+			console.log(` !! datasets`, tContextListResult.values);
 			tContextListResult.values.forEach(async (aValue: any) => {
 				const tCollectionsResult: any = await codapInterface.sendRequest({
 					action: 'get',
@@ -284,6 +287,7 @@ export class FeatureStore {
 						console.log('unable to get attribute list because ' + reason);
 					});
 					if (tAttributesResult.values.length >= 1) {
+						console.log(`  ! adding`, aValue.title);
 						this.wordListSpecs.push({
 							datasetName: aValue.title,
 							firstAttributeName: tAttributesResult.values[0].name
