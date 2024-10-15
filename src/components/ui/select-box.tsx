@@ -49,7 +49,6 @@ export const SelectBox = (props: ISelectBoxProps) => {
   if (dataSource.length === 0) {
     return <div>{noDataText}</div>
   }
-  console.log(`--- dataSource`, dataSource);
 
   return (
     <div

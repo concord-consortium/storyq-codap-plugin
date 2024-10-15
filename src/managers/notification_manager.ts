@@ -34,12 +34,9 @@ export default class NotificationManager {
 		action(async () => {
 			if (!this.updatingStores) {
 				this.updatingStores = true;
-				console.log(`ooo handleDataContextChange`);
 				await this.domainStore.featureStore.updateWordListSpecs()
 				await this.domainStore.targetStore.updateFromCODAP()
 				this.updatingStores = false;
-			} else {
-				console.log(`^^^ already updating stores`);
 			}
 		})()
 	}
