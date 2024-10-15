@@ -31,6 +31,7 @@ export default class NotificationManager {
 
 	async handleDataContextChange(/*iNotification: CODAP_Notification*/) {
 		action(async () => {
+			console.log(`ooo handleDataContextChange`);
 			await this.domainStore.featureStore.updateWordListSpecs()
 			await this.domainStore.targetStore.updateFromCODAP()
 		})()

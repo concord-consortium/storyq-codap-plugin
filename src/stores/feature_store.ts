@@ -262,7 +262,7 @@ export class FeatureStore {
 		while (this.wordListSpecs.length > 0) {
 			this.wordListSpecs.pop();
 		}
-		console.log(` !! purged`, this.wordListSpecs);
+		console.log(` !! purged`, JSON.stringify(this.wordListSpecs));
 		const tContextListResult: any = await codapInterface.sendRequest({
 			"action": "get",
 			"resource": "dataContextList"

@@ -24,6 +24,7 @@ export const FeaturePanel = observer(class FeaturePanel extends Component<Featur
 
 	async componentDidMount() {
 		await this.updateFeaturesDataset();
+		console.log(`>>> FeaturePanel mounted`);
 		await this.props.domainStore.featureStore.updateWordListSpecs()
 	}
 
