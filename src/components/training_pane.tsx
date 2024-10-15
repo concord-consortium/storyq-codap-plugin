@@ -78,7 +78,6 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 				return (
 					<TextBox
 						className='sq-fc-part'
-						valueChangeEvent={'keyup'}
 						placeholder="Name"
 						onValueChanged={action((e) => {
 							tModel.name = e.value
@@ -199,7 +198,6 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 					return (
 						<TextBox
 							className='sq-fc-part'
-							valueChangeEvent={'keyup'}
 							placeholder=""
 							hint={SQ.hints.trainingSetupIteration}
 							onValueChanged={action((e) => {

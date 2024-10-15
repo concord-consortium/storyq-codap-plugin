@@ -22,7 +22,7 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 		private domainStore: DomainStore
 		private notificationManager: NotificationManager
 		private kPluginName = kStoryQPluginName;
-		private kVersion = "2.16-pre.N-codap2";
+		private kVersion = "2.16-v2-pre.2";
 		private kInitialDimensions = {
 			width: 429,
 			height: 420
