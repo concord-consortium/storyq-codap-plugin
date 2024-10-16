@@ -246,7 +246,10 @@ export default class TextFeedbackManager {
 				// Get the features and stash them in a set
 				tSelectedFeatureCases = await getSelectedCasesFrom(tFeatureDatasetName, tFeatureCollectionName)
 				tSelectedFeatureCases.forEach((iCase: any) => {
-					tFeaturesMap[Number(iCase.id)] = iCase.values.name;
+					// This used to use the caseId, but the featureIDs saved in the training cases are item ids.
+					// I'm using item ids here now, but it's possible they should both use case ids instead.
+					const itemId = iCase.children[0];
+					tFeaturesMap[Number(itemId)] = iCase.values.name;
 				});
 			}
 		}
@@ -276,7 +279,7 @@ export default class TextFeedbackManager {
 			tPredictedLabelAttributeName = this.domainStore.targetStore.targetPredictedLabelAttributeName,
 			tColumnFeatureNames = this.domainStore.featureStore.targetColumnFeatureNames,
 			tConstructedFeatureNames = this.domainStore.featureStore.features.map(iFeature => iFeature.name),
-			tFeaturesMap: {[index:number]:string} = {},
+			tFeaturesMap: Record<number, string> = {},
 			// Get all the selected cases in the target dataset. Some will be results and some will be texts
 			tSelectionListResult: any = await codapInterface.sendRequest({
 				action: 'get',
@@ -461,7 +464,6 @@ export default class TextFeedbackManager {
 				text: tGroup !== kProps[kProps.length - 1] ? '■ ' : '', // Don't add the square if we're in 'blankBlank'
 				color: tColor
 			}
-			// @ts-ignore
 			tClassItems[tGroup].push({
 				type: 'list-item',
 				children: [tSquare].concat(iHighlightFunc(iQuadruple.phrase, iQuadruple.nonNtigramFeatures, iSpecialFeatures))
@@ -474,16 +476,14 @@ export default class TextFeedbackManager {
 
 		// The phrases are all in their groups. Create the array of group objects
 		kProps.forEach(iProp => {
-			// @ts-ignore
-			let tPhrases = tClassItems[iProp];
+			const tPhrases = tClassItems[iProp];
 			if (tPhrases.length !== 0) {
-				let tHeadingItems = [
+				const tHeadingItems = [
 					// @ts-ignore
 					kHeadings[iProp],
 					{
 						type: 'bulleted-list',
-						// @ts-ignore
-						children: tClassItems[iProp]
+						children: tPhrases
 					}];
 				tItems = tItems.concat(tHeadingItems);
 			}
