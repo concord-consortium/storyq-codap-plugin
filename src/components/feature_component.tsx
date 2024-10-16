@@ -23,6 +23,8 @@ import {SQ} from "../lists/lists";
 import {Button} from "./ui/button";
 import {NumberBox} from "./ui/number-box";
 
+import "./feature_component.scss";
+
 interface FeatureComponentInfo {
 	subscriberIndex: number
 }
@@ -182,25 +184,29 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 							return iDataset.datasetName;
 						}),
 						tLists = Object.keys(SQ.lists).concat(tWordListDatasetNames)
+
+					const handleValueChange = action((option: string) => {
+						const tWordListSpec = tWordListSpecs.find((iSpec) => {
+							return iSpec.datasetName === option
+						})
+						let tAttributeName = ''
+						if (tWordListSpec) {
+							tAttributeName = tWordListSpec.firstAttributeName
+						}
+						(tFeature.info.details as SearchDetails).wordList = {
+							datasetName: option,
+							firstAttributeName: tAttributeName
+						}
+					})
+
 					return (
 						<SelectBox
+							className='word-list-select'
 							dataSource={tLists}
 							defaultValue={tContainsDetails.wordList}
 							placeholder={'choose list'}
 							style={{display: 'inline-block'}}
-							onValueChange={action((option) => {
-								const tWordListSpec = tWordListSpecs.find((iSpec) => {
-									return iSpec.datasetName === option
-								})
-								let tAttributeName = ''
-								if (tWordListSpec) {
-									tAttributeName = tWordListSpec.firstAttributeName
-								}
-								(tFeature.info.details as SearchDetails).wordList = {
-									datasetName: option,
-									firstAttributeName: tAttributeName
-								}
-							})}
+							onValueChange={handleValueChange}
 							value={tContainsDetails?.wordList.datasetName}
 						/>
 					)
