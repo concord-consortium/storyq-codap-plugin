@@ -181,10 +181,12 @@ export class TargetStore {
 
 	}
 
-	async updateTargetCases() {
+	async updateTargetCases(formula?: string) {
 		const tTargetDatasetName = this.targetDatasetInfo.name,
 			tCollectionName = this.targetCollectionName,
-			tCaseValues = this.targetAttributeName !== '' ? await getCaseValues(tTargetDatasetName, tCollectionName) : []
+			tCaseValues = this.targetAttributeName !== ''
+				? await getCaseValues(tTargetDatasetName, tCollectionName, formula)
+				: []
 		runInAction(() => {
 			this.targetCases = tCaseValues
 		})
