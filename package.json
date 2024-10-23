@@ -1,6 +1,6 @@
 {
   "name": "storyq",
-  "version": "2.15.0",
+  "version": "2.16.0-v2",
   "homepage": ".",
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^6.6.0",
