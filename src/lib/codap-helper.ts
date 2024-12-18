@@ -220,11 +220,13 @@ export async function getAttributeNames(iDatasetName: string, iCollectionName: s
  * @param iDatasetName
  * @param iCollectionName
  */
-export async function getCaseValues(iDatasetName: string,
-																		iCollectionName: string): Promise<Case[]> {
+export async function getCaseValues(
+	iDatasetName: string, iCollectionName: string, searchFormula?: string
+): Promise<Case[]> {
+	const formula = searchFormula ?? `true`;
 	const tResult: any = await codapInterface.sendRequest({
 		action: 'get',
-		resource: `dataContext[${iDatasetName}].collection[${iCollectionName}].caseFormulaSearch[true]`
+		resource: `dataContext[${iDatasetName}].collection[${iCollectionName}].caseFormulaSearch[${formula}]`
 	}).catch(reason => console.log(`Unable to get cases in ${iDatasetName} because ${reason}`))
 	if (tResult.success) {
 		return tResult.values.map((iValue: any) => {
