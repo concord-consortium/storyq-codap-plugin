@@ -178,6 +178,8 @@ export default class TextFeedbackManager {
 						tUsedIDsSet.add(anID);
 					})
 					tFeaturesMap[iResult.values.case.id] = iResult.values.case.values.name
+					const childID = iResult.values.case.children[0]
+					if (childID) tFeaturesMap[childID] = iResult.values.case.values.name
 				}
 			})
 		}
@@ -215,7 +217,7 @@ export default class TextFeedbackManager {
 					tActualClass = tGetCaseResult.values.case.values[tClassAttributeName],
 					tPhrase = tGetCaseResult.values.case.values[tAttributeName],
 					tQuadruple = {actual: tActualClass, predicted: tPredictedClass, phrase: tPhrase,
-						nonNtigramFeatures: tFeatureIDs.map(anID=>tFeaturesMap[anID])}
+						nonNtigramFeatures: tFeatureIDs.map(anID => tFeaturesMap[anID])}
 				tQuadruples.push((tQuadruple));
 			}
 		}
@@ -464,6 +466,7 @@ export default class TextFeedbackManager {
 				text: tGroup !== kProps[kProps.length - 1] ? '■ ' : '', // Don't add the square if we're in 'blankBlank'
 				color: tColor
 			}
+			console.log(`... iQuadruple`, iQuadruple)
 			tClassItems[tGroup].push({
 				type: 'list-item',
 				children: [tSquare].concat(iHighlightFunc(iQuadruple.phrase, iQuadruple.nonNtigramFeatures, iSpecialFeatures))

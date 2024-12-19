@@ -17,7 +17,7 @@ export function textToObject( iText:string, iSelectedWords:any, iSpecialFeatures
 	});
 
 	// do not highlight text for now
-	tResultArray.push({text: iText});
+	// tResultArray.push({text: iText});
 
 	/*
 	NOTE: this code is broken and doesn't match phrases or match lists like personal pronoun lists
@@ -25,6 +25,10 @@ export function textToObject( iText:string, iSelectedWords:any, iSpecialFeatures
 	let words:string[] = wordTokenizer(iText, false, false);
 	words.forEach((iWord) => {
 		let tRawWord = iWord.toLowerCase();
+		// const containedWord = typeof iSelectedWords === "string" && iSelectedWords.match(/"([^"]+)"/);
+		// const matchWord = containedWord ? containedWord[1] : iSelectedWords;
+
+		// if (matchWord.indexOf(tRawWord) >= 0) {
 		if (iSelectedWords.indexOf(tRawWord) >= 0) {
 			if (segment !== '') {
 				tResultArray.push({
@@ -43,8 +47,8 @@ export function textToObject( iText:string, iSelectedWords:any, iSpecialFeatures
 			segment += iWord + ' ';
 		}
 	});
-	if( segment !== '')
-		tResultArray.push({ text: segment });
+
+	if( segment !== '') tResultArray.push({ text: segment });
 	*/
 
 	return tResultArray;
