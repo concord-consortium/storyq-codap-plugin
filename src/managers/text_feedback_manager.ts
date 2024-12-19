@@ -466,7 +466,6 @@ export default class TextFeedbackManager {
 				text: tGroup !== kProps[kProps.length - 1] ? '■ ' : '', // Don't add the square if we're in 'blankBlank'
 				color: tColor
 			}
-			console.log(`... iQuadruple`, iQuadruple)
 			tClassItems[tGroup].push({
 				type: 'list-item',
 				children: [tSquare].concat(iHighlightFunc(iQuadruple.phrase, iQuadruple.nonNtigramFeatures, iSpecialFeatures))
