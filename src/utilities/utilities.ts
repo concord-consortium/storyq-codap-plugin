@@ -7,7 +7,6 @@ import {wordTokenizer} from "../lib/one_hot";
  * @param iSpecialFeatures - an array of features that don't appear in the text but may appear in iSelectedWords
  */
 export function textToObject( iText:string, iSelectedWords:any, iSpecialFeatures:string[]):any {
-	console.log(`--- selected words`, iSelectedWords);
 	let segment = '';
 	let tResultArray:any = [];
 	iSpecialFeatures.forEach( iFeature => {
