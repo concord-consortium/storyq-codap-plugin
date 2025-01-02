@@ -45,7 +45,7 @@ export function textToObject( iText:string, iSelectedWords:any, iSpecialFeatures
 		}
 	});
 
-	if( segment !== '') tResultArray.push({ text: segment });
+	if (segment !== '') tResultArray.push({ text: segment });
 
 	return tResultArray;
 }
