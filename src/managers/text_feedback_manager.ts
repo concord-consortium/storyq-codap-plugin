@@ -178,6 +178,8 @@ export default class TextFeedbackManager {
 						tUsedIDsSet.add(anID);
 					})
 					tFeaturesMap[iResult.values.case.id] = iResult.values.case.values.name
+					const childID = iResult.values.case.children[0]
+					if (childID) tFeaturesMap[childID] = iResult.values.case.values.name
 				}
 			})
 		}
@@ -215,7 +217,7 @@ export default class TextFeedbackManager {
 					tActualClass = tGetCaseResult.values.case.values[tClassAttributeName],
 					tPhrase = tGetCaseResult.values.case.values[tAttributeName],
 					tQuadruple = {actual: tActualClass, predicted: tPredictedClass, phrase: tPhrase,
-						nonNtigramFeatures: tFeatureIDs.map(anID=>tFeaturesMap[anID])}
+						nonNtigramFeatures: tFeatureIDs.map(anID => tFeaturesMap[anID])}
 				tQuadruples.push((tQuadruple));
 			}
 		}

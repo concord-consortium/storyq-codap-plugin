@@ -1,4 +1,4 @@
-// import {wordTokenizer} from "../lib/one_hot";
+import {wordTokenizer} from "../lib/one_hot";
 
 /**
  *
@@ -7,7 +7,7 @@
  * @param iSpecialFeatures - an array of features that don't appear in the text but may appear in iSelectedWords
  */
 export function textToObject( iText:string, iSelectedWords:any, iSpecialFeatures:string[]):any {
-	// let segment = '';
+	let segment = '';
 	let tResultArray:any = [];
 	iSpecialFeatures.forEach( iFeature => {
 		if( iSelectedWords.indexOf( iFeature) >= 0)
@@ -16,16 +16,17 @@ export function textToObject( iText:string, iSelectedWords:any, iSpecialFeatures
 			});
 	});
 
-	// do not highlight text for now
-	tResultArray.push({text: iText});
-
-	/*
-	NOTE: this code is broken and doesn't match phrases or match lists like personal pronoun lists
-
+	// NOTE: this code isn't perfect and doesn't match phrases or match lists like personal pronoun lists
 	let words:string[] = wordTokenizer(iText, false, false);
 	words.forEach((iWord) => {
 		let tRawWord = iWord.toLowerCase();
-		if (iSelectedWords.indexOf(tRawWord) >= 0) {
+		const containedWords = iSelectedWords.map((selectedWord: any) => {
+			// Strip out the word from strings like 'contain: "word"'
+			const containedWord = typeof selectedWord === "string" && selectedWord.match(/contain: "([^"]+)"/);
+			return containedWord ? containedWord[1] : selectedWord;
+		})
+
+		if (containedWords.indexOf(tRawWord) >= 0) {
 			if (segment !== '') {
 				tResultArray.push({
 					text: segment
@@ -33,7 +34,7 @@ export function textToObject( iText:string, iSelectedWords:any, iSpecialFeatures
 				segment = '';
 			}
 			tResultArray.push({
-				text: iWord, bold: true, underlined: true, color: "#0432ff"
+				text: iWord, bold: true, underlined: true, color: "#000000"
 			});
 			tResultArray.push({
 				text: ' '
@@ -43,9 +44,8 @@ export function textToObject( iText:string, iSelectedWords:any, iSpecialFeatures
 			segment += iWord + ' ';
 		}
 	});
-	if( segment !== '')
-		tResultArray.push({ text: segment });
-	*/
+
+	if (segment !== '') tResultArray.push({ text: segment });
 
 	return tResultArray;
 }
