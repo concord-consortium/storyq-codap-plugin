@@ -34,7 +34,7 @@ export function textToObject( iText:string, iSelectedWords:any, iSpecialFeatures
 				segment = '';
 			}
 			tResultArray.push({
-				text: iWord, bold: true, underlined: true, color: "#0432ff"
+				text: iWord, bold: true, underlined: true, color: "#000000"
 			});
 			tResultArray.push({
 				text: ' '
