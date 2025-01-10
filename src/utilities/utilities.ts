@@ -24,7 +24,7 @@ export function textToObject( iText:string, iSelectedWords:any, iSpecialFeatures
 			// Strip out the word from strings like 'contain: "word"'
 			const _containedWord = typeof selectedWord === "string" && selectedWord.match(/contain: "([^"]+)"/);
 			const containedWord = _containedWord ? _containedWord[1] : selectedWord;
-			return containedWord ? containedWord.toLowerCase() : containedWord;
+			return typeof containedWord === "string" ? containedWord.toLowerCase() : containedWord;
 		})
 
 		if (containedWords.indexOf(tRawWord) >= 0) {
