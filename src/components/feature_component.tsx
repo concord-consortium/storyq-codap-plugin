@@ -2,25 +2,22 @@
  * This component provides the space for a user to construct and edit a feature
  */
 
+import { action, toJS } from "mobx";
+import { observer } from "mobx-react";
 import React, {Component} from "react";
+import { stopWords } from "../lib/stop_words";
+import { SQ } from "../lists/lists";
+import { domainStore } from "../stores/domain_store";
 import {
-	Feature,
-	featureDescriptors,
-	kKindOfThingOptionList,
-	kKindOfThingOptionPunctuation,
-	kKindOfThingOptionText,
+	Feature, featureDescriptors, kKindOfThingOptionList, kKindOfThingOptionPunctuation, kKindOfThingOptionText,
 	SearchDetails
 } from "../stores/store_types_and_constants";
-import { domainStore } from "../stores/domain_store";
-import {observer} from "mobx-react";
-import {TextBox} from "./ui/text-box";
-import {action, toJS} from "mobx";
-import {SelectBox} from "./ui/select-box";
-import {stopWords} from "../lib/stop_words";
-import {CheckBox} from "./ui/check-box";
-import {SQ} from "../lists/lists";
-import {Button} from "./ui/button";
-import {NumberBox} from "./ui/number-box";
+import { textStore } from "../stores/text_store";
+import { Button } from "./ui/button";
+import { CheckBox } from "./ui/check-box";
+import { NumberBox } from "./ui/number-box";
+import { SelectBox } from "./ui/select-box";
+import { TextBox } from "./ui/text-box";
 
 import "./feature_component.scss";
 
@@ -263,7 +260,7 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 						icon='clear'
 						onClick={action(async () => {
 							await domainStore.featureStore.deleteFeature(tFeature)
-							await domainStore.clearText()
+							await textStore.clearText()
 						})}
 						hint={SQ.hints.featureTableRemove}
 					/>

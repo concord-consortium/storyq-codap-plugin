@@ -3,12 +3,13 @@
  * or features of the model.
  */
 
-import {datasetExists, getCaseValues, getSelectedCasesFrom} from "../lib/codap-helper";
+import { datasetExists, getCaseValues, getSelectedCasesFrom } from "../lib/codap-helper";
 import codapInterface, {CODAP_Notification} from "../lib/CodapInterface";
 import { domainStore } from "../stores/domain_store";
+import { textStore } from "../stores/text_store";
 import { uiStore } from "../stores/ui_store";
-import {phraseToFeatures, textToObject} from "../utilities/utilities";
-import {ClassLabel, HeadingsManager, HeadingSpec, PhraseQuadruple} from "./headings_manager";
+import { phraseToFeatures, textToObject } from "../utilities/utilities";
+import { ClassLabel, HeadingsManager, HeadingSpec, PhraseQuadruple } from "./headings_manager";
 
 export default class TextFeedbackManager {
 	headingsManager: HeadingsManager
@@ -494,12 +495,12 @@ export default class TextFeedbackManager {
 			})
 		}
 		if (tItems.length === 0) {
-			domainStore.clearText();
+			textStore.clearText();
 		} else {
 			// Send it all off to the text object
 			await codapInterface.sendRequest({
 				action: 'update',
-				resource: `component[${domainStore.textStore.textComponentID}]`,
+				resource: `component[${textStore.textComponentID}]`,
 				values: {
 					text: {
 						"object": "value",
@@ -520,7 +521,7 @@ export default class TextFeedbackManager {
 	async retitleTextComponent(iTitle: string) {
 		await codapInterface.sendRequest({
 			action: 'update',
-			resource: `component[${domainStore.textStore.textComponentID}]`,
+			resource: `component[${textStore.textComponentID}]`,
 			values: {
 				title: iTitle
 			}

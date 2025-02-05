@@ -3,9 +3,12 @@
  * be accessed in more than one file or needs to be saved and restored.
  */
 
-import {makeAutoObservable} from 'mobx'
-import codapInterface from "../lib/CodapInterface";
+import { makeAutoObservable } from 'mobx'
 import pluralize from "pluralize";
+import { getComponentByTypeAndTitleOrName } from "../lib/codap-helper";
+import codapInterface from "../lib/CodapInterface";
+import { domainStore } from './domain_store';
+import { kStoryQPluginName } from './store_types_and_constants';
 
 export class TextStore {
 	textComponentTitle: string = ''
@@ -32,8 +35,10 @@ export class TextStore {
 	/**
 	 * Only add a text component if one with the designated name does not already exist.
 	 */
-	async addTextComponent(iDatasetName:string, iAttributeName: string) {
-		let tFoundIt = false
+	async addTextComponent() {
+		const iDatasetName = domainStore.targetStore.targetDatasetInfo.title;
+		const iAttributeName = domainStore.targetStore.targetAttributeName;
+		let tFoundIt = false;
 		this.textComponentTitle = `Selected  ${pluralize(iAttributeName)} in ${iDatasetName}`;
 		const tListResult: any = await codapInterface.sendRequest(
 			{
@@ -51,7 +56,7 @@ export class TextStore {
 			});
 			if (tFoundValue) {
 				this.textComponentID = tFoundValue.id;
-				tFoundIt = true
+				tFoundIt = true;
 			}
 		}
 		if (!tFoundIt) {
@@ -70,11 +75,25 @@ export class TextStore {
 					cannotClose: true
 				}
 			});
-			this.textComponentID = tResult.values.id
+			this.textComponentID = tResult.values.id;
 		}
+		await this.clearText();
+
+		setTimeout(async () => {
+			// Take the focus away from the newly created text component
+			const tPluginID = await getComponentByTypeAndTitleOrName('game', kStoryQPluginName, kStoryQPluginName);
+			await codapInterface.sendRequest({
+				action: 'notify',
+				resource: `component[${tPluginID}]`,
+				values: {
+					request: 'select'
+				}
+			});
+		}, 1000);
 	}
 
-	async clearText(iAttributeName: string) {
+	async clearText() {
+		const attributeName = pluralize(domainStore.targetStore.targetAttributeName)
 		await codapInterface.sendRequest({
 			action: 'update',
 			resource: `component[${this.textComponentID}]`,
@@ -87,7 +106,7 @@ export class TextStore {
 								"type": "paragraph",
 								"children": [
 									{
-										"text": `This is where selected ${pluralize(iAttributeName)} appear.`
+										"text": `This is where selected ${attributeName} appear.`
 									}
 								]
 							}
@@ -108,5 +127,6 @@ export class TextStore {
 			resource: `component[${this.textComponentTitle}]`
 		});
 	}
-
 }
+
+export const textStore = new TextStore();

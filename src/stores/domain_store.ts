@@ -3,16 +3,16 @@
  * be accessed in more than one file or needs to be saved and restored.
  */
 
-import {getCaseValues, getComponentByTypeAndTitleOrName, openTable} from "../lib/codap-helper";
+import { getCaseValues, openTable } from "../lib/codap-helper";
 import codapInterface from "../lib/CodapInterface";
+import { oneHot, wordTokenizer } from "../lib/one_hot";
 import TextFeedbackManager from "../managers/text_feedback_manager";
-import {oneHot, wordTokenizer} from "../lib/one_hot";
-import {Feature, kPosNegConstants, kStoryQPluginName} from "./store_types_and_constants";
-import {TargetStore} from "./target_store";
-import {FeatureStore} from "./feature_store";
-import {TrainingStore} from "./training_store";
-import {TestingStore} from "./testing_store";
-import {TextStore} from "./text_store";
+import { FeatureStore } from "./feature_store";
+import { Feature, kPosNegConstants } from "./store_types_and_constants";
+import { TargetStore } from "./target_store";
+import { TestingStore } from "./testing_store";
+import { textStore } from "./text_store";
+import { TrainingStore } from "./training_store";
 import { uiStore } from "./ui_store";
 
 interface Message {
@@ -26,7 +26,6 @@ export class DomainStore {
 	featureStore: FeatureStore
 	trainingStore: TrainingStore
 	testingStore: TestingStore
-	textStore: TextStore
 	textFeedbackManager: TextFeedbackManager
 
 	constructor() {
@@ -36,7 +35,6 @@ export class DomainStore {
 		this.featureStore = new FeatureStore(() => this.targetStore.targetDatasetInfo)
 		this.trainingStore = new TrainingStore()
 		this.testingStore = new TestingStore(this.featureStore.getFeatureDatasetID)
-		this.textStore = new TextStore()
 		this.textFeedbackManager = new TextFeedbackManager()
 	}
 
@@ -46,7 +44,7 @@ export class DomainStore {
 			featureStore: this.featureStore.asJSON(),
 			trainingStore: this.trainingStore.asJSON(),
 			testingStore: this.testingStore.asJSON(),
-			textStore: this.textStore.asJSON()
+			textStore: textStore.asJSON()
 		}
 	}
 
@@ -55,10 +53,10 @@ export class DomainStore {
 		this.featureStore.fromJSON(json.featureStore)
 		this.trainingStore.fromJSON(json.trainingStore)
 		this.testingStore.fromJSON(json.testingStore)
-		this.textStore.fromJSON(json.textStore)
+		textStore.fromJSON(json.textStore)
 
-		if (this.textStore.textComponentID !== -1) {
-			await this.addTextComponent()	//Make sure it is in the document
+		if (textStore.textComponentID !== -1) {
+			await textStore.addTextComponent()	//Make sure it is in the document
 		}
 		await this.guaranteeFeaturesDataset()
 		await this.testingStore.updateCodapInfoForTestingPanel()
@@ -418,26 +416,6 @@ export class DomainStore {
 				})
 			}
 		}
-	}
-
-	async addTextComponent() {
-		await this.textStore.addTextComponent(this.targetStore.targetDatasetInfo.title, this.targetStore.targetAttributeName)
-		await this.clearText()
-		setTimeout(async () => {
-			// Take the focus away from the newly created text component
-			const tPluginID = await getComponentByTypeAndTitleOrName('game', kStoryQPluginName, kStoryQPluginName)
-			await codapInterface.sendRequest({
-				action: 'notify',
-				resource: `component[${tPluginID}]`,
-				values: {
-					request: 'select'
-				}
-			})
-		}, 1000)
-	}
-
-	async clearText() {
-		await this.textStore.clearText(this.targetStore.targetAttributeName)
 	}
 
 	featuresPanelCanBeEnabled() {

@@ -2,14 +2,15 @@
  * This component lists constructed features and provides an interface for construction and deletion
  */
 
-import React, {Component} from "react";
+import { action, toJS } from "mobx";
+import { observer } from "mobx-react";
+import React, { Component } from "react";
 import codapInterface from "../lib/CodapInterface";
-import {TargetTextArea} from "./target_text_area";
-import {action, toJS} from "mobx";
+import { SQ } from "../lists/lists";
 import { domainStore } from "../stores/domain_store";
-import {observer} from "mobx-react";
-import {ChoicesMenu} from "./choices-menu";
-import {SQ} from "../lists/lists";
+import { textStore } from "../stores/text_store";
+import { ChoicesMenu } from "./choices-menu";
+import { TargetTextArea } from "./target_text_area";
 
 export const TargetPanel = observer(class TargetPanel extends Component {
 
@@ -215,7 +216,7 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 							onValueChange={async (iChoice) => {
 								tTargetStore.targetAttributeName = iChoice;
 								await this_.updateTargetPanelInfo();
-								domainStore.addTextComponent();
+								textStore.addTextComponent();
 							}}
 							placeHolder="Choose from"
 							prompt={tPrompt}
