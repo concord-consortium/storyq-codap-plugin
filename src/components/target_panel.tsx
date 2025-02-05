@@ -9,7 +9,7 @@ import {action, toJS} from "mobx";
 import {DomainStore} from "../stores/domain_store";
 import {observer} from "mobx-react";
 import {UiStore} from "../stores/ui_store";
-import {choicesMenu} from "./component_utilities";
+import {ChoicesMenu} from "./choices-menu";
 import {SQ} from "../lists/lists";
 
 export interface Target_Props {
@@ -145,9 +145,16 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 					tHint = tValue === '' ? SQ.hints.targetDatasetChoices : SQ.hints.targetDatasetChosen
 				tDatasetChoices.push( tNewDatasetChoice)
 				return (
-					choicesMenu(tPrompt, 'Choose from',
-						tHint, tDatasetChoices, tValue, 'No datasets to choose from', handleChoice)
-				)
+					<ChoicesMenu
+						choices={tDatasetChoices}
+						hint={tHint}
+						noDataText="No datasets to choose from"
+						onValueChange={handleChoice}
+						placeHolder="Choose from"
+						prompt={tPrompt}
+						value={tValue}
+					/>
+				);
 			}
 
 			return (
@@ -206,15 +213,21 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 					tHint = this_.currState === 'chosen-no-target-attribute' ?
 						SQ.hints.targetAttributeChoices : SQ.hints.targetAttributeChosen
 				if (tTargetStore.targetAttributeNames.length > 0) {
-					return choicesMenu(tPrompt, 'Choose from',
-						tHint,
-						tTargetStore.targetAttributeNames,
-						tTargetStore.targetAttributeName, 'No attributes to choose from',
-						async (iChoice) => {
-							tTargetStore.targetAttributeName = iChoice
-							await this_.updateTargetPanelInfo()
-							this_.props.domainStore.addTextComponent()
-						})
+					return (
+						<ChoicesMenu
+							choices={tTargetStore.targetAttributeNames}
+							hint={tHint}
+							noDataText="No attributes to choose from"
+							onValueChange={async (iChoice) => {
+								tTargetStore.targetAttributeName = iChoice;
+								await this_.updateTargetPanelInfo();
+								this_.props.domainStore.addTextComponent();
+							}}
+							placeHolder="Choose from"
+							prompt={tPrompt}
+							value={tTargetStore.targetAttributeName}
+						/>
+					);
 				}
 			}
 
@@ -227,13 +240,19 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 					const tCandidateAttributeNames = tTargetStore.targetAttributeNames.filter((iName) => {
 						return this_.props.domainStore.featureStore.features.findIndex(aFeature => aFeature.name === iName) < 0
 					})
-					return choicesMenu(tPrompt,
-						'Choose an attribute with labels',
-						tHint,
-						tCandidateAttributeNames,
-						tTargetStore.targetClassAttributeName, 'No attributes to choose from', async (iChoice) => {
-							await this_.updateTargetPanelInfo('targetClassAttributeName', iChoice)
-						})
+					return (
+						<ChoicesMenu
+							choices={tCandidateAttributeNames}
+							hint={tHint}
+							noDataText="No attributes to choose from"
+							onValueChange={async (iChoice) => {
+								await this_.updateTargetPanelInfo('targetClassAttributeName', iChoice);
+							}}
+							placeHolder="Choose an attribute with labels"
+							prompt={tPrompt}
+							value={tTargetStore.targetClassAttributeName}
+						/>
+					);
 				}
 			}
 
@@ -265,16 +284,20 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 								tLeftColumnKey = 'left',
 								tLeftColumnValue = tTargetStore.targetClassNames[tLeftColumnKey]
 							return (
-								choicesMenu('Choose a target label', 'Your choice',
-									SQ.hints.targetLabelChoices,
-									tTargetStore.targetClassAttributeValues,
-									tLeftColumnValue, 'No labels were found',
-									action((e)=>{
-										tTargetStore.targetClassNames[tLeftColumnKey] = e
+								<ChoicesMenu
+									choices={tTargetStore.targetClassAttributeValues}
+									hint={SQ.hints.targetLabelChoices}
+									noDataText="No labels were found"
+									onValueChange={action((e) => {
+										tTargetStore.targetClassNames[tLeftColumnKey] = e;
 										tTargetStore.targetClassNames[tRightColumnKey] = tTargetStore.targetClassAttributeValues.slice(0, 3)
-											.filter((iValue:string)=>iValue!== e).join(',') + '…'
-									}))
-							)
+											.filter((iValue:string)=>iValue!== e).join(',') + '…';
+									})}
+									placeHolder="Your choice"
+									prompt="Choose a target label"
+									value={tLeftColumnValue}
+								/>
+							);
 						}
 					}
 				}

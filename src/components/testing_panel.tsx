@@ -7,7 +7,7 @@ import {DomainStore} from "../stores/domain_store";
 import {observer} from "mobx-react";
 import {UiStore} from "../stores/ui_store";
 import codapInterface, {CODAP_Notification} from "../lib/CodapInterface";
-import {choicesMenu} from "./component_utilities";
+import {ChoicesMenu} from "./choices-menu";
 import {Button} from "./ui/button";
 import {action, toJS} from "mobx";
 import {TestingManager} from "../managers/testing_manager";
@@ -80,43 +80,57 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 			const tModelChoices = this_.props.domainStore.trainingStore.trainingResults.map(iResult => iResult.name),
 				tPrompt = this_.props.domainStore.testingStore.chosenModelName === '' ? 'Choose a model to test'
 					: 'The model to test'
-			return choicesMenu(tPrompt, 'Choose a model',
-				SQ.hints.testingModelChoices,
-				tModelChoices,
-				this_.props.domainStore.testingStore.chosenModelName, 'No models to choose from', async (iChoice) => {
-					this_.props.domainStore.testingStore.chosenModelName = iChoice
-					await this_.updateCodapInfo()
-				})
+			return (
+				<ChoicesMenu
+					choices={tModelChoices}
+					hint={SQ.hints.testingModelChoices}
+					noDataText="No models to choose from"
+					onValueChange={async (iChoice) => {
+						this_.props.domainStore.testingStore.chosenModelName = iChoice;
+						await this_.updateCodapInfo();
+					}}
+					placeHolder="Choose a model"
+					prompt={tPrompt}
+					value={this_.props.domainStore.testingStore.chosenModelName}
+				/>
+			);
 		}
 
 		function getTestingDatasetChoice() {
 			const tDatasetInfoArray = tTestingStore.testingDatasetInfoArray,
 				tDatasetNames = tDatasetInfoArray.map(iEntity => iEntity.title)
-			return choicesMenu('Choose a data set', 'Your choice',
-				SQ.hints.testingDatasetChoices,
-				tDatasetNames,
-				tTestingStore.testingDatasetInfo.title,
-				'',
-				async (iChoice) => {
-					const tChosenInfo = tDatasetInfoArray.find(iInfo => iInfo.title === iChoice)
-					if (tChosenInfo)
-						tTestingStore.testingDatasetInfo = tChosenInfo
-					await this_.updateCodapInfo()
-				})
+			return (
+				<ChoicesMenu
+					choices={tDatasetNames}
+					hint={SQ.hints.testingDatasetChoices}
+					onValueChange={async (iChoice) => {
+						const tChosenInfo = tDatasetInfoArray.find(iInfo => iInfo.title === iChoice);
+						if (tChosenInfo) tTestingStore.testingDatasetInfo = tChosenInfo;
+						await this_.updateCodapInfo();
+					}}
+					placeHolder="Your choice"
+					prompt="Choose a data set"
+					value={tTestingStore.testingDatasetInfo.title}
+				/>
+			);
 		}
 
 		function getTestingAttributeChoice() {
 			if (tTestingStore.testingDatasetInfo.title !== '') {
 				const tAttributeNames = tTestingStore.testingAttributeNames
-				return choicesMenu('Choose the column with text', 'Choose a column',
-					SQ.hints.testingColumnChoices,
-					tAttributeNames,
-					tTestingStore.testingAttributeName,
-					'',
-					async (iChoice) => {
-						tTestingStore.testingAttributeName = iChoice
-						await this_.updateCodapInfo()
-					})
+				return (
+					<ChoicesMenu
+						choices={tAttributeNames}
+						hint={SQ.hints.testingAttributeChoices}
+						onValueChange={async (iChoice) => {
+							tTestingStore.testingAttributeName = iChoice;
+							await this_.updateCodapInfo();
+						}}
+						placeHolder="Choose a column"
+						prompt="Choose the column with text"
+						value={tTestingStore.testingAttributeName}
+					/>
+				);
 			}
 		}
 
@@ -124,15 +138,19 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 			if (tTestingStore.testingDatasetInfo.title !== '') {
 				const tAttributeNames: string[] = toJS(tTestingStore.testingAttributeNames)
 				tAttributeNames.unshift(kNonePresent)
-				return choicesMenu('Choose the column with the labels (optional)', 'Choose a column',
-					SQ.hints.testingLabelsChoices,
-					tAttributeNames,
-					tTestingClassAttributeName,
-					'',
-					async (iChoice: string) => {
-						tTestingStore.testingClassAttributeName = iChoice
-						await this_.updateCodapInfo()
-					})
+				return (
+					<ChoicesMenu
+						choices={tAttributeNames}
+						hint={SQ.hints.testingLabelsChoices}
+						onValueChange={async (iChoice) => {
+							tTestingStore.testingClassAttributeName = iChoice;
+							await this_.updateCodapInfo();
+						}}
+						placeHolder="Choose a column"
+						prompt="Choose the column with the labels (optional)"
+						value={tTestingClassAttributeName}
+					/>
+				);
 			}
 		}
 
