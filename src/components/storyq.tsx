@@ -7,7 +7,7 @@ import {TabPanel} from './ui/tab-panel';
 import {Item} from './ui/item';
 import {TargetPanel} from "./target_panel";
 import {FeaturePanel} from "./feature_panel";
-import {UiStore} from "../stores/ui_store";
+import { uiStore } from "../stores/ui_store";
 import {observer} from "mobx-react";
 import {DomainStore} from "../stores/domain_store";
 import {action} from "mobx";
@@ -18,7 +18,6 @@ import NotificationManager from "../managers/notification_manager";
 import {TestingManager} from "../managers/testing_manager";
 
 const Storyq = observer(class Storyq extends Component<{}, {}> {
-		private uiStore: UiStore
 		private domainStore: DomainStore
 		private notificationManager: NotificationManager
 		private kPluginName = kStoryQPluginName;
@@ -31,8 +30,7 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 
 		constructor(props: any) {
 			super(props);
-			this.uiStore = new UiStore()
-			this.domainStore = new DomainStore(this.uiStore)
+			this.domainStore = new DomainStore()
 			this.notificationManager = new NotificationManager(this.domainStore)
 			this.restorePluginFromStore = this.restorePluginFromStore.bind(this);
 			this.getPluginStore = this.getPluginStore.bind(this);
@@ -57,7 +55,7 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 				success: true,
 				values: {
 					domainStore: this.domainStore.asJSON(),
-					uiStore: this.uiStore.asJSON()
+					uiStore: uiStore.asJSON()
 				}
 			};
 		}
@@ -71,14 +69,14 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 
 		async restorePluginFromStore(iStorage: any) {
 			if (iStorage) {
-				this.uiStore.fromJSON(iStorage.uiStore);
+				uiStore.fromJSON(iStorage.uiStore);
 				this.domainStore.fromJSON(iStorage.domainStore);
 				await this.domainStore.targetStore.updateFromCODAP()
 			}
 		}
 
 		async handleSelectionChanged(e: any) {
-			this.uiStore.tabPanelSelectedIndex = e.selectedIndex;
+			uiStore.tabPanelSelectedIndex = e.selectedIndex;
 			await this.domainStore.targetStore.updateFromCODAP()
 		}
 
@@ -86,32 +84,28 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 			return (
 				<TabPanel
 					id='tabPanel'
-					selectedIndex={this.uiStore.tabPanelSelectedIndex}
+					selectedIndex={uiStore.tabPanelSelectedIndex}
 					onSelectionChanged={action((e: any) => {
 						this.handleSelectionChanged(e)
 					})}
 				>
 					<Item title='Setup' text='Specify the text data you want to work with'>
 						<TargetPanel
-							uiStore={this.uiStore}
 							domainStore={this.domainStore}
 						/>
 					</Item>
 					<Item title='Features' disabled={!this.domainStore.featuresPanelCanBeEnabled()}>
 						<FeaturePanel
-							uiStore={this.uiStore}
 							domainStore={this.domainStore}
 						/>
 					</Item>
 					<Item title='Training' disabled={!this.domainStore.trainingPanelCanBeEnabled()}>
 						<TrainingPanel
-							uiStore={this.uiStore}
 							domainStore={this.domainStore}
 						/>
 					</Item>
 					<Item title='Testing' disabled={!this.domainStore.testingPanelCanBeEnabled()}>
 						<TestingPanel
-							uiStore={this.uiStore}
 							domainStore={this.domainStore}
 							testingManager={this.testingManager}
 						/>

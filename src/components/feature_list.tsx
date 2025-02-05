@@ -5,7 +5,6 @@
 import React, {Component} from "react";
 import {DomainStore} from "../stores/domain_store";
 import {observer} from "mobx-react";
-import {UiStore} from "../stores/ui_store";
 import {FeatureComponent} from "./feature_component";
 
 interface FeatureListInfo {
@@ -13,7 +12,6 @@ interface FeatureListInfo {
 }
 
 export interface FeatureListProps {
-	uiStore: UiStore
 	domainStore: DomainStore
 }
 
@@ -34,7 +32,6 @@ export const FeatureList = observer(class FeatureList extends Component<FeatureL
 		return tFeatureList.map((iFeature, iIndex) => {
 			return <FeatureComponent
 				key={iIndex}
-				uiStore={this.props.uiStore}
 				domainStore={this.props.domainStore}
 				feature={iFeature}
 				shortened={true}

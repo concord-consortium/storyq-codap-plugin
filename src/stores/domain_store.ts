@@ -13,7 +13,7 @@ import {FeatureStore} from "./feature_store";
 import {TrainingStore} from "./training_store";
 import {TestingStore} from "./testing_store";
 import {TextStore} from "./text_store";
-import {UiStore} from "./ui_store";
+import { uiStore } from "./ui_store";
 
 export class DomainStore {
 	targetStore: TargetStore
@@ -21,10 +21,9 @@ export class DomainStore {
 	trainingStore: TrainingStore
 	testingStore: TestingStore
 	textStore: TextStore
-	uiStore: UiStore
 	textFeedbackManager: TextFeedbackManager
 
-	constructor(iUiStore: UiStore) {
+	constructor() {
 		this.targetStore = new TargetStore(() => {
 			return this.featureStore.features.map(iFeature => iFeature.name)
 		})
@@ -32,8 +31,7 @@ export class DomainStore {
 		this.trainingStore = new TrainingStore()
 		this.testingStore = new TestingStore(this.featureStore.getFeatureDatasetID)
 		this.textStore = new TextStore()
-		this.uiStore = iUiStore
-		this.textFeedbackManager = new TextFeedbackManager(this, this.uiStore)
+		this.textFeedbackManager = new TextFeedbackManager(this)
 	}
 
 	asJSON(): object {
@@ -568,8 +566,8 @@ export class DomainStore {
 	}
 
 	setPanel(iPanelIndex: number) {
-		this.uiStore.tabPanelSelectedIndex = iPanelIndex
-		this.targetStore.updateFromCODAP()
+		uiStore.setTabPanelSelectedIndex(iPanelIndex);
+		this.targetStore.updateFromCODAP();
 	}
 
 	/**

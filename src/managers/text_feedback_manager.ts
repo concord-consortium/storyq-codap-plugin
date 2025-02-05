@@ -8,20 +8,18 @@ import {ClassLabel, HeadingsManager, HeadingSpec, PhraseQuadruple} from "./headi
 import {datasetExists, getCaseValues, getSelectedCasesFrom} from "../lib/codap-helper";
 import {phraseToFeatures, textToObject} from "../utilities/utilities";
 import {DomainStore} from "../stores/domain_store";
-import {UiStore} from "../stores/ui_store";
+import { uiStore } from "../stores/ui_store";
 
 export default class TextFeedbackManager {
 
 	domainStore: DomainStore
-	uiStore: UiStore
 	headingsManager: HeadingsManager
 	isSelectingFeatures = false
 	isSelectingTargetPhrases = false
 
-	constructor(iDomainStore: DomainStore, iUiStore: UiStore) {
+	constructor(iDomainStore: DomainStore) {
 		this.handleNotification = this.handleNotification.bind(this)
 		this.domainStore = iDomainStore;
-		this.uiStore = iUiStore;
 		this.headingsManager = new HeadingsManager();
 		codapInterface.on('notify', '*', 'selectCases', this.handleNotification);
 	}
@@ -93,7 +91,7 @@ export default class TextFeedbackManager {
 			}
 		}
 
-		const tUseTestingDataset = this.uiStore.getSelectedPanelTitle() === 'Testing' &&
+		const tUseTestingDataset = uiStore.selectedPanelTitle === 'Testing' &&
 				this.domainStore.testingStore.testingDatasetInfo.name !== '' &&
 				this.domainStore.testingStore.testingAttributeName !== '' &&
 				!this.domainStore.testingStore.currentTestingResults.testBeingConstructed,
@@ -266,7 +264,7 @@ export default class TextFeedbackManager {
 			}
 		}
 
-		const tUseTestingDataset = this.uiStore.getSelectedPanelTitle() === 'Testing' &&
+		const tUseTestingDataset = uiStore.selectedPanelTitle === 'Testing' &&
 				this.domainStore.testingStore.testingDatasetInfo.name !== '' &&
 				this.domainStore.testingStore.testingAttributeName !== '',
 			tStore = tUseTestingDataset ? this.domainStore.testingStore : this.domainStore.targetStore,

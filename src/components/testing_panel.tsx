@@ -5,7 +5,6 @@
 import React, {Component} from "react";
 import {DomainStore} from "../stores/domain_store";
 import {observer} from "mobx-react";
-import {UiStore} from "../stores/ui_store";
 import codapInterface, {CODAP_Notification} from "../lib/CodapInterface";
 import {ChoicesMenu} from "./choices-menu";
 import {Button} from "./ui/button";
@@ -16,7 +15,6 @@ import {SQ} from "../lists/lists";
 export const kNonePresent = 'None present';
 
 export interface Testing_Props {
-	uiStore: UiStore
 	domainStore: DomainStore
 	testingManager: TestingManager
 }

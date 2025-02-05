@@ -8,12 +8,10 @@ import {TargetTextArea} from "./target_text_area";
 import {action, toJS} from "mobx";
 import {DomainStore} from "../stores/domain_store";
 import {observer} from "mobx-react";
-import {UiStore} from "../stores/ui_store";
 import {ChoicesMenu} from "./choices-menu";
 import {SQ} from "../lists/lists";
 
 export interface Target_Props {
-	uiStore: UiStore
 	domainStore: DomainStore
 }
 
@@ -259,10 +257,7 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 			function lowerPanel() {
 				if (tTargetStore.targetCases.length > 0) {
 					return (
-						<TargetTextArea
-							uiStore={this_.props.uiStore}
-							domainStore={this_.props.domainStore}
-						/>
+						<TargetTextArea domainStore={this_.props.domainStore} />
 					)
 				}
 			}

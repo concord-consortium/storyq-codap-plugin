@@ -13,7 +13,6 @@ import {
 } from "../stores/store_types_and_constants";
 import {DomainStore} from "../stores/domain_store";
 import {observer} from "mobx-react";
-import {UiStore} from "../stores/ui_store";
 import {TextBox} from "./ui/text-box";
 import {action, toJS} from "mobx";
 import {SelectBox} from "./ui/select-box";
@@ -30,7 +29,6 @@ interface FeatureComponentInfo {
 }
 
 export interface FeatureComponentProps {
-	uiStore: UiStore
 	domainStore: DomainStore
 	feature: Feature
 	shortened: boolean

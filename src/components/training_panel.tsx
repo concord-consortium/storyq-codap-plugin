@@ -5,12 +5,10 @@
 import React, {Component} from "react";
 import {DomainStore} from "../stores/domain_store";
 import {observer} from "mobx-react";
-import {UiStore} from "../stores/ui_store";
 import {TargetInfoPane} from "./target_info_pane";
 import {TrainingPane} from "./training_pane";
 
 export interface Training_Props {
-	uiStore: UiStore
 	domainStore: DomainStore
 }
 
@@ -32,13 +30,8 @@ export const TrainingPanel = observer(class TrainingPanel extends Component<Trai
 
 		return (
 			<div className='sq-feature-panel'>
-				<TargetInfoPane
-					domainStore={this.props.domainStore}
-				/>
-				<TrainingPane
-					uiStore={this.props.uiStore}
-					domainStore={this.props.domainStore}
-				/>
+				<TargetInfoPane domainStore={this.props.domainStore} />
+				<TrainingPane domainStore={this.props.domainStore} />
 			</div>
 		);
 	}

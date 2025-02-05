@@ -5,7 +5,7 @@
 import React, {Component} from "react";
 import {DomainStore} from "../stores/domain_store";
 import {observer} from "mobx-react";
-import {UiStore} from "../stores/ui_store";
+import { uiStore } from "../stores/ui_store";
 import {TextBox} from "./ui/text-box";
 import {action} from "mobx";
 import {Button} from "./ui/button";
@@ -16,7 +16,6 @@ import {TrainingResult} from "../stores/store_types_and_constants";
 import {SQ} from "../lists/lists";
 
 export interface Training_Props {
-	uiStore: UiStore
 	domainStore: DomainStore
 }
 
@@ -118,7 +117,7 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 									if (tInStepMode) {
 										this_.props.domainStore.trainingStore.model.trainingInStepMode = false
 									} else {
-										this_.props.uiStore.trainingPanelShowsEditor = false
+										uiStore.setTrainingPanelShowsEditor(false);
 										this_.props.domainStore.trainingStore.model.trainingInProgress = true
 										await this_.modelManager.buildModel()
 										this_.modelManager.nextStep()
@@ -139,7 +138,7 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 								onClick={action(async () => {
 									const tInProgress = this_.props.domainStore.trainingStore.model.trainingInProgress
 									if (!tInProgress) {
-										this_.props.uiStore.trainingPanelShowsEditor = false
+										uiStore.setTrainingPanelShowsEditor(false);
 										this_.props.domainStore.trainingStore.model.trainingInProgress = true
 										this_.props.domainStore.trainingStore.model.trainingInStepMode = true
 										await this_.modelManager.buildModel()
@@ -159,7 +158,7 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 							<Button
 								className='sq-button'
 								onClick={action(() => {
-									this_.props.uiStore.trainingPanelShowsEditor = !this_.props.uiStore.trainingPanelShowsEditor
+									uiStore.setTrainingPanelShowsEditor(!uiStore.trainingPanelShowsEditor);
 								})}
 								hint={SQ.hints.trainingSettings}>
 								Settings
@@ -224,7 +223,7 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 						/>)
 				}
 
-				if (this_.props.uiStore.trainingPanelShowsEditor) {
+				if (uiStore.trainingPanelShowsEditor) {
 					return (
 						<div className='sq-training-settings-panel'>
 							<div className='sq-fc-part'>

@@ -5,7 +5,6 @@
 import React, {Component} from "react";
 import {DomainStore} from "../stores/domain_store";
 import {observer} from "mobx-react";
-import {UiStore} from "../stores/ui_store";
 import {FeatureComponent} from "./feature_component";
 
 interface FeatureConstructorInfo {
@@ -13,7 +12,6 @@ interface FeatureConstructorInfo {
 }
 
 export interface FeatureConstructorProps {
-	uiStore: UiStore
 	domainStore: DomainStore
 }
 
@@ -35,7 +33,6 @@ export const FeatureConstructor = observer(class FeatureConstructor extends Comp
 			return (
 				<div>
 					<FeatureComponent
-						uiStore={this.props.uiStore}
 						domainStore={this.props.domainStore}
 						feature={tFeatureUnderConstruction}
 						shortened = {false}
