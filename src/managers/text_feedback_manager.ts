@@ -7,6 +7,7 @@ import { datasetExists, getCaseValues, getSelectedCasesFrom } from "../lib/codap
 import codapInterface, {CODAP_Notification} from "../lib/CodapInterface";
 import { domainStore } from "../stores/domain_store";
 import { textStore } from "../stores/text_store";
+import { trainingStore } from "../stores/training_store";
 import { uiStore } from "../stores/ui_store";
 import { phraseToFeatures, textToObject } from "../utilities/utilities";
 import { ClassLabel, HeadingsManager, HeadingSpec, PhraseQuadruple } from "./headings_manager";
@@ -102,7 +103,6 @@ export default class TextFeedbackManager {
 			tFeatureDatasetName = domainStore.featureStore.featureDatasetInfo.datasetName,
 			tFeatureCollectionName = domainStore.featureStore.featureDatasetInfo.collectionName,
 			tClassAttributeName = tUseTestingDataset ? tStore.testingClassAttributeName : tStore.targetClassAttributeName,
-			tActiveModelName = domainStore.trainingStore.getFirstActiveModelName(),
 			tPredictedLabelAttributeName = domainStore.targetStore.targetPredictedLabelAttributeName,
 			tColumnFeatureNames = domainStore.featureStore.targetColumnFeatureNames,
 			tConstructedFeatureNames = domainStore.featureStore.features.map(iFeature => iFeature.name),
@@ -208,7 +208,7 @@ export default class TextFeedbackManager {
 				}
 
 				const tChildren = await this.getChildCases(tGetCaseResult.values.case.children, tDatasetName, 'results'),
-					tFoundChild = tChildren.find(iChild => iChild['model name'] === tActiveModelName),
+					tFoundChild = tChildren.find(iChild => iChild['model name'] === trainingStore.getFirstActiveModelName()),
 					tPredictedClass = tFoundChild ? tFoundChild[tPredictedLabelAttributeName] : '',
 					tActualClass = tGetCaseResult.values.case.values[tClassAttributeName],
 					tPhrase = tGetCaseResult.values.case.values[tAttributeName],
@@ -267,7 +267,6 @@ export default class TextFeedbackManager {
 			tDatasetName = tUseTestingDataset ? tStore.testingDatasetInfo.name : tStore.targetDatasetInfo.name,
 			tCollectionName = tUseTestingDataset ? tStore.testingCollectionName : tStore.targetCollectionName,
 			tDatasetTitle = tUseTestingDataset ? tStore.testingDatasetInfo.title : tStore.targetDatasetInfo.title,
-			tActiveModelName = domainStore.trainingStore.getFirstActiveModelName(),
 			tAttributeName = tUseTestingDataset ? tStore.testingAttributeName : tStore.targetAttributeName,
 			tFeatureDatasetName = domainStore.featureStore.featureDatasetInfo.datasetName,
 			tFeatureCollectionName = domainStore.featureStore.featureDatasetInfo.collectionName,
@@ -345,7 +344,7 @@ export default class TextFeedbackManager {
 						}),
 						tChildRequestResults: any = await codapInterface.sendRequest(tChildRequests),
 						tFoundChild = tChildRequestResults.find((iChildResult: any) => {
-							return iChildResult.values.case.values['model name'] === tActiveModelName
+							return iChildResult.values.case.values['model name'] === trainingStore.getFirstActiveModelName();
 						})
 					tPredictedResult = tFoundChild ? tFoundChild.values.case.values[tPredictedLabelAttributeName] : ''
 				}

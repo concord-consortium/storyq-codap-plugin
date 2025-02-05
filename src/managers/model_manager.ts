@@ -1,14 +1,15 @@
 /**
  * The ModelManager uses information in the domain store to build a model
  */
-import { domainStore } from "../stores/domain_store";
-import {deselectAllCasesIn} from "../lib/codap-helper";
+import { action, runInAction } from "mobx";
+import { deselectAllCasesIn } from "../lib/codap-helper";
 import codapInterface from "../lib/CodapInterface";
-import {oneHot} from "../lib/one_hot";
-import {action, runInAction} from "mobx";
-import {computeKappa} from "../utilities/utilities";
-import {Feature, NgramDetails, StoredModel, Token} from "../stores/store_types_and_constants";
-import {LogisticRegression} from "../lib/jsregression";
+import { LogisticRegression } from "../lib/jsregression";
+import { oneHot } from "../lib/one_hot";
+import { domainStore } from "../stores/domain_store";
+import { Feature, NgramDetails, StoredModel, Token } from "../stores/store_types_and_constants";
+import { trainingStore } from "../stores/training_store";
+import { computeKappa } from "../utilities/utilities";
 
 export class ModelManager {
 
@@ -22,7 +23,7 @@ export class ModelManager {
 
 	guaranteeUniqueModelName(iCandidate: string) {
 		function isNotUnique(iName: string) {
-			return Boolean(domainStore.trainingStore.trainingResults.find(iResult => iResult.name === iName))
+			return Boolean(trainingStore.trainingResults.find(iResult => iResult.name === iName))
 		}
 
 		let counter = 1,
@@ -72,7 +73,7 @@ export class ModelManager {
 			tUpdateRequests: { id: number, values: any }[] = [],
 			tFeatureWeightCaseIDs: { [index: string]: number } = {},
 			tTokenArray: string[] = [],
-			tModelName = domainStore.trainingStore.model.name
+			tModelName = trainingStore.model.name
 
 		async function showWeightAttributes() {
 			const tShowRequests = [{
@@ -245,7 +246,7 @@ export class ModelManager {
 
 		await guaranteeResultsCollection()
 
-		domainStore.trainingStore.resultCaseIDs = tResultCaseIDsToFill
+		trainingStore.resultCaseIDs = tResultCaseIDsToFill
 	}
 
 	async cancel() {
@@ -275,7 +276,7 @@ export class ModelManager {
 			const tTargetStore = domainStore.targetStore,
 				tTargetDatasetName = tTargetStore.targetDatasetInfo.name,
 				tResultsCollectionName = tTargetStore.targetResultsCollectionName,
-				tResultCaseIDs = domainStore.trainingStore.resultCaseIDs,
+				tResultCaseIDs = trainingStore.resultCaseIDs,
 				tPredictedLabelAttributeName = tTargetStore.targetPredictedLabelAttributeName,
 				tProbName = `probability of ${domainStore.targetStore.getClassName('positive')}`,
 				tUpdateRequests = tResultCaseIDs.map(iID => {
@@ -296,8 +297,7 @@ export class ModelManager {
 			})
 		}
 
-		const tTrainingStore = domainStore.trainingStore,
-			tModel = tTrainingStore.model,
+		const tModel = trainingStore.model,
 			tLogisiticModel = tModel.logisticModel
 
 		tModel.reset()
@@ -322,18 +322,17 @@ export class ModelManager {
 				example: string, class: string, caseID: number,
 				columnFeatures: { [key: string]: number | boolean }
 			}[] = [],
-			tTrainingStore = domainStore.trainingStore,
-			tLogisticModel = tTrainingStore.model.logisticModel
+			tLogisticModel = trainingStore.model.logisticModel
 
 		async function setup() {
 			await deselectAllCasesIn(tTargetDatasetName)
 			tLogisticModel.reset()
-			tLogisticModel.iterations = tTrainingStore.model.iterations
+			tLogisticModel.iterations = trainingStore.model.iterations
 			tLogisticModel.progressCallback = this_.progressBar
-			tLogisticModel.trace = tTrainingStore.model.trainingInStepMode
-			tLogisticModel.stepModeCallback = tTrainingStore.model.trainingInStepMode ?
+			tLogisticModel.trace = trainingStore.model.trainingInStepMode
+			tLogisticModel.stepModeCallback = trainingStore.model.trainingInStepMode ?
 				this_.stepModeCallback : null
-			tLogisticModel.lockIntercept = tTrainingStore.model.lockInterceptAtZero
+			tLogisticModel.lockIntercept = trainingStore.model.lockInterceptAtZero
 			const tCases = tTargetStore.targetCases,
 				tColumnNames = tTargetColumnFeatureNames.concat(
 					domainStore.featureStore.getChosenFeatures().map(iFeature => {
@@ -367,7 +366,7 @@ export class ModelManager {
 		// Logistic can't happen until we've isolated the features and produced a oneHot representation
 		const tIgnore = tUnigramFeature && (tUnigramFeature.info.ignoreStopWords === true ||
 			tUnigramFeature.info.ignoreStopWords === false) ? tUnigramFeature.info.ignoreStopWords : true
-		tTrainingStore.model.ignoreStopWords = tIgnore
+		trainingStore.model.ignoreStopWords = tIgnore
 		let tOneHot = oneHot({
 				frequencyThreshold: (tUnigramFeature && (Number(tUnigramFeature.info.frequencyThreshold) - 1)) || 0,
 				ignoreStopWords: tIgnore,
@@ -404,7 +403,7 @@ export class ModelManager {
 	}
 
 	async progressBar(iIteration: number) {
-		const tTrainingStore = domainStore.trainingStore,
+		const tTrainingStore = trainingStore,
 			tModel = tTrainingStore.model,
 			tIterations = tModel.iterations,
 			this_ = this
@@ -412,7 +411,7 @@ export class ModelManager {
 			tModel.iteration = iIteration
 			if (iIteration >= tIterations) {
 				const tLogisticModel = tModel.logisticModel,
-					tTrainingResults = domainStore.trainingStore.trainingResults
+					tTrainingResults = trainingStore.trainingResults
 
 				await this_.computeResults(tModel.logisticModel.fitResult.theta)
 
@@ -454,9 +453,9 @@ export class ModelManager {
 	}
 
 	nextStep() {
-		const tLogisticModel = domainStore.trainingStore.model.logisticModel
-		tLogisticModel.trace = domainStore.trainingStore.model.trainingInStepMode
-		tLogisticModel.stepModeCallback = domainStore.trainingStore.model.trainingInStepMode ?
+		const tLogisticModel = trainingStore.model.logisticModel
+		tLogisticModel.trace = trainingStore.model.trainingInStepMode
+		tLogisticModel.stepModeCallback = trainingStore.model.trainingInStepMode ?
 			this.stepModeCallback : null
 
 		this.stepModeContinueCallback && this.stepModeContinueCallback(this.stepModeIteration + 1)
@@ -482,7 +481,7 @@ export class ModelManager {
 	}
 
 	async computeResults(iWeights: number[]) {
-		const tModel = domainStore.trainingStore.model,
+		const tModel = trainingStore.model,
 			tLogisticModel = tModel.logisticModel,
 			tData = tLogisticModel._data,
 			tOneHot = tLogisticModel._oneHot,
@@ -498,7 +497,7 @@ export class ModelManager {
 			tokenArray: tOneHot.tokenArray,
 			positiveClassName: tPositiveClassName,
 			negativeClassName: tNegativeClassName,
-			lockProbThreshold: domainStore.trainingStore.model.usePoint5AsProbThreshold
+			lockProbThreshold: trainingStore.model.usePoint5AsProbThreshold
 		}
 		await this.showPredictedLabels(tModel.name, tPredictionTools)
 	}
@@ -660,7 +659,7 @@ export class ModelManager {
 			tPredictedLabelAttributeName = tTargetStore.targetPredictedLabelAttributeName,
 			tTargetDatasetName = tTargetStore.targetDatasetInfo.name,
 			tResultsCollectionName = tTargetStore.targetResultsCollectionName,
-			tResultCaseIDs = domainStore.trainingStore.resultCaseIDs
+			tResultCaseIDs = trainingStore.resultCaseIDs
 
 		// Create values of predicted label and probability for each document
 		let tThresholdResult = findThreshold(),

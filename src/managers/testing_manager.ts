@@ -1,14 +1,15 @@
 /**
  * The TestingManager uses information in the domain store to classify texts in a user-chosen dataset
  */
-import {action} from "mobx";
+import { action } from "mobx";
 import { attributeExists, deselectAllCasesIn, getCaseValues } from "../lib/codap-helper";
 import codapInterface from "../lib/CodapInterface";
-import {LogitPrediction} from "../lib/logit_prediction";
-import {wordTokenizer} from "../lib/one_hot";
+import { LogitPrediction } from "../lib/logit_prediction";
+import { wordTokenizer } from "../lib/one_hot";
 import { domainStore } from "../stores/domain_store";
-import {TestingResult} from "../stores/store_types_and_constants";
-import {computeKappa} from "../utilities/utilities";
+import { TestingResult } from "../stores/store_types_and_constants";
+import { trainingStore } from "../stores/training_store";
+import { computeKappa } from "../utilities/utilities";
 
 export class TestingManager {
 	kNonePresent: string
@@ -20,7 +21,7 @@ export class TestingManager {
 	async classify(iStoreTest:boolean) {
 		const this_ = this,
 			tChosenModelName = domainStore.testingStore.chosenModelName,
-			tTrainingResult = domainStore.trainingStore.getTrainingResultByName(tChosenModelName),
+			tTrainingResult = trainingStore.getTrainingResultByName(tChosenModelName),
 			tStoredModel = tTrainingResult ? tTrainingResult.storedModel : null,
 			tPositiveClassName = tStoredModel ? tStoredModel.positiveClassName : '',
 			tNegativeClassName = tStoredModel ? tStoredModel.negativeClassName : '',

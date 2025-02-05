@@ -2,18 +2,19 @@
  * This component provides the space for a user to name and run a model
  */
 
-import React, {Component} from "react";
+import { action } from "mobx";
+import { observer } from "mobx-react";
+import React, { Component } from "react";
+import { SQ } from "../lists/lists";
+import { ModelManager } from "../managers/model_manager";
 import { domainStore } from "../stores/domain_store";
-import {observer} from "mobx-react";
+import { TrainingResult } from "../stores/store_types_and_constants";
+import { trainingStore } from "../stores/training_store";
 import { uiStore } from "../stores/ui_store";
-import {TextBox} from "./ui/text-box";
-import {action} from "mobx";
-import {Button} from "./ui/button";
-import {CheckBox} from "./ui/check-box";
-import {ModelManager} from "../managers/model_manager";
-import {ProgressBar} from "./progress_bar";
-import {TrainingResult} from "../stores/store_types_and_constants";
-import {SQ} from "../lists/lists";
+import { ProgressBar } from "./progress_bar";
+import { Button } from "./ui/button";
+import { CheckBox } from "./ui/check-box";
+import { TextBox } from "./ui/text-box";
 
 export const TrainingPane = observer(class TrainingPane extends Component {
 
@@ -26,8 +27,8 @@ export const TrainingPane = observer(class TrainingPane extends Component {
 
 	render() {
 		const this_ = this,
-			tModel = domainStore.trainingStore.model,
-			tNumResults = domainStore.trainingStore.trainingResults.length
+			tModel = trainingStore.model,
+			tNumResults = trainingStore.trainingResults.length
 
 		function modelTrainerInstructions() {
 			if (!tModel.beingConstructed) {
@@ -111,10 +112,10 @@ export const TrainingPane = observer(class TrainingPane extends Component {
 								disabled={tDisabled}
 								onClick={action(async () => {
 									if (tInStepMode) {
-										domainStore.trainingStore.model.trainingInStepMode = false
+										trainingStore.model.trainingInStepMode = false
 									} else {
 										uiStore.setTrainingPanelShowsEditor(false);
-										domainStore.trainingStore.model.trainingInProgress = true
+										trainingStore.model.trainingInProgress = true
 										await this_.modelManager.buildModel()
 										this_.modelManager.nextStep()
 									}
@@ -132,11 +133,11 @@ export const TrainingPane = observer(class TrainingPane extends Component {
 								className='sq-button'
 								disabled={tDisabled}
 								onClick={action(async () => {
-									const tInProgress = domainStore.trainingStore.model.trainingInProgress
+									const tInProgress = trainingStore.model.trainingInProgress
 									if (!tInProgress) {
 										uiStore.setTrainingPanelShowsEditor(false);
-										domainStore.trainingStore.model.trainingInProgress = true
-										domainStore.trainingStore.model.trainingInStepMode = true
+										trainingStore.model.trainingInProgress = true
+										trainingStore.model.trainingInStepMode = true
 										await this_.modelManager.buildModel()
 									} else {
 										this_.modelManager.nextStep()
@@ -175,9 +176,9 @@ export const TrainingPane = observer(class TrainingPane extends Component {
 					)
 				}
 
-				const tDisabled = domainStore.trainingStore.model.name === '',
-					tInProgress = domainStore.trainingStore.model.trainingInProgress,
-					tInStepMode = domainStore.trainingStore.model.trainingInStepMode
+				const tDisabled = trainingStore.model.name === '',
+					tInProgress = trainingStore.model.trainingInProgress,
+					tInStepMode = trainingStore.model.trainingInStepMode
 				return (
 					<div className='sq-training-buttons'>
 						{trainButton()}
@@ -230,17 +231,17 @@ export const TrainingPane = observer(class TrainingPane extends Component {
 									<span title={SQ.hints.trainingSetupIteration}>Iterations:</span>{iterationsBox()}
 								</div>
 								<div className='sq-training-checkboxes'>
-									{getCheckbox(domainStore.trainingStore.model.lockInterceptAtZero,
+									{getCheckbox(trainingStore.model.lockInterceptAtZero,
 										'Lock intercept at 0',
 										SQ.hints.trainingLockIntercept,
 										(e) => {
-											domainStore.trainingStore.model.lockInterceptAtZero = e.value
+											trainingStore.model.lockInterceptAtZero = e.value
 										})}
-									{getCheckbox(domainStore.trainingStore.model.usePoint5AsProbThreshold,
+									{getCheckbox(trainingStore.model.usePoint5AsProbThreshold,
 										'Use 50% as probability threshold',
 										SQ.hints.trainingPointFiveAsThreshold,
 										(e) => {
-											domainStore.trainingStore.model.usePoint5AsProbThreshold = e.value
+											trainingStore.model.usePoint5AsProbThreshold = e.value
 										})}
 								</div>
 							</div>
@@ -250,9 +251,9 @@ export const TrainingPane = observer(class TrainingPane extends Component {
 			}
 
 			function getProgressBar() {
-				if (domainStore.trainingStore.model.trainingInProgress) {
-					const tIterations = domainStore.trainingStore.model.iterations,
-						tCurrentIteration = domainStore.trainingStore.model.iteration
+				if (trainingStore.model.trainingInProgress) {
+					const tIterations = trainingStore.model.iterations,
+						tCurrentIteration = trainingStore.model.iteration
 					return (
 						<ProgressBar
 							percentComplete={Math.round(100 * tCurrentIteration / tIterations)}
@@ -328,7 +329,7 @@ export const TrainingPane = observer(class TrainingPane extends Component {
 				}
 			}
 
-			const tResults = domainStore.trainingStore.trainingResults
+			const tResults = trainingStore.trainingResults
 			if (tResults.length > 0) {
 				return (
 					<table>
@@ -375,4 +376,4 @@ export const TrainingPane = observer(class TrainingPane extends Component {
 			</div>
 		);
 	}
-})
+});

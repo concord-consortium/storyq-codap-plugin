@@ -12,7 +12,7 @@ import { Feature, kPosNegConstants } from "./store_types_and_constants";
 import { TargetStore } from "./target_store";
 import { TestingStore } from "./testing_store";
 import { textStore } from "./text_store";
-import { TrainingStore } from "./training_store";
+import { trainingStore } from "./training_store";
 import { uiStore } from "./ui_store";
 
 interface Message {
@@ -24,7 +24,6 @@ interface Message {
 export class DomainStore {
 	targetStore: TargetStore
 	featureStore: FeatureStore
-	trainingStore: TrainingStore
 	testingStore: TestingStore
 	textFeedbackManager: TextFeedbackManager
 
@@ -33,7 +32,6 @@ export class DomainStore {
 			return this.featureStore.features.map(iFeature => iFeature.name)
 		})
 		this.featureStore = new FeatureStore(() => this.targetStore.targetDatasetInfo)
-		this.trainingStore = new TrainingStore()
 		this.testingStore = new TestingStore(this.featureStore.getFeatureDatasetID)
 		this.textFeedbackManager = new TextFeedbackManager()
 	}
@@ -42,7 +40,7 @@ export class DomainStore {
 		return {
 			targetStore: this.targetStore.asJSON(),
 			featureStore: this.featureStore.asJSON(),
-			trainingStore: this.trainingStore.asJSON(),
+			trainingStore: trainingStore.asJSON(),
 			testingStore: this.testingStore.asJSON(),
 			textStore: textStore.asJSON()
 		}
@@ -51,7 +49,7 @@ export class DomainStore {
 	async fromJSON(json: { targetStore: object, featureStore: object, trainingStore: object, testingStore: object, textStore: object }) {
 		this.targetStore.fromJSON(json.targetStore)
 		this.featureStore.fromJSON(json.featureStore)
-		this.trainingStore.fromJSON(json.trainingStore)
+		trainingStore.fromJSON(json.trainingStore)
 		this.testingStore.fromJSON(json.testingStore)
 		textStore.fromJSON(json.textStore)
 
@@ -429,11 +427,11 @@ export class DomainStore {
 	}
 
 	testingPanelCanBeEnabled() {
-		return this.trainingPanelCanBeEnabled() && this.trainingStore.trainingResults.length > 0
+		return this.trainingPanelCanBeEnabled() && trainingStore.trainingResults.length > 0
 	}
 
 	async setIsActiveForResultAtIndex(iIndex: number, iIsActive: boolean) {
-		const tTrainingResults = this.trainingStore.trainingResults
+		const tTrainingResults = trainingStore.trainingResults
 		let tNumActive = 0
 		tTrainingResults[iIndex].isActive = iIsActive
 		tTrainingResults.forEach(iResult => {
@@ -457,9 +455,9 @@ export class DomainStore {
 	 * weights and results for all models not currently active.
 	 */
 	async syncWeightsAndResultsWithActiveModels() {
-		if (this.trainingStore.trainingResults.length === 0)
-			return
-		const tTrainingResults = this.trainingStore.trainingResults,
+		if (trainingStore.trainingResults.length === 0) return
+
+		const tTrainingResults = trainingStore.trainingResults,
 			tFeatureDatasetName = this.featureStore.featureDatasetInfo.datasetName,
 			tMessages: object[] = [],
 			tWeightsCollectionName = this.featureStore.featureDatasetInfo.weightsCollectionName

@@ -2,15 +2,16 @@
  * This component shows under the Testing tab
  */
 
-import React, {Component} from "react";
+import { action, toJS } from "mobx";
+import { observer } from "mobx-react";
+import React, {Component } from "react";
+import codapInterface, { CODAP_Notification } from "../lib/CodapInterface";
+import { SQ} from "../lists/lists";
+import { TestingManager } from "../managers/testing_manager";
 import { domainStore } from "../stores/domain_store";
-import {observer} from "mobx-react";
-import codapInterface, {CODAP_Notification} from "../lib/CodapInterface";
-import {ChoicesMenu} from "./choices-menu";
-import {Button} from "./ui/button";
-import {action, toJS} from "mobx";
-import {TestingManager} from "../managers/testing_manager";
-import {SQ} from "../lists/lists";
+import { trainingStore } from "../stores/training_store";
+import { ChoicesMenu } from "./choices-menu";
+import { Button } from "./ui/button";
 
 export const kNonePresent = 'None present';
 
@@ -51,7 +52,7 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 		const this_ = this,
 			tTestingStore = domainStore.testingStore,
 			tTestingClassAttributeName = tTestingStore.testingClassAttributeName,
-			tNumModels = domainStore.trainingStore.trainingResults.length,
+			tNumModels = trainingStore.trainingResults.length,
 			tTestingResults = tTestingStore.testingResultsArray
 
 
@@ -75,7 +76,7 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 
 		function getModelChoice() {
 			const { chosenModelName } = domainStore.testingStore;
-			const tModelChoices = domainStore.trainingStore.trainingResults.map(iResult => iResult.name),
+			const tModelChoices = trainingStore.trainingResults.map(iResult => iResult.name),
 				tPrompt = chosenModelName === '' ? 'Choose a model to test'
 					: 'The model to test'
 			return (
