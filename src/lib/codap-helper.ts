@@ -1,3 +1,4 @@
+import { setupTextFeedbackManager } from "../managers/text_feedback_manager";
 import codapInterface from "./CodapInterface";
 
 export interface entityInfo {
@@ -30,7 +31,9 @@ export function initializePlugin(pluginName: string, version: string, dimensions
 		cannotClose: true
 	};
 	try {
-		return codapInterface.init(interfaceConfig, iRestoreStateHandler);
+		const response = codapInterface.init(interfaceConfig, iRestoreStateHandler);
+		setupTextFeedbackManager();
+		return response;
 	} catch (error) {
 		const errorMessage = `Error initializing interactiveFrame: ${error}`;
 		console.warn(errorMessage);

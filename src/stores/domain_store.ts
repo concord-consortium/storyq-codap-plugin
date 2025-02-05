@@ -6,7 +6,6 @@
 import { getCaseValues, openTable } from "../lib/codap-helper";
 import codapInterface from "../lib/CodapInterface";
 import { oneHot, wordTokenizer } from "../lib/one_hot";
-import TextFeedbackManager from "../managers/text_feedback_manager";
 import { FeatureStore } from "./feature_store";
 import { Feature, kPosNegConstants } from "./store_types_and_constants";
 import { TargetStore } from "./target_store";
@@ -25,7 +24,6 @@ export class DomainStore {
 	targetStore: TargetStore
 	featureStore: FeatureStore
 	testingStore: TestingStore
-	textFeedbackManager: TextFeedbackManager
 
 	constructor() {
 		this.targetStore = new TargetStore(() => {
@@ -33,7 +31,6 @@ export class DomainStore {
 		})
 		this.featureStore = new FeatureStore(() => this.targetStore.targetDatasetInfo)
 		this.testingStore = new TestingStore(this.featureStore.getFeatureDatasetID)
-		this.textFeedbackManager = new TextFeedbackManager()
 	}
 
 	asJSON(): object {

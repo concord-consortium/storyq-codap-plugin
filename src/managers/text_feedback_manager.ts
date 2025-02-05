@@ -1,6 +1,7 @@
 /**
  * The TextFeedbackManager displays phrases in a text component based on user selection of target phrases
- * or features of the model.
+ * or features of the model. Instantiating the class sets up a codap notification handler, after which point
+ * there is no need to reference the instance.
  */
 
 import { datasetExists, getCaseValues, getSelectedCasesFrom } from "../lib/codap-helper";
@@ -12,7 +13,11 @@ import { uiStore } from "../stores/ui_store";
 import { phraseToFeatures, textToObject } from "../utilities/utilities";
 import { ClassLabel, HeadingsManager, HeadingSpec, PhraseQuadruple } from "./headings_manager";
 
-export default class TextFeedbackManager {
+export function setupTextFeedbackManager() {
+	return new TextFeedbackManager();
+}
+
+export class TextFeedbackManager {
 	headingsManager: HeadingsManager
 	isSelectingFeatures = false
 	isSelectingTargetPhrases = false
