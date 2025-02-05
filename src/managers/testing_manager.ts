@@ -1,47 +1,40 @@
 /**
  * The TestingManager uses information in the domain store to classify texts in a user-chosen dataset
  */
-import {DomainStore} from "../stores/domain_store";
-import {
-	attributeExists,
-	deselectAllCasesIn,
-	getCaseValues
-} from "../lib/codap-helper";
-import codapInterface from "../lib/CodapInterface";
 import {action} from "mobx";
+import { attributeExists, deselectAllCasesIn, getCaseValues } from "../lib/codap-helper";
+import codapInterface from "../lib/CodapInterface";
 import {LogitPrediction} from "../lib/logit_prediction";
 import {wordTokenizer} from "../lib/one_hot";
+import { domainStore } from "../stores/domain_store";
 import {TestingResult} from "../stores/store_types_and_constants";
 import {computeKappa} from "../utilities/utilities";
 
 export class TestingManager {
-
-	domainStore: DomainStore
 	kNonePresent: string
 
-	constructor(iDomainStore: DomainStore, iNonePresentPrompt: string) {
-		this.domainStore = iDomainStore
-		this.kNonePresent = iNonePresentPrompt
+	constructor(iNonePresentPrompt: string) {
+		this.kNonePresent = iNonePresentPrompt;
 	}
 
 	async classify(iStoreTest:boolean) {
 		const this_ = this,
-			tChosenModelName = this.domainStore.testingStore.chosenModelName,
-			tTrainingResult = this.domainStore.trainingStore.getTrainingResultByName(tChosenModelName),
+			tChosenModelName = domainStore.testingStore.chosenModelName,
+			tTrainingResult = domainStore.trainingStore.getTrainingResultByName(tChosenModelName),
 			tStoredModel = tTrainingResult ? tTrainingResult.storedModel : null,
 			tPositiveClassName = tStoredModel ? tStoredModel.positiveClassName : '',
 			tNegativeClassName = tStoredModel ? tStoredModel.negativeClassName : '',
 			tTokens = tStoredModel ? tStoredModel.storedTokens : [],
 			kProbPredAttrNamePrefix = 'probability of ',
-			tTestingStore = this.domainStore.testingStore,
+			tTestingStore = domainStore.testingStore,
 			tTestingDatasetName = tTestingStore.testingDatasetInfo.name,
 			tTestingDatasetTitle = tTestingStore.testingDatasetInfo.title,
 			tTestingCollectionName = tTestingStore.testingCollectionName,
 			tTestingAttributeName = tTestingStore.testingAttributeName,
 			tClassAttributeName = tTestingStore.testingClassAttributeName,
 			tTargetPredictedProbabilityName = kProbPredAttrNamePrefix + tPositiveClassName,
-			tTargetPredictedLabelAttributeName = this.domainStore.targetStore.targetPredictedLabelAttributeName,
-			tTargetFeatureIDsAttributeName = this_.domainStore.targetStore.targetFeatureIDsAttributeName,
+			tTargetPredictedLabelAttributeName = domainStore.targetStore.targetPredictedLabelAttributeName,
+			tTargetFeatureIDsAttributeName = domainStore.targetStore.targetFeatureIDsAttributeName,
 			tLabelValues:{id:number, values:any}[] = [],
 			tMatrix = {posPos: 0, negPos: 0, posNeg: 0, negNeg: 0},
 			tTestingResult: TestingResult = {
@@ -90,7 +83,7 @@ export class TestingManager {
 						})
 				}
 				const tFeatureIDsAttributeExists = await attributeExists(tTestingDatasetName, tTestingCollectionName,
-					this_.domainStore.targetStore.targetFeatureIDsAttributeName)
+					domainStore.targetStore.targetFeatureIDsAttributeName)
 				if (!tFeatureIDsAttributeExists)
 					tAttributeRequests.push(
 						{

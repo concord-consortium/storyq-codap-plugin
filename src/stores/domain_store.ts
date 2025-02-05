@@ -15,6 +15,12 @@ import {TestingStore} from "./testing_store";
 import {TextStore} from "./text_store";
 import { uiStore } from "./ui_store";
 
+interface Message {
+	action:string,
+	resource:string
+	values:any[]
+}
+
 export class DomainStore {
 	targetStore: TargetStore
 	featureStore: FeatureStore
@@ -31,7 +37,7 @@ export class DomainStore {
 		this.trainingStore = new TrainingStore()
 		this.testingStore = new TestingStore(this.featureStore.getFeatureDatasetID)
 		this.textStore = new TextStore()
-		this.textFeedbackManager = new TextFeedbackManager(this)
+		this.textFeedbackManager = new TextFeedbackManager()
 	}
 
 	asJSON(): object {
@@ -679,9 +685,4 @@ export class DomainStore {
 
 }
 
-interface Message {
-	action:string,
-	resource:string
-	values:any[]
-}
-
+export const domainStore = new DomainStore();

@@ -3,31 +3,28 @@
  * or features of the model.
  */
 
-import codapInterface, {CODAP_Notification} from "../lib/CodapInterface";
-import {ClassLabel, HeadingsManager, HeadingSpec, PhraseQuadruple} from "./headings_manager";
 import {datasetExists, getCaseValues, getSelectedCasesFrom} from "../lib/codap-helper";
-import {phraseToFeatures, textToObject} from "../utilities/utilities";
-import {DomainStore} from "../stores/domain_store";
+import codapInterface, {CODAP_Notification} from "../lib/CodapInterface";
+import { domainStore } from "../stores/domain_store";
 import { uiStore } from "../stores/ui_store";
+import {phraseToFeatures, textToObject} from "../utilities/utilities";
+import {ClassLabel, HeadingsManager, HeadingSpec, PhraseQuadruple} from "./headings_manager";
 
 export default class TextFeedbackManager {
-
-	domainStore: DomainStore
 	headingsManager: HeadingsManager
 	isSelectingFeatures = false
 	isSelectingTargetPhrases = false
 
-	constructor(iDomainStore: DomainStore) {
-		this.handleNotification = this.handleNotification.bind(this)
-		this.domainStore = iDomainStore;
+	constructor() {
+		this.handleNotification = this.handleNotification.bind(this);
 		this.headingsManager = new HeadingsManager();
 		codapInterface.on('notify', '*', 'selectCases', this.handleNotification);
 	}
 
 	async handleNotification(iNotification: CODAP_Notification) {
-		const tTargetDatasetName = this.domainStore.targetStore.targetDatasetInfo.name,
-			tTestingDatasetName = this.domainStore.testingStore.testingDatasetInfo.name,
-			tFeatureDatasetName = this.domainStore.featureStore.featureDatasetInfo.datasetName
+		const tTargetDatasetName = domainStore.targetStore.targetDatasetInfo.name,
+			tTestingDatasetName = domainStore.testingStore.testingDatasetInfo.name,
+			tFeatureDatasetName = domainStore.featureStore.featureDatasetInfo.datasetName
 
 		if (iNotification.action === 'notify' && iNotification.values.operation === 'selectCases'/* &&
 			iNotification.values.result.cases*/) {
@@ -53,8 +50,8 @@ export default class TextFeedbackManager {
 		if (!this.headingsManager) {
 			this.headingsManager = new HeadingsManager();
 		}
-		this.headingsManager.setupHeadings(this.domainStore.targetStore.getClassName('negative'),
-			this.domainStore.targetStore.getClassName('positive'),
+		this.headingsManager.setupHeadings(domainStore.targetStore.getClassName('negative'),
+			domainStore.targetStore.getClassName('positive'),
 			'', 'Actual', 'Predicted')
 		return this.headingsManager;
 	}
@@ -92,22 +89,22 @@ export default class TextFeedbackManager {
 		}
 
 		const tUseTestingDataset = uiStore.selectedPanelTitle === 'Testing' &&
-				this.domainStore.testingStore.testingDatasetInfo.name !== '' &&
-				this.domainStore.testingStore.testingAttributeName !== '' &&
-				!this.domainStore.testingStore.currentTestingResults.testBeingConstructed,
-			tStore = tUseTestingDataset ? this.domainStore.testingStore : this.domainStore.targetStore,
+				domainStore.testingStore.testingDatasetInfo.name !== '' &&
+				domainStore.testingStore.testingAttributeName !== '' &&
+				!domainStore.testingStore.currentTestingResults.testBeingConstructed,
+			tStore = tUseTestingDataset ? domainStore.testingStore : domainStore.targetStore,
 			kMaxStatementsToDisplay = 40,
 			tDatasetName = tUseTestingDataset ? tStore.testingDatasetInfo.name : tStore.targetDatasetInfo.name,
 			tDatasetTitle = tUseTestingDataset ? tStore.testingDatasetInfo.title : tStore.targetDatasetInfo.title,
 			tCollectionName = tUseTestingDataset ? tStore.testingCollectionName : tStore.targetCollectionName,
 			tAttributeName = tUseTestingDataset ? tStore.testingAttributeName : tStore.targetAttributeName,
-			tFeatureDatasetName = this.domainStore.featureStore.featureDatasetInfo.datasetName,
-			tFeatureCollectionName = this.domainStore.featureStore.featureDatasetInfo.collectionName,
+			tFeatureDatasetName = domainStore.featureStore.featureDatasetInfo.datasetName,
+			tFeatureCollectionName = domainStore.featureStore.featureDatasetInfo.collectionName,
 			tClassAttributeName = tUseTestingDataset ? tStore.testingClassAttributeName : tStore.targetClassAttributeName,
-			tActiveModelName = this.domainStore.trainingStore.getFirstActiveModelName(),
-			tPredictedLabelAttributeName = this.domainStore.targetStore.targetPredictedLabelAttributeName,
-			tColumnFeatureNames = this.domainStore.featureStore.targetColumnFeatureNames,
-			tConstructedFeatureNames = this.domainStore.featureStore.features.map(iFeature => iFeature.name),
+			tActiveModelName = domainStore.trainingStore.getFirstActiveModelName(),
+			tPredictedLabelAttributeName = domainStore.targetStore.targetPredictedLabelAttributeName,
+			tColumnFeatureNames = domainStore.featureStore.targetColumnFeatureNames,
+			tConstructedFeatureNames = domainStore.featureStore.features.map(iFeature => iFeature.name),
 			tFeaturesMap: {[index:number]:string} = {},
 			tSelectedFeaturesSet: Set<number> = new Set(),
 			tUsedIDsSet: Set<number> = new Set(),
@@ -231,8 +228,6 @@ export default class TextFeedbackManager {
 	 * features highlighted and non-features grayed out
 	 */
 	public async handleTargetDatasetSelection() {
-		const this_ = this
-
 		async function handleSelectionInFeaturesDataset() {
 			// Select the features or, possibly, deselect all features
 			await codapInterface.sendRequest({
@@ -242,7 +237,7 @@ export default class TextFeedbackManager {
 			});
 
 			let tSelectedFeatureCases: any[] = []
-			if (this_.domainStore.featureStore.features.length > 0) {
+			if (domainStore.featureStore.features.length > 0) {
 				// Get the features and stash them in a set
 				tSelectedFeatureCases = await getSelectedCasesFrom(tFeatureDatasetName, tFeatureCollectionName)
 				tSelectedFeatureCases.forEach((iCase: any) => {
@@ -265,20 +260,20 @@ export default class TextFeedbackManager {
 		}
 
 		const tUseTestingDataset = uiStore.selectedPanelTitle === 'Testing' &&
-				this.domainStore.testingStore.testingDatasetInfo.name !== '' &&
-				this.domainStore.testingStore.testingAttributeName !== '',
-			tStore = tUseTestingDataset ? this.domainStore.testingStore : this.domainStore.targetStore,
+				domainStore.testingStore.testingDatasetInfo.name !== '' &&
+				domainStore.testingStore.testingAttributeName !== '',
+			tStore = tUseTestingDataset ? domainStore.testingStore : domainStore.targetStore,
 			tDatasetName = tUseTestingDataset ? tStore.testingDatasetInfo.name : tStore.targetDatasetInfo.name,
 			tCollectionName = tUseTestingDataset ? tStore.testingCollectionName : tStore.targetCollectionName,
 			tDatasetTitle = tUseTestingDataset ? tStore.testingDatasetInfo.title : tStore.targetDatasetInfo.title,
-			tActiveModelName = this.domainStore.trainingStore.getFirstActiveModelName(),
+			tActiveModelName = domainStore.trainingStore.getFirstActiveModelName(),
 			tAttributeName = tUseTestingDataset ? tStore.testingAttributeName : tStore.targetAttributeName,
-			tFeatureDatasetName = this.domainStore.featureStore.featureDatasetInfo.datasetName,
-			tFeatureCollectionName = this.domainStore.featureStore.featureDatasetInfo.collectionName,
+			tFeatureDatasetName = domainStore.featureStore.featureDatasetInfo.datasetName,
+			tFeatureCollectionName = domainStore.featureStore.featureDatasetInfo.collectionName,
 			tClassAttributeName = tUseTestingDataset ? tStore.testingClassAttributeName : tStore.targetClassAttributeName,
-			tPredictedLabelAttributeName = this.domainStore.targetStore.targetPredictedLabelAttributeName,
-			tColumnFeatureNames = this.domainStore.featureStore.targetColumnFeatureNames,
-			tConstructedFeatureNames = this.domainStore.featureStore.features.map(iFeature => iFeature.name),
+			tPredictedLabelAttributeName = domainStore.targetStore.targetPredictedLabelAttributeName,
+			tColumnFeatureNames = domainStore.featureStore.targetColumnFeatureNames,
+			tConstructedFeatureNames = domainStore.featureStore.features.map(iFeature => iFeature.name),
 			tFeaturesMap: Record<number, string> = {},
 			// Get all the selected cases in the target dataset. Some will be results and some will be texts
 			tSelectionListResult: any = await codapInterface.sendRequest({
@@ -498,13 +493,13 @@ export default class TextFeedbackManager {
 				]
 			})
 		}
-		if (tItems.length === 0)
-			this.domainStore.clearText();
-		else {
+		if (tItems.length === 0) {
+			domainStore.clearText();
+		} else {
 			// Send it all off to the text object
 			await codapInterface.sendRequest({
 				action: 'update',
-				resource: `component[${this.domainStore.textStore.textComponentID}]`,
+				resource: `component[${domainStore.textStore.textComponentID}]`,
 				values: {
 					text: {
 						"object": "value",
@@ -520,18 +515,15 @@ export default class TextFeedbackManager {
 				}
 			})
 		}
-
 	}
 
 	async retitleTextComponent(iTitle: string) {
 		await codapInterface.sendRequest({
 			action: 'update',
-			resource: `component[${this.domainStore.textStore.textComponentID}]`,
+			resource: `component[${domainStore.textStore.textComponentID}]`,
 			values: {
 				title: iTitle
 			}
 		})
 	}
-
 }
-

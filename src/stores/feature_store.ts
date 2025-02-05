@@ -54,6 +54,10 @@ export class FeatureStore {
 		}
 	}
 
+	startConstructingFeature() {
+		this.featureUnderConstruction = Object.assign({}, starterFeature);
+	}
+
 	constructionIsDone() {
 		const tFeature = this.featureUnderConstruction,
 			tDetails = this.featureUnderConstruction.info.details as SearchDetails,

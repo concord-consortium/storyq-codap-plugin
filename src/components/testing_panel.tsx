@@ -3,7 +3,7 @@
  */
 
 import React, {Component} from "react";
-import {DomainStore} from "../stores/domain_store";
+import { domainStore } from "../stores/domain_store";
 import {observer} from "mobx-react";
 import codapInterface, {CODAP_Notification} from "../lib/CodapInterface";
 import {ChoicesMenu} from "./choices-menu";
@@ -15,7 +15,6 @@ import {SQ} from "../lists/lists";
 export const kNonePresent = 'None present';
 
 export interface Testing_Props {
-	domainStore: DomainStore
 	testingManager: TestingManager
 }
 
@@ -37,7 +36,7 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 				await this.updateCodapInfo();
 			} else if (iNotification.values.operation === 'titleChange') {
 				action(() => {
-					this.props.domainStore.testingStore.testingDatasetInfo.name = ''
+					domainStore.testingStore.testingDatasetInfo.name = ''
 				})()
 				await this.updateCodapInfo()
 			}
@@ -45,14 +44,14 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 	}
 
 	async updateCodapInfo() {
-		await this.props.domainStore.testingStore.updateCodapInfoForTestingPanel()
+		await domainStore.testingStore.updateCodapInfoForTestingPanel()
 	}
 
 	render() {
 		const this_ = this,
-			tTestingStore = this.props.domainStore.testingStore,
+			tTestingStore = domainStore.testingStore,
 			tTestingClassAttributeName = tTestingStore.testingClassAttributeName,
-			tNumModels = this.props.domainStore.trainingStore.trainingResults.length,
+			tNumModels = domainStore.trainingStore.trainingResults.length,
 			tTestingResults = tTestingStore.testingResultsArray
 
 
@@ -75,8 +74,9 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 		}
 
 		function getModelChoice() {
-			const tModelChoices = this_.props.domainStore.trainingStore.trainingResults.map(iResult => iResult.name),
-				tPrompt = this_.props.domainStore.testingStore.chosenModelName === '' ? 'Choose a model to test'
+			const { chosenModelName } = domainStore.testingStore;
+			const tModelChoices = domainStore.trainingStore.trainingResults.map(iResult => iResult.name),
+				tPrompt = chosenModelName === '' ? 'Choose a model to test'
 					: 'The model to test'
 			return (
 				<ChoicesMenu
@@ -84,12 +84,12 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 					hint={SQ.hints.testingModelChoices}
 					noDataText="No models to choose from"
 					onValueChange={async (iChoice) => {
-						this_.props.domainStore.testingStore.chosenModelName = iChoice;
+						domainStore.testingStore.chosenModelName = iChoice;
 						await this_.updateCodapInfo();
 					}}
 					placeHolder="Choose a model"
 					prompt={tPrompt}
-					value={this_.props.domainStore.testingStore.chosenModelName}
+					value={chosenModelName}
 				/>
 			);
 		}

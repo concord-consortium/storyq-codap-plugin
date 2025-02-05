@@ -6,16 +6,12 @@ import React, {Component} from "react";
 import codapInterface from "../lib/CodapInterface";
 import {TargetTextArea} from "./target_text_area";
 import {action, toJS} from "mobx";
-import {DomainStore} from "../stores/domain_store";
+import { domainStore } from "../stores/domain_store";
 import {observer} from "mobx-react";
 import {ChoicesMenu} from "./choices-menu";
 import {SQ} from "../lists/lists";
 
-export interface Target_Props {
-	domainStore: DomainStore
-}
-
-export const TargetPanel = observer(class TargetPanel extends Component<Target_Props, {}> {
+export const TargetPanel = observer(class TargetPanel extends Component {
 
 	private targetPanelConstants = {
 		createNewEntityInfo: {
@@ -33,7 +29,7 @@ export const TargetPanel = observer(class TargetPanel extends Component<Target_P
 	}
 
 	async updateTargetPanelInfo(iPropName?: string | null, iValue?: any) {
-		await this.props.domainStore.targetStore.updateFromCODAP(iPropName, iValue)
+		await domainStore.targetStore.updateFromCODAP(iPropName, iValue)
 	}
 
 	render() {
@@ -219,7 +215,7 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 							onValueChange={async (iChoice) => {
 								tTargetStore.targetAttributeName = iChoice;
 								await this_.updateTargetPanelInfo();
-								this_.props.domainStore.addTextComponent();
+								domainStore.addTextComponent();
 							}}
 							placeHolder="Choose from"
 							prompt={tPrompt}
@@ -236,7 +232,7 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 						SQ.hints.targetClassAttributeChoices : SQ.hints.targetClassAttributeChosen
 				if (tTargetStore.targetAttributeName !== '') {
 					const tCandidateAttributeNames = tTargetStore.targetAttributeNames.filter((iName) => {
-						return this_.props.domainStore.featureStore.features.findIndex(aFeature => aFeature.name === iName) < 0
+						return domainStore.featureStore.features.findIndex(aFeature => aFeature.name === iName) < 0
 					})
 					return (
 						<ChoicesMenu
@@ -257,7 +253,7 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 			function lowerPanel() {
 				if (tTargetStore.targetCases.length > 0) {
 					return (
-						<TargetTextArea domainStore={this_.props.domainStore} />
+						<TargetTextArea />
 					)
 				}
 			}
@@ -330,7 +326,7 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 							 title={SQ.hints.onwardInstructions}>
 						<p>Continue preparing your training data in <span
 							title={SQ.hints.featuresDef}
-							onClick={action(() => this_.props.domainStore.setPanel(1))}
+							onClick={() => domainStore.setPanel(1)}
 							style={{cursor: 'pointer'}}
 						>
 								<strong>Features.</strong></span></p>
@@ -360,7 +356,7 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 		}
 
 		const this_ = this,
-			tTargetStore = this.props.domainStore.targetStore,
+			tTargetStore = domainStore.targetStore,
 			tDatasetInfoArray = tTargetStore.datasetInfoArray,
 			tMode = tTargetStore.targetPanelMode
 		computeState()

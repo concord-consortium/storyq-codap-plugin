@@ -4,18 +4,14 @@
  * Notifications that apply only to a specific component are handled in that component.
  */
 
-import codapInterface, {CODAP_Notification} from "../lib/CodapInterface";
-import {DomainStore} from "../stores/domain_store";
 import {action} from "mobx";
-import {starterFeature} from "../stores/store_types_and_constants";
+import codapInterface, {CODAP_Notification} from "../lib/CodapInterface";
+import { domainStore } from "../stores/domain_store";
 
 export default class NotificationManager {
-
-	domainStore: DomainStore
 	updatingStores = false
 
-	constructor(iDomainStore: DomainStore) {
-		this.domainStore = iDomainStore;
+	constructor() {
 		this.handleDataContextChange = this.handleDataContextChange.bind(this)
 		this.handleAttributesChange = this.handleAttributesChange.bind(this)
 		this.handleDeleteFeatureCase = this.handleDeleteFeatureCase.bind(this)
@@ -35,8 +31,8 @@ export default class NotificationManager {
 			if (!this.updatingStores) {
 				this.updatingStores = true;
 				try {
-					await this.domainStore.featureStore.updateWordListSpecs()
-					await this.domainStore.targetStore.updateFromCODAP()
+					await domainStore.featureStore.updateWordListSpecs()
+					await domainStore.targetStore.updateFromCODAP()
 				} catch (e) {
 					console.log(`Unable to update feature or target store because`, e);
 				} finally {
@@ -47,16 +43,12 @@ export default class NotificationManager {
 	}
 
 	async handleAttributesChange(/*iNotification: CODAP_Notification*/) {
-		action(async () => {
-			action(() => {
-				this.domainStore.featureStore.featureUnderConstruction = Object.assign({}, starterFeature)
-			})()
-		})()
-		await this.handleDataContextChange()
+		domainStore.featureStore.startConstructingFeature();
+		await this.handleDataContextChange();
 	}
 
 	handleDeleteFeatureCase(iNotification: CODAP_Notification) {
-		const tFeatureStore = this.domainStore.featureStore,
+		const tFeatureStore = domainStore.featureStore,
 			tFeatures = tFeatureStore.features,
 			tDataContextName = iNotification.resource && iNotification.resource.match(/\[(.+)]/)[1],
 			tCases = iNotification.values.result.cases,
@@ -75,7 +67,7 @@ export default class NotificationManager {
 	}
 
 	handleUpdateFeatureCase(iNotification: CODAP_Notification) {
-		const tFeatureStore = this.domainStore.featureStore,
+		const tFeatureStore = domainStore.featureStore,
 			tFeatures = tFeatureStore.features,
 			tDataContextName = iNotification.resource && iNotification.resource.match(/\[(.+)]/)[1]
 		if (tDataContextName === tFeatureStore.featureDatasetInfo.datasetName) {

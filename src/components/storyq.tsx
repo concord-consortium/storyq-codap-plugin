@@ -9,17 +9,14 @@ import {TargetPanel} from "./target_panel";
 import {FeaturePanel} from "./feature_panel";
 import { uiStore } from "../stores/ui_store";
 import {observer} from "mobx-react";
-import {DomainStore} from "../stores/domain_store";
+import { domainStore } from "../stores/domain_store";
 import {action} from "mobx";
 import {TrainingPanel} from "./training_panel";
 import {TestingPanel, kNonePresent} from "./testing_panel";
 import {kStoryQPluginName} from "../stores/store_types_and_constants";
-import NotificationManager from "../managers/notification_manager";
 import {TestingManager} from "../managers/testing_manager";
 
 const Storyq = observer(class Storyq extends Component<{}, {}> {
-		private domainStore: DomainStore
-		private notificationManager: NotificationManager
 		private kPluginName = kStoryQPluginName;
 		private kVersion = "2.17.0";
 		private kInitialDimensions = {
@@ -30,8 +27,6 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 
 		constructor(props: any) {
 			super(props);
-			this.domainStore = new DomainStore()
-			this.notificationManager = new NotificationManager(this.domainStore)
 			this.restorePluginFromStore = this.restorePluginFromStore.bind(this);
 			this.getPluginStore = this.getPluginStore.bind(this);
 			this.handleSelectionChanged = this.handleSelectionChanged.bind(this);
@@ -40,7 +35,7 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 			// is collapsed in CODAP (which causes the tab not to render the tab panels).
 			// This code to initialize the testing manager and listen for cases being created used
 			// to live in TestingPanel.
-			this.testingManager = new TestingManager(this.domainStore, kNonePresent)
+			this.testingManager = new TestingManager(kNonePresent)
 			this.handleCaseNotification = this.handleCaseNotification.bind(this)
 			codapInterface.on('notify', '*', 'createCases', this.handleCaseNotification);
 
@@ -54,7 +49,7 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 			return {
 				success: true,
 				values: {
-					domainStore: this.domainStore.asJSON(),
+					domainStore: domainStore.asJSON(),
 					uiStore: uiStore.asJSON()
 				}
 			};
@@ -62,7 +57,7 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 
 		async handleCaseNotification(iNotification: CODAP_Notification) {
 			const tDataContextName = iNotification.resource && iNotification.resource.match(/\[(.+)]/)[1]
-			if (tDataContextName === this.domainStore.testingStore.testingDatasetInfo.name) {
+			if (tDataContextName === domainStore.testingStore.testingDatasetInfo.name) {
 				await this.testingManager.classify(false)
 			}
 		}
@@ -70,14 +65,14 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 		async restorePluginFromStore(iStorage: any) {
 			if (iStorage) {
 				uiStore.fromJSON(iStorage.uiStore);
-				this.domainStore.fromJSON(iStorage.domainStore);
-				await this.domainStore.targetStore.updateFromCODAP()
+				domainStore.fromJSON(iStorage.domainStore);
+				await domainStore.targetStore.updateFromCODAP()
 			}
 		}
 
 		async handleSelectionChanged(e: any) {
 			uiStore.tabPanelSelectedIndex = e.selectedIndex;
-			await this.domainStore.targetStore.updateFromCODAP()
+			await domainStore.targetStore.updateFromCODAP()
 		}
 
 		renderTabPanel() {
@@ -90,25 +85,16 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 					})}
 				>
 					<Item title='Setup' text='Specify the text data you want to work with'>
-						<TargetPanel
-							domainStore={this.domainStore}
-						/>
+						<TargetPanel />
 					</Item>
-					<Item title='Features' disabled={!this.domainStore.featuresPanelCanBeEnabled()}>
-						<FeaturePanel
-							domainStore={this.domainStore}
-						/>
+					<Item title='Features' disabled={!domainStore.featuresPanelCanBeEnabled()}>
+						<FeaturePanel />
 					</Item>
-					<Item title='Training' disabled={!this.domainStore.trainingPanelCanBeEnabled()}>
-						<TrainingPanel
-							domainStore={this.domainStore}
-						/>
+					<Item title='Training' disabled={!domainStore.trainingPanelCanBeEnabled()}>
+						<TrainingPanel />
 					</Item>
-					<Item title='Testing' disabled={!this.domainStore.testingPanelCanBeEnabled()}>
-						<TestingPanel
-							domainStore={this.domainStore}
-							testingManager={this.testingManager}
-						/>
+					<Item title='Testing' disabled={!domainStore.testingPanelCanBeEnabled()}>
+						<TestingPanel testingManager={this.testingManager} />
 					</Item>
 				</TabPanel>
 			);
