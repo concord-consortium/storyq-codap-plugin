@@ -7,17 +7,19 @@ import { observer } from "mobx-react";
 import React from "react";
 import { SQ } from "../lists/lists";
 import { domainStore } from "../stores/domain_store";
+import { featureStore } from "../stores/feature_store";
+import { targetStore } from "../stores/target_store";
 import { FeatureConstructor } from "./feature_constructor";
 import { FeatureList } from "./feature_list";
 import { Button } from "./ui/button";
 
 const AddButton = observer(function AddButton() {
-	const { featureUnderConstruction} = domainStore.featureStore;
+	const { featureUnderConstruction} = featureStore;
 	const { inProgress } = featureUnderConstruction;
 
 	const handleClick = action(async () => {
 		if (inProgress) {	// Cancel
-			domainStore.featureStore.startConstructingFeature();
+			featureStore.startConstructingFeature();
 		}
 		featureUnderConstruction.inProgress = !inProgress;
 	});
@@ -34,20 +36,20 @@ const AddButton = observer(function AddButton() {
 });
 
 const DoneButton = observer(function DoneButton() {
-	const { featureUnderConstruction } = domainStore.featureStore;
+	const { featureUnderConstruction } = featureStore;
 
 	if (!featureUnderConstruction.inProgress) return null;
 
 	// TODO Move this function into domainStore
 	const handleClick = action(async () => {
 		if( featureUnderConstruction.inProgress) {
-			if(featureUnderConstruction.info.kind === 'ngram' && domainStore.featureStore.hasNgram()) {
+			if(featureUnderConstruction.info.kind === 'ngram' && featureStore.hasNgram()) {
 				window.alert('Sorry, you already have this feature.')
 			}
 			else {
-				featureUnderConstruction.name = domainStore.featureStore.constructNameFor(featureUnderConstruction)
-				await domainStore.targetStore.addOrUpdateFeatureToTarget(featureUnderConstruction)
-				await domainStore.featureStore.addFeatureUnderConstruction(featureUnderConstruction)
+				featureUnderConstruction.name = featureStore.constructNameFor(featureUnderConstruction)
+				await targetStore.addOrUpdateFeatureToTarget(featureUnderConstruction)
+				await featureStore.addFeatureUnderConstruction(featureUnderConstruction)
 				await domainStore.updateNonNtigramFeaturesDataset()
 				await domainStore.updateNgramFeatures()
 				featureUnderConstruction.inProgress = false
@@ -58,7 +60,7 @@ const DoneButton = observer(function DoneButton() {
 	return (
 		<Button
 			className="sq-button"
-			disabled={!domainStore.featureStore.constructionIsDone()}
+			disabled={!featureStore.constructionIsDone()}
 			onClick={handleClick}
 			hint={SQ.hints.featureDone}
 		>
@@ -68,7 +70,6 @@ const DoneButton = observer(function DoneButton() {
 });
 
 const FeatureInstructions = observer(function FeatureInstructions() {
-	const { featureStore } = domainStore;
 	if (featureStore.featureUnderConstruction.inProgress) return null;
 
 	return (

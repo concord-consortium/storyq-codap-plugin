@@ -4,14 +4,14 @@
 
 import { observer } from "mobx-react";
 import React from "react";
-import { domainStore } from "../stores/domain_store";
+import { featureStore } from "../stores/feature_store";
 import { FeatureComponent } from "./feature_component";
 
 export const FeatureList = observer(function FeatureList() {
 	return (
 		<div className="sq-container">
 			<div className="sq-feature-list">
-				{domainStore.featureStore.features.map((feature, index) => {
+				{featureStore.features.map((feature, index) => {
 					return <FeatureComponent
 						key={index}
 						feature={feature}

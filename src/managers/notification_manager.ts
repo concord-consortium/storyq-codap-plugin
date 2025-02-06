@@ -6,7 +6,8 @@
 
 import {action} from "mobx";
 import codapInterface, {CODAP_Notification} from "../lib/CodapInterface";
-import { domainStore } from "../stores/domain_store";
+import { featureStore } from "../stores/feature_store";
+import { targetStore } from "../stores/target_store";
 
 export default class NotificationManager {
 	updatingStores = false
@@ -31,8 +32,8 @@ export default class NotificationManager {
 			if (!this.updatingStores) {
 				this.updatingStores = true;
 				try {
-					await domainStore.featureStore.updateWordListSpecs()
-					await domainStore.targetStore.updateFromCODAP()
+					await featureStore.updateWordListSpecs()
+					await targetStore.updateFromCODAP()
 				} catch (e) {
 					console.log(`Unable to update feature or target store because`, e);
 				} finally {
@@ -43,34 +44,32 @@ export default class NotificationManager {
 	}
 
 	async handleAttributesChange(/*iNotification: CODAP_Notification*/) {
-		domainStore.featureStore.startConstructingFeature();
+		featureStore.startConstructingFeature();
 		await this.handleDataContextChange();
 	}
 
 	handleDeleteFeatureCase(iNotification: CODAP_Notification) {
-		const tFeatureStore = domainStore.featureStore,
-			tFeatures = tFeatureStore.features,
+		const { features } = featureStore,
 			tDataContextName = iNotification.resource && iNotification.resource.match(/\[(.+)]/)[1],
 			tCases = iNotification.values.result.cases,
 			tDeletedFeatureNames = Array.isArray(tCases) ? tCases.map((iCase: any) => {
 				return iCase.values.name
 			}) : []
-		if (tDeletedFeatureNames.length > 0 && tDataContextName === tFeatureStore.featureDatasetInfo.datasetName) {
+		if (tDeletedFeatureNames.length > 0 && tDataContextName === featureStore.featureDatasetInfo.datasetName) {
 			action(() => {
 				tDeletedFeatureNames.forEach((iName: string) => {
-					const tIndex = tFeatures.findIndex(iFeature => iFeature.name === iName && iFeature.type !== 'unigram')
+					const tIndex = features.findIndex(iFeature => iFeature.name === iName && iFeature.type !== 'unigram')
 					if (tIndex >= 0)
-						tFeatureStore.deleteFeature(tFeatures[tIndex])
+						featureStore.deleteFeature(features[tIndex])
 				})
 			})()
 		}
 	}
 
 	handleUpdateFeatureCase(iNotification: CODAP_Notification) {
-		const tFeatureStore = domainStore.featureStore,
-			tFeatures = tFeatureStore.features,
+		const { features } = featureStore,
 			tDataContextName = iNotification.resource && iNotification.resource.match(/\[(.+)]/)[1]
-		if (tDataContextName === tFeatureStore.featureDatasetInfo.datasetName) {
+		if (tDataContextName === featureStore.featureDatasetInfo.datasetName) {
 			const tCases = iNotification.values.result.cases,
 				tUpdatedCases = Array.isArray(tCases) ? tCases : []
 			if (tUpdatedCases.length > 0) {
@@ -79,15 +78,15 @@ export default class NotificationManager {
 						const tChosen = iCase.values.chosen === 'true',
 							tType = iCase.values.type,
 							tName = iCase.values.name,
-							tFoundFeature = tType !== 'unigram' && tFeatures.find(iFeature => iFeature.name === tName)
+							tFoundFeature = tType !== 'unigram' && features.find(iFeature => iFeature.name === tName)
 						if (tFoundFeature) {
 							tFoundFeature.chosen = tChosen
 						} else if (tType === 'unigram') {
-							const tToken = tFeatureStore.tokenMap[tName]
+							const tToken = featureStore.tokenMap[tName]
 							if( tToken && !tChosen) {
-								delete tFeatureStore.tokenMap[tName]
+								delete featureStore.tokenMap[tName]
 							} else if(!tToken && tChosen) {
-								tFeatureStore.tokenMap[tName] = {
+								featureStore.tokenMap[tName] = {
 									token: tName,
 									type: 'unigram',
 									count: iCase.values['frequency in positive'] + iCase.values['frequency in negative'],
@@ -105,6 +104,4 @@ export default class NotificationManager {
 			}
 		}
 	}
-
 }
-

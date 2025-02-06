@@ -3,23 +3,16 @@
  * be accessed in more than one file or needs to be saved and restored.
  */
 
-import {makeAutoObservable, runInAction, toJS} from 'mobx'
+import { makeAutoObservable, runInAction, toJS } from 'mobx'
+import React from "react";
 import {
-	Case,
-	entityInfo,
-	getAttributeNames,
-	getCaseValues,
-	getCollectionNames,
-	getDatasetInfoWithFilter,
-	guaranteeAttribute,
+	Case, entityInfo, getAttributeNames, getCaseValues, getCollectionNames, getDatasetInfoWithFilter, guaranteeAttribute,
 	scrollCaseTableToRight
 } from "../lib/codap-helper";
 import codapInterface from "../lib/CodapInterface";
-import {SQ} from "../lists/lists";
-import React from "react";
-import {
-	Feature, featureDescriptors, kEmptyEntityInfo, SearchDetails
-} from "./store_types_and_constants";
+import { SQ } from "../lists/lists";
+import { featureStore } from './feature_store'; // TODO Break the cycle with featureStore
+import { Feature, featureDescriptors, kEmptyEntityInfo, SearchDetails } from "./store_types_and_constants";
 
 export class TargetStore {
 	[index: string]: any
@@ -41,14 +34,9 @@ export class TargetStore {
 	targetLeftColumnKey: 'left' | 'right' = 'left'
 	targetChosenClassColumnKey: '' | 'left' | 'right' = ''
 	textRefs: { ownerCaseID: number, ref: React.RefObject<any> }[] = []
-	getFeatureNamesFunc:()=>string[]
 
-	constructor(iGetFeatureNamesFunc:()=>string[]) {
-		makeAutoObservable(this,
-			{textRefs: false, targetLeftColumnKey: false,
-					getFeatureNamesFunc: false},
-			{autoBind: true})
-		this.getFeatureNamesFunc = iGetFeatureNamesFunc
+	constructor() {
+		makeAutoObservable(this, { textRefs: false, targetLeftColumnKey: false }, { autoBind: true });
 	}
 
 	asJSON() {
@@ -116,7 +104,7 @@ export class TargetStore {
 					this_.targetClassAttributeName !== '') {
 				tColumnFeatureNames = tAttrNames.filter(iName=>{
 					return iName !== this_.targetAttributeName && iName !== this_.targetClassAttributeName &&
-						this_.getFeatureNamesFunc().indexOf(iName) < 0
+					featureStore.features.map(iFeature => iFeature.name).indexOf(iName) < 0
 				})
 			}
 		}
@@ -371,3 +359,4 @@ export class TargetStore {
 	}
 }
 
+export const targetStore = new TargetStore();

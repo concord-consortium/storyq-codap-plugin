@@ -8,6 +8,7 @@ import React, { Component } from "react";
 import { SQ } from "../lists/lists";
 import { ModelManager } from "../managers/model_manager";
 import { domainStore } from "../stores/domain_store";
+import { featureStore } from "../stores/feature_store";
 import { TrainingResult } from "../stores/store_types_and_constants";
 import { trainingStore } from "../stores/training_store";
 import { uiStore } from "../stores/ui_store";
@@ -68,7 +69,7 @@ export const TrainingPane = observer(class TrainingPane extends Component {
 		}
 
 		function modelTrainer() {
-			const tFeatureString = domainStore.featureStore.features.length < 2 ? 'this feature' : 'these features'
+			const tFeatureString = featureStore.features.length < 2 ? 'this feature' : 'these features'
 
 			function nameBox() {
 				return (
@@ -91,7 +92,7 @@ export const TrainingPane = observer(class TrainingPane extends Component {
 				return (
 					<div className='sq-indent'>
 						<ul>
-							{domainStore.featureStore.getChosenFeatures().map((iFeature, iIndex) => {
+							{featureStore.getChosenFeatures().map((iFeature, iIndex) => {
 								return (
 									<li key={iIndex}><strong>{iFeature.name}</strong></li>
 								)

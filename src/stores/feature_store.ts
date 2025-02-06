@@ -4,13 +4,13 @@
  */
 
 import {makeAutoObservable, toJS} from 'mobx'
-import {
-	Feature, kKindOfThingOptionText, namingAbbreviations,
-	NgramDetails,
-	SearchDetails, starterFeature, TokenMap, WordListSpec
-} from "./store_types_and_constants";
 import codapInterface from "../lib/CodapInterface";
-import {entityInfo} from "../lib/codap-helper";
+import {
+	Feature, kKindOfThingOptionText, namingAbbreviations, NgramDetails, SearchDetails, starterFeature, TokenMap,
+	WordListSpec
+} from "./store_types_and_constants";
+// TODO Break cycle with targetStore
+import { targetStore } from './target_store';
 
 export class FeatureStore {
 	features: Feature[] = []
@@ -25,13 +25,10 @@ export class FeatureStore {
 	wordListSpecs: WordListSpec[] = []	// no save/restore
 	targetColumnFeatureNames: string[] = []
 	tokenMap: TokenMap = {}
-	featureWeightCaseIDs: { [index: string]: number } = {}
-	getTargetDatasetCallback:()=>entityInfo
+	featureWeightCaseIDs: Record<string, number> = {}
 
-	constructor(iGetTargetDatasetCallback:()=>entityInfo) {
-		makeAutoObservable(this, {tokenMap: false, featureWeightCaseIDs: false,
-			getTargetDatasetCallback: false}, {autoBind: true})
-		this.getTargetDatasetCallback = iGetTargetDatasetCallback
+	constructor() {
+		makeAutoObservable(this, { tokenMap: false, featureWeightCaseIDs: false }, { autoBind: true });
 	}
 
 	asJSON() {
@@ -189,20 +186,20 @@ export class FeatureStore {
 			this.features.splice(tFoundIndex, 1)
 		}
 		if( iFeature.type !== 'unigram') {
-			const tTargetDatasetInfo = this.getTargetDatasetCallback()
+			const { targetDatasetInfo } = targetStore;
 			await codapInterface.sendRequest({
 				action: 'delete',
 				resource: `dataContext[${this.featureDatasetInfo.datasetID}].itemByID[${iFeature.featureItemID}]`
 			})
 			const tCollectionListResult:any = await codapInterface.sendRequest({
 				action: 'get',
-				resource: `dataContext[${tTargetDatasetInfo.id}].collectionList`
+				resource: `dataContext[${targetDatasetInfo.id}].collectionList`
 			})
 			if( tCollectionListResult.success) {
 				const tCollectionID = tCollectionListResult.values[0].id
 				await codapInterface.sendRequest({
 					action: 'delete',
-					resource: `dataContext[${tTargetDatasetInfo.id}].collection[${tCollectionID}].attribute[${iFeature.attrID}]`
+					resource: `dataContext[${targetDatasetInfo.id}].collection[${tCollectionID}].attribute[${iFeature.attrID}]`
 				})
 			}
 		}
@@ -292,6 +289,6 @@ export class FeatureStore {
 			})
 		}
 	}
-
-
 }
+
+export const featureStore = new FeatureStore();

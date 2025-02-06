@@ -7,8 +7,8 @@ import { makeAutoObservable } from 'mobx'
 import pluralize from "pluralize";
 import { getComponentByTypeAndTitleOrName } from "../lib/codap-helper";
 import codapInterface from "../lib/CodapInterface";
-import { domainStore } from './domain_store';
 import { kStoryQPluginName } from './store_types_and_constants';
+import { targetStore } from './target_store';
 
 export class TextStore {
 	textComponentTitle: string = ''
@@ -36,8 +36,8 @@ export class TextStore {
 	 * Only add a text component if one with the designated name does not already exist.
 	 */
 	async addTextComponent() {
-		const iDatasetName = domainStore.targetStore.targetDatasetInfo.title;
-		const iAttributeName = domainStore.targetStore.targetAttributeName;
+		const iDatasetName = targetStore.targetDatasetInfo.title;
+		const iAttributeName = targetStore.targetAttributeName;
 		let tFoundIt = false;
 		this.textComponentTitle = `Selected  ${pluralize(iAttributeName)} in ${iDatasetName}`;
 		const tListResult: any = await codapInterface.sendRequest(
@@ -93,7 +93,7 @@ export class TextStore {
 	}
 
 	async clearText() {
-		const attributeName = pluralize(domainStore.targetStore.targetAttributeName)
+		const attributeName = pluralize(targetStore.targetAttributeName)
 		await codapInterface.sendRequest({
 			action: 'update',
 			resource: `component[${this.textComponentID}]`,

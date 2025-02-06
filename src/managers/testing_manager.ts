@@ -7,6 +7,7 @@ import codapInterface from "../lib/CodapInterface";
 import { LogitPrediction } from "../lib/logit_prediction";
 import { wordTokenizer } from "../lib/one_hot";
 import { domainStore } from "../stores/domain_store";
+import { targetStore } from "../stores/target_store";
 import { TestingResult } from "../stores/store_types_and_constants";
 import { trainingStore } from "../stores/training_store";
 import { computeKappa } from "../utilities/utilities";
@@ -34,8 +35,8 @@ export class TestingManager {
 			tTestingAttributeName = tTestingStore.testingAttributeName,
 			tClassAttributeName = tTestingStore.testingClassAttributeName,
 			tTargetPredictedProbabilityName = kProbPredAttrNamePrefix + tPositiveClassName,
-			tTargetPredictedLabelAttributeName = domainStore.targetStore.targetPredictedLabelAttributeName,
-			tTargetFeatureIDsAttributeName = domainStore.targetStore.targetFeatureIDsAttributeName,
+			tTargetPredictedLabelAttributeName = targetStore.targetPredictedLabelAttributeName,
+			tTargetFeatureIDsAttributeName = targetStore.targetFeatureIDsAttributeName,
 			tLabelValues:{id:number, values:any}[] = [],
 			tMatrix = {posPos: 0, negPos: 0, posNeg: 0, negNeg: 0},
 			tTestingResult: TestingResult = {
@@ -84,7 +85,7 @@ export class TestingManager {
 						})
 				}
 				const tFeatureIDsAttributeExists = await attributeExists(tTestingDatasetName, tTestingCollectionName,
-					domainStore.targetStore.targetFeatureIDsAttributeName)
+					targetStore.targetFeatureIDsAttributeName)
 				if (!tFeatureIDsAttributeExists)
 					tAttributeRequests.push(
 						{

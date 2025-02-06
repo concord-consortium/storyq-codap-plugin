@@ -5,12 +5,13 @@
 import React, { useEffect } from "react";
 import { observer } from "mobx-react";
 import { domainStore } from "../stores/domain_store";
+import { featureStore } from "../stores/feature_store";
 import { FeaturePane } from "./feature_pane";
 
 export const FeaturePanel = observer(function FeaturePanel() {
 	useEffect(() => {
 		domainStore.updateNonNtigramFeaturesDataset();
-		domainStore.featureStore.updateWordListSpecs();
+		featureStore.updateWordListSpecs();
 	}, []);
 
 	return (

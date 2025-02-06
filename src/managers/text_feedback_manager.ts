@@ -7,6 +7,8 @@
 import { datasetExists, getCaseValues, getSelectedCasesFrom } from "../lib/codap-helper";
 import codapInterface, {CODAP_Notification} from "../lib/CodapInterface";
 import { domainStore } from "../stores/domain_store";
+import { featureStore } from "../stores/feature_store";
+import { targetStore } from "../stores/target_store";
 import { textStore } from "../stores/text_store";
 import { trainingStore } from "../stores/training_store";
 import { uiStore } from "../stores/ui_store";
@@ -29,9 +31,9 @@ export class TextFeedbackManager {
 	}
 
 	async handleNotification(iNotification: CODAP_Notification) {
-		const tTargetDatasetName = domainStore.targetStore.targetDatasetInfo.name,
+		const tTargetDatasetName = targetStore.targetDatasetInfo.name,
 			tTestingDatasetName = domainStore.testingStore.testingDatasetInfo.name,
-			tFeatureDatasetName = domainStore.featureStore.featureDatasetInfo.datasetName
+			tFeatureDatasetName = featureStore.featureDatasetInfo.datasetName
 
 		if (iNotification.action === 'notify' && iNotification.values.operation === 'selectCases'/* &&
 			iNotification.values.result.cases*/) {
@@ -57,8 +59,8 @@ export class TextFeedbackManager {
 		if (!this.headingsManager) {
 			this.headingsManager = new HeadingsManager();
 		}
-		this.headingsManager.setupHeadings(domainStore.targetStore.getClassName('negative'),
-			domainStore.targetStore.getClassName('positive'),
+		this.headingsManager.setupHeadings(targetStore.getClassName('negative'),
+			targetStore.getClassName('positive'),
 			'', 'Actual', 'Predicted')
 		return this.headingsManager;
 	}
@@ -84,6 +86,32 @@ export class TextFeedbackManager {
 	 */
 	async handleFeatureSelection() {
 
+		const tUseTestingDataset = uiStore.selectedPanelTitle === 'Testing' &&
+				domainStore.testingStore.testingDatasetInfo.name !== '' &&
+				domainStore.testingStore.testingAttributeName !== '' &&
+				!domainStore.testingStore.currentTestingResults.testBeingConstructed,
+			tStore = tUseTestingDataset ? domainStore.testingStore : targetStore,
+			kMaxStatementsToDisplay = 40,
+			tDatasetName = tUseTestingDataset ? tStore.testingDatasetInfo.name : tStore.targetDatasetInfo.name,
+			tDatasetTitle = tUseTestingDataset ? tStore.testingDatasetInfo.title : tStore.targetDatasetInfo.title,
+			tCollectionName = tUseTestingDataset ? tStore.testingCollectionName : tStore.targetCollectionName,
+			tAttributeName = tUseTestingDataset ? tStore.testingAttributeName : tStore.targetAttributeName,
+			tFeatureDatasetName = featureStore.featureDatasetInfo.datasetName,
+			tFeatureCollectionName = featureStore.featureDatasetInfo.collectionName,
+			tClassAttributeName = tUseTestingDataset ? tStore.testingClassAttributeName : tStore.targetClassAttributeName,
+			tPredictedLabelAttributeName = targetStore.targetPredictedLabelAttributeName,
+			tColumnFeatureNames = featureStore.targetColumnFeatureNames,
+			tConstructedFeatureNames = featureStore.features.map(iFeature => iFeature.name),
+			tFeaturesMap: {[index:number]:string} = {},
+			tSelectedFeaturesSet: Set<number> = new Set(),
+			tUsedIDsSet: Set<number> = new Set(),
+			// Get all the selected cases in the Features dataset. Some will be features and some will be weights
+			tSelectionListResult: any = await codapInterface.sendRequest({
+				action: 'get',
+				resource: `dataContext[${tFeatureDatasetName}].selectionList`
+			}),
+			tCaseRequests: { action: string, resource: string }[] = []
+
 		async function handleSelectionInFeaturesDataset() {
 			if (tIDsOfFeaturesToSelect.length > 0) {
 				// Select the features
@@ -94,32 +122,6 @@ export class TextFeedbackManager {
 				});
 			}
 		}
-
-		const tUseTestingDataset = uiStore.selectedPanelTitle === 'Testing' &&
-				domainStore.testingStore.testingDatasetInfo.name !== '' &&
-				domainStore.testingStore.testingAttributeName !== '' &&
-				!domainStore.testingStore.currentTestingResults.testBeingConstructed,
-			tStore = tUseTestingDataset ? domainStore.testingStore : domainStore.targetStore,
-			kMaxStatementsToDisplay = 40,
-			tDatasetName = tUseTestingDataset ? tStore.testingDatasetInfo.name : tStore.targetDatasetInfo.name,
-			tDatasetTitle = tUseTestingDataset ? tStore.testingDatasetInfo.title : tStore.targetDatasetInfo.title,
-			tCollectionName = tUseTestingDataset ? tStore.testingCollectionName : tStore.targetCollectionName,
-			tAttributeName = tUseTestingDataset ? tStore.testingAttributeName : tStore.targetAttributeName,
-			tFeatureDatasetName = domainStore.featureStore.featureDatasetInfo.datasetName,
-			tFeatureCollectionName = domainStore.featureStore.featureDatasetInfo.collectionName,
-			tClassAttributeName = tUseTestingDataset ? tStore.testingClassAttributeName : tStore.targetClassAttributeName,
-			tPredictedLabelAttributeName = domainStore.targetStore.targetPredictedLabelAttributeName,
-			tColumnFeatureNames = domainStore.featureStore.targetColumnFeatureNames,
-			tConstructedFeatureNames = domainStore.featureStore.features.map(iFeature => iFeature.name),
-			tFeaturesMap: {[index:number]:string} = {},
-			tSelectedFeaturesSet: Set<number> = new Set(),
-			tUsedIDsSet: Set<number> = new Set(),
-			// Get all the selected cases in the Features dataset. Some will be features and some will be weights
-			tSelectionListResult: any = await codapInterface.sendRequest({
-				action: 'get',
-				resource: `dataContext[${tFeatureDatasetName}].selectionList`
-			}),
-			tCaseRequests: { action: string, resource: string }[] = []
 
 		// If we have a testing dataset but no test has been run, we're done
 		if (tUseTestingDataset && tStore.testingResultsArray.length === 0) {
@@ -243,7 +245,7 @@ export class TextFeedbackManager {
 			});
 
 			let tSelectedFeatureCases: any[] = []
-			if (domainStore.featureStore.features.length > 0) {
+			if (featureStore.features.length > 0) {
 				// Get the features and stash them in a set
 				tSelectedFeatureCases = await getSelectedCasesFrom(tFeatureDatasetName, tFeatureCollectionName)
 				tSelectedFeatureCases.forEach((iCase: any) => {
@@ -268,17 +270,17 @@ export class TextFeedbackManager {
 		const tUseTestingDataset = uiStore.selectedPanelTitle === 'Testing' &&
 				domainStore.testingStore.testingDatasetInfo.name !== '' &&
 				domainStore.testingStore.testingAttributeName !== '',
-			tStore = tUseTestingDataset ? domainStore.testingStore : domainStore.targetStore,
+			tStore = tUseTestingDataset ? domainStore.testingStore : targetStore,
 			tDatasetName = tUseTestingDataset ? tStore.testingDatasetInfo.name : tStore.targetDatasetInfo.name,
 			tCollectionName = tUseTestingDataset ? tStore.testingCollectionName : tStore.targetCollectionName,
 			tDatasetTitle = tUseTestingDataset ? tStore.testingDatasetInfo.title : tStore.targetDatasetInfo.title,
 			tAttributeName = tUseTestingDataset ? tStore.testingAttributeName : tStore.targetAttributeName,
-			tFeatureDatasetName = domainStore.featureStore.featureDatasetInfo.datasetName,
-			tFeatureCollectionName = domainStore.featureStore.featureDatasetInfo.collectionName,
+			tFeatureDatasetName = featureStore.featureDatasetInfo.datasetName,
+			tFeatureCollectionName = featureStore.featureDatasetInfo.collectionName,
 			tClassAttributeName = tUseTestingDataset ? tStore.testingClassAttributeName : tStore.targetClassAttributeName,
-			tPredictedLabelAttributeName = domainStore.targetStore.targetPredictedLabelAttributeName,
-			tColumnFeatureNames = domainStore.featureStore.targetColumnFeatureNames,
-			tConstructedFeatureNames = domainStore.featureStore.features.map(iFeature => iFeature.name),
+			tPredictedLabelAttributeName = targetStore.targetPredictedLabelAttributeName,
+			tColumnFeatureNames = featureStore.targetColumnFeatureNames,
+			tConstructedFeatureNames = featureStore.features.map(iFeature => iFeature.name),
 			tFeaturesMap: Record<number, string> = {},
 			// Get all the selected cases in the target dataset. Some will be results and some will be texts
 			tSelectionListResult: any = await codapInterface.sendRequest({

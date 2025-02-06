@@ -4,16 +4,16 @@
 
 import { observer } from "mobx-react";
 import React from "react";
-import { domainStore } from "../stores/domain_store";
+import { featureStore } from "../stores/feature_store";
 import { FeatureComponent } from "./feature_component";
 
 export const FeatureConstructor = observer(function FeatureConstructor() {
-	if (!domainStore.featureStore.featureUnderConstruction.inProgress) return null;
+	if (!featureStore.featureUnderConstruction.inProgress) return null;
 
 	return (
 		<div>
 			<FeatureComponent
-				feature={domainStore.featureStore.featureUnderConstruction}
+				feature={featureStore.featureUnderConstruction}
 				shortened = {false}
 			/>
 		</div>

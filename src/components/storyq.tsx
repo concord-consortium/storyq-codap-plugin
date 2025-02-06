@@ -1,20 +1,22 @@
-import React, {Component} from 'react';
-import '../styles/light.compact.css';
-import codapInterface, { CODAP_Notification } from "../lib/CodapInterface";
+import { action } from "mobx";
+import { observer } from "mobx-react";
+import React, { Component } from 'react';
 import { initializePlugin, registerObservers } from '../lib/codap-helper';
-import '../storyq.css';
-import {TabPanel} from './ui/tab-panel';
-import {Item} from './ui/item';
-import {TargetPanel} from "./target_panel";
-import {FeaturePanel} from "./feature_panel";
-import { uiStore } from "../stores/ui_store";
-import {observer} from "mobx-react";
+import codapInterface, { CODAP_Notification } from "../lib/CodapInterface";
+import { TestingManager } from "../managers/testing_manager";
 import { domainStore } from "../stores/domain_store";
-import {action} from "mobx";
-import {TrainingPanel} from "./training_panel";
-import {TestingPanel, kNonePresent} from "./testing_panel";
-import {kStoryQPluginName} from "../stores/store_types_and_constants";
-import {TestingManager} from "../managers/testing_manager";
+import { kStoryQPluginName } from "../stores/store_types_and_constants";
+import { targetStore } from '../stores/target_store';
+import { uiStore } from "../stores/ui_store";
+import { FeaturePanel } from "./feature_panel";
+import { TargetPanel } from "./target_panel";
+import { TestingPanel, kNonePresent } from "./testing_panel";
+import { TrainingPanel } from "./training_panel";
+import { Item } from './ui/item';
+import { TabPanel } from './ui/tab-panel';
+
+import '../storyq.css';
+import '../styles/light.compact.css';
 
 const Storyq = observer(class Storyq extends Component<{}, {}> {
 		private kPluginName = kStoryQPluginName;
@@ -66,13 +68,13 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 			if (iStorage) {
 				uiStore.fromJSON(iStorage.uiStore);
 				domainStore.fromJSON(iStorage.domainStore);
-				await domainStore.targetStore.updateFromCODAP()
+				await targetStore.updateFromCODAP()
 			}
 		}
 
 		async handleSelectionChanged(e: any) {
 			uiStore.tabPanelSelectedIndex = e.selectedIndex;
-			await domainStore.targetStore.updateFromCODAP()
+			await targetStore.updateFromCODAP()
 		}
 
 		renderTabPanel() {

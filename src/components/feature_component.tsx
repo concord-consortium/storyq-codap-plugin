@@ -4,14 +4,16 @@
 
 import { action, toJS } from "mobx";
 import { observer } from "mobx-react";
-import React, {Component} from "react";
+import React, { Component } from "react";
 import { stopWords } from "../lib/stop_words";
 import { SQ } from "../lists/lists";
 import { domainStore } from "../stores/domain_store";
+import { featureStore } from "../stores/feature_store";
 import {
 	Feature, featureDescriptors, kKindOfThingOptionList, kKindOfThingOptionPunctuation, kKindOfThingOptionText,
 	SearchDetails
 } from "../stores/store_types_and_constants";
+import { targetStore } from "../stores/target_store";
 import { textStore } from "../stores/text_store";
 import { Button } from "./ui/button";
 import { CheckBox } from "./ui/check-box";
@@ -29,7 +31,7 @@ export interface FeatureComponentProps {
 export const FeatureComponent = observer(class FeatureComponent extends Component<FeatureComponentProps, {}> {
 	async updateFeaturesDataset(iFeature: Feature) {
 		if (!iFeature.inProgress) {
-			await domainStore.targetStore.addOrUpdateFeatureToTarget(iFeature, true)
+			await targetStore.addOrUpdateFeatureToTarget(iFeature, true)
 			switch (iFeature.info.kind) {
 				case 'search':
 				case 'count':
@@ -68,7 +70,7 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 		*/
 
 		function kindOfContainsChoice() {
-			tFeatureDescriptors.featureKinds[2].items = domainStore.targetStore.targetColumnFeatureNames.map(iColumnName => {
+			tFeatureDescriptors.featureKinds[2].items = targetStore.targetColumnFeatureNames.map(iColumnName => {
 				return {
 					name: iColumnName,
 					value: `{"kind": "column", "details": {"columName":"${iColumnName}"}}`,
@@ -76,7 +78,7 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 				}
 			})
 			// @ts-ignore
-			tFeatureDescriptors.featureKinds[1].items[0].disabled = domainStore.featureStore.hasNgram()
+			tFeatureDescriptors.featureKinds[1].items[0].disabled = featureStore.hasNgram()
 			return (
 				<SelectBox
 					className='sq-new-feature-item sq-fc-part'
@@ -158,7 +160,7 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 		function wordListChoice() {
 			const tContainsDetails = tFeature.info.details as SearchDetails
 			if (tContainsDetails && tContainsDetails.what === kKindOfThingOptionList) {
-				const tWordListSpecs = domainStore.featureStore.wordListSpecs,
+				const tWordListSpecs = featureStore.wordListSpecs,
 					tWordListDatasetNames = tWordListSpecs.map(iDataset => {
 						return iDataset.datasetName;
 					}),
@@ -246,7 +248,7 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 						text=''
 						value={tFeature.chosen}
 						onValueChanged={action(async () => {
-							await domainStore.featureStore.toggleChosenFor(tFeature)
+							await featureStore.toggleChosenFor(tFeature)
 							console.log(`type = ${tFeature.type}; chosen = ${tFeature.chosen}`)
 							if( tFeature.type === 'unigram' && tFeature.chosen)
 								domainStore.updateNgramFeatures()
@@ -259,7 +261,7 @@ export const FeatureComponent = observer(class FeatureComponent extends Componen
 						text=''
 						icon='clear'
 						onClick={action(async () => {
-							await domainStore.featureStore.deleteFeature(tFeature)
+							await featureStore.deleteFeature(tFeature)
 							await textStore.clearText()
 						})}
 						hint={SQ.hints.featureTableRemove}

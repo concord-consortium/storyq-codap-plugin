@@ -8,6 +8,8 @@ import React, { Component } from "react";
 import codapInterface from "../lib/CodapInterface";
 import { SQ } from "../lists/lists";
 import { domainStore } from "../stores/domain_store";
+import { featureStore } from "../stores/feature_store";
+import { targetStore } from "../stores/target_store";
 import { textStore } from "../stores/text_store";
 import { ChoicesMenu } from "./choices-menu";
 import { TargetTextArea } from "./target_text_area";
@@ -30,10 +32,13 @@ export const TargetPanel = observer(class TargetPanel extends Component {
 	}
 
 	async updateTargetPanelInfo(iPropName?: string | null, iValue?: any) {
-		await domainStore.targetStore.updateFromCODAP(iPropName, iValue)
+		await targetStore.updateFromCODAP(iPropName, iValue)
 	}
 
 	render() {
+		const this_ = this,
+			tDatasetInfoArray = targetStore.datasetInfoArray,
+			tMode = targetStore.targetPanelMode
 
 		function welcomeText() {
 			if (this_.currState === 'welcome')
@@ -73,14 +78,14 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 			function menu() {
 
 				async function handleChoice(iChoice: string) {
-					tTargetStore.resetTargetDataForNewTarget()
+					targetStore.resetTargetDataForNewTarget()
 					let newInfo = toJS(tDatasetInfoArray.find(iInfo => iInfo.title === iChoice)) ||
 						this_.targetPanelConstants.createNewEntityInfo;
 					if (newInfo.title !== this_.targetPanelConstants.createNewEntityInfo.title) {
-						tTargetStore.targetDatasetInfo = newInfo;
+						targetStore.targetDatasetInfo = newInfo;
 						await this_.updateTargetPanelInfo()
 						action(()=> {
-							tTargetStore.targetPanelMode = 'chosen'
+							targetStore.targetPanelMode = 'chosen'
 						})()
 					} else if(iChoice === tNewDatasetChoice) {
 						let tContextName = 'Training Data',
@@ -121,21 +126,21 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 								}
 							}
 						])
-						tTargetStore.targetDatasetInfo = {
+						targetStore.targetDatasetInfo = {
 							title: tContextName,
 							name: tContextName,
 							id: tResults[0].values.id
 						}
 						action(()=> {
-							tTargetStore.targetPanelMode = 'chosen'
+							targetStore.targetPanelMode = 'chosen'
 						})()
 					}
 				}
 
 				const tNewDatasetChoice = 'Create a new dataset',
 					tPrompt = this_.currState === 'welcome' ? 'Choose the training data' : 'Training data',
-					tValue = (tTargetStore.targetDatasetInfo === this_.targetPanelConstants.createNewEntityInfo) ?
-						'' : tTargetStore.targetDatasetInfo.title,
+					tValue = (targetStore.targetDatasetInfo === this_.targetPanelConstants.createNewEntityInfo) ?
+						'' : targetStore.targetDatasetInfo.title,
 					tDatasetChoices: string[] = (tDatasetInfoArray.map(iInfo => iInfo.title)),
 					tHint = tValue === '' ? SQ.hints.targetDatasetChoices : SQ.hints.targetDatasetChosen
 				tDatasetChoices.push( tNewDatasetChoice)
@@ -207,20 +212,20 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 					'Choose the column that has the text' : 'Text',
 					tHint = this_.currState === 'chosen-no-target-attribute' ?
 						SQ.hints.targetAttributeChoices : SQ.hints.targetAttributeChosen
-				if (tTargetStore.targetAttributeNames.length > 0) {
+				if (targetStore.targetAttributeNames.length > 0) {
 					return (
 						<ChoicesMenu
-							choices={tTargetStore.targetAttributeNames}
+							choices={targetStore.targetAttributeNames}
 							hint={tHint}
 							noDataText="No attributes to choose from"
 							onValueChange={async (iChoice) => {
-								tTargetStore.targetAttributeName = iChoice;
+								targetStore.targetAttributeName = iChoice;
 								await this_.updateTargetPanelInfo();
 								textStore.addTextComponent();
 							}}
 							placeHolder="Choose from"
 							prompt={tPrompt}
-							value={tTargetStore.targetAttributeName}
+							value={targetStore.targetAttributeName}
 						/>
 					);
 				}
@@ -231,9 +236,9 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 					'Choose the column that has the labels' : 'Labels',
 					tHint = this_.currState === 'chosen-no-target-label-attribute' ?
 						SQ.hints.targetClassAttributeChoices : SQ.hints.targetClassAttributeChosen
-				if (tTargetStore.targetAttributeName !== '') {
-					const tCandidateAttributeNames = tTargetStore.targetAttributeNames.filter((iName) => {
-						return domainStore.featureStore.features.findIndex(aFeature => aFeature.name === iName) < 0
+				if (targetStore.targetAttributeName !== '') {
+					const tCandidateAttributeNames = targetStore.targetAttributeNames.filter((iName) => {
+						return featureStore.features.findIndex(aFeature => aFeature.name === iName) < 0
 					})
 					return (
 						<ChoicesMenu
@@ -245,14 +250,14 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 							}}
 							placeHolder="Choose an attribute with labels"
 							prompt={tPrompt}
-							value={tTargetStore.targetClassAttributeName}
+							value={targetStore.targetClassAttributeName}
 						/>
 					);
 				}
 			}
 
 			function lowerPanel() {
-				if (tTargetStore.targetCases.length > 0) {
+				if (targetStore.targetCases.length > 0) {
 					return (
 						<TargetTextArea />
 					)
@@ -261,8 +266,8 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 
 			function positiveClassInstructions() {
 				if (this_.currState === 'chosen-no-chosen-pos-class') {
-					if (tTargetStore.targetCases.length > 0) {
-						if(tTargetStore.targetClassAttributeValues.length === 2) {
+					if (targetStore.targetCases.length > 0) {
+						if(targetStore.targetClassAttributeValues.length === 2) {
 							return (
 								<div className='sq-info-prompt'>
 									<p
@@ -274,15 +279,15 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 						else {
 							const tRightColumnKey = 'right',
 								tLeftColumnKey = 'left',
-								tLeftColumnValue = tTargetStore.targetClassNames[tLeftColumnKey]
+								tLeftColumnValue = targetStore.targetClassNames[tLeftColumnKey]
 							return (
 								<ChoicesMenu
-									choices={tTargetStore.targetClassAttributeValues}
+									choices={targetStore.targetClassAttributeValues}
 									hint={SQ.hints.targetLabelChoices}
 									noDataText="No labels were found"
 									onValueChange={action((e) => {
-										tTargetStore.targetClassNames[tLeftColumnKey] = e;
-										tTargetStore.targetClassNames[tRightColumnKey] = tTargetStore.targetClassAttributeValues.slice(0, 3)
+										targetStore.targetClassNames[tLeftColumnKey] = e;
+										targetStore.targetClassNames[tRightColumnKey] = targetStore.targetClassAttributeValues.slice(0, 3)
 											.filter((iValue:string)=>iValue!== e).join(',') + '…';
 									})}
 									placeHolder="Your choice"
@@ -295,7 +300,7 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 				}
 			}
 
-			if (tTargetStore.targetPanelMode === 'chosen') {
+			if (targetStore.targetPanelMode === 'chosen') {
 				return (
 					<div>
 						{targetAttributeInstructions()}
@@ -312,7 +317,7 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 		}
 
 		function createMode() {
-			if (tTargetStore.targetPanelMode === 'create')
+			if (targetStore.targetPanelMode === 'create')
 				return (
 					<div className='sq-welcome'>
 						<h1>Sorry, It's not yet possible to create a dataset from scratch.</h1>
@@ -342,11 +347,11 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 					this_.currState = tMode
 					break;
 				case 'chosen':
-					if (tTargetStore.targetAttributeName === '')
+					if (targetStore.targetAttributeName === '')
 						this_.currState = 'chosen-no-target-attribute'
-					else if (tTargetStore.targetClassAttributeName === '')
+					else if (targetStore.targetClassAttributeName === '')
 						this_.currState = 'chosen-no-target-label-attribute'
-					else if (tTargetStore.targetChosenClassColumnKey === '')
+					else if (targetStore.targetChosenClassColumnKey === '')
 						this_.currState = 'chosen-no-chosen-pos-class'
 					else
 						this_.currState = 'chosen-complete'
@@ -356,10 +361,6 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 			}
 		}
 
-		const this_ = this,
-			tTargetStore = domainStore.targetStore,
-			tDatasetInfoArray = tTargetStore.datasetInfoArray,
-			tMode = tTargetStore.targetPanelMode
 		computeState()
 		return (
 			<div className='sq-target-panel'>
@@ -372,4 +373,4 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 			</div>
 		);
 	}
-})
+});

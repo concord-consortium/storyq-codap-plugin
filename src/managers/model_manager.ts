@@ -7,7 +7,9 @@ import codapInterface from "../lib/CodapInterface";
 import { LogisticRegression } from "../lib/jsregression";
 import { oneHot } from "../lib/one_hot";
 import { domainStore } from "../stores/domain_store";
+import { featureStore } from "../stores/feature_store";
 import { Feature, NgramDetails, StoredModel, Token } from "../stores/store_types_and_constants";
+import { targetStore } from "../stores/target_store";
 import { trainingStore } from "../stores/training_store";
 import { computeKappa } from "../utilities/utilities";
 
@@ -65,13 +67,13 @@ export class ModelManager {
 			return tFoundOne && tIsEmpty
 		}
 
-		const tFeatureDatasetName = domainStore.featureStore.featureDatasetInfo.datasetName,
-			tFeaturesCollectionName = domainStore.featureStore.featureDatasetInfo.collectionName,
-			tWeightsCollectionName = domainStore.featureStore.featureDatasetInfo.weightsCollectionName,
+		const tFeatureDatasetName = featureStore.featureDatasetInfo.datasetName,
+			tFeaturesCollectionName = featureStore.featureDatasetInfo.collectionName,
+			tWeightsCollectionName = featureStore.featureDatasetInfo.weightsCollectionName,
 			tUpdatingExistingWeights = await allFirstWeightCasesAreEmpty(),
 			tCreationRequests: { parent: number, values: any }[] = [],
 			tUpdateRequests: { id: number, values: any }[] = [],
-			tFeatureWeightCaseIDs: { [index: string]: number } = {},
+			tFeatureWeightCaseIDs: Record<string, number> = {},
 			tTokenArray: string[] = [],
 			tModelName = trainingStore.model.name
 
@@ -138,7 +140,7 @@ export class ModelManager {
 		await showWeightAttributes()
 		if (tUpdatingExistingWeights) {
 			await getFeatureWeightCaseIDs()
-			domainStore.featureStore.featureWeightCaseIDs = tFeatureWeightCaseIDs
+			featureStore.featureWeightCaseIDs = tFeatureWeightCaseIDs
 		}
 		generateFeatureRequests()
 		if (tUpdatingExistingWeights) {
@@ -156,7 +158,7 @@ export class ModelManager {
 			tCreateResults.values.forEach((iValue: { id: number }, iIndex: number) => {
 				tFeatureWeightCaseIDs[tTokenArray[iIndex]] = iValue.id
 			})
-			domainStore.featureStore.featureWeightCaseIDs = tFeatureWeightCaseIDs
+			featureStore.featureWeightCaseIDs = tFeatureWeightCaseIDs
 		}
 	}
 
@@ -166,9 +168,9 @@ export class ModelManager {
 		 * probabilities for each target text for each model
 		 */
 		async function guaranteeResultsCollection() {
-			const tTargetClassAttributeName = tTargetStore.targetClassAttributeName,
-				tPositiveClassName = tTargetStore.getClassName('positive'),
-				tResultsCollectionName = tTargetStore.targetResultsCollectionName
+			const tTargetClassAttributeName = targetStore.targetClassAttributeName,
+				tPositiveClassName = targetStore.getClassName('positive'),
+				tResultsCollectionName = targetStore.targetResultsCollectionName
 			if (tTargetClassAttributeName !== '' && tPositiveClassName !== '') {
 				const tCollectionListResult: any = await codapInterface.sendRequest({
 					action: 'get',
@@ -212,7 +214,7 @@ export class ModelManager {
 					})
 					tResultCaseIDsToFill = tCaseIDResult.values.map((iValue: any) => Number(iValue.id))
 				} else {	// We add a new case to each parent case for the next set of results
-					const tParentCollectionName = tTargetStore.targetCollectionName,
+					const tParentCollectionName = targetStore.targetCollectionName,
 						tCreateRequests: { parent: number, values: {} }[] = []
 					// First we get the parent case IDs
 					const tParentCaseIDResults: any = await codapInterface.sendRequest({
@@ -239,9 +241,8 @@ export class ModelManager {
 		}
 
 		const
-			tTargetStore = domainStore.targetStore,
-			tPredictedLabelAttributeName = tTargetStore.targetPredictedLabelAttributeName,
-			tTargetDatasetName = tTargetStore.targetDatasetInfo.name
+			tPredictedLabelAttributeName = targetStore.targetPredictedLabelAttributeName,
+			tTargetDatasetName = targetStore.targetDatasetInfo.name
 		let tResultCaseIDsToFill: number[] = []
 
 		await guaranteeResultsCollection()
@@ -252,9 +253,9 @@ export class ModelManager {
 	async cancel() {
 
 		async function wipeWeights() {
-			const tFeatureDatasetName = domainStore.featureStore.featureDatasetInfo.datasetName,
-				tWeightsCollectionName = domainStore.featureStore.featureDatasetInfo.weightsCollectionName,
-				tFeatureWeightCaseIDs = domainStore.featureStore.featureWeightCaseIDs,
+			const tFeatureDatasetName = featureStore.featureDatasetInfo.datasetName,
+				tWeightsCollectionName = featureStore.featureDatasetInfo.weightsCollectionName,
+				tFeatureWeightCaseIDs = featureStore.featureWeightCaseIDs,
 				tUpdateRequests: { id: number, values: any }[] = []
 			for (let featureWeightCaseIDsKey in tFeatureWeightCaseIDs) {
 				tUpdateRequests.push({
@@ -273,12 +274,11 @@ export class ModelManager {
 		}
 
 		async function wipeResultsInTarget() {
-			const tTargetStore = domainStore.targetStore,
-				tTargetDatasetName = tTargetStore.targetDatasetInfo.name,
-				tResultsCollectionName = tTargetStore.targetResultsCollectionName,
+			const tTargetDatasetName = targetStore.targetDatasetInfo.name,
+				tResultsCollectionName = targetStore.targetResultsCollectionName,
 				tResultCaseIDs = trainingStore.resultCaseIDs,
-				tPredictedLabelAttributeName = tTargetStore.targetPredictedLabelAttributeName,
-				tProbName = `probability of ${domainStore.targetStore.getClassName('positive')}`,
+				tPredictedLabelAttributeName = targetStore.targetPredictedLabelAttributeName,
+				tProbName = `probability of ${targetStore.getClassName('positive')}`,
 				tUpdateRequests = tResultCaseIDs.map(iID => {
 					const tRequest: any = {
 						id: iID,
@@ -309,15 +309,14 @@ export class ModelManager {
 	async buildModel() {
 		const this_ = this
 
-		const tTargetStore = domainStore.targetStore,
-			tTargetDatasetName = tTargetStore.targetDatasetInfo.name,
-			tTargetAttributeName = tTargetStore.targetAttributeName,
-			tTargetClassAttributeName = tTargetStore.targetClassAttributeName,
-			tTargetColumnFeatureNames = domainStore.featureStore.targetColumnFeatureNames,
-			tNonNgramFeatures = domainStore.featureStore.getChosenFeatures().filter(iFeature => iFeature.info.kind !== 'ngram'),
-			tNgramFeatures = domainStore.featureStore.getChosenFeatures().filter(iFeature => iFeature.info.kind === 'ngram'),
+		const tTargetDatasetName = targetStore.targetDatasetInfo.name,
+			tTargetAttributeName = targetStore.targetAttributeName,
+			tTargetClassAttributeName = targetStore.targetClassAttributeName,
+			tTargetColumnFeatureNames = featureStore.targetColumnFeatureNames,
+			tNonNgramFeatures = featureStore.getChosenFeatures().filter(iFeature => iFeature.info.kind !== 'ngram'),
+			tNgramFeatures = featureStore.getChosenFeatures().filter(iFeature => iFeature.info.kind === 'ngram'),
 			tUnigramFeature = tNgramFeatures.find(iFeature => (iFeature.info.details as NgramDetails).n === 'uni'),
-			tPositiveClassName = tTargetStore.getClassName('positive'),
+			tPositiveClassName = targetStore.getClassName('positive'),
 			tDocuments: {
 				example: string, class: string, caseID: number,
 				columnFeatures: { [key: string]: number | boolean }
@@ -333,9 +332,9 @@ export class ModelManager {
 			tLogisticModel.stepModeCallback = trainingStore.model.trainingInStepMode ?
 				this_.stepModeCallback : null
 			tLogisticModel.lockIntercept = trainingStore.model.lockInterceptAtZero
-			const tCases = tTargetStore.targetCases,
+			const tCases = targetStore.targetCases,
 				tColumnNames = tTargetColumnFeatureNames.concat(
-					domainStore.featureStore.getChosenFeatures().map(iFeature => {
+					featureStore.getChosenFeatures().map(iFeature => {
 						return iFeature.name;
 					}))
 			// Grab the strings in the target collection that are the values of the target attribute.
@@ -373,9 +372,9 @@ export class ModelManager {
 				ignorePunctuation: true,
 				includeUnigrams: Boolean(tUnigramFeature),
 				positiveClass: tPositiveClassName,
-				negativeClass: tTargetStore.getClassName('negative'),
+				negativeClass: targetStore.getClassName('negative'),
 				features: tNonNgramFeatures,
-				tokenMap: domainStore.featureStore.tokenMap
+				tokenMap: featureStore.tokenMap
 			},
 			tDocuments)
 		if (!tOneHot)
@@ -420,7 +419,7 @@ export class ModelManager {
 
 					tTrainingResults.push({
 						name: tModel.name,
-						targetDatasetName: domainStore.targetStore.targetDatasetInfo.name,
+						targetDatasetName: targetStore.targetDatasetInfo.name,
 						isActive: true,
 						threshold: Number(tLogisticModel.threshold),
 						constantWeightTerm: tLogisticModel.fitResult.constantWeightTerm,
@@ -432,8 +431,8 @@ export class ModelManager {
 						},
 						accuracy: tLogisticModel.accuracy || 0,
 						kappa: (tLogisticModel.accuracy === 0) ? 0 : (tLogisticModel.kappa || 0),
-						featureNames: domainStore.featureStore.getChosenFeatureNames(),
-						hasNgram: domainStore.featureStore.hasNgram(),
+						featureNames: featureStore.getChosenFeatureNames(),
+						hasNgram: featureStore.hasNgram(),
 						storedModel: this.fillOutCurrentStoredModel(tLogisticModel)
 					})
 				})()
@@ -462,8 +461,7 @@ export class ModelManager {
 	}
 
 	fillOutCurrentStoredModel(iLogisticModel: LogisticRegression): StoredModel {
-		const this_ = this,
-			tTokenArray = iLogisticModel._oneHot.tokenArray,
+		const tTokenArray = iLogisticModel._oneHot.tokenArray,
 			tWeights = iLogisticModel.fitResult.theta	// toss the constant term
 
 		return {
@@ -471,12 +469,12 @@ export class ModelManager {
 				return {
 					featureCaseID: iToken.featureCaseID,
 					name: iToken.token,
-					formula: iToken.type !== 'unigram' ? domainStore.featureStore.getFormulaFor(iToken.token) : '',
+					formula: iToken.type !== 'unigram' ? featureStore.getFormulaFor(iToken.token) : '',
 					weight: tWeights[iIndex]
 				}
 			}),
-			positiveClassName: domainStore.targetStore.getClassName('positive'),
-			negativeClassName: domainStore.targetStore.getClassName('negative')
+			positiveClassName: targetStore.getClassName('positive'),
+			negativeClassName: targetStore.getClassName('negative')
 		}
 	}
 
@@ -485,8 +483,8 @@ export class ModelManager {
 			tLogisticModel = tModel.logisticModel,
 			tData = tLogisticModel._data,
 			tOneHot = tLogisticModel._oneHot,
-			tPositiveClassName = domainStore.targetStore.getClassName('positive'),
-			tNegativeClassName = domainStore.targetStore.getClassName('negative'),
+			tPositiveClassName = targetStore.getClassName('positive'),
+			tNegativeClassName = targetStore.getClassName('negative'),
 			tDocuments = tLogisticModel._documents;
 		await this.updateWeights(tModel.name, tOneHot.tokenArray, iWeights);
 
@@ -503,12 +501,11 @@ export class ModelManager {
 	}
 
 	async updateWeights(iModelName: string, iTokens: any, iWeights: number[]) {
-		const tFeatureStore = domainStore.featureStore,
-			tFeatureDatasetName = tFeatureStore.featureDatasetInfo.datasetName,
-			tWeightsCollectionName = tFeatureStore.featureDatasetInfo.weightsCollectionName,
-			tFeatures = tFeatureStore.getChosenFeatures(),
+		const tFeatureDatasetName = featureStore.featureDatasetInfo.datasetName,
+			tWeightsCollectionName = featureStore.featureDatasetInfo.weightsCollectionName,
+			tFeatures = featureStore.getChosenFeatures(),
 			tUpdateRequests: { id: number, values: any }[] = [],
-			tFeatureWeightCaseIDs = tFeatureStore.featureWeightCaseIDs
+			tFeatureWeightCaseIDs = featureStore.featureWeightCaseIDs
 
 		function generateRequests() {
 			iTokens.forEach((aToken: any, iIndex: number) => {
@@ -649,16 +646,15 @@ export class ModelManager {
 		}
 
 		const
-			tTargetStore = domainStore.targetStore,
 			tOneHotLength = iTools.oneHotData[0].length,
 			tPosProbs: number[] = [],
 			tNegProbs: number[] = [],
 			tMapFromCaseIDToProbability: any = {},
 			kProbPredAttrNamePrefix = 'probability of ',
 			tProbName = `${kProbPredAttrNamePrefix}${iTools.positiveClassName}`,
-			tPredictedLabelAttributeName = tTargetStore.targetPredictedLabelAttributeName,
-			tTargetDatasetName = tTargetStore.targetDatasetInfo.name,
-			tResultsCollectionName = tTargetStore.targetResultsCollectionName,
+			tPredictedLabelAttributeName = targetStore.targetPredictedLabelAttributeName,
+			tTargetDatasetName = targetStore.targetDatasetInfo.name,
+			tResultsCollectionName = targetStore.targetResultsCollectionName,
 			tResultCaseIDs = trainingStore.resultCaseIDs
 
 		// Create values of predicted label and probability for each document

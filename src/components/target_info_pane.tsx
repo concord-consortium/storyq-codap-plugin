@@ -4,11 +4,9 @@
 
 import { observer } from "mobx-react";
 import React from "react";
-import { domainStore } from "../stores/domain_store";
+import { targetStore } from "../stores/target_store";
 
 export const TargetInfoPane = observer(function TargetInfoPane() {
-	const { targetStore } = domainStore;
-
 	function getInfo() {
 		if (targetStore.targetDatasetInfo.title !== '') {
 			const tNegKey = targetStore.targetChosenClassColumnKey === 'left' ? 'right' : 'left';
