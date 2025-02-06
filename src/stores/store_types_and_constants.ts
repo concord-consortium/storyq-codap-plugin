@@ -1,5 +1,5 @@
-import {LogisticRegression} from "../lib/jsregression";
-import {makeAutoObservable, toJS} from "mobx";
+import { makeAutoObservable, toJS } from "mobx";
+import { getDefaultLogisticRegression, LogisticRegression } from "../lib/jsregression";
 
 /**
  * These types and constants are used primarily by the various store classes
@@ -61,10 +61,10 @@ export interface SearchDetails {
 }
 
 export const namingAbbreviations:{[index:string]:string} = {
-	'start with': 'startWith',
 	contain: 'contain',
+	'end with': 'endWith',
 	'not contain': 'notContain',
-	'end with': 'endWith'
+	'start with': 'startWith',
 }
 
 export interface CountDetails {
@@ -76,90 +76,93 @@ export interface NgramDetails {
 }
 
 export interface ColumnDetails {
-	columnName:string
+	columnName: string
 }
 
 export interface FeatureDetails {
-	kind: 'search' | 'ngram' | 'count' | 'column' | '',
-	details: SearchDetails | CountDetails | NgramDetails | ColumnDetails | null,
-	ignoreStopWords?: boolean,
+	details: SearchDetails | CountDetails | NgramDetails | ColumnDetails | null
 	frequencyThreshold?: number
+	ignoreStopWords?: boolean
+	kind: 'search' | 'ngram' | 'count' | 'column' | ''
 }
-
 export interface Feature {
-	[key: string]: any
-
-	inProgress: boolean
-	name: string,
-	chosen: boolean,
-	infoChoice: string,
-	info: FeatureDetails,
+	attrID: string // ID of the attribute in the target dataset corresponding to this feature
+	caseID: string // ID of the feature as a case in the feature table
+	chosen: boolean
 	description: string
-	type: string
+	featureItemID: string // ID of the item in the feature table corresponding to this feature
 	formula: string
-	numberInPositive: number
+	inProgress: boolean
+	info: FeatureDetails
+	infoChoice: string
+	name: string
 	numberInNegative: number
+	numberInPositive: number
+	type: string
 	usages: number[]
-	caseID: string		// ID of the feature as a case in the feature table
-	attrID: string		// ID of the attribute in the target dataset corresponding to this feature
-	featureItemID: string	// ID of the item in the feature table corresponding to this feature
 	weight: number | ''
 }
+
+export const starterFeature: Feature = {
+	attrID: '',
+	caseID: '',
+	chosen: false,
+	description: '',
+	featureItemID: '',
+	formula: '',
+	inProgress: false,
+	info: {
+		kind: '',
+		details: {
+			caseOption: '',
+			freeFormText: '',
+			punctuation: '',
+			where: '',
+			what: '',
+			wordList: { datasetName: '', firstAttributeName: '' }
+		}
+	},
+	infoChoice: '',
+	name: '',
+	numberInNegative: -1,
+	numberInPositive: -1,
+	type: '',
+	usages: [],
+	weight: 0
+};
 
 export interface WordListSpec {
 	datasetName: string,
 	firstAttributeName: string
 }
 
-export const starterFeature: Feature = {
-	inProgress: false, name: '', chosen: false,
-	infoChoice: '',
-	info: {
-		kind: '',
-		details: {
-			where: '', what: '', caseOption: '', freeFormText: '', punctuation: '',
-			wordList: {datasetName: '', firstAttributeName: ''}
-		}
-	},
-	description: '',
-	type: '',
-	formula: '',
-	numberInNegative: -1,
-	numberInPositive: -1,
-	usages: [],
-	caseID: '',
-	attrID: '',
-	featureItemID: '',
-	weight: 0
-}
-
 export interface TrainingResult {
-	name: string,
-	targetDatasetName: string
-	isActive: boolean
-	threshold: number
+	accuracy: number
 	constantWeightTerm: number
+	featureNames: string[]
+	hasNgram: boolean
 	ignoreStopWords: boolean
+	isActive: boolean
+	kappa: number
+	name: string
 	settings: {
 		iterations: number
 		locked: boolean
 		thresholdAtPoint5: boolean
 	}
-	accuracy: number
-	kappa: number
-	featureNames: string[],
-	hasNgram: boolean,
 	storedModel: StoredModel
+	targetDatasetName: string
+	threshold: number
 }
 
 export interface TestingResult {
-	modelName: string,
-	targetDatasetName: string,
-	targetDatasetTitle: string,
-	numPositive: number,
-	numNegative: number,
-	accuracy: number,
-	kappa: number,
+	accuracy: number
+	kappa: number
+	modelName: string
+	numNegative: number
+	numPositive: number
+	targetDatasetName: string
+	targetDatasetTitle: string
 	testBeingConstructed: boolean
 }
 
@@ -171,64 +174,85 @@ export function getEmptyTestingResult() {
 }
 
 export interface Token {
-	token: string,
-	type: 'constructed feature' | 'unigram',
-	count: number,	// the number of target texts where this token is true (column feature) or found (unigram)
-	index: number,
-	numPositive: number,
-	numNegative: number,
-	caseIDs: number[],
-	weight: number | null,
+	caseIDs: number[]
+	count: number	// the number of target texts where this token is true (column feature) or found (unigram)
 	featureCaseID: number | null
+	index: number
+	numNegative: number
+	numPositive: number
+	token: string
+	type: 'constructed feature' | 'unigram'
+	weight: number | null
 }
 
-export interface TokenMap {
-	[key: string]: Token}
+export type TokenMap = Record<string, Token>
+
+export interface IModel {
+	beingConstructed: boolean
+	frequencyThreshold: number
+	ignoreStopWords: boolean
+	iteration: number
+	iterations: number
+	lockInterceptAtZero: boolean
+	logisticModel: LogisticRegression
+	name: string
+	trainingInProgress: boolean
+	trainingInStepMode: boolean
+	trainingIsComplete: boolean
+	usePoint5AsProbThreshold: boolean
+}
+
+export const defaultModel: IModel = {
+	beingConstructed: false,
+	frequencyThreshold: 4,
+	ignoreStopWords: true,
+	iteration: 0,
+	iterations: 20,
+	lockInterceptAtZero: true,
+	logisticModel: getDefaultLogisticRegression(),
+	name: '',
+	trainingInProgress: false,
+	trainingInStepMode: false,
+	trainingIsComplete: false,
+	usePoint5AsProbThreshold: true
+}
 
 export class Model {
-	[index: string]: any;
-
-	name = ''
-	iteration = 0
-	iterations = 20
-	lockInterceptAtZero = true
-	ignoreStopWords = true
-	usePoint5AsProbThreshold = true
-	frequencyThreshold = 4
-	beingConstructed = false
-	trainingInProgress = false
-	trainingInStepMode = false
-	trainingIsComplete = false
-	logisticModel: LogisticRegression = new LogisticRegression({
-		alpha: 1,
-		iterations: 20,
-		lambda: 0.0,
-		accuracy: 0,
-		kappa: 0,
-		lockIntercept: true,
-		threshold: 0.5,
-		trace: false,
-		progressCallback: null,
-		stepModeCallback: null
-	})
-
+	beingConstructed = defaultModel.beingConstructed;
+	frequencyThreshold = defaultModel.frequencyThreshold;
+	ignoreStopWords = defaultModel.ignoreStopWords;
+	iteration = defaultModel.iteration;
+	iterations = defaultModel.iterations;
+	lockInterceptAtZero = defaultModel.lockInterceptAtZero;
+	logisticModel: LogisticRegression = getDefaultLogisticRegression();
+	name = defaultModel.name;
+	trainingInProgress = defaultModel.trainingInProgress;
+	trainingInStepMode = defaultModel.trainingInStepMode;
+	trainingIsComplete = defaultModel.trainingIsComplete;
+	usePoint5AsProbThreshold = defaultModel.usePoint5AsProbThreshold;
 
 	constructor() {
-		makeAutoObservable(this, {logisticModel: false}, {autoBind: true})
+		makeAutoObservable(this, { logisticModel: false }, { autoBind: true })
+	}
+
+	import(model: IModel) {
+		this.beingConstructed = model.beingConstructed;
+		this.frequencyThreshold = model.frequencyThreshold;
+		this.ignoreStopWords = model.ignoreStopWords;
+		this.iteration = model.iteration;
+		this.iterations = model.iterations;
+		this.lockInterceptAtZero = model.lockInterceptAtZero;
+		this.logisticModel = model.logisticModel;
+		this.name = model.name;
+		this.trainingInProgress = model.trainingInProgress;
+		this.trainingInStepMode = model.trainingInStepMode;
+		this.trainingIsComplete = model.trainingIsComplete;
+		this.usePoint5AsProbThreshold = model.usePoint5AsProbThreshold;
 	}
 
 	reset() {
-		this.name = ''
-		this.iteration = 0
-		this.iterations = 20
-		this.lockInterceptAtZero = true
-		this.usePoint5AsProbThreshold = true
-		this.frequencyThreshold = 4
-		this.beingConstructed = false
-		this.trainingInProgress = false
-		this.trainingInStepMode = false
-		this.trainingIsComplete = false
-		this.logisticModel && this.logisticModel.reset()
+		defaultModel.logisticModel.reset();
+		this.import(defaultModel);
 	}
 
 	asJSON() {
@@ -237,23 +261,21 @@ export class Model {
 		return tCopy
 	}
 
-	fromJSON(json: any) {
+	fromJSON(json: IModel) {
 		if (json) {
-			for (const [key, value] of Object.entries(json)) {
-				this[key] = value
-			}
+			this.import(json);
 		}
 	}
 }
 
 export interface StoredModel {
-	storedTokens: { featureCaseID: number, name: string, formula: string, weight: number }[],
-	positiveClassName: string,
 	negativeClassName: string
+	positiveClassName: string
+	storedTokens: { featureCaseID: number, name: string, formula: string, weight: number }[]
 }
 
 export interface WordListSpec {
-	datasetName: string,
+	datasetName: string
 	firstAttributeName: string
 }
 

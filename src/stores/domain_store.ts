@@ -271,8 +271,8 @@ export class DomainStore {
 							values: {
 								chosen: iFeature.chosen,
 								name: iFeature.name,
-								'frequency in positive': iFeature[kPosNegConstants.positive.storeKey],
-								'frequency in negative': iFeature[kPosNegConstants.negative.storeKey]
+								'frequency in positive': iFeature.numberInPositive,
+								'frequency in negative': iFeature.numberInNegative
 							}
 						}
 					})

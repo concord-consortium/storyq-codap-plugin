@@ -116,7 +116,6 @@ export class LinearRegression {
   }
 }
 
-
 export class LogisticRegression {
 
   constructor(config) {
@@ -285,6 +284,20 @@ export class LogisticRegression {
   };
 }
 
+export function getDefaultLogisticRegression() {
+  return new LogisticRegression({
+		alpha: 1,
+		iterations: 20,
+		lambda: 0.0,
+		accuracy: 0,
+		kappa: 0,
+		lockIntercept: true,
+		threshold: 0.5,
+		trace: false,
+		progressCallback: null,
+		stepModeCallback: null
+	});
+}
 
 export var MultiClassLogistic = function (config) {
   config = config || {};
