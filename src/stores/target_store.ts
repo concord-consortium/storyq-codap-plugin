@@ -3,7 +3,7 @@
  * be accessed in more than one file or needs to be saved and restored.
  */
 
-import { makeAutoObservable, runInAction, toJS } from 'mobx'
+import { makeAutoObservable, toJS } from 'mobx'
 import React from "react";
 import {
 	Case, entityInfo, getAttributeNames, getCaseValues, getCollectionNames, getDatasetInfoWithFilter, guaranteeAttribute,
@@ -15,8 +15,6 @@ import { featureStore } from './feature_store'; // TODO Break the cycle with fea
 import { Feature, featureDescriptors, kEmptyEntityInfo, SearchDetails } from "./store_types_and_constants";
 
 export class TargetStore {
-	[index: string]: any
-
 	targetPanelMode:'welcome' | 'create' | 'chosen' = 'welcome'
 	targetDatasetInfo: entityInfo = kEmptyEntityInfo
 	datasetInfoArray: entityInfo[] = []
@@ -70,115 +68,106 @@ export class TargetStore {
 	}
 
 	getClassName(iClass: 'positive' | 'negative') {
-		const tChosenClassKey = iClass === 'positive' ? this.targetChosenClassColumnKey : (
-			this.targetChosenClassColumnKey === 'left' ? 'right' : 'left'
-		)
-		return this.targetClassNames[tChosenClassKey]
+		const tChosenClassKey = iClass === 'positive'
+			? this.targetChosenClassColumnKey
+			: this.targetChosenClassColumnKey === 'left' ? 'right' : 'left';
+		return this.targetClassNames[tChosenClassKey];
 	}
 
-	async updateFromCODAP(iPropName?: string | null, iValue?: any) {
-		const this_ = this
-
-		/**
-		 * We go through the target cases to find the first two unique values of the targetClassAttributeName
-		 */
-		function chooseClassNames() {
-			const tTargetClassAttributeName = iPropName === 'targetClassAttributeName' ? iValue : this_.targetClassAttributeName
-			if (tTargetClassAttributeName !== '' && tCaseValues.length > 0) {
-				tPositiveClassName = tCaseValues[0].values[tTargetClassAttributeName]
-				const tNegativeClassCase = tCaseValues.find(iCase => iCase.values[tTargetClassAttributeName] !== tPositiveClassName)
-				tNegativeClassName = tNegativeClassCase ? tNegativeClassCase.values[tTargetClassAttributeName] : ''
-				tClassNames = {left: tPositiveClassName, right: tNegativeClassName}
-
-				// Also make a set of the unique values of the class attribute
-				const tClassAttributeValuesSet:Set<string> = new Set()
-				tCaseValues.forEach(iCase=>{
-					tClassAttributeValuesSet.add(iCase.values[tTargetClassAttributeName])
-				})
-				tClassAttributeValues = Array.from(tClassAttributeValuesSet)
-			}
-		}
-
-		function gatherColumnFeatures() {
-			if( tAttrNames.length > 0 && this_.targetAttributeName !== '' &&
-					this_.targetClassAttributeName !== '') {
-				tColumnFeatureNames = tAttrNames.filter(iName=>{
-					return iName !== this_.targetAttributeName && iName !== this_.targetClassAttributeName &&
-					featureStore.features.map(iFeature => iFeature.name).indexOf(iName) < 0
-				})
-			}
-		}
+	async updateFromCODAP(args: { targetClassAttributeName?: string } = {}) {
+		const { targetClassAttributeName } = args;
 
 		const tDatasetNames = await getDatasetInfoWithFilter((anInfo:entityInfo) => {
 			return anInfo && anInfo.numAttributes ? anInfo.numAttributes > 1 : false
 		});
-		let tCollectionNames: string[] = []
-		let tCollectionName = ''
-		let tAttrNames: string[] = []
-		let tCaseValues: Case[] = []
-		let tPositiveClassName = ''
-		let tNegativeClassName = ''
-		let tClassNames = {left: '', right: ''}
-		let tClassAttributeValues:string[]
-		let tColumnFeatureNames:string[] = []
-		const tTargetDatasetName = this.targetDatasetInfo.name
+		let tCollectionNames: string[] = [];
+		let tCollectionName = '';
+		let tAttrNames: string[] = [];
+		let tCaseValues: Case[] = [];
+		let tPositiveClassName = '';
+		let tNegativeClassName = '';
+		let tClassNames = {left: '', right: ''};
+		let tClassAttributeValues: string[] = [];
+		let tColumnFeatureNames: string[] = [];
+		const tTargetDatasetName = this.targetDatasetInfo.name;
 		if (tTargetDatasetName !== '') {
-			tCollectionNames = await getCollectionNames(tTargetDatasetName)
-			tCollectionName = tCollectionNames.length > 0 ? tCollectionNames[0] : ''
-			tAttrNames = tCollectionName !== '' ? await getAttributeNames(tTargetDatasetName, tCollectionName) : []
-			tAttrNames = tAttrNames.filter(iName=>iName!==this.targetFeatureIDsAttributeName)
-			tCaseValues = this.targetAttributeName !== '' ? await getCaseValues(tTargetDatasetName,
-				tCollectionName) : []
-			chooseClassNames()
+			tCollectionNames = await getCollectionNames(tTargetDatasetName);
+			tCollectionName = tCollectionNames.length > 0 ? tCollectionNames[0] : '';
+			tAttrNames = tCollectionName !== '' ? await getAttributeNames(tTargetDatasetName, tCollectionName) : [];
+			tAttrNames = tAttrNames.filter(iName=>iName!==this.targetFeatureIDsAttributeName);
+			tCaseValues = this.targetAttributeName !== ''
+				? await getCaseValues(tTargetDatasetName, tCollectionName) : [];
+
+			// choose class names
+			const tTargetClassAttributeName = targetClassAttributeName ?? this.targetClassAttributeName;
+			if (tTargetClassAttributeName !== '' && tCaseValues.length > 0) {
+				tPositiveClassName = tCaseValues[0].values[tTargetClassAttributeName];
+				const tNegativeClassCase =
+					tCaseValues.find(iCase => iCase.values[tTargetClassAttributeName] !== tPositiveClassName);
+				tNegativeClassName = tNegativeClassCase ? tNegativeClassCase.values[tTargetClassAttributeName] : '';
+				tClassNames = {left: tPositiveClassName, right: tNegativeClassName};
+
+				// Also make a set of the unique values of the class attribute
+				const tClassAttributeValuesSet: Set<string> = new Set();
+				tCaseValues.forEach(iCase => {
+					tClassAttributeValuesSet.add(iCase.values[tTargetClassAttributeName]);
+				})
+				tClassAttributeValues = Array.from(tClassAttributeValuesSet);
+			}
+
 			for (let i = 0; i < Math.min(40, tCaseValues.length); i++) {
-				this.textRefs[i] = {ownerCaseID: tCaseValues[i].id, ref: React.createRef()}
+				this.textRefs[i] = { ownerCaseID: tCaseValues[i].id, ref: React.createRef() };
 			}
 		}
-		gatherColumnFeatures()
 
-		runInAction(() => {
-			this.datasetInfoArray = tDatasetNames
-			this.targetCollectionName = tCollectionName
-			this.targetAttributeNames = tAttrNames
-			this.targetCases = tCaseValues
-			this.targetClassNames = tClassNames
-			if (iPropName)
-				this[iPropName] = iValue
-			this.targetClassAttributeValues = tClassAttributeValues
-			this.targetPredictedLabelAttributeName = 'predicted ' + this.targetClassAttributeName
-			this.targetColumnFeatureNames = tColumnFeatureNames
-		})
+		// gather column features
+		if (
+			tAttrNames.length > 0 && this.targetAttributeName !== '' && this.targetClassAttributeName !== ''
+		) {
+			tColumnFeatureNames = tAttrNames.filter(iName => {
+				return iName !== this.targetAttributeName && iName !== this.targetClassAttributeName &&
+					featureStore.features.map(iFeature => iFeature.name).indexOf(iName) < 0;
+			});
+		}
+
+		this.datasetInfoArray = tDatasetNames;
+		this.targetCollectionName = tCollectionName;
+		this.targetAttributeNames = tAttrNames;
+		this.targetCases = tCaseValues;
+		this.targetClassNames = tClassNames;
+		if (targetClassAttributeName) this.targetClassAttributeName = targetClassAttributeName;
+		this.targetClassAttributeValues = tClassAttributeValues;
+		this.targetPredictedLabelAttributeName = 'predicted ' + this.targetClassAttributeName;
+		this.targetColumnFeatureNames = tColumnFeatureNames;
+			
 		if (tTargetDatasetName !== '' && this.targetCollectionName !== '') {
-			await guaranteeAttribute({name: this.targetFeatureIDsAttributeName, hidden: true},
-				tTargetDatasetName, this.targetCollectionName)
+			await guaranteeAttribute({ name: this.targetFeatureIDsAttributeName, hidden: true },
+				tTargetDatasetName, this.targetCollectionName);
 		}
 	}
 
 	resetTargetDataForNewTarget() {
-		this.targetCollectionName = ''
-		this.targetAttributeNames = []
-		this.targetAttributeName = ''
-		this.targetPredictedLabelAttributeName = ''
-		this.targetCases = []
-		this.targetClassAttributeName = ''
-		this.targetClassAttributeValues = []
-		this.targetClassNames = {left: '', right: ''}
-		this.targetColumnFeatureNames = []
-		this.targetLeftColumnKey = 'left'
-		this.targetChosenClassColumnKey = ''
-
+		this.targetCollectionName = '';
+		this.targetAttributeNames = [];
+		this.targetAttributeName = '';
+		this.targetPredictedLabelAttributeName = '';
+		this.targetCases = [];
+		this.targetClassAttributeName = '';
+		this.targetClassAttributeValues = [];
+		this.targetClassNames = { left: '', right: '' };
+		this.targetColumnFeatureNames = [];
+		this.targetLeftColumnKey = 'left';
+		this.targetChosenClassColumnKey = '';
 	}
 
 	async updateTargetCases(formula?: string) {
-		const tTargetDatasetName = this.targetDatasetInfo.name,
-			tCollectionName = this.targetCollectionName,
-			tCaseValues = this.targetAttributeName !== ''
-				? await getCaseValues(tTargetDatasetName, tCollectionName, formula)
-				: []
-		runInAction(() => {
-			this.targetCases = tCaseValues
-		})
-		return tCaseValues
+		const tTargetDatasetName = this.targetDatasetInfo.name;
+		const tCollectionName = this.targetCollectionName;
+		this.targetCases = this.targetAttributeName !== ''
+			? await getCaseValues(tTargetDatasetName, tCollectionName, formula)
+			: [];
+
+		return this.targetCases;
 	}
 
 	/**
@@ -186,6 +175,7 @@ export class TargetStore {
 	 * @param iNewFeature
 	 * @param iUpdate
 	 */
+	// TODO Clean up this function
 	async addOrUpdateFeatureToTarget(iNewFeature: Feature, iUpdate ?: boolean) {
 		const this_ = this,
 			tTargetAttr = `\`${this_.targetAttributeName}\``

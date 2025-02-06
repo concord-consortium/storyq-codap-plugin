@@ -28,11 +28,7 @@ export const TargetPanel = observer(class TargetPanel extends Component {
 		'chosen-no-chosen-pos-class' | 'chosen-complete' | 'create' = 'welcome'
 
 	public async componentDidMount() {
-		await this.updateTargetPanelInfo();
-	}
-
-	async updateTargetPanelInfo(iPropName?: string | null, iValue?: any) {
-		await targetStore.updateFromCODAP(iPropName, iValue)
+		await targetStore.updateFromCODAP();
 	}
 
 	render() {
@@ -83,7 +79,7 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 						this_.targetPanelConstants.createNewEntityInfo;
 					if (newInfo.title !== this_.targetPanelConstants.createNewEntityInfo.title) {
 						targetStore.targetDatasetInfo = newInfo;
-						await this_.updateTargetPanelInfo()
+						await targetStore.updateFromCODAP()
 						action(()=> {
 							targetStore.targetPanelMode = 'chosen'
 						})()
@@ -220,7 +216,7 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 							noDataText="No attributes to choose from"
 							onValueChange={async (iChoice) => {
 								targetStore.targetAttributeName = iChoice;
-								await this_.updateTargetPanelInfo();
+								await targetStore.updateFromCODAP();
 								textStore.addTextComponent();
 							}}
 							placeHolder="Choose from"
@@ -246,7 +242,7 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 							hint={tHint}
 							noDataText="No attributes to choose from"
 							onValueChange={async (iChoice) => {
-								await this_.updateTargetPanelInfo('targetClassAttributeName', iChoice);
+								await targetStore.updateFromCODAP({ targetClassAttributeName: iChoice });
 							}}
 							placeHolder="Choose an attribute with labels"
 							prompt={tPrompt}
