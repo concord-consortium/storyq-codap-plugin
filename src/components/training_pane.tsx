@@ -295,10 +295,11 @@ export const TrainingPane = observer(class TrainingPane extends Component {
 		}
 
 		function getModelResults() {
+			const { trainingResults } = trainingStore;
 
 			function getIsActiveButon(iIndex: number) {
-				const tTrainingResult = tResults[iIndex],
-					tIsDisabled = tResults.length < 2,
+				const tTrainingResult = trainingResults[iIndex],
+					tIsDisabled = trainingResults.length < 2,
 					tHint = tTrainingResult.isActive ? SQ.hints.trainingMakeModelInactive : SQ.hints.trainingMakeModelActive
 				return (
 					<td
@@ -330,8 +331,7 @@ export const TrainingPane = observer(class TrainingPane extends Component {
 				}
 			}
 
-			const tResults = trainingStore.trainingResults
-			if (tResults.length > 0) {
+			if (trainingResults.length > 0) {
 				return (
 					<table>
 						<thead>
@@ -348,7 +348,7 @@ export const TrainingPane = observer(class TrainingPane extends Component {
 						</tr>
 						</thead>
 						<tbody className='sq-model-table'>
-						{tResults.map((iResult, iIndex) => {
+						{trainingResults.map((iResult, iIndex) => {
 							const tFeatureNames = iResult.featureNames && iResult.featureNames.map((iName, iIndex)=>{
 								return <p key={'f'+iIndex}>{iName}</p>
 							})

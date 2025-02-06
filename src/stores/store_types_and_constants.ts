@@ -237,7 +237,6 @@ export class Model {
 			}
 		}
 	}
-
 }
 
 export interface StoredModel {

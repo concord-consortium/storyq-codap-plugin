@@ -3,8 +3,8 @@
  * be accessed in more than one file or needs to be saved and restored.
  */
 
-import {makeAutoObservable, runInAction, toJS} from 'mobx'
-import {Model, TrainingResult} from "./store_types_and_constants";
+import { makeAutoObservable, runInAction, toJS } from 'mobx'
+import { Model, TrainingResult } from "./store_types_and_constants";
 
 export class TrainingStore {
 	model: Model;
@@ -12,7 +12,7 @@ export class TrainingStore {
 	resultCaseIDs: number[] = [];
 
 	constructor() {
-		makeAutoObservable(this, {resultCaseIDs: false}, {autoBind: true});
+		makeAutoObservable(this, { resultCaseIDs: false }, { autoBind: true });
 		this.model = new Model();
 	}
 
@@ -37,17 +37,16 @@ export class TrainingStore {
 		});
 	}
 
-	getTrainingResultByName(iModelName:string) {
+	getTrainingResultByName(iModelName: string) {
 		return this.trainingResults.find(iResult => iResult.name === iModelName);
 	}
 
-	getFirstActiveModelName() {
-		const tActiveResult = this.trainingResults.find(iResult => iResult.isActive);
-		return tActiveResult ? tActiveResult.name : '';
+	get firstActiveModelName() {
+		return this.trainingResults.find(iResult => iResult.isActive)?.name ?? '';
 	}
 
 	checkForActiveModel() {
-		if( this.getFirstActiveModelName() === '' && this.trainingResults.length > 0)
+		if (this.firstActiveModelName === '' && this.trainingResults.length > 0)
 			this.trainingResults[0].isActive = true;
 	}
 }

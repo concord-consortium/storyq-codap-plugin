@@ -247,7 +247,7 @@ export class ModelManager {
 
 		await guaranteeResultsCollection()
 
-		trainingStore.resultCaseIDs = tResultCaseIDsToFill
+		trainingStore.resultCaseIDs = tResultCaseIDsToFill;
 	}
 
 	async cancel() {
@@ -276,10 +276,9 @@ export class ModelManager {
 		async function wipeResultsInTarget() {
 			const tTargetDatasetName = targetStore.targetDatasetInfo.name,
 				tResultsCollectionName = targetStore.targetResultsCollectionName,
-				tResultCaseIDs = trainingStore.resultCaseIDs,
 				tPredictedLabelAttributeName = targetStore.targetPredictedLabelAttributeName,
 				tProbName = `probability of ${targetStore.getClassName('positive')}`,
-				tUpdateRequests = tResultCaseIDs.map(iID => {
+				tUpdateRequests = trainingStore.resultCaseIDs.map(iID => {
 					const tRequest: any = {
 						id: iID,
 						values: {
@@ -402,22 +401,20 @@ export class ModelManager {
 	}
 
 	async progressBar(iIteration: number) {
-		const tTrainingStore = trainingStore,
-			tModel = tTrainingStore.model,
+		const tModel = trainingStore.model,
 			tIterations = tModel.iterations,
 			this_ = this
 		runInAction(async () => {
 			tModel.iteration = iIteration
 			if (iIteration >= tIterations) {
-				const tLogisticModel = tModel.logisticModel,
-					tTrainingResults = trainingStore.trainingResults
+				const tLogisticModel = tModel.logisticModel;
 
 				await this_.computeResults(tModel.logisticModel.fitResult.theta)
 
 				action(() => {
-					tTrainingStore.inactivateAll()
+					trainingStore.inactivateAll()
 
-					tTrainingResults.push({
+					trainingStore.trainingResults.push({
 						name: tModel.name,
 						targetDatasetName: targetStore.targetDatasetInfo.name,
 						isActive: true,
@@ -654,8 +651,7 @@ export class ModelManager {
 			tProbName = `${kProbPredAttrNamePrefix}${iTools.positiveClassName}`,
 			tPredictedLabelAttributeName = targetStore.targetPredictedLabelAttributeName,
 			tTargetDatasetName = targetStore.targetDatasetInfo.name,
-			tResultsCollectionName = targetStore.targetResultsCollectionName,
-			tResultCaseIDs = trainingStore.resultCaseIDs
+			tResultsCollectionName = targetStore.targetResultsCollectionName;
 
 		// Create values of predicted label and probability for each document
 		let tThresholdResult = findThreshold(),
@@ -684,7 +680,7 @@ export class ModelManager {
 
 			// if (tWeAreUpdating) {
 			tLabelValuesForUpdating.push({
-				id: tResultCaseIDs[iIndex],
+				id: trainingStore.resultCaseIDs[iIndex],
 				values: tValues
 			})
 			/*

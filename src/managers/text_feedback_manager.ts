@@ -215,7 +215,7 @@ export class TextFeedbackManager {
 				}
 
 				const tChildren = await this.getChildCases(tGetCaseResult.values.case.children, tDatasetName, 'results'),
-					tFoundChild = tChildren.find(iChild => iChild['model name'] === trainingStore.getFirstActiveModelName()),
+					tFoundChild = tChildren.find(iChild => iChild['model name'] === trainingStore.firstActiveModelName),
 					tPredictedClass = tFoundChild ? tFoundChild[tPredictedLabelAttributeName] : '',
 					tActualClass = tGetCaseResult.values.case.values[tClassAttributeName],
 					tPhrase = tGetCaseResult.values.case.values[tAttributeName],
@@ -351,7 +351,7 @@ export class TextFeedbackManager {
 						}),
 						tChildRequestResults: any = await codapInterface.sendRequest(tChildRequests),
 						tFoundChild = tChildRequestResults.find((iChildResult: any) => {
-							return iChildResult.values.case.values['model name'] === trainingStore.getFirstActiveModelName();
+							return iChildResult.values.case.values['model name'] === trainingStore.firstActiveModelName;
 						})
 					tPredictedResult = tFoundChild ? tFoundChild.values.case.values[tPredictedLabelAttributeName] : ''
 				}
