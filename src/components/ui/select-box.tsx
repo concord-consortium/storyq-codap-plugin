@@ -65,7 +65,7 @@ export const SelectBox = (props: ISelectBoxProps) => {
               onChange={handleChange}
               title={hint}
             >
-              {placeholder && <option value="" disabled selected={value === undefined}>{placeholder}</option>}
+              {placeholder && <option value="" disabled>{placeholder}</option>}
               {dataSource.map((item, index) => {
                 if ((typeof item === "string") || (typeof item === "number")) {
                   return <option key={`${item}-${index}`} value={item}>{item}</option>
