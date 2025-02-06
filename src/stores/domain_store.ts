@@ -8,7 +8,7 @@ import codapInterface from "../lib/CodapInterface";
 import { oneHot, wordTokenizer } from "../lib/one_hot";
 import { featureStore } from "./feature_store";
 import { Feature, kPosNegConstants } from "./store_types_and_constants";
-import { targetStore } from "./target_store";
+import { otherClassColumn, targetStore } from "./target_store";
 import { ITestingStore, testingStore } from "./testing_store";
 import { textStore } from "./text_store";
 import { trainingStore } from "./training_store";
@@ -69,8 +69,8 @@ export class DomainStore {
 		if (featureStore.features.length > 0) {
 			if (featureStore.featureDatasetInfo.datasetID === -1) {
 				const tChosenClassKey = targetStore.targetChosenClassColumnKey,
-					tUnchosenClassKey = tChosenClassKey === 'left' ? 'right' : 'left',
-					tPositiveAttrName = kPosNegConstants.positive.attrKey + targetStore.targetClassNames[tChosenClassKey],
+					tUnchosenClassKey = otherClassColumn(tChosenClassKey),
+					tPositiveAttrName = kPosNegConstants.positive.attrKey + targetStore.getTargetClassName(tChosenClassKey),
 					tNegativeAttrName = kPosNegConstants.negative.attrKey + targetStore.targetClassNames[tUnchosenClassKey],
 					tCreateResult: any = await codapInterface.sendRequest({
 						action: 'create',
@@ -155,9 +155,7 @@ export class DomainStore {
 		}
 
 		async function updateFrequenciesUsagesAndFeatureIDs() {
-			const tClassAttrName = targetStore.targetClassAttributeName,
-				tChosenClassKey = targetStore.targetChosenClassColumnKey,
-				tPosClassLabel = targetStore.targetClassNames[tChosenClassKey]
+			const tChosenClassKey = targetStore.targetChosenClassColumnKey;
 
 			tNonNgramFeatures.forEach(iFeature => {
 				iFeature.numberInPositive = 0
@@ -176,7 +174,7 @@ export class DomainStore {
 				const tTargetCases = await targetStore.updateTargetCases(`\`${iFeature.name}\`=true`)
 				tTargetCases.forEach(iCase => {
 					if (iCase.values[iFeature.name]) {
-						if (iCase.values[tClassAttrName] === tPosClassLabel) {
+						if (iCase.values[targetStore.targetClassAttributeName] === targetStore.getTargetClassName(tChosenClassKey)) {
 							iFeature.numberInPositive++
 						} else {
 							iFeature.numberInNegative++
@@ -225,8 +223,8 @@ export class DomainStore {
 			if (tFeaturesToAdd.length > 0) {
 				const tValues = tFeaturesToAdd.map(iFeature => {
 					const tChosenClassKey = targetStore.targetChosenClassColumnKey,
-						tUnchosenClassKey = tChosenClassKey === 'left' ? 'right' : 'left',
-						tPositiveAttrName = kPosNegConstants.positive.attrKey + targetStore.targetClassNames[tChosenClassKey],
+						tUnchosenClassKey = otherClassColumn(tChosenClassKey),
+						tPositiveAttrName = kPosNegConstants.positive.attrKey + targetStore.getTargetClassName(tChosenClassKey),
 						tNegativeAttrName = kPosNegConstants.negative.attrKey + targetStore.targetClassNames[tUnchosenClassKey]
 					let tValuesObject: { values: { [index: string]: {} } } = {
 						values: {
@@ -310,20 +308,18 @@ export class DomainStore {
 				tFeatureCollectionName = featureStore.featureDatasetInfo.collectionName,
 				tIgnore = iNtgramFeature.info.ignoreStopWords !== undefined ? iNtgramFeature.info.ignoreStopWords : true,
 				tThreshold = (iNtgramFeature.info.frequencyThreshold || 4),
-				tTargetCases = targetStore.targetCases,
 				tTargetAttributeName = targetStore.targetAttributeName,
-				tTargetClassAttributeName = targetStore.targetClassAttributeName,
-				tDocuments = tTargetCases.map(iCase => {
+				tDocuments = targetStore.targetCases.map(iCase => {
 					return {
 						example: iCase.values[tTargetAttributeName],
-						class: iCase.values[tTargetClassAttributeName],
+						class: iCase.values[targetStore.targetClassAttributeName],
 						caseID: Number(iCase.id),
 						columnFeatures: {}
 					}
 				}),
 				tChosenClassKey = targetStore.targetChosenClassColumnKey,
-				tUnchosenClassKey = tChosenClassKey === 'left' ? 'right' : 'left',
-				tPositiveAttrName = kPosNegConstants.positive.attrKey + targetStore.targetClassNames[tChosenClassKey],
+				tUnchosenClassKey = otherClassColumn(tChosenClassKey),
+				tPositiveAttrName = kPosNegConstants.positive.attrKey + targetStore.getTargetClassName(tChosenClassKey),
 				tNegativeAttrName = kPosNegConstants.negative.attrKey + targetStore.targetClassNames[tUnchosenClassKey]
 			// tokenize the target texts
 			const tOneHotResult = oneHot({
@@ -373,7 +369,7 @@ export class DomainStore {
 				})
 				// Put together update messages for the target cases
 				const tUpdateMsgs: { id: number, values: { featureIDs: number[] | string } }[] = []
-				tTargetCases.forEach(iCase => {
+				targetStore.targetCases.forEach(iCase => {
 					// console.log(`iCase = ${JSON.stringify(toJS(iCase))}`)
 					const tTheseFeatureIDs = iCase.values.featureIDs
 					const tUpdateValue = {id: iCase.id, values: {featureIDs: tTheseFeatureIDs ? JSON.parse(tTheseFeatureIDs) : []}}
@@ -398,7 +394,7 @@ export class DomainStore {
 
 	featuresPanelCanBeEnabled() {
 		return targetStore.targetAttributeName !== '' && targetStore.targetClassAttributeName !== ''
-			&& targetStore.targetChosenClassColumnKey !== ''
+			&& targetStore.targetChosenClassColumnKey
 	}
 
 	trainingPanelCanBeEnabled() {

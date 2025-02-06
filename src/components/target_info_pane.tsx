@@ -4,12 +4,12 @@
 
 import { observer } from "mobx-react";
 import React from "react";
-import { targetStore } from "../stores/target_store";
+import { otherClassColumn, targetStore } from "../stores/target_store";
 
 export const TargetInfoPane = observer(function TargetInfoPane() {
 	function getInfo() {
 		if (targetStore.targetDatasetInfo.title !== '') {
-			const tNegKey = targetStore.targetChosenClassColumnKey === 'left' ? 'right' : 'left';
+			const tNegKey = otherClassColumn(targetStore.targetChosenClassColumnKey);
 			const tNegName = targetStore.targetClassNames[tNegKey];
 			
 			return (
@@ -19,7 +19,9 @@ export const TargetInfoPane = observer(function TargetInfoPane() {
 						<p>Labels: <strong>{targetStore.targetClassAttributeName}</strong></p>
 					</div>
 					<div className="sq-info-column">
-						<p>Target Label: <strong>{targetStore.targetClassNames[targetStore.targetChosenClassColumnKey]}</strong></p>
+						<p>
+							Target Label: <strong>{targetStore.getTargetClassName(targetStore.targetChosenClassColumnKey)}</strong>
+						</p>
 						<p>Other Label(s): <strong>{tNegName}</strong></p>
 					</div>
 				</div>

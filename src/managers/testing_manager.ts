@@ -34,7 +34,6 @@ export class TestingManager {
 			tClassAttributeName = testingStore.testingClassAttributeName,
 			tTargetPredictedProbabilityName = kProbPredAttrNamePrefix + tPositiveClassName,
 			tTargetPredictedLabelAttributeName = targetStore.targetPredictedLabelAttributeName,
-			tTargetFeatureIDsAttributeName = targetStore.targetFeatureIDsAttributeName,
 			tLabelValues:{id:number, values:any}[] = [],
 			tMatrix = {posPos: 0, negPos: 0, posNeg: 0, negNeg: 0},
 			tTestingResult: TestingResult = {
@@ -82,12 +81,12 @@ export class TestingManager {
 							precision: 3
 						})
 				}
-				const tFeatureIDsAttributeExists = await attributeExists(tTestingDatasetName, tTestingCollectionName,
-					targetStore.targetFeatureIDsAttributeName)
+				const tFeatureIDsAttributeExists =
+					await attributeExists(tTestingDatasetName, tTestingCollectionName, targetStore.targetFeatureIDsAttributeName);
 				if (!tFeatureIDsAttributeExists)
 					tAttributeRequests.push(
 						{
-							name: tTargetFeatureIDsAttributeName,
+							name: targetStore.targetFeatureIDsAttributeName,
 							hidden: true
 						})
 
@@ -141,7 +140,7 @@ export class TestingManager {
 				tCaseValues[tTargetPredictedLabelAttributeName] = tPrediction.class ?
 					tPositiveClassName : tNegativeClassName;
 				tCaseValues[tTargetPredictedProbabilityName] = tPrediction.probability * 100;	// Convert to %
-				tCaseValues[tTargetFeatureIDsAttributeName] = JSON.stringify(tFeatureIDs);
+				tCaseValues[targetStore.targetFeatureIDsAttributeName] = JSON.stringify(tFeatureIDs);
 				tLabelValues.push({
 					id: tPhraseID,
 					values: tCaseValues

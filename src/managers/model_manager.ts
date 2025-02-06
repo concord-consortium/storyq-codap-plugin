@@ -168,10 +168,9 @@ export class ModelManager {
 		 * probabilities for each target text for each model
 		 */
 		async function guaranteeResultsCollection() {
-			const tTargetClassAttributeName = targetStore.targetClassAttributeName,
-				tPositiveClassName = targetStore.getClassName('positive'),
+			const tPositiveClassName = targetStore.getClassName('positive'),
 				tResultsCollectionName = targetStore.targetResultsCollectionName
-			if (tTargetClassAttributeName !== '' && tPositiveClassName !== '') {
+			if (targetStore.targetClassAttributeName !== '' && tPositiveClassName !== '') {
 				const tCollectionListResult: any = await codapInterface.sendRequest({
 					action: 'get',
 					resource: `dataContext[${tTargetDatasetName}].collectionList`
@@ -275,7 +274,6 @@ export class ModelManager {
 
 		async function wipeResultsInTarget() {
 			const tTargetDatasetName = targetStore.targetDatasetInfo.name,
-				tResultsCollectionName = targetStore.targetResultsCollectionName,
 				tPredictedLabelAttributeName = targetStore.targetPredictedLabelAttributeName,
 				tProbName = `probability of ${targetStore.getClassName('positive')}`,
 				tUpdateRequests = trainingStore.resultCaseIDs.map(iID => {
@@ -291,7 +289,7 @@ export class ModelManager {
 				})
 			await codapInterface.sendRequest({
 				action: 'update',
-				resource: `dataContext[${tTargetDatasetName}].collection[${tResultsCollectionName}].case`,
+				resource: `dataContext[${tTargetDatasetName}].collection[${targetStore.targetResultsCollectionName}].case`,
 				values: tUpdateRequests,
 			})
 		}
@@ -310,7 +308,6 @@ export class ModelManager {
 
 		const tTargetDatasetName = targetStore.targetDatasetInfo.name,
 			tTargetAttributeName = targetStore.targetAttributeName,
-			tTargetClassAttributeName = targetStore.targetClassAttributeName,
 			tTargetColumnFeatureNames = featureStore.targetColumnFeatureNames,
 			tNonNgramFeatures = featureStore.getChosenFeatures().filter(iFeature => iFeature.info.kind !== 'ngram'),
 			tNgramFeatures = featureStore.getChosenFeatures().filter(iFeature => iFeature.info.kind === 'ngram'),
@@ -331,17 +328,17 @@ export class ModelManager {
 			tLogisticModel.stepModeCallback = trainingStore.model.trainingInStepMode ?
 				this_.stepModeCallback : null
 			tLogisticModel.lockIntercept = trainingStore.model.lockInterceptAtZero
-			const tCases = targetStore.targetCases,
-				tColumnNames = tTargetColumnFeatureNames.concat(
-					featureStore.getChosenFeatures().map(iFeature => {
-						return iFeature.name;
-					}))
+			const tColumnNames = tTargetColumnFeatureNames.concat(
+				featureStore.getChosenFeatures().map(iFeature => {
+					return iFeature.name;
+				})
+			);
 			// Grab the strings in the target collection that are the values of the target attribute.
 			// Stash these in an array that can be used to produce a oneHot representation
-			tCases.forEach(iCase => {
+			targetStore.targetCases.forEach(iCase => {
 				const tCaseID = iCase.id,
 					tText = iCase.values[tTargetAttributeName],
-					tClass = iCase.values[tTargetClassAttributeName],
+					tClass = iCase.values[targetStore.targetClassAttributeName],
 					tColumnFeatures: { [key: string]: number | boolean } = {};
 				// We're going to put column features into each document as well so one-hot can include them in the vector
 				tColumnNames.forEach((aName) => {
@@ -650,8 +647,7 @@ export class ModelManager {
 			kProbPredAttrNamePrefix = 'probability of ',
 			tProbName = `${kProbPredAttrNamePrefix}${iTools.positiveClassName}`,
 			tPredictedLabelAttributeName = targetStore.targetPredictedLabelAttributeName,
-			tTargetDatasetName = targetStore.targetDatasetInfo.name,
-			tResultsCollectionName = targetStore.targetResultsCollectionName;
+			tTargetDatasetName = targetStore.targetDatasetInfo.name;
 
 		// Create values of predicted label and probability for each document
 		let tThresholdResult = findThreshold(),
@@ -702,7 +698,7 @@ export class ModelManager {
 		// 	tResultCaseIDs.length = 0
 		await codapInterface.sendRequest({
 			action: 'update',
-			resource: `dataContext[${tTargetDatasetName}].collection[${tResultsCollectionName}].case`,
+			resource: `dataContext[${tTargetDatasetName}].collection[${targetStore.targetResultsCollectionName}].case`,
 			values: tLabelValuesForUpdating,
 		})
 		/*

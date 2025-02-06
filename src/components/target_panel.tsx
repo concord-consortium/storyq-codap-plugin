@@ -81,9 +81,7 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 					if (newInfo.title !== this_.targetPanelConstants.createNewEntityInfo.title) {
 						targetDatasetStore.setTargetDatasetInfo(newInfo);
 						await targetStore.updateFromCODAP()
-						action(()=> {
-							targetStore.targetPanelMode = 'chosen'
-						})()
+						targetStore.setTargetPanelMode('chosen');
 					} else if(iChoice === tNewDatasetChoice) {
 						let tContextName = 'Training Data',
 							n = 1
@@ -128,9 +126,7 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 							name: tContextName,
 							id: tResults[0].values.id
 						});
-						action(()=> {
-							targetStore.targetPanelMode = 'chosen'
-						})()
+						targetStore.setTargetPanelMode('chosen');
 					}
 				}
 
@@ -216,7 +212,7 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 							hint={tHint}
 							noDataText="No attributes to choose from"
 							onValueChange={async (iChoice) => {
-								targetStore.targetAttributeName = iChoice;
+								targetStore.setTargetAttributeName(iChoice);
 								await targetStore.updateFromCODAP();
 								textStore.addTextComponent();
 							}}
@@ -348,7 +344,7 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 						this_.currState = 'chosen-no-target-attribute'
 					else if (targetStore.targetClassAttributeName === '')
 						this_.currState = 'chosen-no-target-label-attribute'
-					else if (targetStore.targetChosenClassColumnKey === '')
+					else if (!targetStore.targetChosenClassColumnKey)
 						this_.currState = 'chosen-no-chosen-pos-class'
 					else
 						this_.currState = 'chosen-complete'

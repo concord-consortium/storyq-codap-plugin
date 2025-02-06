@@ -4,7 +4,6 @@
  */
 
 import { makeAutoObservable, toJS } from 'mobx'
-import React from "react";
 import {
 	Case, entityInfo, getAttributeNames, getCaseValues, getCollectionNames, getDatasetInfoWithFilter, guaranteeAttribute,
 	scrollCaseTableToRight
@@ -15,8 +14,16 @@ import { featureStore } from './feature_store';
 import { targetDatasetStore } from './target_dataset_store';
 import { Feature, featureDescriptors, kEmptyEntityInfo, SearchDetails } from "./store_types_and_constants";
 
+type panelModes = 'welcome' | 'create' | 'chosen';
+type classColumns = "left" | "right";
+type maybeClassColumns = classColumns | undefined;
+
+export function otherClassColumn(column: maybeClassColumns) {
+	return column === "left" ? "right" : "left";
+}
+
 export class TargetStore {
-	targetPanelMode:'welcome' | 'create' | 'chosen' = 'welcome'
+	targetPanelMode: panelModes = 'welcome'
 	datasetInfoArray: entityInfo[] = []
 	targetCollectionName: string = ''
 	targetAttributeNames: string[] = []
@@ -27,14 +34,25 @@ export class TargetStore {
 	targetCases: Case[] = []
 	targetClassAttributeName: string = ''
 	targetClassAttributeValues: string[] = []
-	targetClassNames: { [index: string]: string, left: string, right: string } = {left: '', right: ''}
-	targetColumnFeatureNames:string[] = []
-	targetLeftColumnKey: 'left' | 'right' = 'left'
-	targetChosenClassColumnKey: '' | 'left' | 'right' = ''
-	textRefs: { ownerCaseID: number, ref: React.RefObject<any> }[] = []
+	targetClassNames: Record<classColumns, string> = { left: "", right: "" }
+	targetColumnFeatureNames: string[] = []
+	targetLeftColumnKey: classColumns = 'left'
+	targetChosenClassColumnKey: maybeClassColumns
 
 	constructor() {
-		makeAutoObservable(this, { textRefs: false, targetLeftColumnKey: false }, { autoBind: true });
+		makeAutoObservable(this, { targetLeftColumnKey: false }, { autoBind: true });
+	}
+
+	setTargetPanelMode(mode: panelModes) {
+		this.targetPanelMode = mode;
+	}
+
+	setTargetAttributeName(name: string) {
+		this.targetAttributeName = name;
+	}
+
+	setTargetChosenClassColumnKey(key: maybeClassColumns) {
+		this.targetChosenClassColumnKey = key;
 	}
 
 	asJSON() {
@@ -67,11 +85,15 @@ export class TargetStore {
 		this.targetChosenClassColumnKey = json.targetChosenClassColumnKey || ''
 	}
 
+	getTargetClassName(key: maybeClassColumns) {
+		return key ? this.targetClassNames[key] : "";
+	}
+
 	getClassName(iClass: 'positive' | 'negative') {
 		const tChosenClassKey = iClass === 'positive'
 			? this.targetChosenClassColumnKey
-			: this.targetChosenClassColumnKey === 'left' ? 'right' : 'left';
-		return this.targetClassNames[tChosenClassKey];
+			: otherClassColumn(this.targetChosenClassColumnKey);
+		return this.getTargetClassName(tChosenClassKey);
 	}
 
 	get targetDatasetInfo() {
@@ -90,7 +112,7 @@ export class TargetStore {
 		let tCaseValues: Case[] = [];
 		let tPositiveClassName = '';
 		let tNegativeClassName = '';
-		let tClassNames = {left: '', right: ''};
+		let tClassNames = { left: '', right: '' };
 		let tClassAttributeValues: string[] = [];
 		let tColumnFeatureNames: string[] = [];
 		const tTargetDatasetName = this.targetDatasetInfo.name;
@@ -98,7 +120,7 @@ export class TargetStore {
 			tCollectionNames = await getCollectionNames(tTargetDatasetName);
 			tCollectionName = tCollectionNames.length > 0 ? tCollectionNames[0] : '';
 			tAttrNames = tCollectionName !== '' ? await getAttributeNames(tTargetDatasetName, tCollectionName) : [];
-			tAttrNames = tAttrNames.filter(iName=>iName!==this.targetFeatureIDsAttributeName);
+			tAttrNames = tAttrNames.filter(iName => iName !== this.targetFeatureIDsAttributeName);
 			tCaseValues = this.targetAttributeName !== ''
 				? await getCaseValues(tTargetDatasetName, tCollectionName) : [];
 
@@ -109,7 +131,7 @@ export class TargetStore {
 				const tNegativeClassCase =
 					tCaseValues.find(iCase => iCase.values[tTargetClassAttributeName] !== tPositiveClassName);
 				tNegativeClassName = tNegativeClassCase ? tNegativeClassCase.values[tTargetClassAttributeName] : '';
-				tClassNames = {left: tPositiveClassName, right: tNegativeClassName};
+				tClassNames = { left: tPositiveClassName, right: tNegativeClassName };
 
 				// Also make a set of the unique values of the class attribute
 				const tClassAttributeValuesSet: Set<string> = new Set();
@@ -117,10 +139,6 @@ export class TargetStore {
 					tClassAttributeValuesSet.add(iCase.values[tTargetClassAttributeName]);
 				})
 				tClassAttributeValues = Array.from(tClassAttributeValuesSet);
-			}
-
-			for (let i = 0; i < Math.min(40, tCaseValues.length); i++) {
-				this.textRefs[i] = { ownerCaseID: tCaseValues[i].id, ref: React.createRef() };
 			}
 		}
 
@@ -161,7 +179,7 @@ export class TargetStore {
 		this.targetClassNames = { left: '', right: '' };
 		this.targetColumnFeatureNames = [];
 		this.targetLeftColumnKey = 'left';
-		this.targetChosenClassColumnKey = '';
+		this.targetChosenClassColumnKey = undefined;
 	}
 
 	async updateTargetCases(formula?: string) {

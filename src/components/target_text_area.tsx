@@ -2,28 +2,26 @@
  * This component manages the lower part of the TargetPanel
  */
 
-import { action } from "mobx";
 import { observer } from "mobx-react";
 import React from "react";
 import { SQ } from "../lists/lists";
-import { targetStore } from "../stores/target_store";
+import { otherClassColumn, targetStore } from "../stores/target_store";
 import { RadioGroup } from "./ui/radio-group";
 
 export const TargetTextArea = observer(function TargetTextArea() {
 	const tTargetClassNames = targetStore.targetClassNames,
 		tLeftColumnKey = targetStore.targetLeftColumnKey,
 		tLeftColumnValue = targetStore.targetClassNames[tLeftColumnKey],
-		tRightColumnKey = tLeftColumnKey === 'left' ? 'right' : 'left',
+		tRightColumnKey = otherClassColumn(tLeftColumnKey),
 		tRightColumnValue = targetStore.targetClassNames[tRightColumnKey],
 		tChosenColumnKey = targetStore.targetChosenClassColumnKey,
-		tChosenColumnValue = targetStore.targetClassNames[tChosenColumnKey];
+		tChosenColumnValue = targetStore.getTargetClassName(tChosenColumnKey);
 
 	function getTexts(iClassName: string) {
-		const tTargetAttr = targetStore.targetAttributeName
-		const tClassAttr = targetStore.targetClassAttributeName
+		const tTargetAttr = targetStore.targetAttributeName;
 		if (targetStore.targetCases.length > 0) {
 			const tFilteredCases = targetStore.targetCases.filter(iCase => {
-				return iClassName === '' || iCase.values[tClassAttr] === iClassName
+				return iClassName === '' || iCase.values[targetStore.targetClassAttributeName] === iClassName
 			})
 			return (
 				<div className='sq-text-container'>
@@ -52,12 +50,11 @@ export const TargetTextArea = observer(function TargetTextArea() {
 					<RadioGroup
 						items={[tDesiredColumnValue]}
 						value={tChosenColumnValue}
-						onValueChange={action((e) => {
+						onValueChange={(e) => {
 							if (e) {
-								targetStore.targetChosenClassColumnKey =
-									index === 0 ? tLeftColumnKey : tRightColumnKey
+								targetStore.setTargetChosenClassColumnKey(index === 0 ? tLeftColumnKey : tRightColumnKey);
 							}
-						})}
+						}}
 						hint={SQ.hints.targetTwoGroups}
 					/>
 				</div>

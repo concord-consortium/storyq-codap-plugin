@@ -21,7 +21,7 @@ import '../styles/light.compact.css';
 
 const Storyq = observer(class Storyq extends Component<{}, {}> {
 		private kPluginName = kStoryQPluginName;
-		private kVersion = "2.17.0";
+		private kVersion = "2.18.0";
 		private kInitialDimensions = {
 			width: 429,
 			height: 420
