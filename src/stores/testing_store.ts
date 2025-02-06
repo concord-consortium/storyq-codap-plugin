@@ -12,25 +12,25 @@ import { getEmptyTestingResult, kEmptyEntityInfo, TestingResult } from "./store_
 
 export interface ITestingStore {
 	chosenModelName: string;
+	currentTestingResults: TestingResult;
+	testingAttributeName: string;
+	testingAttributeNames: string[];
+	testingClassAttributeName: string;
+	testingCollectionName: string;
 	testingDatasetInfo: entityInfo;
 	testingDatasetInfoArray: entityInfo[];
-	testingCollectionName: string;
-	testingAttributeNames: string[];
-	testingAttributeName: string;
-	testingClassAttributeName: string;
-	currentTestingResults: TestingResult;
 	testingResultsArray: TestingResult[];
 }
 
 export class TestingStore {
 	chosenModelName = '';
+	currentTestingResults: TestingResult = getEmptyTestingResult();
+	testingAttributeName = '';
+	testingAttributeNames: string[] = [];
+	testingClassAttributeName = '';
+	testingCollectionName = '';
 	testingDatasetInfo: entityInfo = kEmptyEntityInfo;
 	testingDatasetInfoArray: entityInfo[] = [];
-	testingCollectionName = '';
-	testingAttributeNames: string[] = [];
-	testingAttributeName = '';
-	testingClassAttributeName = '';
-	currentTestingResults: TestingResult = getEmptyTestingResult();
 	testingResultsArray: TestingResult[] = [];
 
 	constructor() {
@@ -48,15 +48,15 @@ export class TestingStore {
 
 	fromJSON(json: ITestingStore) {
 		if (json) {
-			this.chosenModelName = json.chosenModelName ?? '';
-			this.testingDatasetInfo = json.testingDatasetInfo ?? kEmptyEntityInfo;
-			this.testingDatasetInfoArray = json.testingDatasetInfoArray ?? [];
-			this.testingCollectionName = json.testingCollectionName ?? '';
-			this.testingAttributeNames = json.testingAttributeNames ?? [];
-			this.testingAttributeName = json.testingAttributeName?? '';
-			this.testingClassAttributeName = json.testingClassAttributeName ?? '';
-			this.currentTestingResults = json.currentTestingResults ?? getEmptyTestingResult();
-			this.testingResultsArray = json.testingResultsArray ?? [];
+			this.setChosenModelName(json.chosenModelName ?? '');
+			this.setTestingDatasetInfo(json.testingDatasetInfo ?? kEmptyEntityInfo);
+			this.setTestingDatasetInfoArray(json.testingDatasetInfoArray ?? []);
+			this.setTestingCollectionName(json.testingCollectionName ?? '');
+			this.setTestingAttributeNames(json.testingAttributeNames ?? []);
+			this.setTestingAttributeName(json.testingAttributeName ?? '');
+			this.setTestingClassAttributeName(json.testingClassAttributeName ?? '');
+			this.setCurrentTestingResults(json.currentTestingResults ?? getEmptyTestingResult());
+			this.setTestingResultsArray(json.testingResultsArray ?? []);
 		}
 	}
 
@@ -64,30 +64,51 @@ export class TestingStore {
 		this.chosenModelName = name;
 	}
 
-	setTestingDatasetInfo(info: entityInfo) {
-		this.testingDatasetInfo = info;
+	setCurrentTestingResults(results: TestingResult) {
+		this.currentTestingResults = results;
 	}
 
 	setTestingAttributeName(name: string) {
 		this.testingAttributeName = name;
 	}
 
+	setTestingAttributeNames(names: string[]) {
+		this.testingAttributeNames = names;
+	}
+
 	setTestingClassAttributeName(name: string) {
 		this.testingClassAttributeName = name;
 	}
 
+	setTestingCollectionName(name: string) {
+		this.testingCollectionName = name;
+	}
+
+	setTestingDatasetInfo(info: entityInfo) {
+		this.testingDatasetInfo = info;
+	}
+
+	setTestingDatasetInfoArray(infoArray: entityInfo[]) {
+		this.testingDatasetInfoArray = infoArray;
+	}
+
+	setTestingResultsArray(resultsArray: TestingResult[]) {
+		this.testingResultsArray = resultsArray;
+	}
+
 	async updateCodapInfoForTestingPanel() {
-		this.testingDatasetInfoArray =
-			await getDatasetInfoWithFilter(anInfo => anInfo.id !== featureStore.featureDatasetID);
-		this.testingCollectionName = '';
-		this.testingAttributeNames = [];
+		this.setTestingDatasetInfoArray(
+			await getDatasetInfoWithFilter(anInfo => anInfo.id !== featureStore.featureDatasetID)
+		);
+		this.setTestingCollectionName('');
+		this.setTestingAttributeNames([]);
 
 		const tTestingDatasetName = this.testingDatasetInfo.name;
 		if (tTestingDatasetName !== '') {
 			const tCollectionNames = await getCollectionNames(tTestingDatasetName);
-			this.testingCollectionName = tCollectionNames.length > 0 ? tCollectionNames[0] : 'cases';
-			this.testingAttributeNames = this.testingCollectionName !== ''
-				? await getAttributeNames(tTestingDatasetName, this.testingCollectionName) : [];
+			this.setTestingCollectionName(tCollectionNames.length > 0 ? tCollectionNames[0] : 'cases');
+			this.setTestingAttributeNames(this.testingCollectionName !== ''
+				? await getAttributeNames(tTestingDatasetName, this.testingCollectionName) : []);
 		}
 
 		guaranteeTableOrCardIsVisibleFor({

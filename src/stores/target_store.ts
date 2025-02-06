@@ -22,6 +22,27 @@ export function otherClassColumn(column: maybeClassColumns) {
 	return column === "left" ? "right" : "left";
 }
 
+interface ITargetStore {
+	targetPanelMode: panelModes;
+	datasetInfoArray: entityInfo[];
+	targetCollectionName: string;
+	targetAttributeNames: string[];
+	targetAttributeName: string;
+	targetPredictedLabelAttributeName: string;
+	targetResultsCollectionName: string;
+	targetFeatureIDsAttributeName: string;
+	targetCases: Case[];
+	targetClassAttributeName: string;
+	targetClassAttributeValues: string[];
+	targetClassNames: Record<classColumns, string>;
+	targetColumnFeatureNames: string[];
+	targetLeftColumnKey: classColumns;
+	targetChosenClassColumnKey: maybeClassColumns;
+}
+export interface ITargetStoreJSON extends ITargetStore {
+	targetDatasetInfo: entityInfo;
+}
+
 export class TargetStore {
 	targetPanelMode: panelModes = 'welcome'
 	datasetInfoArray: entityInfo[] = []
@@ -42,13 +63,61 @@ export class TargetStore {
 	constructor() {
 		makeAutoObservable(this, { targetLeftColumnKey: false }, { autoBind: true });
 	}
-
+	
 	setTargetPanelMode(mode: panelModes) {
 		this.targetPanelMode = mode;
 	}
 
+	setDatasetInfoArray(infoArray: entityInfo[]) {
+		this.datasetInfoArray = infoArray;
+	}
+
+	setTargetCollectionName(name: string) {
+		this.targetCollectionName = name;
+	}
+
+	setTargetAttributeNames(names: string[]) {
+		this.targetAttributeNames = names;
+	}
+
 	setTargetAttributeName(name: string) {
 		this.targetAttributeName = name;
+	}
+
+	setTargetPredictedLabelAttributeName(name: string) {
+		this.targetPredictedLabelAttributeName = name;
+	}
+
+	setTargetResultsCollectionName(name: string) {
+		this.targetResultsCollectionName = name;
+	}
+
+	setTargetFeatureIDsAttributeName(name: string) {
+		this.targetFeatureIDsAttributeName = name;
+	}
+
+	setTargetCases(cases: Case[]) {
+		this.targetCases = cases;
+	}
+
+	setTargetClassAttributeName(name: string) {
+		this.targetClassAttributeName = name;
+	}
+
+	setTargetClassAttributeValues(values: string[]) {
+		this.targetClassAttributeValues = values;
+	}
+
+	setTargetClassNames(names: Record<classColumns, string>) {
+		this.targetClassNames = names;
+	}
+
+	setTargetColumnFeatureNames(names: string[]) {
+		this.targetColumnFeatureNames = names;
+	}
+
+	setTargetLeftColumnKey(key: classColumns) {
+		this.targetLeftColumnKey = key;
 	}
 
 	setTargetChosenClassColumnKey(key: maybeClassColumns) {
@@ -69,20 +138,20 @@ export class TargetStore {
 		}
 	}
 
-	fromJSON(json: any) {
-		this.targetPanelMode = json.targetPanelMode ||
-			(json.targetDatasetInfo && json.targetDatasetInfo.name !== '' ? 'chosen' : 'welcome')
+	fromJSON(json: ITargetStoreJSON) {
+		this.setTargetPanelMode(json.targetPanelMode ||
+			(json.targetDatasetInfo && json.targetDatasetInfo.name !== '' ? 'chosen' : 'welcome'));
 		if (Array.isArray(json.targetClassNames))
-			json.targetClassNames = null
-		targetDatasetStore.setTargetDatasetInfo(json.targetDatasetInfo || kEmptyEntityInfo)
-		this.targetAttributeName = json.targetAttributeName || ''
-		this.targetClassAttributeValues = json.targetClassAttributeValues || []
-		this.targetClassAttributeName = json.targetClassAttributeName || ''
+			json.targetClassNames = { left: "", right: "" };
+		targetDatasetStore.setTargetDatasetInfo(json.targetDatasetInfo || kEmptyEntityInfo);
+		this.setTargetAttributeName(json.targetAttributeName || '');
+		this.setTargetClassAttributeValues(json.targetClassAttributeValues || []);
+		this.setTargetClassAttributeName(json.targetClassAttributeName || '');
 		if (json.targetClassNames)
-			this.targetClassNames = json.targetClassNames
-		this.targetPredictedLabelAttributeName = json.targetPredictedLabelAttributeName || ''
-		this.targetColumnFeatureNames = json.targetColumnFeatureNames || []
-		this.targetChosenClassColumnKey = json.targetChosenClassColumnKey || ''
+			this.setTargetClassNames(json.targetClassNames);
+		this.setTargetPredictedLabelAttributeName(json.targetPredictedLabelAttributeName || '');
+		this.setTargetColumnFeatureNames(json.targetColumnFeatureNames || []);
+		this.setTargetChosenClassColumnKey(json.targetChosenClassColumnKey);
 	}
 
 	getTargetClassName(key: maybeClassColumns) {
@@ -152,15 +221,15 @@ export class TargetStore {
 			});
 		}
 
-		this.datasetInfoArray = tDatasetNames;
-		this.targetCollectionName = tCollectionName;
-		this.targetAttributeNames = tAttrNames;
-		this.targetCases = tCaseValues;
-		this.targetClassNames = tClassNames;
-		if (targetClassAttributeName) this.targetClassAttributeName = targetClassAttributeName;
-		this.targetClassAttributeValues = tClassAttributeValues;
-		this.targetPredictedLabelAttributeName = 'predicted ' + this.targetClassAttributeName;
-		this.targetColumnFeatureNames = tColumnFeatureNames;
+		this.setDatasetInfoArray(tDatasetNames);
+		this.setTargetCollectionName(tCollectionName);
+		this.setTargetAttributeNames(tAttrNames);
+		this.setTargetCases(tCaseValues);
+		this.setTargetClassNames(tClassNames);
+		if (targetClassAttributeName) this.setTargetClassAttributeName(targetClassAttributeName);
+		this.setTargetClassAttributeValues(tClassAttributeValues);
+		this.setTargetPredictedLabelAttributeName('predicted ' + this.targetClassAttributeName);
+		this.setTargetColumnFeatureNames(tColumnFeatureNames);
 			
 		if (tTargetDatasetName !== '' && this.targetCollectionName !== '') {
 			await guaranteeAttribute({ name: this.targetFeatureIDsAttributeName, hidden: true },

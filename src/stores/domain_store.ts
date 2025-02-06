@@ -8,7 +8,7 @@ import codapInterface from "../lib/CodapInterface";
 import { oneHot, wordTokenizer } from "../lib/one_hot";
 import { featureStore } from "./feature_store";
 import { Feature, kPosNegConstants } from "./store_types_and_constants";
-import { otherClassColumn, targetStore } from "./target_store";
+import { ITargetStoreJSON, otherClassColumn, targetStore } from "./target_store";
 import { ITestingStore, testingStore } from "./testing_store";
 import { textStore } from "./text_store";
 import { trainingStore } from "./training_store";
@@ -32,7 +32,8 @@ export class DomainStore {
 	}
 
 	async fromJSON(json: {
-		targetStore: object, featureStore: object, trainingStore: object, testingStore: ITestingStore, textStore: object
+		targetStore: ITargetStoreJSON, featureStore: object, trainingStore: object, testingStore: ITestingStore,
+		textStore: object
 	}) {
 		targetStore.fromJSON(json.targetStore);
 		featureStore.fromJSON(json.featureStore);
