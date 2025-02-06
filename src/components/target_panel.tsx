@@ -9,6 +9,7 @@ import codapInterface from "../lib/CodapInterface";
 import { SQ } from "../lists/lists";
 import { domainStore } from "../stores/domain_store";
 import { featureStore } from "../stores/feature_store";
+import { targetDatasetStore } from "../stores/target_dataset_store";
 import { targetStore } from "../stores/target_store";
 import { textStore } from "../stores/text_store";
 import { ChoicesMenu } from "./choices-menu";
@@ -78,7 +79,7 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 					let newInfo = toJS(tDatasetInfoArray.find(iInfo => iInfo.title === iChoice)) ||
 						this_.targetPanelConstants.createNewEntityInfo;
 					if (newInfo.title !== this_.targetPanelConstants.createNewEntityInfo.title) {
-						targetStore.targetDatasetInfo = newInfo;
+						targetDatasetStore.setTargetDatasetInfo(newInfo);
 						await targetStore.updateFromCODAP()
 						action(()=> {
 							targetStore.targetPanelMode = 'chosen'
@@ -122,11 +123,11 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 								}
 							}
 						])
-						targetStore.targetDatasetInfo = {
+						targetDatasetStore.setTargetDatasetInfo({
 							title: tContextName,
 							name: tContextName,
 							id: tResults[0].values.id
-						}
+						});
 						action(()=> {
 							targetStore.targetPanelMode = 'chosen'
 						})()

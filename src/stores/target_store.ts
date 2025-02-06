@@ -11,12 +11,12 @@ import {
 } from "../lib/codap-helper";
 import codapInterface from "../lib/CodapInterface";
 import { SQ } from "../lists/lists";
-import { featureStore } from './feature_store'; // TODO Break the cycle with featureStore
+import { featureStore } from './feature_store';
+import { targetDatasetStore } from './target_dataset_store';
 import { Feature, featureDescriptors, kEmptyEntityInfo, SearchDetails } from "./store_types_and_constants";
 
 export class TargetStore {
 	targetPanelMode:'welcome' | 'create' | 'chosen' = 'welcome'
-	targetDatasetInfo: entityInfo = kEmptyEntityInfo
 	datasetInfoArray: entityInfo[] = []
 	targetCollectionName: string = ''
 	targetAttributeNames: string[] = []
@@ -56,7 +56,7 @@ export class TargetStore {
 			(json.targetDatasetInfo && json.targetDatasetInfo.name !== '' ? 'chosen' : 'welcome')
 		if (Array.isArray(json.targetClassNames))
 			json.targetClassNames = null
-		this.targetDatasetInfo = json.targetDatasetInfo || kEmptyEntityInfo
+		targetDatasetStore.setTargetDatasetInfo(json.targetDatasetInfo || kEmptyEntityInfo)
 		this.targetAttributeName = json.targetAttributeName || ''
 		this.targetClassAttributeValues = json.targetClassAttributeValues || []
 		this.targetClassAttributeName = json.targetClassAttributeName || ''
@@ -72,6 +72,10 @@ export class TargetStore {
 			? this.targetChosenClassColumnKey
 			: this.targetChosenClassColumnKey === 'left' ? 'right' : 'left';
 		return this.targetClassNames[tChosenClassKey];
+	}
+
+	get targetDatasetInfo() {
+		return targetDatasetStore.targetDatasetInfo;
 	}
 
 	async updateFromCODAP(args: { targetClassAttributeName?: string } = {}) {
@@ -161,10 +165,8 @@ export class TargetStore {
 	}
 
 	async updateTargetCases(formula?: string) {
-		const tTargetDatasetName = this.targetDatasetInfo.name;
-		const tCollectionName = this.targetCollectionName;
 		this.targetCases = this.targetAttributeName !== ''
-			? await getCaseValues(tTargetDatasetName, tCollectionName, formula)
+			? await getCaseValues(this.targetDatasetInfo.name, this.targetCollectionName, formula)
 			: [];
 
 		return this.targetCases;
@@ -178,8 +180,9 @@ export class TargetStore {
 	// TODO Clean up this function
 	async addOrUpdateFeatureToTarget(iNewFeature: Feature, iUpdate ?: boolean) {
 		const this_ = this,
-			tTargetAttr = `\`${this_.targetAttributeName}\``
-		if (!this_.targetDatasetInfo || iNewFeature.info.kind === 'ngram' || iNewFeature.info.kind === 'column')
+			tTargetAttr = `\`${this_.targetAttributeName}\``;
+
+		if (!this.targetDatasetInfo || iNewFeature.info.kind === 'ngram' || iNewFeature.info.kind === 'column')
 			return;
 
 		function freeFormFormula() {
@@ -321,10 +324,11 @@ export class TargetStore {
 		}
 		if (tFormula !== '')
 			iNewFeature.formula = tFormula
+		const targetDatasetName = this.targetDatasetInfo.name;
 		if (!iUpdate) {
 			const tAttributeResponse: any = await codapInterface.sendRequest({
 				action: 'create',
-				resource: `dataContext[${this_.targetDatasetInfo.name}].collection[${this_.targetCollectionName}].attribute`,
+				resource: `dataContext[${targetDatasetName}].collection[${this_.targetCollectionName}].attribute`,
 				values: {
 					name: iNewFeature.name,
 					formula: tFormula
@@ -332,10 +336,11 @@ export class TargetStore {
 			});
 			if (tAttributeResponse.success) {
 				iNewFeature.attrID = tAttributeResponse.values.attrs[0].id
-				await scrollCaseTableToRight(this_.targetDatasetInfo.name);
+				await scrollCaseTableToRight(targetDatasetName);
 			}
 		} else {
-			const tResource = `dataContext[${this_.targetDatasetInfo.name}].collection[${this_.targetCollectionName}].attribute[${iNewFeature.attrID}]`
+			const tResource = 
+				`dataContext[${targetDatasetName}].collection[${this_.targetCollectionName}].attribute[${iNewFeature.attrID}]`;
 			await codapInterface.sendRequest({
 				action: 'update',
 				resource: tResource,

@@ -9,8 +9,7 @@ import {
 	Feature, kKindOfThingOptionText, namingAbbreviations, NgramDetails, SearchDetails, starterFeature, TokenMap,
 	WordListSpec
 } from "./store_types_and_constants";
-// TODO Break cycle with targetStore
-import { targetStore } from './target_store';
+import { targetDatasetStore } from './target_dataset_store';
 
 export class FeatureStore {
 	features: Feature[] = []
@@ -186,7 +185,7 @@ export class FeatureStore {
 			this.features.splice(tFoundIndex, 1)
 		}
 		if( iFeature.type !== 'unigram') {
-			const { targetDatasetInfo } = targetStore;
+			const { targetDatasetInfo } = targetDatasetStore;
 			await codapInterface.sendRequest({
 				action: 'delete',
 				resource: `dataContext[${this.featureDatasetInfo.datasetID}].itemByID[${iFeature.featureItemID}]`
