@@ -6,9 +6,9 @@
 
 import { datasetExists, getCaseValues, getSelectedCasesFrom } from "../lib/codap-helper";
 import codapInterface, {CODAP_Notification} from "../lib/CodapInterface";
-import { domainStore } from "../stores/domain_store";
 import { featureStore } from "../stores/feature_store";
 import { targetStore } from "../stores/target_store";
+import { testingStore } from "../stores/testing_store";
 import { textStore } from "../stores/text_store";
 import { trainingStore } from "../stores/training_store";
 import { uiStore } from "../stores/ui_store";
@@ -32,7 +32,7 @@ export class TextFeedbackManager {
 
 	async handleNotification(iNotification: CODAP_Notification) {
 		const tTargetDatasetName = targetStore.targetDatasetInfo.name,
-			tTestingDatasetName = domainStore.testingStore.testingDatasetInfo.name,
+			tTestingDatasetName = testingStore.testingDatasetInfo.name,
 			tFeatureDatasetName = featureStore.featureDatasetInfo.datasetName
 
 		if (iNotification.action === 'notify' && iNotification.values.operation === 'selectCases'/* &&
@@ -87,10 +87,10 @@ export class TextFeedbackManager {
 	async handleFeatureSelection() {
 
 		const tUseTestingDataset = uiStore.selectedPanelTitle === 'Testing' &&
-				domainStore.testingStore.testingDatasetInfo.name !== '' &&
-				domainStore.testingStore.testingAttributeName !== '' &&
-				!domainStore.testingStore.currentTestingResults.testBeingConstructed,
-			tStore = tUseTestingDataset ? domainStore.testingStore : targetStore,
+				testingStore.testingDatasetInfo.name !== '' &&
+				testingStore.testingAttributeName !== '' &&
+				!testingStore.currentTestingResults.testBeingConstructed,
+			tStore = tUseTestingDataset ? testingStore : targetStore,
 			kMaxStatementsToDisplay = 40,
 			tDatasetName = tUseTestingDataset ? tStore.testingDatasetInfo.name : tStore.targetDatasetInfo.name,
 			tDatasetTitle = tUseTestingDataset ? tStore.testingDatasetInfo.title : tStore.targetDatasetInfo.title,
@@ -268,9 +268,9 @@ export class TextFeedbackManager {
 		}
 
 		const tUseTestingDataset = uiStore.selectedPanelTitle === 'Testing' &&
-				domainStore.testingStore.testingDatasetInfo.name !== '' &&
-				domainStore.testingStore.testingAttributeName !== '',
-			tStore = tUseTestingDataset ? domainStore.testingStore : targetStore,
+				testingStore.testingDatasetInfo.name !== '' &&
+				testingStore.testingAttributeName !== '',
+			tStore = tUseTestingDataset ? testingStore : targetStore,
 			tDatasetName = tUseTestingDataset ? tStore.testingDatasetInfo.name : tStore.targetDatasetInfo.name,
 			tCollectionName = tUseTestingDataset ? tStore.testingCollectionName : tStore.targetCollectionName,
 			tDatasetTitle = tUseTestingDataset ? tStore.testingDatasetInfo.title : tStore.targetDatasetInfo.title,

@@ -4,11 +4,11 @@
 
 import { action, toJS } from "mobx";
 import { observer } from "mobx-react";
-import React, {Component } from "react";
+import React, { Component } from "react";
 import codapInterface, { CODAP_Notification } from "../lib/CodapInterface";
-import { SQ} from "../lists/lists";
+import { SQ } from "../lists/lists";
 import { TestingManager } from "../managers/testing_manager";
-import { domainStore } from "../stores/domain_store";
+import { testingStore } from "../stores/testing_store";
 import { trainingStore } from "../stores/training_store";
 import { ChoicesMenu } from "./choices-menu";
 import { Button } from "./ui/button";
@@ -37,7 +37,7 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 				await this.updateCodapInfo();
 			} else if (iNotification.values.operation === 'titleChange') {
 				action(() => {
-					domainStore.testingStore.testingDatasetInfo.name = ''
+					testingStore.testingDatasetInfo.name = ''
 				})()
 				await this.updateCodapInfo()
 			}
@@ -45,15 +45,14 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 	}
 
 	async updateCodapInfo() {
-		await domainStore.testingStore.updateCodapInfoForTestingPanel()
+		await testingStore.updateCodapInfoForTestingPanel()
 	}
 
 	render() {
 		const this_ = this,
-			tTestingStore = domainStore.testingStore,
-			tTestingClassAttributeName = tTestingStore.testingClassAttributeName,
+			tTestingClassAttributeName = testingStore.testingClassAttributeName,
 			tNumModels = trainingStore.trainingResults.length,
-			tTestingResults = tTestingStore.testingResultsArray
+			tTestingResults = testingStore.testingResultsArray
 
 
 		function testingInstructions() {
@@ -67,7 +66,7 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 				return (
 					<div className='sq-info-prompt'>
 						<p>You've tested {tTestingResults.length} time{tTestingResults.length > 1 ? 's' : ''}. Test again?</p>
-						<p>Note that if you add new texts to {tTestingStore.testingDatasetInfo.title}, the testing results will
+						<p>Note that if you add new texts to {testingStore.testingDatasetInfo.title}, the testing results will
 							update.</p>
 					</div>
 				)
@@ -75,7 +74,7 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 		}
 
 		function getModelChoice() {
-			const { chosenModelName } = domainStore.testingStore;
+			const { chosenModelName } = testingStore;
 			const tModelChoices = trainingStore.trainingResults.map(iResult => iResult.name),
 				tPrompt = chosenModelName === '' ? 'Choose a model to test'
 					: 'The model to test'
@@ -85,7 +84,7 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 					hint={SQ.hints.testingModelChoices}
 					noDataText="No models to choose from"
 					onValueChange={async (iChoice) => {
-						domainStore.testingStore.chosenModelName = iChoice;
+						testingStore.chosenModelName = iChoice;
 						await this_.updateCodapInfo();
 					}}
 					placeHolder="Choose a model"
@@ -96,7 +95,7 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 		}
 
 		function getTestingDatasetChoice() {
-			const tDatasetInfoArray = tTestingStore.testingDatasetInfoArray,
+			const tDatasetInfoArray = testingStore.testingDatasetInfoArray,
 				tDatasetNames = tDatasetInfoArray.map(iEntity => iEntity.title)
 			return (
 				<ChoicesMenu
@@ -104,45 +103,45 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 					hint={SQ.hints.testingDatasetChoices}
 					onValueChange={async (iChoice) => {
 						const tChosenInfo = tDatasetInfoArray.find(iInfo => iInfo.title === iChoice);
-						if (tChosenInfo) tTestingStore.testingDatasetInfo = tChosenInfo;
+						if (tChosenInfo) testingStore.testingDatasetInfo = tChosenInfo;
 						await this_.updateCodapInfo();
 					}}
 					placeHolder="Your choice"
 					prompt="Choose a data set"
-					value={tTestingStore.testingDatasetInfo.title}
+					value={testingStore.testingDatasetInfo.title}
 				/>
 			);
 		}
 
 		function getTestingAttributeChoice() {
-			if (tTestingStore.testingDatasetInfo.title !== '') {
-				const tAttributeNames = tTestingStore.testingAttributeNames
+			if (testingStore.testingDatasetInfo.title !== '') {
+				const tAttributeNames = testingStore.testingAttributeNames
 				return (
 					<ChoicesMenu
 						choices={tAttributeNames}
 						hint={SQ.hints.testingAttributeChoices}
 						onValueChange={async (iChoice) => {
-							tTestingStore.testingAttributeName = iChoice;
+							testingStore.testingAttributeName = iChoice;
 							await this_.updateCodapInfo();
 						}}
 						placeHolder="Choose a column"
 						prompt="Choose the column with text"
-						value={tTestingStore.testingAttributeName}
+						value={testingStore.testingAttributeName}
 					/>
 				);
 			}
 		}
 
 		function getClassAttributeChoice() {
-			if (tTestingStore.testingDatasetInfo.title !== '') {
-				const tAttributeNames: string[] = toJS(tTestingStore.testingAttributeNames)
+			if (testingStore.testingDatasetInfo.title !== '') {
+				const tAttributeNames: string[] = toJS(testingStore.testingAttributeNames)
 				tAttributeNames.unshift(kNonePresent)
 				return (
 					<ChoicesMenu
 						choices={tAttributeNames}
 						hint={SQ.hints.testingLabelsChoices}
 						onValueChange={async (iChoice) => {
-							tTestingStore.testingClassAttributeName = iChoice;
+							testingStore.testingClassAttributeName = iChoice;
 							await this_.updateCodapInfo();
 						}}
 						placeHolder="Choose a column"
@@ -155,9 +154,9 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 
 		function getTestButton() {
 			const
-				tTestingDatasetName = tTestingStore.testingDatasetInfo.title,
-				tChosenModelName = tTestingStore.chosenModelName,
-				tTestingAttributeName = tTestingStore.testingAttributeName,
+				tTestingDatasetName = testingStore.testingDatasetInfo.title,
+				tChosenModelName = testingStore.chosenModelName,
+				tTestingAttributeName = testingStore.testingAttributeName,
 				tDisabled = tTestingDatasetName === '' || tChosenModelName === '' || tTestingAttributeName === '',
 				// The following hint doesn't display if the button is disabled. See
 				// https://supportcenter.devexpress.com/ticket/details/t844498/button-how-to-add-tooltip-to-disabled-button

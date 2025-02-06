@@ -9,52 +9,46 @@ import { oneHot, wordTokenizer } from "../lib/one_hot";
 import { featureStore } from "./feature_store";
 import { Feature, kPosNegConstants } from "./store_types_and_constants";
 import { targetStore } from "./target_store";
-import { TestingStore } from "./testing_store";
+import { testingStore } from "./testing_store";
 import { textStore } from "./text_store";
 import { trainingStore } from "./training_store";
 import { uiStore } from "./ui_store";
 
 interface Message {
-	action:string,
+	action:string
 	resource:string
 	values:any[]
 }
 
 export class DomainStore {
-	testingStore: TestingStore
-
-	constructor() {
-		this.testingStore = new TestingStore(featureStore.getFeatureDatasetID)
-	}
-
 	asJSON(): object {
 		return {
 			targetStore: targetStore.asJSON(),
 			featureStore: featureStore.asJSON(),
 			trainingStore: trainingStore.asJSON(),
-			testingStore: this.testingStore.asJSON(),
+			testingStore: testingStore.asJSON(),
 			textStore: textStore.asJSON()
-		}
+		};
 	}
 
 	async fromJSON(json: { targetStore: object, featureStore: object, trainingStore: object, testingStore: object, textStore: object }) {
-		targetStore.fromJSON(json.targetStore)
-		featureStore.fromJSON(json.featureStore)
-		trainingStore.fromJSON(json.trainingStore)
-		this.testingStore.fromJSON(json.testingStore)
-		textStore.fromJSON(json.textStore)
+		targetStore.fromJSON(json.targetStore);
+		featureStore.fromJSON(json.featureStore);
+		trainingStore.fromJSON(json.trainingStore);
+		testingStore.fromJSON(json.testingStore);
+		textStore.fromJSON(json.textStore);
 
 		if (textStore.textComponentID !== -1) {
-			await textStore.addTextComponent()	//Make sure it is in the document
+			await textStore.addTextComponent();	//Make sure it is in the document
 		}
-		await this.guaranteeFeaturesDataset()
-		await this.testingStore.updateCodapInfoForTestingPanel()
+		await this.guaranteeFeaturesDataset();
+		await testingStore.updateCodapInfoForTestingPanel();
 	}
 
 	async guaranteeFeaturesDataset(): Promise<boolean> {
 		const tDatasetName = featureStore.featureDatasetInfo.datasetName,
 			tFeatureCollectionName = featureStore.featureDatasetInfo.collectionName,
-			tWeightsCollectionName = featureStore.featureDatasetInfo.weightsCollectionName
+			tWeightsCollectionName = featureStore.featureDatasetInfo.weightsCollectionName;
 
 		async function hideWeightsAttributes() {
 			const tShowRequests = [{
@@ -62,12 +56,12 @@ export class DomainStore {
 				resource: `dataContext[${tDatasetName}].collection[${tWeightsCollectionName}].attribute[weight]`,
 				values: {hidden: true}
 			},
-				{
-					action: 'update',
-					resource: `dataContext[${tDatasetName}].collection[${tWeightsCollectionName}].attribute[model name]`,
-					values: {hidden: true}
-				}]
-			await codapInterface.sendRequest(tShowRequests)
+			{
+				action: 'update',
+				resource: `dataContext[${tDatasetName}].collection[${tWeightsCollectionName}].attribute[model name]`,
+				values: {hidden: true}
+			}];
+			await codapInterface.sendRequest(tShowRequests);
 		}
 
 		if (featureStore.features.length > 0) {
@@ -641,7 +635,6 @@ export class DomainStore {
 			}
 		}
 	}
-
 }
 
 export const domainStore = new DomainStore();

@@ -6,9 +6,9 @@ import { attributeExists, deselectAllCasesIn, getCaseValues } from "../lib/codap
 import codapInterface from "../lib/CodapInterface";
 import { LogitPrediction } from "../lib/logit_prediction";
 import { wordTokenizer } from "../lib/one_hot";
-import { domainStore } from "../stores/domain_store";
 import { targetStore } from "../stores/target_store";
 import { TestingResult } from "../stores/store_types_and_constants";
+import { testingStore } from "../stores/testing_store";
 import { trainingStore } from "../stores/training_store";
 import { computeKappa } from "../utilities/utilities";
 
@@ -21,19 +21,18 @@ export class TestingManager {
 
 	async classify(iStoreTest:boolean) {
 		const this_ = this,
-			tChosenModelName = domainStore.testingStore.chosenModelName,
+			tChosenModelName = testingStore.chosenModelName,
 			tTrainingResult = trainingStore.getTrainingResultByName(tChosenModelName),
 			tStoredModel = tTrainingResult ? tTrainingResult.storedModel : null,
 			tPositiveClassName = tStoredModel ? tStoredModel.positiveClassName : '',
 			tNegativeClassName = tStoredModel ? tStoredModel.negativeClassName : '',
 			tTokens = tStoredModel ? tStoredModel.storedTokens : [],
 			kProbPredAttrNamePrefix = 'probability of ',
-			tTestingStore = domainStore.testingStore,
-			tTestingDatasetName = tTestingStore.testingDatasetInfo.name,
-			tTestingDatasetTitle = tTestingStore.testingDatasetInfo.title,
-			tTestingCollectionName = tTestingStore.testingCollectionName,
-			tTestingAttributeName = tTestingStore.testingAttributeName,
-			tClassAttributeName = tTestingStore.testingClassAttributeName,
+			tTestingDatasetName = testingStore.testingDatasetInfo.name,
+			tTestingDatasetTitle = testingStore.testingDatasetInfo.title,
+			tTestingCollectionName = testingStore.testingCollectionName,
+			tTestingAttributeName = testingStore.testingAttributeName,
+			tClassAttributeName = testingStore.testingClassAttributeName,
 			tTargetPredictedProbabilityName = kProbPredAttrNamePrefix + tPositiveClassName,
 			tTargetPredictedLabelAttributeName = targetStore.targetPredictedLabelAttributeName,
 			tTargetFeatureIDsAttributeName = targetStore.targetFeatureIDsAttributeName,
@@ -204,11 +203,11 @@ export class TestingManager {
 		await updateTargetAndFeatures()
 		action(() => {
 			if( iStoreTest) {
-				tTestingStore.testingResultsArray.push(tTestingResult)
+				testingStore.testingResultsArray.push(tTestingResult)
 			}
 			else {
-				tTestingStore.testingResultsArray.pop()
-				tTestingStore.testingResultsArray.push(tTestingResult)
+				testingStore.testingResultsArray.pop()
+				testingStore.testingResultsArray.push(tTestingResult)
 			}
 /*
 			tTestingStore.currentTestingResults = tTestingStore.emptyTestingResult()

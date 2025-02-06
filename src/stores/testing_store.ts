@@ -3,34 +3,28 @@
  * be accessed in more than one file or needs to be saved and restored.
  */
 
-import {makeAutoObservable, runInAction, toJS} from 'mobx'
+import { makeAutoObservable, runInAction, toJS } from 'mobx'
 import {
-	entityInfo,
-	getAttributeNames,
-	getCollectionNames,
-	getDatasetInfoWithFilter, guaranteeTableOrCardIsVisibleFor
+	entityInfo, getAttributeNames, getCollectionNames, getDatasetInfoWithFilter, guaranteeTableOrCardIsVisibleFor
 } from "../lib/codap-helper";
-import {
-	kEmptyEntityInfo, TestingResult
-} from "./store_types_and_constants";
+import { featureStore } from './feature_store';
+import { kEmptyEntityInfo, TestingResult } from "./store_types_and_constants";
 
 export class TestingStore {
 	[index: string]: any;
-	getFeatureSetIDCallback:any
-	chosenModelName: string = ''
-	testingDatasetInfo: entityInfo = kEmptyEntityInfo
-	testingDatasetInfoArray: entityInfo[] = []
-	testingCollectionName: string = ''
-	testingAttributeNames: string[] = []
-	testingAttributeName: string = ''
-	testingClassAttributeName: string = ''
-	currentTestingResults:TestingResult
-	testingResultsArray:TestingResult[] = []
+	chosenModelName: string = '';
+	testingDatasetInfo: entityInfo = kEmptyEntityInfo;
+	testingDatasetInfoArray: entityInfo[] = [];
+	testingCollectionName: string = '';
+	testingAttributeNames: string[] = [];
+	testingAttributeName: string = '';
+	testingClassAttributeName: string = '';
+	currentTestingResults: TestingResult;
+	testingResultsArray: TestingResult[] = [];
 
-	constructor(iGetFeatureSetIDCallback:any) {
-		makeAutoObservable(this, {getFeatureSetIDCallback: false}, {autoBind: true})
-		this.getFeatureSetIDCallback = iGetFeatureSetIDCallback
-		this.currentTestingResults = this.emptyTestingResult()
+	constructor() {
+		makeAutoObservable(this, {}, { autoBind: true });
+		this.currentTestingResults = this.emptyTestingResult();
 	}
 
 	emptyTestingResult():TestingResult {
@@ -47,7 +41,6 @@ export class TestingStore {
 
 	asJSON() {
 		const tJSON = toJS(this)
-		delete tJSON.getFeatureSetIDCallback	// Remove so we don't crash
 		return tJSON
 	}
 
@@ -60,7 +53,7 @@ export class TestingStore {
 	}
 
 	async updateCodapInfoForTestingPanel() {
-		const tFeatureDatasetID = this.getFeatureSetIDCallback(),
+		const tFeatureDatasetID = featureStore.getFeatureDatasetID(),
 			tTestingDatasetName = this.testingDatasetInfo.name,
 			tDatasetEntityInfoArray = await getDatasetInfoWithFilter(
 			(anInfo) => {
@@ -82,5 +75,6 @@ export class TestingStore {
 		guaranteeTableOrCardIsVisibleFor({name: tTestingDatasetName,
 			title: this.testingDatasetInfo.title, id: -1})
 	}
-
 }
+
+export const testingStore = new TestingStore();
