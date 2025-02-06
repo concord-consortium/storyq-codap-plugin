@@ -163,6 +163,13 @@ export interface TestingResult {
 	testBeingConstructed: boolean
 }
 
+export function getEmptyTestingResult() {
+	return {
+		targetDatasetName: '', targetDatasetTitle: '', modelName: '', numPositive: 0, numNegative: 0,
+		accuracy: 0, kappa: 0, testBeingConstructed: false
+	};
+}
+
 export interface Token {
 	token: string,
 	type: 'constructed feature' | 'unigram',

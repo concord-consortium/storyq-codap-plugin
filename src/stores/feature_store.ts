@@ -114,7 +114,7 @@ export class FeatureStore {
 		return tFoundObject ? tFoundObject.formula : ''
 	}
 
-	getFeatureDatasetID() {
+	get featureDatasetID() {
 		return this.featureDatasetInfo.datasetID
 	}
 

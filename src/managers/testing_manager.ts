@@ -31,7 +31,6 @@ export class TestingManager {
 			tTestingDatasetName = testingStore.testingDatasetInfo.name,
 			tTestingDatasetTitle = testingStore.testingDatasetInfo.title,
 			tTestingCollectionName = testingStore.testingCollectionName,
-			tTestingAttributeName = testingStore.testingAttributeName,
 			tClassAttributeName = testingStore.testingClassAttributeName,
 			tTargetPredictedProbabilityName = kProbPredAttrNamePrefix + tPositiveClassName,
 			tTargetPredictedLabelAttributeName = targetStore.targetPredictedLabelAttributeName,
@@ -107,7 +106,7 @@ export class TestingManager {
 			tPhraseCount = tTestCases.length
 			tTestCases.forEach(iCase => {
 				let tPhraseID = iCase.id,
-					tPhrase = iCase.values[tTestingAttributeName],
+					tPhrase = iCase.values[testingStore.testingAttributeName],
 					tActual = tClassAttributeName === this_.kNonePresent ? '' :
 						iCase.values[tClassAttributeName],
 					tGiven = Array(tTokens.length).fill(0),

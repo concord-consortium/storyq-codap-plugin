@@ -90,15 +90,19 @@ export class TextFeedbackManager {
 				testingStore.testingDatasetInfo.name !== '' &&
 				testingStore.testingAttributeName !== '' &&
 				!testingStore.currentTestingResults.testBeingConstructed,
-			tStore = tUseTestingDataset ? testingStore : targetStore,
 			kMaxStatementsToDisplay = 40,
-			tDatasetName = tUseTestingDataset ? tStore.testingDatasetInfo.name : tStore.targetDatasetInfo.name,
-			tDatasetTitle = tUseTestingDataset ? tStore.testingDatasetInfo.title : tStore.targetDatasetInfo.title,
-			tCollectionName = tUseTestingDataset ? tStore.testingCollectionName : tStore.targetCollectionName,
-			tAttributeName = tUseTestingDataset ? tStore.testingAttributeName : tStore.targetAttributeName,
+			tDatasetName = tUseTestingDataset
+				? testingStore.testingDatasetInfo.name : targetStore.targetDatasetInfo.name,
+			tDatasetTitle = tUseTestingDataset
+				? testingStore.testingDatasetInfo.title : targetStore.targetDatasetInfo.title,
+			tCollectionName = tUseTestingDataset
+				? testingStore.testingCollectionName : targetStore.targetCollectionName,
+			tAttributeName = tUseTestingDataset
+				? testingStore.testingAttributeName : targetStore.targetAttributeName,
 			tFeatureDatasetName = featureStore.featureDatasetInfo.datasetName,
 			tFeatureCollectionName = featureStore.featureDatasetInfo.collectionName,
-			tClassAttributeName = tUseTestingDataset ? tStore.testingClassAttributeName : tStore.targetClassAttributeName,
+			tClassAttributeName = tUseTestingDataset
+				? testingStore.testingClassAttributeName : targetStore.targetClassAttributeName,
 			tPredictedLabelAttributeName = targetStore.targetPredictedLabelAttributeName,
 			tColumnFeatureNames = featureStore.targetColumnFeatureNames,
 			tConstructedFeatureNames = featureStore.features.map(iFeature => iFeature.name),
@@ -124,7 +128,7 @@ export class TextFeedbackManager {
 		}
 
 		// If we have a testing dataset but no test has been run, we're done
-		if (tUseTestingDataset && tStore.testingResultsArray.length === 0) {
+		if (tUseTestingDataset && testingStore.testingResultsArray.length === 0) {
 			return
 		}
 
@@ -270,14 +274,18 @@ export class TextFeedbackManager {
 		const tUseTestingDataset = uiStore.selectedPanelTitle === 'Testing' &&
 				testingStore.testingDatasetInfo.name !== '' &&
 				testingStore.testingAttributeName !== '',
-			tStore = tUseTestingDataset ? testingStore : targetStore,
-			tDatasetName = tUseTestingDataset ? tStore.testingDatasetInfo.name : tStore.targetDatasetInfo.name,
-			tCollectionName = tUseTestingDataset ? tStore.testingCollectionName : tStore.targetCollectionName,
-			tDatasetTitle = tUseTestingDataset ? tStore.testingDatasetInfo.title : tStore.targetDatasetInfo.title,
-			tAttributeName = tUseTestingDataset ? tStore.testingAttributeName : tStore.targetAttributeName,
+			tDatasetName = tUseTestingDataset
+				? testingStore.testingDatasetInfo.name : targetStore.targetDatasetInfo.name,
+			tCollectionName = tUseTestingDataset
+				? testingStore.testingCollectionName : targetStore.targetCollectionName,
+			tDatasetTitle = tUseTestingDataset
+				? testingStore.testingDatasetInfo.title : targetStore.targetDatasetInfo.title,
+			tAttributeName = tUseTestingDataset
+				? testingStore.testingAttributeName : targetStore.targetAttributeName,
 			tFeatureDatasetName = featureStore.featureDatasetInfo.datasetName,
 			tFeatureCollectionName = featureStore.featureDatasetInfo.collectionName,
-			tClassAttributeName = tUseTestingDataset ? tStore.testingClassAttributeName : tStore.targetClassAttributeName,
+			tClassAttributeName = tUseTestingDataset
+				? testingStore.testingClassAttributeName : targetStore.targetClassAttributeName,
 			tPredictedLabelAttributeName = targetStore.targetPredictedLabelAttributeName,
 			tColumnFeatureNames = featureStore.targetColumnFeatureNames,
 			tConstructedFeatureNames = featureStore.features.map(iFeature => iFeature.name),

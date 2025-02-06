@@ -2,7 +2,7 @@
  * This component shows under the Testing tab
  */
 
-import { action, toJS } from "mobx";
+import { action } from "mobx";
 import { observer } from "mobx-react";
 import React, { Component } from "react";
 import codapInterface, { CODAP_Notification } from "../lib/CodapInterface";
@@ -50,10 +50,8 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 
 	render() {
 		const this_ = this,
-			tTestingClassAttributeName = testingStore.testingClassAttributeName,
 			tNumModels = trainingStore.trainingResults.length,
 			tTestingResults = testingStore.testingResultsArray
-
 
 		function testingInstructions() {
 			if (tTestingResults.length === 0) {
@@ -84,7 +82,7 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 					hint={SQ.hints.testingModelChoices}
 					noDataText="No models to choose from"
 					onValueChange={async (iChoice) => {
-						testingStore.chosenModelName = iChoice;
+						testingStore.setChosenModelName(iChoice);
 						await this_.updateCodapInfo();
 					}}
 					placeHolder="Choose a model"
@@ -103,7 +101,7 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 					hint={SQ.hints.testingDatasetChoices}
 					onValueChange={async (iChoice) => {
 						const tChosenInfo = tDatasetInfoArray.find(iInfo => iInfo.title === iChoice);
-						if (tChosenInfo) testingStore.testingDatasetInfo = tChosenInfo;
+						if (tChosenInfo) testingStore.setTestingDatasetInfo(tChosenInfo);
 						await this_.updateCodapInfo();
 					}}
 					placeHolder="Your choice"
@@ -115,13 +113,12 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 
 		function getTestingAttributeChoice() {
 			if (testingStore.testingDatasetInfo.title !== '') {
-				const tAttributeNames = testingStore.testingAttributeNames
 				return (
 					<ChoicesMenu
-						choices={tAttributeNames}
+						choices={testingStore.testingAttributeNames}
 						hint={SQ.hints.testingAttributeChoices}
 						onValueChange={async (iChoice) => {
-							testingStore.testingAttributeName = iChoice;
+							testingStore.setTestingAttributeName(iChoice);
 							await this_.updateCodapInfo();
 						}}
 						placeHolder="Choose a column"
@@ -134,19 +131,19 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 
 		function getClassAttributeChoice() {
 			if (testingStore.testingDatasetInfo.title !== '') {
-				const tAttributeNames: string[] = toJS(testingStore.testingAttributeNames)
+				const tAttributeNames = [...testingStore.testingAttributeNames]
 				tAttributeNames.unshift(kNonePresent)
 				return (
 					<ChoicesMenu
 						choices={tAttributeNames}
 						hint={SQ.hints.testingLabelsChoices}
 						onValueChange={async (iChoice) => {
-							testingStore.testingClassAttributeName = iChoice;
+							testingStore.setTestingClassAttributeName(iChoice);
 							await this_.updateCodapInfo();
 						}}
 						placeHolder="Choose a column"
 						prompt="Choose the column with the labels (optional)"
-						value={tTestingClassAttributeName}
+						value={testingStore.testingClassAttributeName}
 					/>
 				);
 			}
@@ -156,14 +153,14 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 			const
 				tTestingDatasetName = testingStore.testingDatasetInfo.title,
 				tChosenModelName = testingStore.chosenModelName,
-				tTestingAttributeName = testingStore.testingAttributeName,
-				tDisabled = tTestingDatasetName === '' || tChosenModelName === '' || tTestingAttributeName === '',
+				noTestingAttributeName = testingStore.testingAttributeName === '',
+				tDisabled = tTestingDatasetName === '' || tChosenModelName === '' || noTestingAttributeName,
 				// The following hint doesn't display if the button is disabled. See
 				// https://supportcenter.devexpress.com/ticket/details/t844498/button-how-to-add-tooltip-to-disabled-button
 				// for suggested solution
 				tHint = tTestingDatasetName === '' ? SQ.hints.testingChooseDataset :
 					(tChosenModelName === '' ? SQ.hints.testingChooseModel :
-						(tTestingAttributeName === '' ? SQ.hints.testingChooseAttribute :
+						(noTestingAttributeName ? SQ.hints.testingChooseAttribute :
 							SQ.hints.testingTest))
 			return (
 				<div className='sq-training-buttons'>
