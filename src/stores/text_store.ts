@@ -7,28 +7,29 @@ import { makeAutoObservable } from 'mobx'
 import pluralize from "pluralize";
 import { getComponentByTypeAndTitleOrName } from "../lib/codap-helper";
 import codapInterface from "../lib/CodapInterface";
+import { CreateComponentResponse, GetComponentListResponse } from '../types/codap-api-types';
 import { kStoryQPluginName } from './store_types_and_constants';
 import { targetStore } from './target_store';
 
 export class TextStore {
-	textComponentTitle: string = ''
-	textComponentID: number = -1
+	textComponentTitle: string = '';
+	textComponentID: number = -1;
 
 	constructor() {
-		makeAutoObservable(this, {}, {autoBind: true})
+		makeAutoObservable(this, {}, { autoBind: true });
 	}
 
 	asJSON() {
 		return {
 			textComponentTitle: this.textComponentTitle,
 			textComponentID: this.textComponentID
-		}
+		};
 	}
 
 	fromJSON(json: any) {
 		if (json) {
-			this.textComponentTitle = json.textComponentTitle || ''
-			this.textComponentID = json.textComponentID || -1
+			this.textComponentTitle = json.textComponentTitle || '';
+			this.textComponentID = json.textComponentID || -1;
 		}
 	}
 
@@ -39,19 +40,18 @@ export class TextStore {
 		const iDatasetName = targetStore.targetDatasetInfo.title;
 		const iAttributeName = targetStore.targetAttributeName;
 		let tFoundIt = false;
-		this.textComponentTitle = `Selected  ${pluralize(iAttributeName)} in ${iDatasetName}`;
-		const tListResult: any = await codapInterface.sendRequest(
+		this.textComponentTitle = `Selected ${pluralize(iAttributeName)} in ${iDatasetName}`;
+		const tListResult = await codapInterface.sendRequest(
 			{
 				action: 'get',
 				resource: `componentList`
 			}
-		)
-			.catch(() => {
-				console.log('Error getting component list')
-			});
+		).catch(() => {
+			console.log('Error getting component list')
+		}) as GetComponentListResponse;
 
-		if (tListResult.success) {
-			const tFoundValue = tListResult.values.find((iValue: any) => {
+		if (tListResult.success && tListResult.values) {
+			const tFoundValue = tListResult.values.find(iValue => {
 				return iValue.type === 'text' && iValue.id === this.textComponentID;
 			});
 			if (tFoundValue) {
@@ -60,7 +60,7 @@ export class TextStore {
 			}
 		}
 		if (!tFoundIt) {
-			let tResult: any = await codapInterface.sendRequest({
+			let tResult = await codapInterface.sendRequest({
 				action: 'create',
 				resource: 'component',
 				values: {
@@ -74,22 +74,20 @@ export class TextStore {
 					position: 'top',
 					cannotClose: true
 				}
-			});
-			this.textComponentID = tResult.values.id;
+			}) as CreateComponentResponse;
+			this.textComponentID = tResult?.values?.id ?? -1;
 		}
 		await this.clearText();
 
-		setTimeout(async () => {
-			// Take the focus away from the newly created text component
-			const tPluginID = await getComponentByTypeAndTitleOrName('game', kStoryQPluginName, kStoryQPluginName);
-			await codapInterface.sendRequest({
-				action: 'notify',
-				resource: `component[${tPluginID}]`,
-				values: {
-					request: 'select'
-				}
-			});
-		}, 1000);
+		// Take the focus away from the newly created text component
+		const tPluginID = await getComponentByTypeAndTitleOrName('game', kStoryQPluginName, kStoryQPluginName);
+		await codapInterface.sendRequest({
+			action: 'notify',
+			resource: `component[${tPluginID}]`,
+			values: {
+				request: 'select'
+			}
+		});
 	}
 
 	async clearText() {
@@ -121,7 +119,6 @@ export class TextStore {
 	}
 
 	async closeTextComponent() {
-		// this.textComponentTitle = 'Selected ' + pluralize(this.targetAttributeName);
 		await codapInterface.sendRequest({
 			action: 'delete',
 			resource: `component[${this.textComponentTitle}]`
