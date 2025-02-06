@@ -7,6 +7,7 @@ import { TestingManager } from "../managers/testing_manager";
 import { domainStore } from "../stores/domain_store";
 import { kStoryQPluginName } from "../stores/store_types_and_constants";
 import { targetStore } from '../stores/target_store';
+import { testingStore } from "../stores/testing_store";
 import { uiStore } from "../stores/ui_store";
 import { FeaturePanel } from "./feature_panel";
 import { TargetPanel } from "./target_panel";
@@ -59,7 +60,7 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 
 		async handleCaseNotification(iNotification: CODAP_Notification) {
 			const tDataContextName = iNotification.resource && iNotification.resource.match(/\[(.+)]/)[1]
-			if (tDataContextName === domainStore.testingStore.testingDatasetInfo.name) {
+			if (tDataContextName === testingStore.testingDatasetInfo.name) {
 				await this.testingManager.classify(false)
 			}
 		}
@@ -73,7 +74,7 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 		}
 
 		async handleSelectionChanged(e: any) {
-			uiStore.tabPanelSelectedIndex = e.selectedIndex;
+			uiStore.setTabPanelSelectedIndex(e.selectedIndex);
 			await targetStore.updateFromCODAP()
 		}
 
