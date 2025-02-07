@@ -1,20 +1,11 @@
 import clsx from "clsx";
 import React from "react";
+import { FeatureKind } from "../../stores/store_types_and_constants";
 
 type SelectBoxChangeEvent = CustomEvent<{value: string}> & {value: string};
 
-
-interface SelectBoxItem {
-  name: string;
-  value: string;
-}
-interface SelectBoxGroup {
-  key: string;
-  items: SelectBoxItem[]
-}
-
 interface ISelectBoxProps {
-  dataSource: string[] | number[] | SelectBoxGroup[];
+  dataSource: string[] | number[] | FeatureKind[];
   placeholder: string;
   hint?: string;
   value?: any;
@@ -74,8 +65,18 @@ export const SelectBox = (props: ISelectBoxProps) => {
                   return null;
                 }
                 return (
-                  <optgroup label={item.key}>
-                    {item.items.map((subItem, subIndex) => <option key={`${subItem.value}-${subIndex}-${index}`} value={subItem.value}>{subItem.name}</option>)}
+                  <optgroup key={item.key} label={item.key}>
+                    {item.items.map((subItem, subIndex) => {
+                      const stringValue = JSON.stringify(subItem.value);
+                      return (
+                        <option
+                          key={`${stringValue}-${subIndex}-${index}`}
+                          value={stringValue}
+                        >
+                          {subItem.name}
+                        </option>
+                      );
+                    })}
                   </optgroup>
                 )
               })}

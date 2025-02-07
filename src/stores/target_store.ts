@@ -12,7 +12,10 @@ import codapInterface from "../lib/CodapInterface";
 import { SQ } from "../lists/lists";
 import { featureStore } from './feature_store';
 import { targetDatasetStore } from './target_dataset_store';
-import { Feature, featureDescriptors, kEmptyEntityInfo, SearchDetails } from "./store_types_and_constants";
+import {
+	containOptionAbbreviations, Feature, kContainOptionContain, kContainOptionEndWith, kContainOptionNotContain,
+	kContainOptionStartWith, kEmptyEntityInfo, SearchDetails
+} from "./store_types_and_constants";
 
 type panelModes = 'welcome' | 'create' | 'chosen';
 type classColumns = "left" | "right";
@@ -274,8 +277,8 @@ export class TargetStore {
 
 		function freeFormFormula() {
 			const option = (iNewFeature.info.details as SearchDetails).where;
-			const tBegins = option === featureDescriptors.containsOptions[2] ? '^' : '';
-			const tEnds = option === featureDescriptors.containsOptions[3] ? '$' : '';
+			const tBegins = option === containOptionAbbreviations[kContainOptionStartWith] ? '^' : '';
+			const tEnds = option === containOptionAbbreviations[kContainOptionEndWith] ? '$' : '';
 			const text = (iNewFeature.info.details as SearchDetails).freeFormText.trim();
 			// note: the multiple slash escaping is due to all the layers between this code and the CODAP formula evaluator
 			const escapedText = text
@@ -301,17 +304,17 @@ export class TargetStore {
 			const maybeEndingWordBoundary = /\w$/.test(text) ? wordBoundary : '';
 			const tParamString = `${tTargetAttr},"${tBegins}${maybeStartingWordBoundary}${escapedText}${maybeEndingWordBoundary}${tEnds}"`;
 			let tResult = '';
-			switch (option) {//['contain', 'not contain', 'start with', 'end with']
-				case featureDescriptors.containsOptions[0]:	// contain
+			switch (option) {
+				case containOptionAbbreviations[kContainOptionContain]:
 					tResult = `patternMatches(${tParamString})>0`
 					break;
-				case featureDescriptors.containsOptions[1]:	// not contain
+				case containOptionAbbreviations[kContainOptionNotContain]:
 					tResult = `patternMatches(${tParamString})=0`
 					break;
-				case featureDescriptors.containsOptions[2]:	// start with
+				case containOptionAbbreviations[kContainOptionStartWith]:
 					tResult = `patternMatches(${tParamString})>0`
 					break;
-				case featureDescriptors.containsOptions[3]:	// ends with
+				case containOptionAbbreviations[kContainOptionEndWith]:
 					tResult = `patternMatches(${tParamString})>0`
 					break;
 			}
@@ -321,17 +324,17 @@ export class TargetStore {
 		function anyNumberFormula() {
 			const kNumberPattern = `[0-9]+`;
 			let tExpression = '';
-			switch ((iNewFeature.info.details as SearchDetails).where) {//['contain', 'not contain', 'start with', 'end with']
-				case featureDescriptors.containsOptions[0]:	// contain
+			switch ((iNewFeature.info.details as SearchDetails).where) {
+				case containOptionAbbreviations[kContainOptionContain]:
 					tExpression = `patternMatches(${tTargetAttr}, "${kNumberPattern}")>0`
 					break;
-				case featureDescriptors.containsOptions[1]:	// not contain
+				case containOptionAbbreviations[kContainOptionNotContain]:
 					tExpression = `patternMatches(${tTargetAttr}, "${kNumberPattern}")=0`
 					break;
-				case featureDescriptors.containsOptions[2]:	// start with
+				case containOptionAbbreviations[kContainOptionStartWith]:
 					tExpression = `patternMatches(${tTargetAttr}, "^${kNumberPattern}")>0`
 					break;
-				case featureDescriptors.containsOptions[3]:	// end with
+				case containOptionAbbreviations[kContainOptionEndWith]:
 					tExpression = `patternMatches(${tTargetAttr}, "${kNumberPattern}$")>0`
 					break;
 			}
@@ -341,17 +344,17 @@ export class TargetStore {
 		function punctuationFormula() {
 			const tPunc = `\\\\\\\\${(iNewFeature.info.details as SearchDetails).punctuation}`
 			let tExpression = '';
-			switch ((iNewFeature.info.details as SearchDetails).where) {//['contain', 'not contain', 'start with', 'end with']
-				case featureDescriptors.containsOptions[0]:	// contain
+			switch ((iNewFeature.info.details as SearchDetails).where) {
+				case containOptionAbbreviations[kContainOptionContain]:
 					tExpression = `patternMatches(${tTargetAttr}, "${tPunc}")>0`
 					break;
-				case featureDescriptors.containsOptions[1]:	// not contain
+				case containOptionAbbreviations[kContainOptionNotContain]:
 					tExpression = `patternMatches(${tTargetAttr}, "${tPunc}")=0`
 					break;
-				case featureDescriptors.containsOptions[2]:	// start with
+				case containOptionAbbreviations[kContainOptionStartWith]:
 					tExpression = `patternMatches(${tTargetAttr}, "^${tPunc}")>0`
 					break;
-				case featureDescriptors.containsOptions[3]:	// end with
+				case containOptionAbbreviations[kContainOptionEndWith]:
 					tExpression = `patternMatches(${tTargetAttr}, "${tPunc}$")>0`
 					break;
 			}
@@ -364,25 +367,25 @@ export class TargetStore {
 				kListAttributeName = (iNewFeature.info.details as SearchDetails).wordList.firstAttributeName,
 				kWords = SQ.lists[kListName],
 				tWhere = (iNewFeature.info.details as SearchDetails).where,
-				tStartsWithOption = featureDescriptors.containsOptions[0],
-				tEndsWithOption = featureDescriptors.containsOptions[3],
+				tStartsWithOption = containOptionAbbreviations[kContainOptionStartWith],
+				tEndsWithOption = containOptionAbbreviations[kContainOptionEndWith],
 				tCaret = tWhere === tStartsWithOption ? '^' : '',
 				tDollar = tWhere === tEndsWithOption ? '$' : ''
 			if (kWords) {
 				tExpression = kWords.reduce((iSoFar, iWord) => {
 					return iSoFar === '' ? `${tCaret}\\\\\\\\b${iWord}\\\\\\\\b${tDollar}` : iSoFar + `|${tCaret}\\\\\\\\b${iWord}\\\\\\\\b${tDollar}`;
 				}, '');
-				switch (tWhere) {//['contain', 'not contain', 'start with', 'end with']
-					case featureDescriptors.containsOptions[0]:	// contain
+				switch (tWhere) {
+					case containOptionAbbreviations[kContainOptionContain]:
 						tExpression = `patternMatches(${tTargetAttr}, "${tExpression}")>0`;
 						break;
-					case featureDescriptors.containsOptions[1]:	// not contain
+					case containOptionAbbreviations[kContainOptionNotContain]:
 						tExpression = `patternMatches(${tTargetAttr}, "${tExpression}")=0`;
 						break;
-					case featureDescriptors.containsOptions[2]:	// start with
+					case containOptionAbbreviations[kContainOptionStartWith]:
 						tExpression = `patternMatches(${tTargetAttr}, "^${tExpression}")>0`;
 						break;
-					case featureDescriptors.containsOptions[3]:	// end with
+					case containOptionAbbreviations[kContainOptionEndWith]:
 						tExpression = `patternMatches(${tTargetAttr}, "${tExpression}$")>0`;
 						break;
 				}

@@ -6,7 +6,7 @@
 import {makeAutoObservable, toJS} from 'mobx'
 import codapInterface from "../lib/CodapInterface";
 import {
-	Feature, kKindOfThingOptionText, namingAbbreviations, NgramDetails, SearchDetails, starterFeature, TokenMap,
+	Feature, kKindOfThingOptionText, containOptionAbbreviations, NgramDetails, SearchDetails, starterFeature, TokenMap,
 	WordListSpec
 } from "./store_types_and_constants";
 import { targetDatasetStore } from './target_dataset_store';
@@ -69,7 +69,7 @@ export class FeatureStore {
 	constructNameFor(iFeature: Feature) {
 		if (iFeature.info.kind === 'search') {
 			const tDetails = iFeature.info.details as SearchDetails,
-				tFirstPart = namingAbbreviations[tDetails.where],
+				tFirstPart = containOptionAbbreviations[tDetails.where],
 				tSecondPart = tDetails.freeFormText !== '' ? `"${tDetails.freeFormText.trim()}"` :
 					tDetails.punctuation !== '' ? tDetails.punctuation :
 					tDetails.wordList && tDetails.wordList.datasetName !== '' ? tDetails.wordList.datasetName :

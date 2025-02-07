@@ -19,22 +19,48 @@ export const kEmptyEntityInfo = {name: '', title: '', id: 0},
 		}
 	}
 
-export let featureDescriptors = {
+export const kContainOptionContain = "contain";
+export const kContainOptionNotContain = "not contain";
+export const kContainOptionStartWith = "start with";
+export const kContainOptionEndWith = "end with";
+interface FeatureItem {
+	disabled?: boolean
+	key?: string
+	name: string
+	value: {
+		kind: string
+		details: {
+			columnName?: string
+			n?: string
+			where?: string
+		}
+	}
+}
+export interface FeatureKind {
+	key: string
+	items: FeatureItem[]
+}
+interface FeatureDescriptors {
+	featureKinds: FeatureKind[]
+	containsOptions: string[]
+	kindOfThingContainedOptions: string[]
+	caseOptions: string[]
+}
+export const featureDescriptors: FeatureDescriptors = {
 	featureKinds: [
 		{
 			key: "Extract one feature at a time",
 			items: [
-				{name: "contain", value: `{"kind": "search", "details": {"where": "contain"}}`},
-				{name: "not contain", value: `{"kind": "search", "details": {"where": "not contain"}}`},
-				{name: "start with", value: `{"kind": "search", "details": {"where": "start with"}}`},
-				{name: "end with", value: `{"kind": "search", "details": {"where": "end with"}}`}
+				{ name: "contain", value: { kind: "search", details: { where: kContainOptionContain } } },
+				{ name: "not contain", value: { kind: "search", details: { where: kContainOptionNotContain } } },
+				{ name: "start with", value: { kind: "search", details: { where: kContainOptionStartWith } } },
+				{ name: "end with", value: { kind: "search", details: { where: kContainOptionEndWith } } }
 			]
 		},
 		{
 			key: "Extract features of the same kind",
 			items: [
-				{name: "single words", disabled: false, value: `{"kind": "ngram", "details": {"n":"uni"}}`}/*,
-					{name: "bigrams", value: `{"kind": "ngram", "details": {"n":"bi"}}`}*/
+				{ name: "single words", disabled: false, value: { kind: "ngram", details: { n: "uni" } } }
 			]
 		},
 		{
@@ -42,8 +68,8 @@ export let featureDescriptors = {
 			items: []
 		}
 	],
-	containsOptions: ['contain', 'not contain', 'start with', 'end with'],
-	kindOfThingContainedOptions: ['text', 'punctuation', 'any number', 'any item from a list'/*, 'part of speech'*/],
+	containsOptions: [kContainOptionContain, kContainOptionNotContain, kContainOptionStartWith, kContainOptionEndWith],
+	kindOfThingContainedOptions: ['text', 'punctuation', 'any number', 'any item from a list'],
 	caseOptions: ['sensitive', 'insensitive']
 }
 
@@ -60,11 +86,11 @@ export interface SearchDetails {
 	wordList: WordListSpec
 }
 
-export const namingAbbreviations:{[index:string]:string} = {
-	contain: 'contain',
-	'end with': 'endWith',
-	'not contain': 'notContain',
-	'start with': 'startWith',
+export const containOptionAbbreviations: Record<string, string> = {
+	[kContainOptionContain]: 'contain',
+	[kContainOptionEndWith]: 'endWith',
+	[kContainOptionNotContain]: 'notContain',
+	[kContainOptionStartWith]: 'startWith',
 }
 
 export interface CountDetails {
