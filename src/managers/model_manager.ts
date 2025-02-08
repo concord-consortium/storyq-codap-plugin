@@ -56,7 +56,7 @@ export class ModelManager {
 				const tFormula = `${tAttrName}==${iTokens[tIndex].token}`,
 					tFirstChildResult: any = await codapInterface.sendRequest({
 						action: 'get',
-						resource: `dataContext[${tFeatureDatasetName}].itemSearch[${tFormula}]`
+						resource: `dataContext[${datasetName}].itemSearch[${tFormula}]`
 					})
 				if (tFirstChildResult.success && tFirstChildResult.values.length > 0) {
 					tFoundOne = true
@@ -67,9 +67,7 @@ export class ModelManager {
 			return tFoundOne && tIsEmpty
 		}
 
-		const tFeatureDatasetName = featureStore.featureDatasetInfo.datasetName,
-			tFeaturesCollectionName = featureStore.featureDatasetInfo.collectionName,
-			tWeightsCollectionName = featureStore.featureDatasetInfo.weightsCollectionName,
+		const { collectionName, datasetName, weightsCollectionName } = featureStore.featureDatasetInfo,
 			tUpdatingExistingWeights = await allFirstWeightCasesAreEmpty(),
 			tCreationRequests: { parent: number, values: any }[] = [],
 			tUpdateRequests: { id: number, values: any }[] = [],
@@ -80,12 +78,12 @@ export class ModelManager {
 		async function showWeightAttributes() {
 			const tShowRequests = [{
 				action: 'update',
-				resource: `dataContext[${tFeatureDatasetName}].collection[${tWeightsCollectionName}].attribute[weight]`,
+				resource: `dataContext[${datasetName}].collection[${weightsCollectionName}].attribute[weight]`,
 				values: {hidden: false}
 			},
 				{
 					action: 'update',
-					resource: `dataContext[${tFeatureDatasetName}].collection[${tWeightsCollectionName}].attribute[model name]`,
+					resource: `dataContext[${datasetName}].collection[${weightsCollectionName}].attribute[model name]`,
 					values: {hidden: false}
 				}]
 			await codapInterface.sendRequest(tShowRequests)
@@ -94,14 +92,14 @@ export class ModelManager {
 		async function getFeatureWeightCaseIDs() {
 			const tFeatureCountResult: any = await codapInterface.sendRequest({
 					action: 'get',
-					resource: `dataContext[${tFeatureDatasetName}].collection[${tFeaturesCollectionName}].caseCount`
+					resource: `dataContext[${datasetName}].collection[${collectionName}].caseCount`
 				}),
 				tFeatureCount = tFeatureCountResult.success ? tFeatureCountResult.values : 0,
 				tRequests: {}[] = []
 			for (let n = 0; n < tFeatureCount; n++) {
 				tRequests.push({
 						action: 'get',
-						resource: `dataContext[${tFeatureDatasetName}].collection[${tFeaturesCollectionName}].caseByIndex[${n}]`
+						resource: `dataContext[${datasetName}].collection[${collectionName}].caseByIndex[${n}]`
 					}
 				)
 			}
@@ -146,13 +144,13 @@ export class ModelManager {
 		if (tUpdatingExistingWeights) {
 			await codapInterface.sendRequest({
 				action: 'update',
-				resource: `dataContext[${tFeatureDatasetName}].collection[${tWeightsCollectionName}].case`,
+				resource: `dataContext[${datasetName}].collection[${weightsCollectionName}].case`,
 				values: tUpdateRequests
 			})
 		} else {
 			const tCreateResults: any = await codapInterface.sendRequest({
 				action: 'create',
-				resource: `dataContext[${tFeatureDatasetName}].collection[${tWeightsCollectionName}].case`,
+				resource: `dataContext[${datasetName}].collection[${weightsCollectionName}].case`,
 				values: tCreationRequests
 			})
 			tCreateResults.values.forEach((iValue: { id: number }, iIndex: number) => {
@@ -252,8 +250,7 @@ export class ModelManager {
 	async cancel() {
 
 		async function wipeWeights() {
-			const tFeatureDatasetName = featureStore.featureDatasetInfo.datasetName,
-				tWeightsCollectionName = featureStore.featureDatasetInfo.weightsCollectionName,
+			const { datasetName, weightsCollectionName } = featureStore.featureDatasetInfo,
 				tFeatureWeightCaseIDs = featureStore.featureWeightCaseIDs,
 				tUpdateRequests: { id: number, values: any }[] = []
 			for (let featureWeightCaseIDsKey in tFeatureWeightCaseIDs) {
@@ -267,7 +264,7 @@ export class ModelManager {
 			}
 			await codapInterface.sendRequest({
 				action: 'update',
-				resource: `dataContext[${tFeatureDatasetName}].collection[${tWeightsCollectionName}].case`,
+				resource: `dataContext[${datasetName}].collection[${weightsCollectionName}].case`,
 				values: tUpdateRequests
 			})
 		}
@@ -495,8 +492,7 @@ export class ModelManager {
 	}
 
 	async updateWeights(iModelName: string, iTokens: any, iWeights: number[]) {
-		const tFeatureDatasetName = featureStore.featureDatasetInfo.datasetName,
-			tWeightsCollectionName = featureStore.featureDatasetInfo.weightsCollectionName,
+		const { collectionName, datasetName } = featureStore.featureDatasetInfo,
 			tFeatures = featureStore.getChosenFeatures(),
 			tUpdateRequests: { id: number, values: any }[] = [],
 			tFeatureWeightCaseIDs = featureStore.featureWeightCaseIDs
@@ -531,7 +527,7 @@ export class ModelManager {
 
 		await codapInterface.sendRequest({
 			action: 'update',
-			resource: `dataContext[${tFeatureDatasetName}].collection[${tWeightsCollectionName}].case`,
+			resource: `dataContext[${datasetName}].collection[${collectionName}].case`,
 			values: tUpdateRequests
 		})
 	}

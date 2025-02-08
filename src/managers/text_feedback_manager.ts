@@ -99,8 +99,7 @@ export class TextFeedbackManager {
 				? testingStore.testingCollectionName : targetStore.targetCollectionName,
 			tAttributeName = tUseTestingDataset
 				? testingStore.testingAttributeName : targetStore.targetAttributeName,
-			tFeatureDatasetName = featureStore.featureDatasetInfo.datasetName,
-			tFeatureCollectionName = featureStore.featureDatasetInfo.collectionName,
+			{ collectionName, datasetName } = featureStore.featureDatasetInfo,
 			tClassAttributeName = tUseTestingDataset
 				? testingStore.testingClassAttributeName : targetStore.targetClassAttributeName,
 			tPredictedLabelAttributeName = targetStore.targetPredictedLabelAttributeName,
@@ -112,7 +111,7 @@ export class TextFeedbackManager {
 			// Get all the selected cases in the Features dataset. Some will be features and some will be weights
 			tSelectionListResult: any = await codapInterface.sendRequest({
 				action: 'get',
-				resource: `dataContext[${tFeatureDatasetName}].selectionList`
+				resource: `dataContext[${datasetName}].selectionList`
 			}),
 			tCaseRequests: { action: string, resource: string }[] = []
 
@@ -121,7 +120,7 @@ export class TextFeedbackManager {
 				// Select the features
 				await codapInterface.sendRequest({
 					action: 'create',
-					resource: `dataContext[${tFeatureDatasetName}].selectionList`,
+					resource: `dataContext[${datasetName}].selectionList`,
 					values: tIDsOfFeaturesToSelect
 				});
 			}
@@ -134,12 +133,12 @@ export class TextFeedbackManager {
 
 		// For the features, we just need to record their caseIDs. For the weights, we record a request to get parents
 		tSelectionListResult.values.forEach((iValue: any) => {
-			if (iValue.collectionName === tFeatureCollectionName) {
+			if (iValue.collectionName === collectionName) {
 				tSelectedFeaturesSet.add(iValue.caseID)
 			} else {
 				tCaseRequests.push({
 					action: 'get',
-					resource: `dataContext[${tFeatureDatasetName}].collection[${iValue.collectionName}].caseByID[${iValue.caseID}]`
+					resource: `dataContext[${datasetName}].collection[${iValue.collectionName}].caseByID[${iValue.caseID}]`
 				})
 			}
 		})
@@ -156,7 +155,7 @@ export class TextFeedbackManager {
 			tIDsOfFeaturesToSelect.map(iID => {
 				return {
 					action: 'get',
-					resource: `dataContext[${tFeatureDatasetName}].collection[${tFeatureCollectionName}].caseByID[${iID}]`
+					resource: `dataContext[${datasetName}].collection[${collectionName}].caseByID[${iID}]`
 				}
 			})
 		)
@@ -244,14 +243,14 @@ export class TextFeedbackManager {
 			// Select the features or, possibly, deselect all features
 			await codapInterface.sendRequest({
 				action: 'create',
-				resource: `dataContext[${tFeatureDatasetName}].selectionList`,
+				resource: `dataContext[${datasetName}].selectionList`,
 				values: tIDsOfFeaturesToSelect
 			});
 
 			let tSelectedFeatureCases: any[] = []
 			if (featureStore.features.length > 0) {
 				// Get the features and stash them in a set
-				tSelectedFeatureCases = await getSelectedCasesFrom(tFeatureDatasetName, tFeatureCollectionName)
+				tSelectedFeatureCases = await getSelectedCasesFrom(datasetName, collectionName)
 				tSelectedFeatureCases.forEach((iCase: any) => {
 					// This used to use the caseId, but the featureIDs saved in the training cases are item ids.
 					// I'm using item ids here now, but it's possible they should both use case ids instead.
@@ -282,8 +281,7 @@ export class TextFeedbackManager {
 				? testingStore.testingDatasetInfo.title : targetStore.targetDatasetInfo.title,
 			tAttributeName = tUseTestingDataset
 				? testingStore.testingAttributeName : targetStore.targetAttributeName,
-			tFeatureDatasetName = featureStore.featureDatasetInfo.datasetName,
-			tFeatureCollectionName = featureStore.featureDatasetInfo.collectionName,
+			{ collectionName, datasetName } = featureStore.featureDatasetInfo,
 			tClassAttributeName = tUseTestingDataset
 				? testingStore.testingClassAttributeName : targetStore.targetClassAttributeName,
 			tPredictedLabelAttributeName = targetStore.targetPredictedLabelAttributeName,
@@ -377,7 +375,7 @@ export class TextFeedbackManager {
 		const tIDsOfFeaturesToSelect: number[] = Array.from(tFeatureIDsSet),
 			tIDsOfParentCasesToSelect: number[] = Array.from(tSelectedTextsSet);
 		await handleSelectionInTargetDataset()
-		if (await datasetExists(tFeatureDatasetName))
+		if (await datasetExists(datasetName))
 			await handleSelectionInFeaturesDataset()
 
 		// We can now convert each quad's array of feature IDs to features

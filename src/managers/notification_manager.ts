@@ -83,9 +83,9 @@ export default class NotificationManager {
 							tFoundFeature.chosen = tChosen
 						} else if (tType === 'unigram') {
 							const tToken = featureStore.tokenMap[tName]
-							if( tToken && !tChosen) {
+							if (tToken && !tChosen) {
 								delete featureStore.tokenMap[tName]
-							} else if(!tToken && tChosen) {
+							} else if (!tToken && tChosen) {
 								featureStore.tokenMap[tName] = {
 									token: tName,
 									type: 'unigram',

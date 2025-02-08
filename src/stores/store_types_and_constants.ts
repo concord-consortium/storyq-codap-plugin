@@ -129,33 +129,35 @@ export interface Feature {
 	weight: number | ''
 }
 
-export const starterFeature: Feature = {
-	attrID: '',
-	caseID: '',
-	chosen: false,
-	description: '',
-	featureItemID: '',
-	formula: '',
-	inProgress: false,
-	info: {
-		kind: '',
-		details: {
-			caseOption: '',
-			freeFormText: '',
-			punctuation: '',
-			where: '',
-			what: '',
-			wordList: { datasetName: '', firstAttributeName: '' }
-		}
-	},
-	infoChoice: '',
-	name: '',
-	numberInNegative: -1,
-	numberInPositive: -1,
-	type: '',
-	usages: [],
-	weight: 0
-};
+export function getStarterFeature(): Feature {
+	return {
+		attrID: '',
+		caseID: '',
+		chosen: false,
+		description: '',
+		featureItemID: '',
+		formula: '',
+		inProgress: false,
+		info: {
+			kind: '',
+			details: {
+				caseOption: '',
+				freeFormText: '',
+				punctuation: '',
+				where: '',
+				what: '',
+				wordList: { datasetName: '', firstAttributeName: '' }
+			}
+		},
+		infoChoice: '',
+		name: '',
+		numberInNegative: -1,
+		numberInPositive: -1,
+		type: '',
+		usages: [],
+		weight: 0
+	};
+}
 
 export interface WordListSpec {
 	datasetName: string,

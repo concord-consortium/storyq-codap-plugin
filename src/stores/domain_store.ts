@@ -6,7 +6,7 @@
 import { getCaseValues, openTable } from "../lib/codap-helper";
 import codapInterface from "../lib/CodapInterface";
 import { oneHot, wordTokenizer } from "../lib/one_hot";
-import { featureStore } from "./feature_store";
+import { featureStore, IFeatureStoreJSON } from "./feature_store";
 import { Feature, kPosNegConstants } from "./store_types_and_constants";
 import { ITargetStoreJSON, otherClassColumn, targetStore } from "./target_store";
 import { ITestingStore, testingStore } from "./testing_store";
@@ -32,7 +32,7 @@ export class DomainStore {
 	}
 
 	async fromJSON(json: {
-		targetStore: ITargetStoreJSON, featureStore: object, trainingStore: object, testingStore: ITestingStore,
+		targetStore: ITargetStoreJSON, featureStore: IFeatureStoreJSON, trainingStore: object, testingStore: ITestingStore,
 		textStore: object
 	}) {
 		targetStore.fromJSON(json.targetStore);
@@ -49,26 +49,24 @@ export class DomainStore {
 	}
 
 	async guaranteeFeaturesDataset(): Promise<boolean> {
-		const tDatasetName = featureStore.featureDatasetInfo.datasetName,
-			tFeatureCollectionName = featureStore.featureDatasetInfo.collectionName,
-			tWeightsCollectionName = featureStore.featureDatasetInfo.weightsCollectionName;
+		const { collectionName, datasetName, weightsCollectionName } = featureStore.featureDatasetInfo;
 
 		async function hideWeightsAttributes() {
 			const tShowRequests = [{
 				action: 'update',
-				resource: `dataContext[${tDatasetName}].collection[${tWeightsCollectionName}].attribute[weight]`,
+				resource: `dataContext[${datasetName}].collection[${weightsCollectionName}].attribute[weight]`,
 				values: {hidden: true}
 			},
 			{
 				action: 'update',
-				resource: `dataContext[${tDatasetName}].collection[${tWeightsCollectionName}].attribute[model name]`,
+				resource: `dataContext[${datasetName}].collection[${weightsCollectionName}].attribute[model name]`,
 				values: {hidden: true}
 			}];
 			await codapInterface.sendRequest(tShowRequests);
 		}
 
 		if (featureStore.features.length > 0) {
-			if (featureStore.featureDatasetInfo.datasetID === -1) {
+			if (featureStore.featureDatasetID === -1) {
 				const tChosenClassKey = targetStore.targetChosenClassColumnKey,
 					tUnchosenClassKey = otherClassColumn(tChosenClassKey),
 					tPositiveAttrName = kPosNegConstants.positive.attrKey + targetStore.getTargetClassName(tChosenClassKey),
@@ -77,11 +75,11 @@ export class DomainStore {
 						action: 'create',
 						resource: 'dataContext',
 						values: {
-							name: tDatasetName,
-							title: tDatasetName,
+							name: datasetName,
+							title: datasetName,
 							collections: [{
-								name: tFeatureCollectionName,
-								title: tFeatureCollectionName,
+								name: collectionName,
+								title: collectionName,
 								attrs: [
 									{name: 'name'},
 									{name: 'chosen', type: 'checkbox'},
@@ -96,9 +94,9 @@ export class DomainStore {
 								]
 							},
 								{
-									name: tWeightsCollectionName,
-									title: tWeightsCollectionName,
-									parent: tFeatureCollectionName,
+									name: weightsCollectionName,
+									title: weightsCollectionName,
+									parent: collectionName,
 									attrs: [
 										{name: 'model name', type: 'categorical', hidden: false},
 										{name: 'weight', precision: 2, hidden: false}
@@ -108,9 +106,9 @@ export class DomainStore {
 					})
 				if (tCreateResult.success) {
 					featureStore.featureDatasetInfo.datasetID = tCreateResult.values.id
-					featureStore.featureDatasetInfo.datasetName = tDatasetName
+					featureStore.featureDatasetInfo.datasetName = datasetName
 					featureStore.featureDatasetInfo.datasetTitle = tCreateResult.values.title
-					await openTable(tDatasetName)
+					await openTable(datasetName)
 					// The 'model name' and 'weight' attributes were created as visible as a workaround to a bug.
 					// Now we can hide them
 					await hideWeightsAttributes()
@@ -193,7 +191,7 @@ export class DomainStore {
 		}
 
 		if (await this.guaranteeFeaturesDataset()) {
-			featureDatasetResourceString = `dataContext[${featureStore.featureDatasetInfo.datasetID}]`
+			featureDatasetResourceString = `dataContext[${featureStore.featureDatasetID}]`
 
 			tFeatureItems = (await getExistingFeatureItems()).filter(iItem => iItem.values.type !== 'unigram')
 			await updateFrequenciesUsagesAndFeatureIDs()
@@ -305,8 +303,7 @@ export class DomainStore {
 		await this.guaranteeFeaturesDataset()
 		for (const iNtgramFeature of tNgramFeatures) {
 			const
-				tFeatureDatasetName = featureStore.featureDatasetInfo.datasetName,
-				tFeatureCollectionName = featureStore.featureDatasetInfo.collectionName,
+				{ collectionName, datasetName } = featureStore.featureDatasetInfo,
 				tIgnore = iNtgramFeature.info.ignoreStopWords !== undefined ? iNtgramFeature.info.ignoreStopWords : true,
 				tThreshold = (iNtgramFeature.info.frequencyThreshold || 4),
 				tTargetAttributeName = targetStore.targetAttributeName,
@@ -336,7 +333,7 @@ export class DomainStore {
 				return
 			const tTokenArray = tOneHotResult.tokenArray	// Array of unigram features
 
-			featureStore.tokenMap = tOneHotResult.tokenMap
+			featureStore.setTokenMap(tOneHotResult.tokenMap);
 			// Stash tokens in feature dataset
 			// if (await this.guaranteeFeaturesDataset()) {
 			const tUnigramCreateMsgs: any[] = []
@@ -358,7 +355,7 @@ export class DomainStore {
 			})
 			const tCreateResult: any = await codapInterface.sendRequest({
 				action: 'create',
-				resource: `dataContext[${tFeatureDatasetName}].collection[${tFeatureCollectionName}].case`,
+				resource: `dataContext[${datasetName}].collection[${collectionName}].case`,
 				values: tUnigramCreateMsgs
 			})
 			// Stash the resultant feature case IDs where we can get them to update target cases
@@ -434,14 +431,13 @@ export class DomainStore {
 		if (trainingStore.trainingResults.length === 0) return
 
 		const tTrainingResults = trainingStore.trainingResults,
-			tFeatureDatasetName = featureStore.featureDatasetInfo.datasetName,
-			tMessages: object[] = [],
-			tWeightsCollectionName = featureStore.featureDatasetInfo.weightsCollectionName
+			{ datasetName, weightsCollectionName } = featureStore.featureDatasetInfo,
+			tMessages: object[] = [];
 		let tResultIDsToSetaside: number[] = [],
 			tWeightIDsToSetaside: number[] = []// Unset-aside all the weights
 		await codapInterface.sendRequest({
 				action: 'notify',
-				resource: `dataContext[${tFeatureDatasetName}]`,
+				resource: `dataContext[${datasetName}]`,
 				values: {
 					request: "restoreSetasides"
 				}
@@ -451,7 +447,7 @@ export class DomainStore {
 		// Gather all the cases from the weights collection
 		const tWeightsRequestResult: any = await codapInterface.sendRequest({
 				action: 'get',
-				resource: `dataContext[${tFeatureDatasetName}].collection[${tWeightsCollectionName}].caseFormulaSearch[true]`
+				resource: `dataContext[${datasetName}].collection[${weightsCollectionName}].caseFormulaSearch[true]`
 			}),
 			tWeightNameIDPairs: { modelName: string, id: number }[] = tWeightsRequestResult.success ?
 				tWeightsRequestResult.values.map((iValue: { id: number, values: { 'model name': string } }) => {
@@ -487,7 +483,7 @@ export class DomainStore {
 				tWeightIDsToSetaside = tWeightIDsToSetaside.concat(tInactiveWeightIDs)
 				tMessages.push({
 					action: 'notify',
-					resource: `dataContext[${tFeatureDatasetName}]`,
+					resource: `dataContext[${datasetName}]`,
 					values: {
 						request: 'setAside',
 						caseIDs: tWeightIDsToSetaside
@@ -545,15 +541,14 @@ export class DomainStore {
 			tTargetCollectionName = targetStore.targetCollectionName,
 			tTargetAttributeName = targetStore.targetAttributeName,
 			tTargetCases = await getCaseValues(tTargetDatasetName, tTargetCollectionName),
-			tFeatureDatasetName = featureStore.featureDatasetInfo.datasetName,
-			tFeatureCollectionName = featureStore.featureDatasetInfo.collectionName,
+			{ collectionName, datasetName } = featureStore.featureDatasetInfo,
 			tTokenMap = featureStore.tokenMap,
-			tFeatureCases = await getCaseValues(tFeatureDatasetName, tFeatureCollectionName),
+			tFeatureCases = await getCaseValues(datasetName, collectionName),
 			tUsageResults:{ [index:number]:number[]} = {}, // Contains IDs of target texts that contain a given feature
 			tTextResults: {[index:number]:number[]} = {},	// Contains IDs of features found in a given text
 			tFeatureItemRequests:{action:'get', resource:string}[] = []
 		tFeatureCases.forEach(iFeatureCase=>{
-			tFeatureItemRequests.push({action:'get', resource:`dataContext[${tFeatureDatasetName}].itemByCaseID[${iFeatureCase.id}]`})
+			tFeatureItemRequests.push({action:'get', resource:`dataContext[${datasetName}].itemByCaseID[${iFeatureCase.id}]`})
 			const tFeatureName = iFeatureCase.values.name,
 				tFeatureType = iFeatureCase.values.type
 
@@ -585,7 +580,7 @@ export class DomainStore {
 			},
 			{
 				action: 'update',
-				resource: `dataContext[${tFeatureDatasetName}].collection[${tFeatureCollectionName}].case`,
+				resource: `dataContext[${datasetName}].collection[${collectionName}].case`,
 				values:[]
 			}
 		]
