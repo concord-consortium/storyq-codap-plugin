@@ -10,11 +10,11 @@ export const kStoryQPluginName = "StoryQ"
 export const kEmptyEntityInfo = {name: '', title: '', id: 0},
 	kPosNegConstants = {
 		positive: {
-			storeKey: 'numberInPositive',
+			getStoreKey: (feature: Feature) => feature.numberInPositive,
 			attrKey: 'frequency in '
 		},
 		negative: {
-			storeKey: 'numberInNegative',
+			getStoreKey: (feature: Feature) => feature.numberInNegative,
 			attrKey: 'frequency in '
 		}
 	}

@@ -11,6 +11,11 @@ import { CreateComponentResponse, GetComponentListResponse } from '../types/coda
 import { kStoryQPluginName } from './store_types_and_constants';
 import { targetStore } from './target_store';
 
+export interface ITextStoreJSON {
+	textComponentTitle: string;
+	textComponentID: number;
+}
+
 export class TextStore {
 	textComponentTitle: string = '';
 	textComponentID: number = -1;
@@ -26,7 +31,7 @@ export class TextStore {
 		};
 	}
 
-	fromJSON(json: any) {
+	fromJSON(json: ITextStoreJSON) {
 		if (json) {
 			this.textComponentTitle = json.textComponentTitle || '';
 			this.textComponentID = json.textComponentID || -1;

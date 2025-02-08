@@ -1,3 +1,29 @@
+type APIRequestAction = "create" | "delete" | "get" | "notify" | "update";
+type CaseValue = string | boolean | number;
+export type CaseValues = { [key: string]: CaseValue };
+export interface CreateCaseValue {
+  values: CaseValues
+}
+export interface UpdateCaseValue {
+  id: number | string
+  values: CaseValues
+}
+export interface NotifyDataContextValues {
+  request: string
+  caseIDs: number[]
+}
+type APIRequestValues = CreateCaseValue[] | UpdateCaseValue[];
+export interface APIRequest {
+  action: APIRequestAction
+  resource: string
+  values?: APIRequestValues
+}
+export interface NotifyDataContextRequest {
+  action: APIRequestAction
+  resource: string
+  values: NotifyDataContextValues
+}
+
 interface CodapComponent {
   id: number
   title?: string
@@ -16,6 +42,10 @@ interface BasicDataContextInfo {
   id: number
   name: string
   title: string
+}
+export interface CreateDataContextResponse {
+  success: boolean
+  values?: BasicDataContextInfo
 }
 export interface GetDataContextListResponse {
   success: boolean
@@ -42,10 +72,32 @@ export interface GetAttributeListResponse {
   values?: BasicAttributeInfo[]
 }
 
-interface BasicCaseInfo {
+export interface BasicCaseInfo {
   id: number
+}
+export interface CreateCaseResponse {
+  success: boolean
+  values?: BasicCaseInfo[]
+}
+interface CaseInfo {
+  id: number
+  values: CaseValues
 }
 export interface GetCaseFormulaSearchResponse {
   success: boolean
-  values?: BasicCaseInfo[]
+  values?: CaseInfo[]
+}
+
+export type ItemValues = { [key: string]: string };
+export interface ItemInfo {
+  id: string
+  values: ItemValues
+}
+export interface GetItemByCaseIDResponse {
+  success: boolean
+  values?: ItemInfo
+}
+export interface GetItemSearchResponse {
+  success: boolean
+  values?: ItemInfo[]
 }

@@ -6,6 +6,11 @@
 import { makeAutoObservable, runInAction, toJS } from 'mobx'
 import { Model, TrainingResult } from "./store_types_and_constants";
 
+export interface ITrainingStoreSnapshot {
+	model: Model;
+	trainingResults: TrainingResult[];
+}
+
 export class TrainingStore {
 	model: Model;
 	trainingResults: TrainingResult[] = [];
@@ -23,7 +28,7 @@ export class TrainingStore {
 		};
 	}
 
-	fromJSON(json: any) {
+	fromJSON(json: ITrainingStoreSnapshot) {
 		if (json) {
 			this.model.fromJSON(json.model);
 			this.trainingResults = json.trainingResults || [];
