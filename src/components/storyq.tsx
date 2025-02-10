@@ -3,11 +3,11 @@ import React, { Component } from 'react';
 import { initializePlugin, registerObservers } from '../lib/codap-helper';
 import codapInterface, { CODAP_Notification } from "../lib/CodapInterface";
 import { TestingManager } from "../managers/testing_manager";
-import { domainStore } from "../stores/domain_store";
+import { domainStore, IDomainStoreJSON } from "../stores/domain_store";
 import { kStoryQPluginName } from "../stores/store_types_and_constants";
 import { targetStore } from '../stores/target_store';
 import { testingStore } from "../stores/testing_store";
-import { uiStore } from "../stores/ui_store";
+import { IUiStoreJSON, uiStore } from "../stores/ui_store";
 import { FeaturePanel } from "./feature_panel";
 import { TargetPanel } from "./target_panel";
 import { TestingPanel, kNonePresent } from "./testing_panel";
@@ -17,6 +17,11 @@ import { TabPanel } from './ui/tab-panel';
 
 import '../storyq.css';
 import '../styles/light.compact.css';
+
+interface IStorage {
+	domainStore: IDomainStoreJSON;
+	uiStore: IUiStoreJSON;
+}
 
 const Storyq = observer(class Storyq extends Component<{}, {}> {
 		private kPluginName = kStoryQPluginName;
@@ -64,7 +69,7 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 			}
 		}
 
-		async restorePluginFromStore(iStorage: any) {
+		async restorePluginFromStore(iStorage: IStorage) {
 			if (iStorage) {
 				uiStore.fromJSON(iStorage.uiStore);
 				domainStore.fromJSON(iStorage.domainStore);
@@ -77,35 +82,28 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 			await targetStore.updateFromCODAP()
 		}
 
-		renderTabPanel() {
-			return (
-				<TabPanel
-					id='tabPanel'
-					selectedIndex={uiStore.tabPanelSelectedIndex}
-					onSelectionChanged={(index: number) => this.handleSelectionChanged(index)}
-				>
-					<Item title='Setup' text='Specify the text data you want to work with'>
-						<TargetPanel />
-					</Item>
-					<Item title='Features' disabled={!domainStore.featuresPanelCanBeEnabled()}>
-						<FeaturePanel />
-					</Item>
-					<Item title='Training' disabled={!domainStore.trainingPanelCanBeEnabled()}>
-						<TrainingPanel />
-					</Item>
-					<Item title='Testing' disabled={!domainStore.testingPanelCanBeEnabled()}>
-						<TestingPanel testingManager={this.testingManager} />
-					</Item>
-				</TabPanel>
-			);
-		}
-
 		public render() {
-
 			return (
 				<div>
 					<div className="storyq">
-						{this.renderTabPanel()}
+						<TabPanel
+							id='tabPanel'
+							selectedIndex={uiStore.tabPanelSelectedIndex}
+							onSelectionChanged={(index: number) => this.handleSelectionChanged(index)}
+						>
+							<Item title='Setup' text='Specify the text data you want to work with'>
+								<TargetPanel />
+							</Item>
+							<Item title='Features' disabled={!domainStore.featuresPanelCanBeEnabled()}>
+								<FeaturePanel />
+							</Item>
+							<Item title='Training' disabled={!domainStore.trainingPanelCanBeEnabled()}>
+								<TrainingPanel />
+							</Item>
+							<Item title='Testing' disabled={!domainStore.testingPanelCanBeEnabled()}>
+								<TestingPanel testingManager={this.testingManager} />
+							</Item>
+						</TabPanel>
 					</div>
 				</div>
 			);

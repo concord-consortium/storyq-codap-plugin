@@ -20,6 +20,14 @@ import { ITextStoreJSON, textStore } from "./text_store";
 import { ITrainingStoreSnapshot as ITrainingStoreJSON, trainingStore } from "./training_store";
 import { uiStore } from "./ui_store";
 
+export interface IDomainStoreJSON {
+	featureStore: IFeatureStoreJSON;
+	targetStore: ITargetStoreJSON;
+	testingStore: ITestingStore;
+	textStore: ITextStoreJSON;
+	trainingStore: ITrainingStoreJSON;
+}
+
 export class DomainStore {
 	constructor() {
 		makeAutoObservable(this);

@@ -6,6 +6,11 @@ import { makeAutoObservable, toJS } from 'mobx';
 
 const tTitles = ['Target', 'Features', 'Training', 'Testing'];
 
+export interface IUiStoreJSON {
+	tabPanelSelectedIndex: number;
+	trainingPanelShowsEditor: boolean;
+}
+
 export class UiStore {
 	tabPanelSelectedIndex: number = 0;
 	trainingPanelShowsEditor: boolean = false;
@@ -22,7 +27,7 @@ export class UiStore {
 		return toJS(this);
 	}
 
-	fromJSON(json: any) {
+	fromJSON(json: IUiStoreJSON) {
 		if (json) {
 			this.tabPanelSelectedIndex = json.tabPanelSelectedIndex ?? 0;
 			this.trainingPanelShowsEditor = json.trainingPanelShowsEditor ?? false;
