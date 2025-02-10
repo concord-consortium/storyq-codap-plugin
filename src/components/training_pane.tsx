@@ -1,18 +1,17 @@
 /**
  * This component provides the space for a user to name and run a model
  */
-
-import { action } from "mobx";
-import { observer } from "mobx-react";
 import React, { Component } from "react";
+import { observer } from "mobx-react";
+import { action } from "mobx";
 import { SQ } from "../lists/lists";
 import { ModelManager } from "../managers/model_manager";
 import { domainStore } from "../stores/domain_store";
 import { featureStore } from "../stores/feature_store";
-import { TrainingResult } from "../stores/store_types_and_constants";
 import { trainingStore } from "../stores/training_store";
 import { uiStore } from "../stores/ui_store";
-import { ProgressBar } from "./progress_bar";
+import { TrainingResult } from "../stores/store_types_and_constants";
+import { ProgressBar } from "./progress-bar";
 import { Button } from "./ui/button";
 import { CheckBox } from "./ui/check-box";
 import { TextBox } from "./ui/text-box";
@@ -251,17 +250,6 @@ export const TrainingPane = observer(class TrainingPane extends Component {
 				}
 			}
 
-			function getProgressBar() {
-				if (trainingStore.model.trainingInProgress) {
-					const tIterations = trainingStore.model.iterations,
-						tCurrentIteration = trainingStore.model.iteration
-					return (
-						<ProgressBar
-							percentComplete={Math.round(100 * tCurrentIteration / tIterations)}
-						/>)
-				}
-			}
-
 			if (!tModel.beingConstructed) {
 				return (
 					<Button
@@ -275,6 +263,8 @@ export const TrainingPane = observer(class TrainingPane extends Component {
 					</Button>
 				)
 			} else {
+				const { iteration, iterations } = trainingStore.model;
+
 				return (
 					<div className='sq-component'>
 						<div className='sq-component'>
@@ -288,7 +278,7 @@ export const TrainingPane = observer(class TrainingPane extends Component {
 						</div>
 						{getButtons()}
 						{getSettingsPanel()}
-						{getProgressBar()}
+						<ProgressBar percentComplete={Math.round(100 * iteration / iterations)} />
 					</div>
 				)
 			}
