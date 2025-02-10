@@ -67,6 +67,10 @@ interface BasicAttributeInfo {
   name: string
   title: string
 }
+export interface CreateAttributeResponse {
+  success: boolean
+  values?: { attrs: BasicAttributeInfo[] }
+}
 export interface GetAttributeListResponse {
   success: boolean
   values?: BasicAttributeInfo[]

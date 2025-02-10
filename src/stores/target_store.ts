@@ -16,6 +16,7 @@ import {
 	containOptionAbbreviations, Feature, kContainOptionContain, kContainOptionEndWith, kContainOptionNotContain,
 	kContainOptionStartWith, kEmptyEntityInfo, SearchDetails
 } from "./store_types_and_constants";
+import { CreateAttributeResponse } from '../types/codap-api-types';
 
 type panelModes = 'welcome' | 'create' | 'chosen';
 type classColumns = "left" | "right";
@@ -416,16 +417,16 @@ export class TargetStore {
 			iNewFeature.formula = tFormula
 		const targetDatasetName = this.targetDatasetInfo.name;
 		if (!iUpdate) {
-			const tAttributeResponse: any = await codapInterface.sendRequest({
+			const tAttributeResponse = await codapInterface.sendRequest({
 				action: 'create',
 				resource: `dataContext[${targetDatasetName}].collection[${this_.targetCollectionName}].attribute`,
 				values: {
 					name: iNewFeature.name,
 					formula: tFormula
 				}
-			});
-			if (tAttributeResponse.success) {
-				iNewFeature.attrID = tAttributeResponse.values.attrs[0].id
+			}) as CreateAttributeResponse;
+			if (tAttributeResponse.success && tAttributeResponse.values && tAttributeResponse.values.attrs.length > 0) {
+				iNewFeature.attrID = String(tAttributeResponse.values.attrs[0].id);
 				await scrollCaseTableToRight(targetDatasetName);
 			}
 		} else {
