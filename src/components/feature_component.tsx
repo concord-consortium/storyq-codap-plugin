@@ -204,9 +204,7 @@ export const FeatureComponent = observer(function FeatureComponent({ feature, sh
 					text=' Ignore stopwords'
 					value={!!feature.info.ignoreStopWords}
 					hint={Object.keys(stopWords).join(', ')}
-					onValueChanged={action(() => {
-						feature.info.ignoreStopWords = !feature.info.ignoreStopWords;
-					})}
+					onValueChanged={action(() => feature.info.ignoreStopWords = !feature.info.ignoreStopWords)}
 				/>
 				<div className='sq-feature-ngram-ignore-settings'>
 					<span>Ignore words that appear fewer than </span>
@@ -215,9 +213,7 @@ export const FeatureComponent = observer(function FeatureComponent({ feature, sh
 						min={1}
 						max={100}
 						value={feature.info.frequencyThreshold}
-						onValueChanged={action((e) => {
-							feature.info.frequencyThreshold = e.value
-						})}
+						onValueChanged={action(value => feature.info.frequencyThreshold = value)}
 					/>
 					<span> times</span>
 				</div>
