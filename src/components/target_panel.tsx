@@ -14,6 +14,7 @@ import { targetStore } from "../stores/target_store";
 import { textStore } from "../stores/text_store";
 import { ChoicesMenu } from "./choices-menu";
 import { TargetTextArea } from "./target_text_area";
+import { CreateComponentResponse, CreateDataContextResponse } from "../types/codap-api-types";
 
 export const TargetPanel = observer(class TargetPanel extends Component {
 
@@ -89,7 +90,7 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 							tContextName = 'Training Data ' + n
 							n++
 						}
-						const tResults:any = await codapInterface.sendRequest([
+						const [createDataContextResponse] = await codapInterface.sendRequest([
 							{
 								"action": "create",
 								"resource": "dataContext",
@@ -120,12 +121,14 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 									dataContext: tContextName
 								}
 							}
-						])
-						targetDatasetStore.setTargetDatasetInfo({
-							title: tContextName,
-							name: tContextName,
-							id: tResults[0].values.id
-						});
+						]) as [CreateDataContextResponse, CreateComponentResponse];
+						if (createDataContextResponse.success && createDataContextResponse.values) {
+							targetDatasetStore.setTargetDatasetInfo({
+								title: tContextName,
+								name: tContextName,
+								id: createDataContextResponse.values.id
+							});
+						}
 						targetStore.setTargetPanelMode('chosen');
 					}
 				}
