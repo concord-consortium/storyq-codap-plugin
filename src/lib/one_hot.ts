@@ -17,7 +17,6 @@
 //  limitations under the License.
 // ==========================================================================
 
-
 import {stopWords} from "./stop_words";
 import {Feature, TokenMap} from "../stores/store_types_and_constants";
 import { emoticons } from "./emoticons";
@@ -190,5 +189,3 @@ export const oneHot = (config: OneHotConfig,
 		tokenArray: tokenArray
 	};
 };
-
-

@@ -371,7 +371,7 @@ export class DomainStore {
 							featureIDs.push(iFeature.featureCaseID);
 						}
 					});
-					const tUpdateValue: UpdateCaseValue = { id: iCase.id, values: { featureIds: JSON.stringify(featureIDs) } };
+					const tUpdateValue: UpdateCaseValue = { id: iCase.id, values: { featureIDs: JSON.stringify(featureIDs) } };
 					tUpdateMsgs.push(tUpdateValue);
 				})
 				await codapInterface.sendRequest({

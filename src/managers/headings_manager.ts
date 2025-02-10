@@ -2,18 +2,40 @@
  * Utility for use in constructing headings to show in text component for each kind of statement.
  */
 
+import { Descendant } from "@concord-consortium/slate-editor";
+
 export interface PhraseQuadruple {
-	actual:string, predicted:string, phrase:string, nonNtigramFeatures:(string | number)[]
+	actual: string, predicted: string, phrase: string, nonNtigramFeatures: (string | number)[]
 }
-export interface ClassLabel { negLabel: string, posLabel: string, blankLabel:string}
-export interface HeadingSpec {negNeg:any, negPos:any, negBlank:any, blankNeg:any, posNeg:any, posPos:any, posBlank:any, blankPos:any, blankBlank:any}
+export interface ClassLabel { negLabel: string, posLabel: string, blankLabel: string}
+export interface HeadingSpec {
+	negNeg: Descendant, negPos: Descendant, negBlank: Descendant, blankNeg: Descendant, posNeg: Descendant,
+	posPos: Descendant, posBlank: Descendant, blankPos: Descendant, blankBlank: Descendant
+}
 
 // TODO Make this a mobx class that doesn't need to be setup
 export class HeadingsManager {
 	public classLabels: ClassLabel = { negLabel: '', posLabel: '', blankLabel: '' };
-	public headings:HeadingSpec = { negNeg: null, negPos: null, negBlank: null, blankNeg: null,
-		posNeg: null, posPos: null, posBlank: null, blankPos: null, blankBlank:null };
+	public headings:HeadingSpec = {
+		negNeg: { text: "" }, negPos: { text: "" }, negBlank: { text: "" }, blankNeg: { text: "" }, posNeg: { text: "" },
+		posPos: { text: "" }, posBlank: { text: "" }, blankPos: { text: "" }, blankBlank: { text: "" }
+	};
 	public colors = { green: '#1aff1a', red: '#4b0092', blue: '#0000ff', orange: '#ff7700' }
+
+	getHeading(headingCode: string) {
+		switch (headingCode) {
+			case "negNeg": return this.headings.negNeg;
+			case "negPos": return this.headings.negPos;
+			case "negBlank": return this.headings.negBlank;
+			case "blankNeg": return this.headings.blankNeg;
+			case "posNeg": return this.headings.posNeg;
+			case "posPos": return this.headings.posPos;
+			case "posBlank": return this.headings.posBlank;
+			case "blankPos": return this.headings.blankPos;
+			case "blankBlank": return this.headings.blankBlank;
+			default: return { text: "" };
+		}
+	}
 
 	public setupHeadings(iNegLabel: string, iPosLabel: string, iBlankLabel: string,
 											 iActual: string | null, iPredicted: string | null) {
@@ -70,6 +92,4 @@ export class HeadingsManager {
 			blankBlank: { text: "" }
 		}
 	}
-
 }
-

@@ -1,6 +1,6 @@
 type APIRequestAction = "create" | "delete" | "get" | "notify" | "update";
 type CaseValue = string | boolean | number;
-export type CaseValues = { [key: string]: CaseValue };
+export type CaseValues = Record<string, CaseValue>;
 export interface CreateCaseValue {
   values: CaseValues
 }
@@ -79,16 +79,22 @@ export interface CreateCaseResponse {
   success: boolean
   values?: BasicCaseInfo[]
 }
-interface CaseInfo {
+export interface CaseInfo {
+  children: number[]
   id: number
+  parent?: number
   values: CaseValues
+}
+export interface GetCaseByIDResponse {
+  success: boolean
+  values?: { case: CaseInfo }
 }
 export interface GetCaseFormulaSearchResponse {
   success: boolean
   values?: CaseInfo[]
 }
 
-export type ItemValues = { [key: string]: string };
+export type ItemValues = Record<string, string>;
 export interface ItemInfo {
   id: string
   values: ItemValues
@@ -100,4 +106,14 @@ export interface GetItemByCaseIDResponse {
 export interface GetItemSearchResponse {
   success: boolean
   values?: ItemInfo[]
+}
+
+interface SelectionListValue {
+  caseID: number
+  collectionID: number
+  collectionName: string
+}
+export interface GetSelectionListResponse {
+  success: boolean
+  values?: SelectionListValue[]
 }
