@@ -269,19 +269,67 @@ export class Model {
 		makeAutoObservable(this, { logisticModel: false }, { autoBind: true })
 	}
 
+	setBeingConstructed(value: boolean) {
+		this.beingConstructed = value;
+	}
+
+	setFrequencyThreshold(value: number) {
+		this.frequencyThreshold = value;
+	}
+
+	setIgnoreStopWords(value: boolean) {
+		this.ignoreStopWords = value;
+	}
+
+	setIteration(value: number) {
+		this.iteration = value;
+	}
+
+	setIterations(value: number) {
+		this.iterations = value;
+	}
+
+	setLockInterceptAtZero(value: boolean) {
+		this.lockInterceptAtZero = value;
+	}
+
+	setLogisticModel(value: LogisticRegression) {
+		this.logisticModel = value;
+	}
+
+	setName(value: string) {
+		this.name = value;
+	}
+
+	setTrainingInProgress(value: boolean) {
+		this.trainingInProgress = value;
+	}
+
+	setTrainingInStepMode(value: boolean) {
+		this.trainingInStepMode = value;
+	}
+
+	setTrainingIsComplete(value: boolean) {
+		this.trainingIsComplete = value;
+	}
+
+	setUsePoint5AsProbThreshold(value: boolean) {
+		this.usePoint5AsProbThreshold = value;
+	}
+
 	import(model: IModel) {
-		this.beingConstructed = model.beingConstructed;
-		this.frequencyThreshold = model.frequencyThreshold;
-		this.ignoreStopWords = model.ignoreStopWords;
-		this.iteration = model.iteration;
-		this.iterations = model.iterations;
-		this.lockInterceptAtZero = model.lockInterceptAtZero;
-		this.logisticModel = model.logisticModel;
-		this.name = model.name;
-		this.trainingInProgress = model.trainingInProgress;
-		this.trainingInStepMode = model.trainingInStepMode;
-		this.trainingIsComplete = model.trainingIsComplete;
-		this.usePoint5AsProbThreshold = model.usePoint5AsProbThreshold;
+		this.setBeingConstructed(model.beingConstructed);
+		this.setFrequencyThreshold(model.frequencyThreshold);
+		this.setIgnoreStopWords(model.ignoreStopWords);
+		this.setIteration(model.iteration);
+		this.setIterations(model.iterations);
+		this.setLockInterceptAtZero(model.lockInterceptAtZero);
+		this.setLogisticModel(model.logisticModel);
+		this.setName(model.name);
+		this.setTrainingInProgress(model.trainingInProgress);
+		this.setTrainingInStepMode(model.trainingInStepMode);
+		this.setTrainingIsComplete(model.trainingIsComplete);
+		this.setUsePoint5AsProbThreshold(model.usePoint5AsProbThreshold);
 	}
 
 	reset() {

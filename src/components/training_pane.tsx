@@ -20,8 +20,8 @@ export const TrainingPane = observer(class TrainingPane extends Component {
 
 	private modelManager: ModelManager
 
-	constructor(props: any) {
-		super(props);
+	constructor() {
+		super({});
 		this.modelManager = new ModelManager();
 	}
 
@@ -206,20 +206,6 @@ export const TrainingPane = observer(class TrainingPane extends Component {
 					)
 				}
 
-				function getCheckbox(iValue: boolean, iLabel: string, iHint: string, setter: (e: any) => void) {
-					return (
-						<CheckBox
-							text={iLabel}
-							hint={iHint}
-							value={iValue}
-							onValueChanged={
-								action((e) => {
-									setter(e)
-								})
-							}
-						/>)
-				}
-
 				if (uiStore.trainingPanelShowsEditor) {
 					return (
 						<div className='sq-training-settings-panel'>
@@ -231,18 +217,18 @@ export const TrainingPane = observer(class TrainingPane extends Component {
 									<span title={SQ.hints.trainingSetupIteration}>Iterations:</span>{iterationsBox()}
 								</div>
 								<div className='sq-training-checkboxes'>
-									{getCheckbox(trainingStore.model.lockInterceptAtZero,
-										'Lock intercept at 0',
-										SQ.hints.trainingLockIntercept,
-										(e) => {
-											trainingStore.model.lockInterceptAtZero = e.value
-										})}
-									{getCheckbox(trainingStore.model.usePoint5AsProbThreshold,
-										'Use 50% as probability threshold',
-										SQ.hints.trainingPointFiveAsThreshold,
-										(e) => {
-											trainingStore.model.usePoint5AsProbThreshold = e.value
-										})}
+									<CheckBox
+										hint={SQ.hints.trainingLockIntercept}
+										onValueChanged={value => tModel.setLockInterceptAtZero(value)}
+										text='Lock intercept at 0'
+										value={tModel.lockInterceptAtZero}
+									/>
+									<CheckBox
+										hint={SQ.hints.trainingPointFiveAsThreshold}
+										onValueChanged={value => tModel.setUsePoint5AsProbThreshold(value)}
+										text='Use 50% as probability threshold'
+										value={tModel.usePoint5AsProbThreshold}
+									/>
 								</div>
 							</div>
 						</div>
@@ -300,9 +286,7 @@ export const TrainingPane = observer(class TrainingPane extends Component {
 							value={tTrainingResult.isActive}
 							disabled={tIsDisabled}
 							style={{'fontSize': 'large'}}
-							onValueChanged={action(() => {
-								domainStore.setIsActiveForResultAtIndex(iIndex, !tTrainingResult.isActive)
-							})}
+							onValueChanged={() => domainStore.setIsActiveForResultAtIndex(iIndex, !tTrainingResult.isActive)}
 							hint={tHint}
 						/>
 					</td>

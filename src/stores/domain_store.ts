@@ -3,6 +3,7 @@
  * be accessed in more than one file or needs to be saved and restored.
  */
 
+import { makeAutoObservable } from "mobx";
 import { getCaseValues, openTable } from "../lib/codap-helper";
 import codapInterface from "../lib/CodapInterface";
 import { oneHot, wordTokenizer } from "../lib/one_hot";
@@ -20,6 +21,10 @@ import { ITrainingStoreSnapshot as ITrainingStoreJSON, trainingStore } from "./t
 import { uiStore } from "./ui_store";
 
 export class DomainStore {
+	constructor() {
+		makeAutoObservable(this);
+	}
+
 	asJSON(): object {
 		return {
 			targetStore: targetStore.asJSON(),
@@ -409,7 +414,7 @@ export class DomainStore {
 			if (currIndex < 0) currIndex = tTrainingResults.length - 1;
 			tTrainingResults[currIndex].isActive = true;
 		}
-		const tFirstActiveResult = tTrainingResults.find(iResult=>iResult.isActive),
+		const tFirstActiveResult = tTrainingResults.find(iResult => iResult.isActive),
 			tIgnore = tFirstActiveResult ? tFirstActiveResult.ignoreStopWords : true;
 		await this.syncWeightsAndResultsWithActiveModels();
 		await this.recreateUsagesAndFeatureIDs(tIgnore);

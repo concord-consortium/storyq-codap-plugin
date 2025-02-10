@@ -38,10 +38,8 @@ export const FeatureComponent = observer(function FeatureComponent({ feature, sh
 					text=''
 					value={feature.chosen}
 					onValueChanged={action(async () => {
-						await featureStore.toggleChosenFor(feature)
-						console.log(`type = ${feature.type}; chosen = ${feature.chosen}`)
-						if( feature.type === 'unigram' && feature.chosen)
-							domainStore.updateNgramFeatures()
+						await featureStore.toggleChosenFor(feature);
+						if (feature.type === 'unigram' && feature.chosen) domainStore.updateNgramFeatures();
 					})}
 					hint={tHint}
 				/>
@@ -206,11 +204,9 @@ export const FeatureComponent = observer(function FeatureComponent({ feature, sh
 					text=' Ignore stopwords'
 					value={!!feature.info.ignoreStopWords}
 					hint={Object.keys(stopWords).join(', ')}
-					onValueChanged={
-						action((e) => {
-							feature.info.ignoreStopWords = !feature.info.ignoreStopWords;
-						})
-					}
+					onValueChanged={action(() => {
+						feature.info.ignoreStopWords = !feature.info.ignoreStopWords;
+					})}
 				/>
 				<div className='sq-feature-ngram-ignore-settings'>
 					<span>Ignore words that appear fewer than </span>
