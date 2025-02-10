@@ -10,7 +10,7 @@ import { SQ } from "../lists/lists";
 import { domainStore } from "../stores/domain_store";
 import { featureStore } from "../stores/feature_store";
 import {
-	Feature, featureDescriptors, kKindOfThingOptionList, kKindOfThingOptionPunctuation, kKindOfThingOptionText,
+	Feature, featureDescriptors, isWhatOption, kKindOfThingOptionList, kKindOfThingOptionPunctuation, kKindOfThingOptionText,
 	SearchDetails
 } from "../stores/store_types_and_constants";
 import { targetStore } from "../stores/target_store";
@@ -95,18 +95,17 @@ export const FeatureComponent = observer(function FeatureComponent({ feature, sh
 				placeholder={'choose a method'}
 				value={feature.infoChoice ?? ""}
 				style={{display: 'inline-block'}}
-				onValueChanged={action((e) => {
-					feature.infoChoice = e.value
-					feature.info.kind = JSON.parse(e.value).kind
-					feature.info.details = Object.assign(feature.info.details || {}, JSON.parse(e.value).details)
+				onValueChanged={action(value => {
+					feature.infoChoice = value;
+					feature.info.kind = JSON.parse(value).kind;
+					feature.info.details = Object.assign(feature.info.details || {}, JSON.parse(value).details);
 					if (feature.info.kind === 'ngram') {
-						feature.info.frequencyThreshold = 4
-						feature.info.ignoreStopWords = true
+						feature.info.frequencyThreshold = 4;
+						feature.info.ignoreStopWords = true;
 					} else if (feature.info.kind === 'column') {
-						feature.name = JSON.parse(e.value).details['columnName']
-						feature.type = 'column'
+						feature.name = JSON.parse(value).details['columnName'];
+						feature.type = 'column';
 					}
-					// await this_.updateFeaturesDataset(tFeature)
 				})}
 			/>
 		)
@@ -121,9 +120,9 @@ export const FeatureComponent = observer(function FeatureComponent({ feature, sh
 					placeholder={'choose from'}
 					value={featureDetails?.what ?? ""}
 					style={{display: 'inline-block'}}
-					onValueChanged={action(async (e) => {
-						(feature.info.details as SearchDetails).what = e.value as any
-						await updateFeaturesDataset(feature)
+					onValueChanged={action(async value => {
+						if (isWhatOption(value)) (feature.info.details as SearchDetails).what = value;
+						await updateFeaturesDataset(feature);
 					})}
 				/>
 			)
@@ -190,7 +189,7 @@ export const FeatureComponent = observer(function FeatureComponent({ feature, sh
 				<SelectBox
 					className='word-list-select'
 					dataSource={tLists}
-					defaultValue={featureDetails.wordList}
+					defaultValue={featureDetails.wordList.datasetName}
 					placeholder={'choose list'}
 					style={{display: 'inline-block'}}
 					onValueChange={handleValueChange}

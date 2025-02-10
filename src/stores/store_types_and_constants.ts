@@ -77,9 +77,15 @@ export const kKindOfThingOptionList = featureDescriptors.kindOfThingContainedOpt
 export const kKindOfThingOptionText = featureDescriptors.kindOfThingContainedOptions[0]
 export const kKindOfThingOptionPunctuation = featureDescriptors.kindOfThingContainedOptions[1]
 
+const whatOptions = ['any number', 'any item from a list', 'text', 'punctuation', 'part of speech', ''];
+type whatOption = typeof whatOptions[number];
+export function isWhatOption(value: string): value is whatOption {
+	return whatOptions.includes(value as whatOption);
+}
+
 export interface SearchDetails {
 	where: 'startWith' | 'contain' | 'notContain' | 'endWith' | '',
-	what: 'any number' | 'any item from a list' | 'text' | 'punctuation' | 'part of speech' | '',
+	what: whatOption,
 	caseOption: 'any' | 'upper' | 'lower' | '',
 	freeFormText: string,
 	punctuation: string,
