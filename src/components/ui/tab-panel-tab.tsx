@@ -1,13 +1,12 @@
 import clsx from "clsx";
 import React, { useState } from "react";
-import { TabPanelChangeEvent } from "./tab-panel";
 
 interface ITabPanelTabProps {
   title: string;
   index: number;
   selectedIndex: number;
   disabled: boolean;
-  onSelectionChanged: (e: TabPanelChangeEvent) => void;
+  onSelectionChanged: (index: number) => void;
 }
 
 export const TabPanelTab = ({title, index, selectedIndex, disabled, onSelectionChanged}: ITabPanelTabProps) => {
@@ -19,11 +18,9 @@ export const TabPanelTab = ({title, index, selectedIndex, disabled, onSelectionC
     "ui-state-hover": hovering
   });
 
-  const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handleClick = () => {
     if (!disabled) {
-      const syntheticEvent = new CustomEvent('customEvent', { detail: { selectedIndex: index } }) as any;
-      syntheticEvent.selectedIndex = index;
-      onSelectionChanged(syntheticEvent);
+      onSelectionChanged(index);
     }
   }
 

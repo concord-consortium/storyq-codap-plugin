@@ -1,4 +1,3 @@
-import { action } from "mobx";
 import { observer } from "mobx-react";
 import React, { Component } from 'react';
 import { initializePlugin, registerObservers } from '../lib/codap-helper';
@@ -28,8 +27,8 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 		};
 		private testingManager: TestingManager;
 
-		constructor(props: any) {
-			super(props);
+		constructor() {
+			super({});
 			this.restorePluginFromStore = this.restorePluginFromStore.bind(this);
 			this.getPluginStore = this.getPluginStore.bind(this);
 			this.handleSelectionChanged = this.handleSelectionChanged.bind(this);
@@ -73,8 +72,8 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 			}
 		}
 
-		async handleSelectionChanged(e: any) {
-			uiStore.setTabPanelSelectedIndex(e.selectedIndex);
+		async handleSelectionChanged(index: number) {
+			uiStore.setTabPanelSelectedIndex(index);
 			await targetStore.updateFromCODAP()
 		}
 
@@ -83,9 +82,7 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 				<TabPanel
 					id='tabPanel'
 					selectedIndex={uiStore.tabPanelSelectedIndex}
-					onSelectionChanged={action((e: any) => {
-						this.handleSelectionChanged(e)
-					})}
+					onSelectionChanged={(index: number) => this.handleSelectionChanged(index)}
 				>
 					<Item title='Setup' text='Specify the text data you want to work with'>
 						<TargetPanel />
