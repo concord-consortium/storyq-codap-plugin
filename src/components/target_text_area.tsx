@@ -50,11 +50,7 @@ export const TargetTextArea = observer(function TargetTextArea() {
 					<RadioGroup
 						items={[tDesiredColumnValue]}
 						value={tChosenColumnValue}
-						onValueChange={(e) => {
-							if (e) {
-								targetStore.setTargetChosenClassColumnKey(index === 0 ? tLeftColumnKey : tRightColumnKey);
-							}
-						}}
+						onValueChange={() => targetStore.setTargetChosenClassColumnKey(index === 0 ? tLeftColumnKey : tRightColumnKey)}
 						hint={SQ.hints.targetTwoGroups}
 					/>
 				</div>
