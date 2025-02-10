@@ -75,12 +75,8 @@ export const TrainingPane = observer(class TrainingPane extends Component {
 					<TextBox
 						className='sq-fc-part'
 						placeholder="Name"
-						onValueChanged={action((e) => {
-							tModel.name = e.value
-						})}
-						onFocusOut={action(() => {
-							tModel.name = this_.modelManager.guaranteeUniqueModelName(tModel.name)
-						})}
+						onValueChanged={value => tModel.setName(value)}
+						onFocusOut={() => tModel.setName(this_.modelManager.guaranteeUniqueModelName(tModel.name))}
 						value={tModel.name}
 						maxLength={20}
 					/>
@@ -196,9 +192,7 @@ export const TrainingPane = observer(class TrainingPane extends Component {
 							className='sq-fc-part'
 							placeholder=""
 							hint={SQ.hints.trainingSetupIteration}
-							onValueChanged={action((e) => {
-								tModel.iterations = Number(e.value)
-							})}
+							onValueChanged={value => tModel.setIterations(Number(value))}
 							value={String(tModel.iterations)}
 							maxLength={4}
 							width={40}
@@ -241,8 +235,8 @@ export const TrainingPane = observer(class TrainingPane extends Component {
 					<Button
 						className='sq-button'
 						onClick={action(async () => {
-							tModel.reset()
-							tModel.beingConstructed = true
+							tModel.reset();
+							tModel.setBeingConstructed(true);
 						})}
 						hint={SQ.hints.trainingNewModel}>
 						+ New Model

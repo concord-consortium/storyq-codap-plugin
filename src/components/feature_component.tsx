@@ -133,9 +133,9 @@ export const FeatureComponent = observer(function FeatureComponent({ feature, sh
 				<TextBox
 					className='sq-fc-part'
 					placeholder="type something here"
-					onValueChanged={action(async (e) => {
-						featureDetails.freeFormText = e.value
-						await updateFeaturesDataset(feature)
+					onValueChanged={action(async value => {
+						featureDetails.freeFormText = value;
+						await updateFeaturesDataset(feature);
 					})}
 					value={featureDetails.freeFormText}
 					maxLength={100}
@@ -150,9 +150,9 @@ export const FeatureComponent = observer(function FeatureComponent({ feature, sh
 				<TextBox
 					className='sq-fc-part'
 					placeholder="punctuation mark"
-					onValueChanged={action(async (e) => {
-						featureDetails.punctuation = e.value
-						await updateFeaturesDataset(feature)
+					onValueChanged={action(async value => {
+						featureDetails.punctuation = value;
+						await updateFeaturesDataset(feature);
 					})}
 					value={featureDetails.punctuation}
 					maxLength={1}
