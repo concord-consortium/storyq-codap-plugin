@@ -108,12 +108,12 @@ export const TrainingPane = observer(class TrainingPane extends Component {
 								disabled={tDisabled}
 								onClick={action(async () => {
 									if (tInStepMode) {
-										trainingStore.model.trainingInStepMode = false
+										trainingStore.model.setTrainingInStepMode(false);
 									} else {
 										uiStore.setTrainingPanelShowsEditor(false);
-										trainingStore.model.trainingInProgress = true
-										await this_.modelManager.buildModel()
-										this_.modelManager.nextStep()
+										trainingStore.model.setTrainingInProgress(true);
+										await this_.modelManager.buildModel();
+										this_.modelManager.nextStep();
 									}
 								})}
 								hint={tHint}>
@@ -129,14 +129,13 @@ export const TrainingPane = observer(class TrainingPane extends Component {
 								className='sq-button'
 								disabled={tDisabled}
 								onClick={action(async () => {
-									const tInProgress = trainingStore.model.trainingInProgress
-									if (!tInProgress) {
+									if (!trainingStore.model.trainingInProgress) {
 										uiStore.setTrainingPanelShowsEditor(false);
-										trainingStore.model.trainingInProgress = true
-										trainingStore.model.trainingInStepMode = true
-										await this_.modelManager.buildModel()
+										trainingStore.model.setTrainingInProgress(true);
+										trainingStore.model.setTrainingInStepMode(true);
+										await this_.modelManager.buildModel();
 									} else {
-										this_.modelManager.nextStep()
+										this_.modelManager.nextStep();
 									}
 								})}
 								hint={SQ.hints.trainingOneStep}>

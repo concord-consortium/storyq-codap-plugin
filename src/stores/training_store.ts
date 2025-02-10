@@ -3,22 +3,23 @@
  * be accessed in more than one file or needs to be saved and restored.
  */
 
-import { makeAutoObservable, runInAction, toJS } from 'mobx'
-import { Model, TrainingResult } from "./store_types_and_constants";
+import { makeAutoObservable, runInAction, toJS } from 'mobx';
+import { AIModel } from '../models/ai-model';
+import { TrainingResult } from "./store_types_and_constants";
 
 export interface ITrainingStoreSnapshot {
-	model: Model;
+	model: AIModel;
 	trainingResults: TrainingResult[];
 }
 
 export class TrainingStore {
-	model: Model;
+	model: AIModel;
 	trainingResults: TrainingResult[] = [];
 	resultCaseIDs: number[] = [];
 
 	constructor() {
 		makeAutoObservable(this, { resultCaseIDs: false }, { autoBind: true });
-		this.model = new Model();
+		this.model = new AIModel();
 	}
 
 	asJSON() {

@@ -8,7 +8,7 @@ import { LogisticRegression } from "../lib/jsregression";
 import { oneHot } from "../lib/one_hot";
 import { domainStore } from "../stores/domain_store";
 import { featureStore } from "../stores/feature_store";
-import { Feature, NgramDetails, StoredModel, Token } from "../stores/store_types_and_constants";
+import { Feature, NgramDetails, StoredAIModel, Token } from "../stores/store_types_and_constants";
 import { targetStore } from "../stores/target_store";
 import { trainingStore } from "../stores/training_store";
 import { computeKappa } from "../utilities/utilities";
@@ -357,8 +357,8 @@ export class ModelManager {
 
 		// Logistic can't happen until we've isolated the features and produced a oneHot representation
 		const tIgnore = tUnigramFeature && (tUnigramFeature.info.ignoreStopWords === true ||
-			tUnigramFeature.info.ignoreStopWords === false) ? tUnigramFeature.info.ignoreStopWords : true
-		trainingStore.model.ignoreStopWords = tIgnore
+			tUnigramFeature.info.ignoreStopWords === false) ? tUnigramFeature.info.ignoreStopWords : true;
+		trainingStore.model.setIgnoreStopWords(tIgnore);
 		let tOneHot = oneHot({
 				frequencyThreshold: (tUnigramFeature && (Number(tUnigramFeature.info.frequencyThreshold) - 1)) || 0,
 				ignoreStopWords: tIgnore,
@@ -369,9 +369,8 @@ export class ModelManager {
 				features: tNonNgramFeatures,
 				tokenMap: featureStore.tokenMap
 			},
-			tDocuments)
-		if (!tOneHot)
-			return
+			tDocuments);
+		if (!tOneHot) return
 
 		// Column feature results get pushed on after unigrams
 
@@ -399,7 +398,7 @@ export class ModelManager {
 			tIterations = tModel.iterations,
 			this_ = this
 		runInAction(async () => {
-			tModel.iteration = iIteration
+			tModel.setIteration(iIteration);
 			if (iIteration >= tIterations) {
 				const tLogisticModel = tModel.logisticModel;
 
@@ -451,7 +450,7 @@ export class ModelManager {
 		this.stepModeContinueCallback && this.stepModeContinueCallback(this.stepModeIteration + 1)
 	}
 
-	fillOutCurrentStoredModel(iLogisticModel: LogisticRegression): StoredModel {
+	fillOutCurrentStoredModel(iLogisticModel: LogisticRegression): StoredAIModel {
 		const tTokenArray = iLogisticModel._oneHot.tokenArray,
 			tWeights = iLogisticModel.fitResult.theta	// toss the constant term
 
