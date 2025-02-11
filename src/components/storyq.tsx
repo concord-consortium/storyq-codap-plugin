@@ -63,7 +63,7 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 		}
 
 		async handleCaseNotification(iNotification: CODAP_Notification) {
-			const tDataContextName = iNotification.resource && iNotification.resource.match(/\[(.+)]/)[1]
+			const tDataContextName = iNotification.resource && iNotification.resource.match(/\[(.+)]/)?.[1]
 			if (tDataContextName === testingStore.testingDatasetInfo.name) {
 				await this.testingManager.classify(false)
 			}

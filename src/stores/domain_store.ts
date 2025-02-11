@@ -10,7 +10,7 @@ import { oneHot, wordTokenizer } from "../lib/one_hot";
 import {
 	APIRequest, BasicCaseInfo, CreateCaseResponse, CreateCaseValue, CreateDataContextResponse,
 	GetCaseFormulaSearchResponse, GetItemByCaseIDResponse, GetItemSearchResponse, ItemInfo, ItemValues,
-	NotifyDataContextRequest, UpdateCaseValue
+	NotifyDataContextRequest, UpdateCaseRequest, UpdateCaseValue
 } from "../types/codap-api-types";
 import { featureStore, IFeatureStoreJSON } from "./feature_store";
 import { Feature, kPosNegConstants } from "./store_types_and_constants";
@@ -568,7 +568,7 @@ export class DomainStore {
 			}
 		});
 		// Now we can update the target and feature cases
-		const tMsgs: APIRequest[] = [
+		const tMsgs: UpdateCaseRequest[] = [
 			{
 				action: 'update',
 				resource: `dataContext[${tTargetDatasetName}].collection[${targetCollectionName}].case`,

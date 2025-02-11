@@ -50,11 +50,10 @@ export default class NotificationManager {
 
 	handleDeleteFeatureCase(iNotification: CODAP_Notification) {
 		const { features } = featureStore,
-			tDataContextName = iNotification.resource && iNotification.resource.match(/\[(.+)]/)[1],
-			tCases = iNotification.values.result.cases,
-			tDeletedFeatureNames = Array.isArray(tCases) ? tCases.map((iCase: any) => {
-				return iCase.values.name
-			}) : []
+			tDataContextName = iNotification.resource && iNotification.resource.match(/\[(.+)]/)?.[1],
+			{ values } = iNotification,
+			tCases = Array.isArray(values) ? values[0].result.cases : values.result.cases,
+			tDeletedFeatureNames = tCases && Array.isArray(tCases) ? tCases.map(iCase => String(iCase.values.name)) : [];
 		if (tDeletedFeatureNames.length > 0 && tDataContextName === featureStore.featureDatasetInfo.datasetName) {
 			action(() => {
 				tDeletedFeatureNames.forEach((iName: string) => {
@@ -68,16 +67,17 @@ export default class NotificationManager {
 
 	handleUpdateFeatureCase(iNotification: CODAP_Notification) {
 		const { features } = featureStore,
-			tDataContextName = iNotification.resource && iNotification.resource.match(/\[(.+)]/)[1]
+			tDataContextName = iNotification.resource && iNotification.resource.match(/\[(.+)]/)?.[1]
 		if (tDataContextName === featureStore.featureDatasetInfo.datasetName) {
-			const tCases = iNotification.values.result.cases,
+			const { values } = iNotification;
+			const tCases = Array.isArray(values) ? values[0].result.cases : values.result.cases,
 				tUpdatedCases = Array.isArray(tCases) ? tCases : []
 			if (tUpdatedCases.length > 0) {
 				action(() => {
-					tUpdatedCases.forEach((iCase: any) => {
+					tUpdatedCases.forEach(iCase => {
 						const tChosen = iCase.values.chosen === 'true',
 							tType = iCase.values.type,
-							tName = iCase.values.name,
+							tName = String(iCase.values.name),
 							tFoundFeature = tType !== 'unigram' && features.find(iFeature => iFeature.name === tName)
 						if (tFoundFeature) {
 							tFoundFeature.chosen = tChosen
@@ -89,11 +89,11 @@ export default class NotificationManager {
 								featureStore.tokenMap[tName] = {
 									token: tName,
 									type: 'unigram',
-									count: iCase.values['frequency in positive'] + iCase.values['frequency in negative'],
+									count: Number(iCase.values['frequency in positive']) + Number(iCase.values['frequency in negative']),
 									index: 0,
-									numPositive: iCase.values['frequency in positive'],
-									numNegative: iCase.values['frequency in negative'],
-									caseIDs: JSON.parse(iCase.values.usages),
+									numPositive: Number(iCase.values['frequency in positive']),
+									numNegative: Number(iCase.values['frequency in negative']),
+									caseIDs: JSON.parse(String(iCase.values.usages)),
 									weight: null,
 									featureCaseID: iCase.id
 								}

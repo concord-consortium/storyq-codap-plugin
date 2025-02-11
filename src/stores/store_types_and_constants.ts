@@ -1,6 +1,3 @@
-import { makeAutoObservable, toJS } from "mobx";
-import { getDefaultLogisticRegression, LogisticRegression } from "../lib/jsregression";
-
 /**
  * These types and constants are used primarily by the various store classes
  */

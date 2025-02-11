@@ -37,19 +37,23 @@ export class TextFeedbackManager {
 			tTestingDatasetName = testingStore.testingDatasetInfo.name,
 			tFeatureDatasetName = featureStore.featureDatasetInfo.datasetName;
 
-		if (iNotification.action === 'notify' && iNotification.values.operation === 'selectCases') {
+		const { values } = iNotification;
+		const operation = Array.isArray(values) ? values[0].operation : values.operation;
+		if (iNotification.action === 'notify' && operation === 'selectCases') {
 			try {
-				const tDataContextName = iNotification.resource && iNotification.resource.match(/\[(.+)]/)[1];
-				if (tDataContextName === tFeatureDatasetName && !this.isSelectingFeatures) {
-					this.isSelectingTargetPhrases = true;
-					await this.handleFeatureSelection();
-					this.isSelectingTargetPhrases = false;
-				} else if (
-					[tTestingDatasetName, tTargetDatasetName].includes(tDataContextName) && !this.isSelectingTargetPhrases
-				) {
-					this.isSelectingFeatures = true;
-					await this.handleTargetDatasetSelection();
-					this.isSelectingFeatures = false;
+				const tDataContextName = iNotification.resource && iNotification.resource.match(/\[(.+)]/)?.[1];
+				if (tDataContextName) {
+					if (tDataContextName === tFeatureDatasetName && !this.isSelectingFeatures) {
+						this.isSelectingTargetPhrases = true;
+						await this.handleFeatureSelection();
+						this.isSelectingTargetPhrases = false;
+					} else if (
+						[tTestingDatasetName, tTargetDatasetName].includes(tDataContextName) && !this.isSelectingTargetPhrases
+					) {
+						this.isSelectingFeatures = true;
+						await this.handleTargetDatasetSelection();
+						this.isSelectingFeatures = false;
+					}
 				}
 			} finally {
 				this.isSelectingFeatures = false

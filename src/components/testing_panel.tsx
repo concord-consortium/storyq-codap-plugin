@@ -33,9 +33,10 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 
 	async handleDataContextNotification(iNotification: CODAP_Notification) {
 		if (iNotification.action === 'notify') {
-			if (iNotification.values.operation === 'dataContextCountChanged') {
+			const values = Array.isArray(iNotification.values) ? iNotification.values[0] : iNotification.values;
+			if (values.operation === 'dataContextCountChanged') {
 				await this.updateCodapInfo();
-			} else if (iNotification.values.operation === 'titleChange') {
+			} else if (values.operation === 'titleChange') {
 				action(() => {
 					testingStore.testingDatasetInfo.name = ''
 				})()

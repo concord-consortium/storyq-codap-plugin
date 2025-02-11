@@ -22,6 +22,11 @@ export interface CreateAttributeValue {
   unit?: string
 }
 type APIRequestValues = CreateAttributeValue[] | CreateCaseValue[] | UpdateCaseValue[];
+export interface UpdateCaseRequest {
+  action: "update",
+  resource: string,
+  values: UpdateCaseValue[]
+}
 export interface APIRequest {
   action: APIRequestAction
   resource: string
