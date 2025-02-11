@@ -10,10 +10,11 @@ import { targetStore } from "../stores/target_store";
 import { TestingResult } from "../stores/store_types_and_constants";
 import { testingStore } from "../stores/testing_store";
 import { trainingStore } from "../stores/training_store";
+import { CaseValues, CreateAttributeValue, UpdateCaseValue } from "../types/codap-api-types";
 import { computeKappa } from "../utilities/utilities";
 
 export class TestingManager {
-	kNonePresent: string
+	kNonePresent: string;
 
 	constructor(iNonePresentPrompt: string) {
 		this.kNonePresent = iNonePresentPrompt;
@@ -34,7 +35,7 @@ export class TestingManager {
 			tClassAttributeName = testingStore.testingClassAttributeName,
 			tTargetPredictedProbabilityName = kProbPredAttrNamePrefix + tPositiveClassName,
 			tTargetPredictedLabelAttributeName = targetStore.targetPredictedLabelAttributeName,
-			tLabelValues:{id:number, values:any}[] = [],
+			tLabelValues: UpdateCaseValue[] = [],
 			tMatrix = {posPos: 0, negPos: 0, posNeg: 0, negNeg: 0},
 			tTestingResult: TestingResult = {
 				targetDatasetName: tTestingDatasetName,
@@ -48,25 +49,27 @@ export class TestingManager {
 			},
 			tWeights = tTokens.map(iToken => iToken.weight),
 			tPredictor = tTrainingResult ?
-				new LogitPrediction(tTrainingResult.constantWeightTerm, tWeights, tTrainingResult.threshold) : null
-		let tPhraseCount = 0
+				new LogitPrediction(tTrainingResult.constantWeightTerm, tWeights, tTrainingResult.threshold) : null;
+		let tPhraseCount = 0;
 
 		async function installFeatureAndPredictionAttributes() {
-			const tAttributeRequests: object[] = []
+			const tAttributeRequests: CreateAttributeValue[] = [];
 			if (tTokens) {
 				tTokens.forEach(async (iToken) => {
 					if (iToken.formula !== '') {
-						const tAttributeAlreadyExists = await attributeExists(tTestingDatasetName, tTestingCollectionName, iToken.name)
-						if (!tAttributeAlreadyExists)
+						const tAttributeAlreadyExists =
+							await attributeExists(tTestingDatasetName, tTestingCollectionName, iToken.name);
+						if (!tAttributeAlreadyExists) {
 							tAttributeRequests.push({
 								name: iToken.name,
 								title: iToken.name,
 								formula: iToken.formula
-							})
+							});
+						}
 					}
-				})
-				const tLabelExists = await attributeExists(tTestingDatasetName, tTestingCollectionName,
-					tTargetPredictedLabelAttributeName)
+				});
+				const tLabelExists =
+					await attributeExists(tTestingDatasetName, tTestingCollectionName, tTargetPredictedLabelAttributeName);
 				if (!tLabelExists) {
 					tAttributeRequests.push(
 						{
@@ -99,9 +102,9 @@ export class TestingManager {
 		}
 
 		async function classifyEachPhrase() {
-			if (!tStoredModel || !tPredictor)
-				return
-			const tTestCases = await getCaseValues(tTestingDatasetName, tTestingCollectionName)
+			if (!tStoredModel || !tPredictor) return;
+
+			const tTestCases = await getCaseValues(tTestingDatasetName, tTestingCollectionName);
 			tPhraseCount = tTestCases.length
 			tTestCases.forEach(iCase => {
 				let tPhraseID = iCase.id,
@@ -135,7 +138,7 @@ export class TestingManager {
 						}
 					}
 				});
-				let tCaseValues: { [key: string]: string | number } = {},
+				let tCaseValues: CaseValues = {},
 					tPrediction = tPredictor.predict(tGiven);
 				tCaseValues[tTargetPredictedLabelAttributeName] = tPrediction.class ?
 					tPositiveClassName : tNegativeClassName;
@@ -192,20 +195,19 @@ export class TestingManager {
 		}
 
 		if (!tTrainingResult) {
-			console.log(`Unable to use ${tChosenModelName} to classify ${tTestingDatasetName}`)
-			return
+			console.log(`Unable to use ${tChosenModelName} to classify ${tTestingDatasetName}`);
+			return;
 		}
-		await deselectAllCasesIn(tTestingDatasetName)
-		await installFeatureAndPredictionAttributes()
-		await classifyEachPhrase()
-		await updateTargetAndFeatures()
+		await deselectAllCasesIn(tTestingDatasetName);
+		await installFeatureAndPredictionAttributes();
+		await classifyEachPhrase();
+		await updateTargetAndFeatures();
 		action(() => {
-			if( iStoreTest) {
-				testingStore.testingResultsArray.push(tTestingResult)
-			}
-			else {
-				testingStore.testingResultsArray.pop()
-				testingStore.testingResultsArray.push(tTestingResult)
+			if (iStoreTest) {
+				testingStore.testingResultsArray.push(tTestingResult);
+			} else {
+				testingStore.testingResultsArray.pop();
+				testingStore.testingResultsArray.push(tTestingResult);
 			}
 /*
 			tTestingStore.currentTestingResults = tTestingStore.emptyTestingResult()

@@ -12,7 +12,16 @@ export interface NotifyDataContextValues {
   request: string
   caseIDs: number[]
 }
-type APIRequestValues = CreateCaseValue[] | UpdateCaseValue[];
+export interface CreateAttributeValue {
+  description?: string
+  formula?: string
+  hidden?: boolean
+  name: string
+  precision?: number
+  title?: string
+  unit?: string
+}
+type APIRequestValues = CreateAttributeValue[] | CreateCaseValue[] | UpdateCaseValue[];
 export interface APIRequest {
   action: APIRequestAction
   resource: string
