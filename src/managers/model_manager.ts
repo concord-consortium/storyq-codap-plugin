@@ -12,6 +12,7 @@ import { Feature, NgramDetails, StoredAIModel, Token } from "../stores/store_typ
 import { targetStore } from "../stores/target_store";
 import { trainingStore } from "../stores/training_store";
 import { computeKappa } from "../utilities/utilities";
+import { APIRequest, CaseValues, CreateCaseResponse, CreateCaseValue, GetCaseByIDResponse, GetCaseCountResponse, GetCaseFormulaSearchResponse, GetCollectionListResponse, GetItemSearchResponse, UpdateCaseValue } from "../types/codap-api-types";
 
 export class ModelManager {
 
@@ -54,11 +55,11 @@ export class ModelManager {
 				tFoundOne = false;
 			for (let tIndex = 0; tIndex < iTokens.length && tIsEmpty; tIndex++) {
 				const tFormula = `${tAttrName}==${iTokens[tIndex].token}`,
-					tFirstChildResult: any = await codapInterface.sendRequest({
+					tFirstChildResult = await codapInterface.sendRequest({
 						action: 'get',
 						resource: `dataContext[${datasetName}].itemSearch[${tFormula}]`
-					})
-				if (tFirstChildResult.success && tFirstChildResult.values.length > 0) {
+					}) as GetItemSearchResponse;
+				if (tFirstChildResult.success && tFirstChildResult.values && tFirstChildResult.values.length > 0) {
 					tFoundOne = true
 					const tName = tFirstChildResult.values[0].values['model name']
 					tIsEmpty = tIsEmpty && (!tName || tName === '')
@@ -69,76 +70,73 @@ export class ModelManager {
 
 		const { collectionName, datasetName, weightsCollectionName } = featureStore.featureDatasetInfo,
 			tUpdatingExistingWeights = await allFirstWeightCasesAreEmpty(),
-			tCreationRequests: { parent: number, values: any }[] = [],
-			tUpdateRequests: { id: number, values: any }[] = [],
+			tCreationRequests: CreateCaseValue[] = [],
+			tUpdateRequests: UpdateCaseValue[] = [],
 			tFeatureWeightCaseIDs: Record<string, number> = {},
 			tTokenArray: string[] = [],
-			tModelName = trainingStore.model.name
+			tModelName = trainingStore.model.name;
 
 		async function showWeightAttributes() {
 			const tShowRequests = [{
 				action: 'update',
 				resource: `dataContext[${datasetName}].collection[${weightsCollectionName}].attribute[weight]`,
 				values: {hidden: false}
-			},
-				{
-					action: 'update',
-					resource: `dataContext[${datasetName}].collection[${weightsCollectionName}].attribute[model name]`,
-					values: {hidden: false}
-				}]
-			await codapInterface.sendRequest(tShowRequests)
+			}, {
+				action: 'update',
+				resource: `dataContext[${datasetName}].collection[${weightsCollectionName}].attribute[model name]`,
+				values: {hidden: false}
+			}];
+			await codapInterface.sendRequest(tShowRequests);
 		}
 
 		async function getFeatureWeightCaseIDs() {
-			const tFeatureCountResult: any = await codapInterface.sendRequest({
+			const tFeatureCountResult = await codapInterface.sendRequest({
 					action: 'get',
 					resource: `dataContext[${datasetName}].collection[${collectionName}].caseCount`
-				}),
-				tFeatureCount = tFeatureCountResult.success ? tFeatureCountResult.values : 0,
-				tRequests: {}[] = []
+				}) as GetCaseCountResponse,
+				tFeatureCount = tFeatureCountResult.success&& tFeatureCountResult.values ? tFeatureCountResult.values : 0,
+				tRequests: APIRequest[] = [];
 			for (let n = 0; n < tFeatureCount; n++) {
 				tRequests.push({
-						action: 'get',
-						resource: `dataContext[${datasetName}].collection[${collectionName}].caseByIndex[${n}]`
-					}
-				)
+					action: 'get',
+					resource: `dataContext[${datasetName}].collection[${collectionName}].caseByIndex[${n}]`
+				});
 			}
-			const tResults: any = await codapInterface.sendRequest(tRequests)
-			tResults.forEach((iResult: any) => {
-				if (iResult.success) {
-					tFeatureWeightCaseIDs[iResult.values.case.values.name] = iResult.values.case.id
+			const tResults = await codapInterface.sendRequest(tRequests) as GetCaseByIDResponse[];
+			tResults.forEach(iResult => {
+				if (iResult.success && iResult.values) {
+					tFeatureWeightCaseIDs[String(iResult.values.case.values.name)] = iResult.values.case.id;
 				}
-			})
+			});
 		}
 
 		function generateFeatureRequests() {
-			iTokens.forEach((aToken: any) => {
-					if (tUpdatingExistingWeights) {
-						tUpdateRequests.push({
-							id: tFeatureWeightCaseIDs[aToken.token],
-							values: {
-								'model name': tModelName,
-							}
-						})
-					} else {
-						tFeatureWeightCaseIDs[aToken.token] = -1
-						tTokenArray.push(aToken.token)
-						tCreationRequests.push({
-							parent: aToken.featureCaseID,
-							values: {
-								'model name': tModelName,
-							}
-						})
-					}
+			iTokens.forEach(aToken => {
+				if (tUpdatingExistingWeights) {
+					tUpdateRequests.push({
+						id: tFeatureWeightCaseIDs[aToken.token],
+						values: {
+							'model name': tModelName,
+						}
+					});
+				} else {
+					tFeatureWeightCaseIDs[aToken.token] = -1;
+					tTokenArray.push(aToken.token);
+					tCreationRequests.push({
+						parent: aToken.featureCaseID || 0,
+						values: {
+							'model name': tModelName,
+						}
+					});
 				}
-			)
+			});
 		}
 
 		// Start with features/weights collection
-		await showWeightAttributes()
+		await showWeightAttributes();
 		if (tUpdatingExistingWeights) {
-			await getFeatureWeightCaseIDs()
-			featureStore.featureWeightCaseIDs = tFeatureWeightCaseIDs
+			await getFeatureWeightCaseIDs();
+			featureStore.featureWeightCaseIDs = tFeatureWeightCaseIDs;
 		}
 		generateFeatureRequests()
 		if (tUpdatingExistingWeights) {
@@ -146,17 +144,19 @@ export class ModelManager {
 				action: 'update',
 				resource: `dataContext[${datasetName}].collection[${weightsCollectionName}].case`,
 				values: tUpdateRequests
-			})
+			});
 		} else {
-			const tCreateResults: any = await codapInterface.sendRequest({
+			const tCreateResults = await codapInterface.sendRequest({
 				action: 'create',
 				resource: `dataContext[${datasetName}].collection[${weightsCollectionName}].case`,
 				values: tCreationRequests
-			})
-			tCreateResults.values.forEach((iValue: { id: number }, iIndex: number) => {
-				tFeatureWeightCaseIDs[tTokenArray[iIndex]] = iValue.id
-			})
-			featureStore.featureWeightCaseIDs = tFeatureWeightCaseIDs
+			}) as CreateCaseResponse;
+			if (tCreateResults.success && tCreateResults.values) {
+				tCreateResults.values.forEach((iValue, iIndex) => {
+					tFeatureWeightCaseIDs[tTokenArray[iIndex]] = iValue.id;
+				});
+			}
+			featureStore.featureWeightCaseIDs = tFeatureWeightCaseIDs;
 		}
 	}
 
@@ -167,13 +167,13 @@ export class ModelManager {
 		 */
 		async function guaranteeResultsCollection() {
 			const tPositiveClassName = targetStore.getClassName('positive'),
-				tResultsCollectionName = targetStore.targetResultsCollectionName
+				tResultsCollectionName = targetStore.targetResultsCollectionName;
 			if (targetStore.targetClassAttributeName !== '' && tPositiveClassName !== '') {
-				const tCollectionListResult: any = await codapInterface.sendRequest({
+				const collectionListResult  = await codapInterface.sendRequest({
 					action: 'get',
 					resource: `dataContext[${tTargetDatasetName}].collectionList`
-				})
-				if (tCollectionListResult.values.length === 1) {
+				}) as GetCollectionListResponse;
+				if (collectionListResult.success && collectionListResult.values && collectionListResult.values.length === 1) {
 					// There is not yet any results collection, so create it
 					const tAttributeValues = [
 						{
@@ -190,7 +190,7 @@ export class ModelManager {
 							precision: 3,
 							description: 'A computed probability based on the logistic regression model'
 						}
-					]
+					];
 					await codapInterface.sendRequest({
 						action: 'create',
 						resource: `dataContext[${tTargetDatasetName}].collection`,
@@ -200,49 +200,54 @@ export class ModelManager {
 							attrs: tAttributeValues
 						}]
 					}).catch(reason => {
-						console.log(`Exception in creating results collection because ${reason}`)
-					})
+						console.log(`Exception in creating results collection because ${reason}`);
+					});
 
 					// This unfortunately installs an empty child case for each parent case. We store their IDs so we can
 					// use them later as the place to store model results
-					const tCaseIDResult: any = await codapInterface.sendRequest({
+					const tCaseIDResult = await codapInterface.sendRequest({
 						action: 'get',
 						resource: `dataContext[${tTargetDatasetName}].collection[${tResultsCollectionName}].caseFormulaSearch[true]`
-					})
-					tResultCaseIDsToFill = tCaseIDResult.values.map((iValue: any) => Number(iValue.id))
+					}) as GetCaseFormulaSearchResponse;
+					if (tCaseIDResult.success && tCaseIDResult.values) {
+						tResultCaseIDsToFill = tCaseIDResult.values.map(iValue => Number(iValue.id));
+					}
 				} else {	// We add a new case to each parent case for the next set of results
 					const tParentCollectionName = targetStore.targetCollectionName,
-						tCreateRequests: { parent: number, values: {} }[] = []
+						tCreateRequests: { parent: number, values: {} }[] = [];
 					// First we get the parent case IDs
-					const tParentCaseIDResults: any = await codapInterface.sendRequest({
+					const tParentCaseIDResults = await codapInterface.sendRequest({
 						action: 'get',
 						resource: `dataContext[${tTargetDatasetName}].collection[${tParentCollectionName}].caseFormulaSearch[true]`
-					})
+					}) as GetCaseFormulaSearchResponse;
 					// Formulate the requests for the child cases
-					tParentCaseIDResults.values.forEach((iResult: { id: number }) => {
-						tCreateRequests.push({
-							parent: Number(iResult.id),
-							values: {}
-						})
-					})
+					if (tParentCaseIDResults.success && tParentCaseIDResults.values) {
+						tParentCaseIDResults.values.forEach(iResult => {
+							tCreateRequests.push({
+								parent: Number(iResult.id),
+								values: {}
+							});
+						});
+					}
 					// Send off the requests
-					const tChildrenRequestResult: any = await codapInterface.sendRequest({
+					const tChildrenRequestResult = await codapInterface.sendRequest({
 						action: 'create',
 						resource: `dataContext[${tTargetDatasetName}].collection[${tResultsCollectionName}].case`,
 						values: tCreateRequests
-					})
+					}) as CreateCaseResponse;
 					// Store the IDs for the children for later use
-					tResultCaseIDsToFill = tChildrenRequestResult.values.map((iValue: any) => Number(iValue.id))
+					if (tChildrenRequestResult.success && tChildrenRequestResult.values) {
+						tResultCaseIDsToFill = tChildrenRequestResult.values.map(iValue => Number(iValue.id));
+					}
 				}
 			}
 		}
 
-		const
-			tPredictedLabelAttributeName = targetStore.targetPredictedLabelAttributeName,
-			tTargetDatasetName = targetStore.targetDatasetInfo.name
-		let tResultCaseIDsToFill: number[] = []
+		const tPredictedLabelAttributeName = targetStore.targetPredictedLabelAttributeName,
+			tTargetDatasetName = targetStore.targetDatasetInfo.name;
+		let tResultCaseIDsToFill: number[] = [];
 
-		await guaranteeResultsCollection()
+		await guaranteeResultsCollection();
 
 		trainingStore.resultCaseIDs = tResultCaseIDsToFill;
 	}
@@ -252,7 +257,7 @@ export class ModelManager {
 		async function wipeWeights() {
 			const { datasetName, weightsCollectionName } = featureStore.featureDatasetInfo,
 				tFeatureWeightCaseIDs = featureStore.featureWeightCaseIDs,
-				tUpdateRequests: { id: number, values: any }[] = []
+				tUpdateRequests: UpdateCaseValue[] = [];
 			for (let featureWeightCaseIDsKey in tFeatureWeightCaseIDs) {
 				tUpdateRequests.push({
 					id: tFeatureWeightCaseIDs[featureWeightCaseIDsKey],
@@ -260,13 +265,13 @@ export class ModelManager {
 						'model name': '',
 						weight: ''
 					}
-				})
+				});
 			}
 			await codapInterface.sendRequest({
 				action: 'update',
 				resource: `dataContext[${datasetName}].collection[${weightsCollectionName}].case`,
 				values: tUpdateRequests
-			})
+			});
 		}
 
 		async function wipeResultsInTarget() {
@@ -274,7 +279,7 @@ export class ModelManager {
 				tPredictedLabelAttributeName = targetStore.targetPredictedLabelAttributeName,
 				tProbName = `probability of ${targetStore.getClassName('positive')}`,
 				tUpdateRequests = trainingStore.resultCaseIDs.map(iID => {
-					const tRequest: any = {
+					const tRequest: UpdateCaseValue = {
 						id: iID,
 						values: {
 							'model name': '',
@@ -283,21 +288,21 @@ export class ModelManager {
 					tRequest.values[tPredictedLabelAttributeName] = ''
 					tRequest.values[tProbName] = ''
 					return tRequest
-				})
+				});
 			await codapInterface.sendRequest({
 				action: 'update',
 				resource: `dataContext[${tTargetDatasetName}].collection[${targetStore.targetResultsCollectionName}].case`,
 				values: tUpdateRequests,
-			})
+			});
 		}
 
 		const tModel = trainingStore.model,
-			tLogisiticModel = tModel.logisticModel
+			tLogisiticModel = tModel.logisticModel;
 
-		tModel.reset()
-		tLogisiticModel.reset()
-		await wipeWeights()
-		await wipeResultsInTarget()
+		tModel.reset();
+		tLogisiticModel.reset();
+		await wipeWeights();
+		await wipeResultsInTarget();
 	}
 
 	async buildModel() {
@@ -493,7 +498,7 @@ export class ModelManager {
 	async updateWeights(iModelName: string, iTokens: any, iWeights: number[]) {
 		const { collectionName, datasetName } = featureStore.featureDatasetInfo,
 			tFeatures = featureStore.getChosenFeatures(),
-			tUpdateRequests: { id: number, values: any }[] = [],
+			tUpdateRequests: UpdateCaseValue[] = [],
 			tFeatureWeightCaseIDs = featureStore.featureWeightCaseIDs
 
 		function generateRequests() {
@@ -638,7 +643,7 @@ export class ModelManager {
 			tOneHotLength = iTools.oneHotData[0].length,
 			tPosProbs: number[] = [],
 			tNegProbs: number[] = [],
-			tMapFromCaseIDToProbability: any = {},
+			tMapFromCaseIDToProbability: Record<any, number> = {},
 			kProbPredAttrNamePrefix = 'probability of ',
 			tProbName = `${kProbPredAttrNamePrefix}${iTools.positiveClassName}`,
 			tPredictedLabelAttributeName = targetStore.targetPredictedLabelAttributeName,
@@ -647,8 +652,7 @@ export class ModelManager {
 		// Create values of predicted label and probability for each document
 		let tThresholdResult = findThreshold(),
 			// tWeAreUpdating = tResultCaseIDs.length > 0,
-			// tLabelValuesForCreation: { parent: number, values: any }[] = [],
-			tLabelValuesForUpdating: { id: number, values: any }[] = [],
+			tLabelValuesForUpdating: UpdateCaseValue[] = [],
 			tActualPos = 0,
 			tPredictedPos = 0,
 			tBothPos = 0,
@@ -658,7 +662,7 @@ export class ModelManager {
 			let tProbability: number,
 				tPredictedLabel,
 				tActualLabel,
-				tValues: any = {'model name': iModelName};
+				tValues: CaseValues = {'model name': iModelName};
 			tProbability = tMapFromCaseIDToProbability[aDoc.caseID];
 			tPredictedLabel = tProbability > tThresholdResult ? iTools.positiveClassName : iTools.negativeClassName;
 			tValues[tPredictedLabelAttributeName] = tPredictedLabel;

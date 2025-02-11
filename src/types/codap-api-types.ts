@@ -2,6 +2,7 @@ type APIRequestAction = "create" | "delete" | "get" | "notify" | "update";
 type CaseValue = string | boolean | number;
 export type CaseValues = Record<string, CaseValue>;
 export interface CreateCaseValue {
+  parent?: number
   values: CaseValues
 }
 export interface UpdateCaseValue {
@@ -110,6 +111,10 @@ export interface GetCaseByIDResponse {
 export interface GetCaseFormulaSearchResponse {
   success: boolean
   values?: CaseInfo[]
+}
+export interface GetCaseCountResponse {
+  success: boolean
+  values?: number
 }
 
 export type ItemValues = Record<string, string>;
