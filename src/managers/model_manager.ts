@@ -544,7 +544,7 @@ export class ModelManager {
 	 */
 	private async showPredictedLabels(iModelName: string, iTools:
 		{
-			logisticModel: any,	// Will compute probabilities
+			logisticModel: LogisticRegression,	// Will compute probabilities
 			oneHotData: number[][],
 			documents: any,
 			tokenArray: any,
