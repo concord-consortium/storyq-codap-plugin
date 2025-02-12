@@ -20,6 +20,7 @@ export const kContainOptionContain = "contain";
 export const kContainOptionNotContain = "not contain";
 export const kContainOptionStartWith = "start with";
 export const kContainOptionEndWith = "end with";
+export const kContainOptionCount = "count";
 interface FeatureItem {
 	disabled?: boolean
 	key?: string
@@ -51,7 +52,8 @@ export const featureDescriptors: FeatureDescriptors = {
 				{ name: "contain", value: { kind: "search", details: { where: kContainOptionContain } } },
 				{ name: "not contain", value: { kind: "search", details: { where: kContainOptionNotContain } } },
 				{ name: "start with", value: { kind: "search", details: { where: kContainOptionStartWith } } },
-				{ name: "end with", value: { kind: "search", details: { where: kContainOptionEndWith } } }
+				{ name: "end with", value: { kind: "search", details: { where: kContainOptionEndWith } } },
+				{ name: "count", value: { kind: "search", details: { where: kContainOptionCount } } }
 			]
 		},
 		{
@@ -65,7 +67,10 @@ export const featureDescriptors: FeatureDescriptors = {
 			items: []
 		}
 	],
-	containsOptions: [kContainOptionContain, kContainOptionNotContain, kContainOptionStartWith, kContainOptionEndWith],
+	containsOptions: [
+		kContainOptionContain, kContainOptionNotContain, kContainOptionStartWith, kContainOptionEndWith,
+		kContainOptionCount
+	],
 	kindOfThingContainedOptions: ['text', 'punctuation', 'any number', 'any item from a list'],
 	caseOptions: ['sensitive', 'insensitive']
 }
@@ -91,6 +96,7 @@ export interface SearchDetails {
 
 export const containOptionAbbreviations: Record<string, string> = {
 	[kContainOptionContain]: 'contain',
+	[kContainOptionCount]: 'count',
 	[kContainOptionEndWith]: 'endWith',
 	[kContainOptionNotContain]: 'notContain',
 	[kContainOptionStartWith]: 'startWith',

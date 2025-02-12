@@ -13,8 +13,8 @@ import { SQ } from "../lists/lists";
 import { featureStore } from './feature_store';
 import { targetDatasetStore } from './target_dataset_store';
 import {
-	containOptionAbbreviations, Feature, kContainOptionContain, kContainOptionEndWith, kContainOptionNotContain,
-	kContainOptionStartWith, kEmptyEntityInfo, SearchDetails
+	containOptionAbbreviations, Feature, kContainOptionContain, kContainOptionCount, kContainOptionEndWith,
+	kContainOptionNotContain, kContainOptionStartWith, kEmptyEntityInfo, SearchDetails
 } from "./store_types_and_constants";
 import { CreateAttributeResponse } from '../types/codap-api-types';
 
@@ -307,16 +307,19 @@ export class TargetStore {
 			let tResult = '';
 			switch (option) {
 				case containOptionAbbreviations[kContainOptionContain]:
-					tResult = `patternMatches(${tParamString})>0`
+					tResult = `patternMatches(${tParamString})>0`;
 					break;
 				case containOptionAbbreviations[kContainOptionNotContain]:
-					tResult = `patternMatches(${tParamString})=0`
+					tResult = `patternMatches(${tParamString})=0`;
 					break;
 				case containOptionAbbreviations[kContainOptionStartWith]:
-					tResult = `patternMatches(${tParamString})>0`
+					tResult = `patternMatches(${tParamString})>0`;
 					break;
 				case containOptionAbbreviations[kContainOptionEndWith]:
-					tResult = `patternMatches(${tParamString})>0`
+					tResult = `patternMatches(${tParamString})>0`;
+					break;
+				case containOptionAbbreviations[kContainOptionCount]:
+					tResult = `patternMatches(${tParamString})`;
 					break;
 			}
 			return tResult;
@@ -327,16 +330,19 @@ export class TargetStore {
 			let tExpression = '';
 			switch ((iNewFeature.info.details as SearchDetails).where) {
 				case containOptionAbbreviations[kContainOptionContain]:
-					tExpression = `patternMatches(${tTargetAttr}, "${kNumberPattern}")>0`
+					tExpression = `patternMatches(${tTargetAttr}, "${kNumberPattern}")>0`;
 					break;
 				case containOptionAbbreviations[kContainOptionNotContain]:
-					tExpression = `patternMatches(${tTargetAttr}, "${kNumberPattern}")=0`
+					tExpression = `patternMatches(${tTargetAttr}, "${kNumberPattern}")=0`;
 					break;
 				case containOptionAbbreviations[kContainOptionStartWith]:
-					tExpression = `patternMatches(${tTargetAttr}, "^${kNumberPattern}")>0`
+					tExpression = `patternMatches(${tTargetAttr}, "^${kNumberPattern}")>0`;
 					break;
 				case containOptionAbbreviations[kContainOptionEndWith]:
-					tExpression = `patternMatches(${tTargetAttr}, "${kNumberPattern}$")>0`
+					tExpression = `patternMatches(${tTargetAttr}, "${kNumberPattern}$")>0`;
+					break;
+				case containOptionAbbreviations[kContainOptionCount]:
+					tExpression = `patternMatches(${tTargetAttr}, "${kNumberPattern}")`;
 					break;
 			}
 			return tExpression;
@@ -347,16 +353,19 @@ export class TargetStore {
 			let tExpression = '';
 			switch ((iNewFeature.info.details as SearchDetails).where) {
 				case containOptionAbbreviations[kContainOptionContain]:
-					tExpression = `patternMatches(${tTargetAttr}, "${tPunc}")>0`
+					tExpression = `patternMatches(${tTargetAttr}, "${tPunc}")>0`;
 					break;
 				case containOptionAbbreviations[kContainOptionNotContain]:
-					tExpression = `patternMatches(${tTargetAttr}, "${tPunc}")=0`
+					tExpression = `patternMatches(${tTargetAttr}, "${tPunc}")=0`;
 					break;
 				case containOptionAbbreviations[kContainOptionStartWith]:
-					tExpression = `patternMatches(${tTargetAttr}, "^${tPunc}")>0`
+					tExpression = `patternMatches(${tTargetAttr}, "^${tPunc}")>0`;
 					break;
 				case containOptionAbbreviations[kContainOptionEndWith]:
-					tExpression = `patternMatches(${tTargetAttr}, "${tPunc}$")>0`
+					tExpression = `patternMatches(${tTargetAttr}, "${tPunc}$")>0`;
+					break;
+				case containOptionAbbreviations[kContainOptionCount]:
+					tExpression = `patternMatches(${tTargetAttr}, "${tPunc}")`;
 					break;
 			}
 			return tExpression;
@@ -388,6 +397,9 @@ export class TargetStore {
 						break;
 					case containOptionAbbreviations[kContainOptionEndWith]:
 						tExpression = `patternMatches(${tTargetAttr}, "${tExpression}$")>0`;
+						break;
+					case containOptionAbbreviations[kContainOptionCount]:
+						tExpression = `patternMatches(${tTargetAttr}, "${tExpression}")`;
 						break;
 				}
 			} else {

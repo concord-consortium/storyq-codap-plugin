@@ -179,7 +179,8 @@ export class DomainStore {
 			 * 			- 	we add the feature's case ID to the array of feature IDs for that case
 			 */
 			const countFeaturePromises = tNonNgramFeatures.map(async (iFeature) => {
-				const tTargetCases = await targetStore.updateTargetCases(`\`${iFeature.name}\`=true`);
+				const name = `\`${iFeature.name}\``;
+				const tTargetCases = await targetStore.updateTargetCases(`${name}=true or ${name}>0`);
 				tTargetCases.forEach(iCase => {
 					if (iCase.values[iFeature.name]) {
 						if (iCase.values[targetStore.targetClassAttributeName] === targetStore.getTargetClassName(tChosenClassKey)) {
