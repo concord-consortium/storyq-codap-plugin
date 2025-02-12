@@ -13,8 +13,8 @@ import { SQ } from "../lists/lists";
 import { featureStore } from './feature_store';
 import { targetDatasetStore } from './target_dataset_store';
 import {
-	containOptionAbbreviations, Feature, kContainOptionContain, kContainOptionCount, kContainOptionEndWith,
-	kContainOptionNotContain, kContainOptionStartWith, kEmptyEntityInfo, SearchDetails
+	containOptionAbbreviations, Feature, getContainFormula, getTargetCaseFormula, kContainOptionEndWith,
+	kContainOptionStartWith, kEmptyEntityInfo, SearchDetails
 } from "./store_types_and_constants";
 import { CreateAttributeResponse } from '../types/codap-api-types';
 
@@ -303,109 +303,37 @@ export class TargetStore {
 			const wordBoundary = `\\\\\\\\b`;
 			const maybeStartingWordBoundary = /^\w/.test(text) ? wordBoundary : '';
 			const maybeEndingWordBoundary = /\w$/.test(text) ? wordBoundary : '';
-			const tParamString = `${tTargetAttr},"${tBegins}${maybeStartingWordBoundary}${escapedText}${maybeEndingWordBoundary}${tEnds}"`;
-			let tResult = '';
-			switch (option) {
-				case containOptionAbbreviations[kContainOptionContain]:
-					tResult = `patternMatches(${tParamString})>0`;
-					break;
-				case containOptionAbbreviations[kContainOptionNotContain]:
-					tResult = `patternMatches(${tParamString})=0`;
-					break;
-				case containOptionAbbreviations[kContainOptionStartWith]:
-					tResult = `patternMatches(${tParamString})>0`;
-					break;
-				case containOptionAbbreviations[kContainOptionEndWith]:
-					tResult = `patternMatches(${tParamString})>0`;
-					break;
-				case containOptionAbbreviations[kContainOptionCount]:
-					tResult = `patternMatches(${tParamString})`;
-					break;
-			}
-			return tResult;
+			const wordString = `${maybeStartingWordBoundary}${escapedText}${maybeEndingWordBoundary}`;
+			const tParamString = `${tTargetAttr},"${tBegins}${wordString}${tEnds}"`;
+			return getContainFormula(option, tParamString);
 		}
 
 		function anyNumberFormula() {
 			const kNumberPattern = `[0-9]+`;
-			let tExpression = '';
-			switch ((iNewFeature.info.details as SearchDetails).where) {
-				case containOptionAbbreviations[kContainOptionContain]:
-					tExpression = `patternMatches(${tTargetAttr}, "${kNumberPattern}")>0`;
-					break;
-				case containOptionAbbreviations[kContainOptionNotContain]:
-					tExpression = `patternMatches(${tTargetAttr}, "${kNumberPattern}")=0`;
-					break;
-				case containOptionAbbreviations[kContainOptionStartWith]:
-					tExpression = `patternMatches(${tTargetAttr}, "^${kNumberPattern}")>0`;
-					break;
-				case containOptionAbbreviations[kContainOptionEndWith]:
-					tExpression = `patternMatches(${tTargetAttr}, "${kNumberPattern}$")>0`;
-					break;
-				case containOptionAbbreviations[kContainOptionCount]:
-					tExpression = `patternMatches(${tTargetAttr}, "${kNumberPattern}")`;
-					break;
-			}
-			return tExpression;
+			const option = (iNewFeature.info.details as SearchDetails).where;
+			return getContainFormula(option, `${tTargetAttr}, "${kNumberPattern}"`);
 		}
 
 		function punctuationFormula() {
-			const tPunc = `\\\\\\\\${(iNewFeature.info.details as SearchDetails).punctuation}`
-			let tExpression = '';
-			switch ((iNewFeature.info.details as SearchDetails).where) {
-				case containOptionAbbreviations[kContainOptionContain]:
-					tExpression = `patternMatches(${tTargetAttr}, "${tPunc}")>0`;
-					break;
-				case containOptionAbbreviations[kContainOptionNotContain]:
-					tExpression = `patternMatches(${tTargetAttr}, "${tPunc}")=0`;
-					break;
-				case containOptionAbbreviations[kContainOptionStartWith]:
-					tExpression = `patternMatches(${tTargetAttr}, "^${tPunc}")>0`;
-					break;
-				case containOptionAbbreviations[kContainOptionEndWith]:
-					tExpression = `patternMatches(${tTargetAttr}, "${tPunc}$")>0`;
-					break;
-				case containOptionAbbreviations[kContainOptionCount]:
-					tExpression = `patternMatches(${tTargetAttr}, "${tPunc}")`;
-					break;
-			}
-			return tExpression;
+			const tPunc = `\\\\\\\\${(iNewFeature.info.details as SearchDetails).punctuation}`;
+			const option = (iNewFeature.info.details as SearchDetails).where;
+			return getContainFormula(option, `${tTargetAttr}, "${tPunc}"`);
 		}
 
 		function anyListFormula() {
-			let tExpression;
-			const kListName = (iNewFeature.info.details as SearchDetails).wordList.datasetName,
-				kListAttributeName = (iNewFeature.info.details as SearchDetails).wordList.firstAttributeName,
-				kWords = SQ.lists[kListName],
-				tWhere = (iNewFeature.info.details as SearchDetails).where,
-				tStartsWithOption = containOptionAbbreviations[kContainOptionStartWith],
-				tEndsWithOption = containOptionAbbreviations[kContainOptionEndWith],
-				tCaret = tWhere === tStartsWithOption ? '^' : '',
-				tDollar = tWhere === tEndsWithOption ? '$' : ''
+			const searchDetails = iNewFeature.info.details as SearchDetails;
+			const kListName = searchDetails.wordList.datasetName;
+			const kWords = SQ.lists[kListName];
 			if (kWords) {
-				tExpression = kWords.reduce((iSoFar, iWord) => {
-					return iSoFar === '' ? `${tCaret}\\\\\\\\b${iWord}\\\\\\\\b${tDollar}` : iSoFar + `|${tCaret}\\\\\\\\b${iWord}\\\\\\\\b${tDollar}`;
-				}, '');
-				switch (tWhere) {
-					case containOptionAbbreviations[kContainOptionContain]:
-						tExpression = `patternMatches(${tTargetAttr}, "${tExpression}")>0`;
-						break;
-					case containOptionAbbreviations[kContainOptionNotContain]:
-						tExpression = `patternMatches(${tTargetAttr}, "${tExpression}")=0`;
-						break;
-					case containOptionAbbreviations[kContainOptionStartWith]:
-						tExpression = `patternMatches(${tTargetAttr}, "^${tExpression}")>0`;
-						break;
-					case containOptionAbbreviations[kContainOptionEndWith]:
-						tExpression = `patternMatches(${tTargetAttr}, "${tExpression}$")>0`;
-						break;
-					case containOptionAbbreviations[kContainOptionCount]:
-						tExpression = `patternMatches(${tTargetAttr}, "${tExpression}")`;
-						break;
-				}
+				const tWhere = searchDetails.where;
+				const tCaret = tWhere === containOptionAbbreviations[kContainOptionStartWith] ? '^' : '';
+				const tDollar = tWhere === containOptionAbbreviations[kContainOptionEndWith] ? '$' : '';
+				const tExpression = kWords.map(word => `${tCaret}\\\\\\\\b${word}\\\\\\\\b${tDollar}`).join("|");
+				return getContainFormula(tWhere, `${tTargetAttr}, "${tExpression}"`);
 			} else {
-				tExpression = `wordListMatches(${tTargetAttr},"${kListName}","${kListAttributeName}")>0`
+				const kListAttributeName = searchDetails.wordList.firstAttributeName;
+				return `wordListMatches(${tTargetAttr},"${kListName}","${kListAttributeName}")>0`;
 			}
-			return tExpression;
 		}
 
 		let tFormula = '';
@@ -425,8 +353,8 @@ export class TargetStore {
 			case 'part of speech':
 			// tFormula = posFormula()
 		}
-		if (tFormula !== '')
-			iNewFeature.formula = tFormula
+		if (tFormula !== '') iNewFeature.formula = tFormula;
+		iNewFeature.targetCaseFormula = getTargetCaseFormula((iNewFeature.info.details as SearchDetails).where);
 		const targetDatasetName = this.targetDatasetInfo.name;
 		if (!iUpdate) {
 			const tAttributeResponse = await codapInterface.sendRequest({

@@ -21,6 +21,12 @@ export const kContainOptionNotContain = "not contain";
 export const kContainOptionStartWith = "start with";
 export const kContainOptionEndWith = "end with";
 export const kContainOptionCount = "count";
+
+export const kKindOfThingOptionText = "text";
+export const kKindOfThingOptionPunctuation = "punctuation";
+export const kKindOfThingOptionNumber = "any number";
+export const kKindOfThingOptionList = "any item from a list";
+
 interface FeatureItem {
 	disabled?: boolean
 	key?: string
@@ -71,13 +77,11 @@ export const featureDescriptors: FeatureDescriptors = {
 		kContainOptionContain, kContainOptionNotContain, kContainOptionStartWith, kContainOptionEndWith,
 		kContainOptionCount
 	],
-	kindOfThingContainedOptions: ['text', 'punctuation', 'any number', 'any item from a list'],
+	kindOfThingContainedOptions: [
+		kKindOfThingOptionText, kKindOfThingOptionPunctuation, kKindOfThingOptionNumber, kKindOfThingOptionList
+	],
 	caseOptions: ['sensitive', 'insensitive']
 }
-
-export const kKindOfThingOptionList = featureDescriptors.kindOfThingContainedOptions[3]
-export const kKindOfThingOptionText = featureDescriptors.kindOfThingContainedOptions[0]
-export const kKindOfThingOptionPunctuation = featureDescriptors.kindOfThingContainedOptions[1]
 
 const whatOptions = ['any number', 'any item from a list', 'text', 'punctuation', 'part of speech', ''];
 type whatOption = typeof whatOptions[number];
@@ -100,6 +104,30 @@ export const containOptionAbbreviations: Record<string, string> = {
 	[kContainOptionEndWith]: 'endWith',
 	[kContainOptionNotContain]: 'notContain',
 	[kContainOptionStartWith]: 'startWith',
+}
+
+const containsFormula = (args: string) => `patternMatches(${args})>0`;
+export const containFormula = {
+	[containOptionAbbreviations[kContainOptionContain]]: containsFormula,
+	[containOptionAbbreviations[kContainOptionNotContain]]: (args: string) => `patternMatches(${args})=0`,
+	[containOptionAbbreviations[kContainOptionStartWith]]: containsFormula,
+	[containOptionAbbreviations[kContainOptionEndWith]]: containsFormula,
+	[containOptionAbbreviations[kContainOptionCount]]: (args: string) => `patternMatches(${args})`
+};
+export function getContainFormula(containOption: string, args: string): string {
+	return (containFormula[containOption] ?? containsFormula)(args);
+}
+
+export const defaultTargetCaseFormula = (attrName: string) => `${attrName}=true`;
+const targetCaseFormulas = {
+	[containOptionAbbreviations[kContainOptionContain]]: defaultTargetCaseFormula,
+	[containOptionAbbreviations[kContainOptionNotContain]]: defaultTargetCaseFormula,
+	[containOptionAbbreviations[kContainOptionStartWith]]: defaultTargetCaseFormula,
+	[containOptionAbbreviations[kContainOptionEndWith]]: defaultTargetCaseFormula,
+	[containOptionAbbreviations[kContainOptionCount]]: (attrName: string) => `${attrName}>0`
+};
+export function getTargetCaseFormula(containOption: string) {
+	return targetCaseFormulas[containOption] ?? defaultTargetCaseFormula;
 }
 
 export interface CountDetails {
@@ -133,6 +161,7 @@ export interface Feature {
 	name: string
 	numberInNegative: number
 	numberInPositive: number
+	targetCaseFormula?: (attrName: string) => string
 	type: string
 	usages: number[]
 	weight: number | ''

@@ -13,7 +13,7 @@ import {
 	NotifyDataContextRequest, UpdateCaseRequest, UpdateCaseValue
 } from "../types/codap-api-types";
 import { featureStore, IFeatureStoreJSON } from "./feature_store";
-import { Feature, kPosNegConstants } from "./store_types_and_constants";
+import { defaultTargetCaseFormula, Feature, kPosNegConstants } from "./store_types_and_constants";
 import { ITargetStoreJSON, otherClassColumn, targetStore } from "./target_store";
 import { ITestingStore, testingStore } from "./testing_store";
 import { ITextStoreJSON, textStore } from "./text_store";
@@ -180,7 +180,8 @@ export class DomainStore {
 			 */
 			const countFeaturePromises = tNonNgramFeatures.map(async (iFeature) => {
 				const name = `\`${iFeature.name}\``;
-				const tTargetCases = await targetStore.updateTargetCases(`${name}=true or ${name}>0`);
+				const targetCaseFormula = iFeature.targetCaseFormula ?? defaultTargetCaseFormula;
+				const tTargetCases = await targetStore.updateTargetCases(targetCaseFormula(name));
 				tTargetCases.forEach(iCase => {
 					if (iCase.values[iFeature.name]) {
 						if (iCase.values[targetStore.targetClassAttributeName] === targetStore.getTargetClassName(tChosenClassKey)) {
