@@ -13,8 +13,9 @@ import { SQ } from "../lists/lists";
 import { featureStore } from './feature_store';
 import { targetDatasetStore } from './target_dataset_store';
 import {
-	Feature, getContainFormula, getTargetCaseFormula,  kEmptyEntityInfo, kSearchWhereEndWith, kSearchWhereStartWith,
-	kWhatOptionList, kWhatOptionNumber, kWhatOptionPunctuation, kWhatOptionText, SearchDetails
+	Feature, getContainFormula, getTargetCaseFormula,  kEmptyEntityInfo, kFeatureKindColumn, kFeatureKindNgram,
+	kSearchWhereEndWith, kSearchWhereStartWith, kWhatOptionList, kWhatOptionNumber, kWhatOptionPunctuation,
+	kWhatOptionText, SearchDetails
 } from "./store_types_and_constants";
 import { CreateAttributeResponse } from '../types/codap-api-types';
 
@@ -273,7 +274,7 @@ export class TargetStore {
 		const this_ = this,
 			tTargetAttr = `\`${this_.targetAttributeName}\``;
 
-		if (!this.targetDatasetInfo || iNewFeature.info.kind === 'ngram' || iNewFeature.info.kind === 'column')
+		if (!this.targetDatasetInfo || [kFeatureKindNgram, kFeatureKindColumn].includes(iNewFeature.info.kind))
 			return;
 
 		function freeFormFormula() {

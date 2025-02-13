@@ -9,8 +9,8 @@ import {
 	GetAttributeListResponse, GetCaseFormulaSearchResponse, GetCollectionListResponse, GetDataContextListResponse
 } from '../types/codap-api-types';
 import {
-	Feature, getStarterFeature, kWhatOptionText, containOptionAbbreviations, NgramDetails, SearchDetails, TokenMap,
-	WordListSpec, kWhatOptionNumber
+	containOptionAbbreviations, Feature, getStarterFeature, kFeatureKindColumn, kFeatureKindNgram, kFeatureKindSearch,
+	kWhatOptionNumber, kWhatOptionText, NgramDetails, SearchDetails, TokenMap, WordListSpec
 } from "./store_types_and_constants";
 import { targetDatasetStore } from './target_dataset_store';
 
@@ -104,16 +104,16 @@ export class FeatureStore {
 		const tFeature = this.featureUnderConstruction,
 			tDetails = this.featureUnderConstruction.info.details as SearchDetails,
 			tKindOK = tFeature.info.kind !== '',
-			tDoneNgram = tKindOK && tFeature.info.kind === 'ngram',
-			tDoneSearch = tKindOK && tFeature.info.kind === 'search' &&
+			tDoneNgram = tKindOK && tFeature.info.kind === kFeatureKindNgram,
+			tDoneSearch = tKindOK && tFeature.info.kind === kFeatureKindSearch &&
 				tDetails.where !== '' && tDetails.what !== '' &&
 				(tDetails.what !== kWhatOptionText || tDetails.freeFormText !== ''),
-			tDoneColumn = tKindOK && tFeature.info.kind === 'column';
+			tDoneColumn = tKindOK && tFeature.info.kind === kFeatureKindColumn;
 		return tDoneNgram || tDoneSearch || tDoneColumn;
 	}
 
 	constructNameFor(iFeature: Feature) {
-		if (iFeature.info.kind === 'search') {
+		if (iFeature.info.kind === kFeatureKindSearch) {
 			const tDetails = iFeature.info.details as SearchDetails,
 				tFirstPart = containOptionAbbreviations[tDetails.where],
 				tSecondPart = tDetails.freeFormText !== '' ? `"${tDetails.freeFormText.trim()}"` :
@@ -121,10 +121,10 @@ export class FeatureStore {
 					tDetails.wordList && tDetails.wordList.datasetName !== '' ? tDetails.wordList.datasetName :
 					tDetails.what === kWhatOptionNumber ? 'anyNumber' : '';
 			return `${tFirstPart}: ${tSecondPart}`;
-		} else if (iFeature.info.kind === 'ngram') {
+		} else if (iFeature.info.kind === kFeatureKindNgram) {
 			const ignoringPart = iFeature.info.ignoreStopWords ? 'ignoring stopwords' : '';
 			return `single words with frequency ≥ ${iFeature.info.frequencyThreshold}${ignoringPart}`;
-		} else if (iFeature.info.kind === 'column') {
+		} else if (iFeature.info.kind === kFeatureKindColumn) {
 			return iFeature.name;	// already has column name stashed here
 		} else {
 			return '';
@@ -132,14 +132,14 @@ export class FeatureStore {
 	}
 
 	getDescriptionFor(iFeature: Feature) {
-		if (iFeature.info.kind === 'search') {
+		if (iFeature.info.kind === kFeatureKindSearch) {
 			const tDetails = iFeature.info.details as SearchDetails,
 				tFirstPart = `${tDetails.where} ${tDetails.what}`,
 				tSecondPart = tDetails.freeFormText !== '' ? `"${tDetails.freeFormText}"` : '',
 				tThirdPart = tDetails.wordList && tDetails.wordList.datasetName !== '' ?
 					` of ${tDetails.wordList.datasetName}` : '';
 			return `${tFirstPart} ${tSecondPart}${tThirdPart}`
-		} else if (iFeature.info.kind === 'ngram') {
+		} else if (iFeature.info.kind === kFeatureKindNgram) {
 			return `${(iFeature.info.details as NgramDetails).n}gram with frequency threshold of ${iFeature.info.frequencyThreshold},
 			${iFeature.info.ignoreStopWords ? '' : ' not'} ignoring stop words`;
 		} else {
@@ -179,20 +179,20 @@ export class FeatureStore {
 	}
 
 	getConstructedFeatureNames() {
-		return this.features.filter(iFeature => iFeature.info.kind !== 'ngram').map(iFeature => iFeature.name);
+		return this.features.filter(iFeature => iFeature.info.kind !== kFeatureKindNgram).map(iFeature => iFeature.name);
 	}
 
 	getShouldIgnoreStopwords() {
-		const tNtigramFeature = this.features.find(iFeature => iFeature.info.kind === 'ngram');
+		const tNtigramFeature = this.features.find(iFeature => iFeature.info.kind === kFeatureKindNgram);
 		return tNtigramFeature ? tNtigramFeature.info.ignoreStopWords : true;
 	}
 
 	hasNgram() {
-		return Boolean(this.features.find(iFeature => iFeature.info.kind === 'ngram'));
+		return Boolean(this.features.find(iFeature => iFeature.info.kind === kFeatureKindNgram));
 	}
 
 	addFeatureUnderConstruction(tFeature: Feature) {
-		const typeMap: Record<string, string> = { ngram: "unigram", column: "column" };
+		const typeMap: Record<string, string> = { [kFeatureKindNgram]: "unigram", [kFeatureKindColumn]: "column" };
 		tFeature.inProgress = false;
 		tFeature.chosen = true;
 		tFeature.type = typeMap[tFeature.info.kind] ?? "constructed";

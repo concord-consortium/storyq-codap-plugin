@@ -41,6 +41,16 @@ export function isWhatOption(value: string): value is whatOption {
 	return whatOptions.includes(value as whatOption);
 }
 
+export const kFeatureKindSearch = "search";
+export const kFeatureKindNgram = "ngram";
+export const kFeatureKindCount = "count";
+export const kFeatureKindColumn = "column";
+
+export const featureKinds = [
+	kFeatureKindSearch, kFeatureKindNgram, kFeatureKindCount, kFeatureKindColumn, ""
+];
+type featureKind = typeof featureKinds[number];
+
 interface FeatureItem {
 	disabled?: boolean
 	key?: string
@@ -167,7 +177,7 @@ export interface FeatureDetails {
 	details: SearchDetails | CountDetails | NgramDetails | ColumnDetails | null
 	frequencyThreshold?: number
 	ignoreStopWords?: boolean
-	kind: 'search' | 'ngram' | 'count' | 'column' | ''
+	kind: featureKind
 }
 export interface Feature {
 	attrID: string // ID of the attribute in the target dataset corresponding to this feature

@@ -8,11 +8,14 @@ import { LogisticRegression } from "../lib/jsregression";
 import { oneHot } from "../lib/one_hot";
 import { domainStore } from "../stores/domain_store";
 import { featureStore } from "../stores/feature_store";
-import { Feature, NgramDetails, StoredAIModel, Token } from "../stores/store_types_and_constants";
+import { Feature, kFeatureKindNgram, NgramDetails, StoredAIModel, Token } from "../stores/store_types_and_constants";
 import { targetStore } from "../stores/target_store";
 import { trainingStore } from "../stores/training_store";
 import { computeKappa } from "../utilities/utilities";
-import { APIRequest, CaseValues, CreateCaseResponse, CreateCaseValue, GetCaseByIDResponse, GetCaseCountResponse, GetCaseFormulaSearchResponse, GetCollectionListResponse, GetItemSearchResponse, UpdateCaseValue } from "../types/codap-api-types";
+import {
+	APIRequest, CaseValues, CreateCaseResponse, CreateCaseValue, GetCaseByIDResponse, GetCaseCountResponse,
+	GetCaseFormulaSearchResponse, GetCollectionListResponse, GetItemSearchResponse, UpdateCaseValue
+} from "../types/codap-api-types";
 
 export class ModelManager {
 
@@ -311,8 +314,8 @@ export class ModelManager {
 		const tTargetDatasetName = targetStore.targetDatasetInfo.name,
 			tTargetAttributeName = targetStore.targetAttributeName,
 			tTargetColumnFeatureNames = featureStore.targetColumnFeatureNames,
-			tNonNgramFeatures = featureStore.getChosenFeatures().filter(iFeature => iFeature.info.kind !== 'ngram'),
-			tNgramFeatures = featureStore.getChosenFeatures().filter(iFeature => iFeature.info.kind === 'ngram'),
+			tNonNgramFeatures = featureStore.getChosenFeatures().filter(iFeature => iFeature.info.kind !== kFeatureKindNgram),
+			tNgramFeatures = featureStore.getChosenFeatures().filter(iFeature => iFeature.info.kind === kFeatureKindNgram),
 			tUnigramFeature = tNgramFeatures.find(iFeature => (iFeature.info.details as NgramDetails).n === 'uni'),
 			tPositiveClassName = targetStore.getClassName('positive'),
 			tDocuments: {
