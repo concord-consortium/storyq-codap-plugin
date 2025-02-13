@@ -27,7 +27,10 @@ export function textToObject(iText: string, iSelectedWords: (string | number)[],
 		const containedWords = iSelectedWords.map(selectedWord => {
 			// Strip out the word from strings like 'contain: "word"'
 			const _containedWord = typeof selectedWord === "string" && selectedWord.match(/contain: "([^"]+)"/);
-			const containedWord = _containedWord ? _containedWord[1] : selectedWord;
+			const _countWord = typeof selectedWord === "string" && selectedWord.match(/count: "([^"]+)"/);
+			const containedWord = _containedWord ? _containedWord[1]
+				: _countWord ? _countWord[1]
+				: selectedWord;
 			return typeof containedWord === "string" ? containedWord.toLowerCase() : containedWord;
 		})
 
