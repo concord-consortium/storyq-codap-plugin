@@ -14,7 +14,8 @@ import { featureStore } from './feature_store';
 import { targetDatasetStore } from './target_dataset_store';
 import {
 	containOptionAbbreviations, Feature, getContainFormula, getTargetCaseFormula, kContainOptionEndWith,
-	kContainOptionStartWith, kEmptyEntityInfo, SearchDetails
+	kContainOptionStartWith, kEmptyEntityInfo, kWhatOptionList, kWhatOptionNumber, kWhatOptionPunctuation,
+	kWhatOptionText, SearchDetails
 } from "./store_types_and_constants";
 import { CreateAttributeResponse } from '../types/codap-api-types';
 
@@ -338,20 +339,18 @@ export class TargetStore {
 
 		let tFormula = '';
 		switch ((iNewFeature.info.details as SearchDetails).what) {
-			case 'any number':
+			case kWhatOptionNumber:
 				tFormula = anyNumberFormula()
 				break;
-			case 'any item from a list':
+			case kWhatOptionList:
 				tFormula = anyListFormula()
 				break;
-			case 'text':
+			case kWhatOptionText:
 				tFormula = freeFormFormula()
 				break;
-			case 'punctuation':
+			case kWhatOptionPunctuation:
 				tFormula = punctuationFormula()
 				break;
-			case 'part of speech':
-			// tFormula = posFormula()
 		}
 		if (tFormula !== '') iNewFeature.formula = tFormula;
 		iNewFeature.targetCaseFormula = getTargetCaseFormula((iNewFeature.info.details as SearchDetails).where);

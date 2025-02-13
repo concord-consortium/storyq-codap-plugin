@@ -5,10 +5,12 @@
 
 import {makeAutoObservable, toJS} from 'mobx'
 import codapInterface from "../lib/CodapInterface";
-import { GetAttributeListResponse, GetCaseFormulaSearchResponse, GetCollectionListResponse, GetDataContextListResponse } from '../types/codap-api-types';
 import {
-	Feature, getStarterFeature, kKindOfThingOptionText, containOptionAbbreviations, NgramDetails, SearchDetails, TokenMap,
-	WordListSpec
+	GetAttributeListResponse, GetCaseFormulaSearchResponse, GetCollectionListResponse, GetDataContextListResponse
+} from '../types/codap-api-types';
+import {
+	Feature, getStarterFeature, kWhatOptionText, containOptionAbbreviations, NgramDetails, SearchDetails, TokenMap,
+	WordListSpec, kWhatOptionNumber
 } from "./store_types_and_constants";
 import { targetDatasetStore } from './target_dataset_store';
 
@@ -104,8 +106,8 @@ export class FeatureStore {
 			tKindOK = tFeature.info.kind !== '',
 			tDoneNgram = tKindOK && tFeature.info.kind === 'ngram',
 			tDoneSearch = tKindOK && tFeature.info.kind === 'search' &&
-				[tDetails.where, tDetails.what].every(iString => iString !== '') &&
-				(tDetails.what !== kKindOfThingOptionText || tDetails.freeFormText !== ''),
+				tDetails.where !== '' && tDetails.what !== '' &&
+				(tDetails.what !== kWhatOptionText || tDetails.freeFormText !== ''),
 			tDoneColumn = tKindOK && tFeature.info.kind === 'column';
 		return tDoneNgram || tDoneSearch || tDoneColumn;
 	}
@@ -117,7 +119,7 @@ export class FeatureStore {
 				tSecondPart = tDetails.freeFormText !== '' ? `"${tDetails.freeFormText.trim()}"` :
 					tDetails.punctuation !== '' ? tDetails.punctuation :
 					tDetails.wordList && tDetails.wordList.datasetName !== '' ? tDetails.wordList.datasetName :
-					tDetails.what === 'any number' ? 'anyNumber' : '';
+					tDetails.what === kWhatOptionNumber ? 'anyNumber' : '';
 			return `${tFirstPart}: ${tSecondPart}`;
 		} else if (iFeature.info.kind === 'ngram') {
 			const ignoringPart = iFeature.info.ignoreStopWords ? 'ignoring stopwords' : '';

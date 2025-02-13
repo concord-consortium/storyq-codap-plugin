@@ -22,10 +22,19 @@ export const kContainOptionStartWith = "start with";
 export const kContainOptionEndWith = "end with";
 export const kContainOptionCount = "count";
 
-export const kKindOfThingOptionText = "text";
-export const kKindOfThingOptionPunctuation = "punctuation";
-export const kKindOfThingOptionNumber = "any number";
-export const kKindOfThingOptionList = "any item from a list";
+export const kWhatOptionText = "text";
+export const kWhatOptionPunctuation = "punctuation";
+export const kWhatOptionNumber = "any number";
+export const kWhatOptionList = "any item from a list";
+export const kWhatOptionPartOfSpeech = "part of speech";
+
+export const whatOptions = [
+	kWhatOptionNumber, kWhatOptionList, kWhatOptionText, kWhatOptionPunctuation, kWhatOptionPartOfSpeech, ""
+];
+type whatOption = typeof whatOptions[number];
+export function isWhatOption(value: string): value is whatOption {
+	return whatOptions.includes(value as whatOption);
+}
 
 interface FeatureItem {
 	disabled?: boolean
@@ -78,15 +87,9 @@ export const featureDescriptors: FeatureDescriptors = {
 		kContainOptionCount
 	],
 	kindOfThingContainedOptions: [
-		kKindOfThingOptionText, kKindOfThingOptionPunctuation, kKindOfThingOptionNumber, kKindOfThingOptionList
+		kWhatOptionText, kWhatOptionPunctuation, kWhatOptionNumber, kWhatOptionList
 	],
 	caseOptions: ['sensitive', 'insensitive']
-}
-
-const whatOptions = ['any number', 'any item from a list', 'text', 'punctuation', 'part of speech', ''];
-type whatOption = typeof whatOptions[number];
-export function isWhatOption(value: string): value is whatOption {
-	return whatOptions.includes(value as whatOption);
 }
 
 export interface SearchDetails {

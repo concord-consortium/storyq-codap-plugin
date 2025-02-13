@@ -10,7 +10,7 @@ import { SQ } from "../lists/lists";
 import { domainStore } from "../stores/domain_store";
 import { featureStore } from "../stores/feature_store";
 import {
-	Feature, featureDescriptors, isWhatOption, kKindOfThingOptionList, kKindOfThingOptionPunctuation, kKindOfThingOptionText,
+	Feature, featureDescriptors, isWhatOption, kWhatOptionList, kWhatOptionPunctuation, kWhatOptionText,
 	SearchDetails
 } from "../stores/store_types_and_constants";
 import { targetStore } from "../stores/target_store";
@@ -128,7 +128,7 @@ export const FeatureComponent = observer(function FeatureComponent({ feature, sh
 	}
 
 	function freeFormTextBox() {
-		if (featureDetails && featureDetails.what === kKindOfThingOptionText) {
+		if (featureDetails && featureDetails.what === kWhatOptionText) {
 			return (
 				<TextBox
 					className='sq-fc-part'
@@ -145,7 +145,7 @@ export const FeatureComponent = observer(function FeatureComponent({ feature, sh
 	}
 
 	function punctuationChoice() {
-		if (featureDetails && featureDetails.what === kKindOfThingOptionPunctuation) {
+		if (featureDetails && featureDetails.what === kWhatOptionPunctuation) {
 			return (
 				<TextBox
 					className='sq-fc-part'
@@ -162,7 +162,7 @@ export const FeatureComponent = observer(function FeatureComponent({ feature, sh
 	}
 
 	function wordListChoice() {
-		if (featureDetails && featureDetails.what === kKindOfThingOptionList) {
+		if (featureDetails && featureDetails.what === kWhatOptionList) {
 			const tWordListSpecs = featureStore.wordListSpecs,
 				tWordListDatasetNames = tWordListSpecs.map(iDataset => {
 					return iDataset.datasetName;
