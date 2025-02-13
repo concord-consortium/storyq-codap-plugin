@@ -13,9 +13,8 @@ import { SQ } from "../lists/lists";
 import { featureStore } from './feature_store';
 import { targetDatasetStore } from './target_dataset_store';
 import {
-	containOptionAbbreviations, Feature, getContainFormula, getTargetCaseFormula, kContainOptionEndWith,
-	kContainOptionStartWith, kEmptyEntityInfo, kWhatOptionList, kWhatOptionNumber, kWhatOptionPunctuation,
-	kWhatOptionText, SearchDetails
+	Feature, getContainFormula, getTargetCaseFormula,  kEmptyEntityInfo, kSearchWhereEndWith, kSearchWhereStartWith,
+	kWhatOptionList, kWhatOptionNumber, kWhatOptionPunctuation, kWhatOptionText, SearchDetails
 } from "./store_types_and_constants";
 import { CreateAttributeResponse } from '../types/codap-api-types';
 
@@ -279,8 +278,8 @@ export class TargetStore {
 
 		function freeFormFormula() {
 			const option = (iNewFeature.info.details as SearchDetails).where;
-			const tBegins = option === containOptionAbbreviations[kContainOptionStartWith] ? '^' : '';
-			const tEnds = option === containOptionAbbreviations[kContainOptionEndWith] ? '$' : '';
+			const tBegins = option === kSearchWhereStartWith ? '^' : '';
+			const tEnds = option === kSearchWhereEndWith ? '$' : '';
 			const text = (iNewFeature.info.details as SearchDetails).freeFormText.trim();
 			// note: the multiple slash escaping is due to all the layers between this code and the CODAP formula evaluator
 			const escapedText = text
@@ -327,8 +326,8 @@ export class TargetStore {
 			const kWords = SQ.lists[kListName];
 			if (kWords) {
 				const tWhere = searchDetails.where;
-				const tCaret = tWhere === containOptionAbbreviations[kContainOptionStartWith] ? '^' : '';
-				const tDollar = tWhere === containOptionAbbreviations[kContainOptionEndWith] ? '$' : '';
+				const tCaret = tWhere === kSearchWhereStartWith ? '^' : '';
+				const tDollar = tWhere === kSearchWhereEndWith ? '$' : '';
 				const tExpression = kWords.map(word => `${tCaret}\\\\\\\\b${word}\\\\\\\\b${tDollar}`).join("|");
 				return getContainFormula(tWhere, `${tTargetAttr}, "${tExpression}"`);
 			} else {

@@ -22,6 +22,11 @@ export const kContainOptionStartWith = "start with";
 export const kContainOptionEndWith = "end with";
 export const kContainOptionCount = "count";
 
+export const whereOptions = [
+	kContainOptionContain, kContainOptionNotContain, kContainOptionStartWith, kContainOptionEndWith, kContainOptionCount
+];
+type whereOption = typeof whereOptions[number];
+
 export const kWhatOptionText = "text";
 export const kWhatOptionPunctuation = "punctuation";
 export const kWhatOptionNumber = "any number";
@@ -45,7 +50,7 @@ interface FeatureItem {
 		details: {
 			columnName?: string
 			n?: string
-			where?: string
+			where?: whereOption
 		}
 	}
 }
@@ -64,11 +69,11 @@ export const featureDescriptors: FeatureDescriptors = {
 		{
 			key: "Extract one feature at a time",
 			items: [
-				{ name: "contain", value: { kind: "search", details: { where: kContainOptionContain } } },
-				{ name: "not contain", value: { kind: "search", details: { where: kContainOptionNotContain } } },
-				{ name: "start with", value: { kind: "search", details: { where: kContainOptionStartWith } } },
-				{ name: "end with", value: { kind: "search", details: { where: kContainOptionEndWith } } },
-				{ name: "count", value: { kind: "search", details: { where: kContainOptionCount } } }
+				{ name: kContainOptionContain, value: { kind: "search", details: { where: kContainOptionContain } } },
+				{ name: kContainOptionNotContain, value: { kind: "search", details: { where: kContainOptionNotContain } } },
+				{ name: kContainOptionStartWith, value: { kind: "search", details: { where: kContainOptionStartWith } } },
+				{ name: kContainOptionEndWith, value: { kind: "search", details: { where: kContainOptionEndWith } } },
+				{ name: kContainOptionCount, value: { kind: "search", details: { where: kContainOptionCount } } }
 			]
 		},
 		{
@@ -92,8 +97,19 @@ export const featureDescriptors: FeatureDescriptors = {
 	caseOptions: ['sensitive', 'insensitive']
 }
 
+export const kSearchWhereContain = "contain";
+export const kSearchWhereNotContain = "notContain";
+export const kSearchWhereStartWith = "startWith";
+export const kSearchWhereEndWith = "endWith";
+export const kSearchWhereCount = "count";
+
+const searchWhereOptions = [
+	kSearchWhereContain, kSearchWhereNotContain, kSearchWhereStartWith, kSearchWhereEndWith, kSearchWhereCount, ""
+];
+export type searchWhereOption = typeof searchWhereOptions[number];
+
 export interface SearchDetails {
-	where: 'startWith' | 'contain' | 'notContain' | 'endWith' | '',
+	where: searchWhereOption,
 	what: whatOption,
 	caseOption: 'any' | 'upper' | 'lower' | '',
 	freeFormText: string,
@@ -101,36 +117,38 @@ export interface SearchDetails {
 	wordList: WordListSpec
 }
 
-export const containOptionAbbreviations: Record<string, string> = {
-	[kContainOptionContain]: 'contain',
-	[kContainOptionCount]: 'count',
-	[kContainOptionEndWith]: 'endWith',
-	[kContainOptionNotContain]: 'notContain',
-	[kContainOptionStartWith]: 'startWith',
+export const containOptionAbbreviations: Record<whereOption, searchWhereOption> = {
+	[kContainOptionContain]: kSearchWhereContain,
+	[kContainOptionCount]: kSearchWhereCount,
+	[kContainOptionEndWith]: kSearchWhereEndWith,
+	[kContainOptionNotContain]: kSearchWhereNotContain,
+	[kContainOptionStartWith]: kSearchWhereStartWith,
 }
 
+type containsFormulaType = (args: string) => string;
 const containsFormula = (args: string) => `patternMatches(${args})>0`;
-export const containFormula = {
-	[containOptionAbbreviations[kContainOptionContain]]: containsFormula,
-	[containOptionAbbreviations[kContainOptionNotContain]]: (args: string) => `patternMatches(${args})=0`,
-	[containOptionAbbreviations[kContainOptionStartWith]]: containsFormula,
-	[containOptionAbbreviations[kContainOptionEndWith]]: containsFormula,
-	[containOptionAbbreviations[kContainOptionCount]]: (args: string) => `patternMatches(${args})`
+export const containFormula: Record<searchWhereOption, containsFormulaType> = {
+	[kSearchWhereContain]: containsFormula,
+	[kSearchWhereNotContain]: (args: string) => `patternMatches(${args})=0`,
+	[kSearchWhereStartWith]: containsFormula,
+	[kSearchWhereEndWith]: containsFormula,
+	[kSearchWhereCount]: (args: string) => `patternMatches(${args})`
 };
-export function getContainFormula(containOption: string, args: string): string {
-	return (containFormula[containOption] ?? containsFormula)(args);
+export function getContainFormula(option: searchWhereOption, args: string): string {
+	return (containFormula[option] ?? containsFormula)(args);
 }
 
+type caseFormulaType = (args: string) => string;
 export const defaultTargetCaseFormula = (attrName: string) => `${attrName}=true`;
-const targetCaseFormulas = {
-	[containOptionAbbreviations[kContainOptionContain]]: defaultTargetCaseFormula,
-	[containOptionAbbreviations[kContainOptionNotContain]]: defaultTargetCaseFormula,
-	[containOptionAbbreviations[kContainOptionStartWith]]: defaultTargetCaseFormula,
-	[containOptionAbbreviations[kContainOptionEndWith]]: defaultTargetCaseFormula,
-	[containOptionAbbreviations[kContainOptionCount]]: (attrName: string) => `${attrName}>0`
+const targetCaseFormulas: Record<searchWhereOption, caseFormulaType> = {
+	[kSearchWhereContain]: defaultTargetCaseFormula,
+	[kSearchWhereNotContain]: defaultTargetCaseFormula,
+	[kSearchWhereStartWith]: defaultTargetCaseFormula,
+	[kSearchWhereEndWith]: defaultTargetCaseFormula,
+	[kSearchWhereCount]: (attrName: string) => `${attrName}>0`
 };
-export function getTargetCaseFormula(containOption: string) {
-	return targetCaseFormulas[containOption] ?? defaultTargetCaseFormula;
+export function getTargetCaseFormula(option: searchWhereOption) {
+	return targetCaseFormulas[option] ?? defaultTargetCaseFormula;
 }
 
 export interface CountDetails {
