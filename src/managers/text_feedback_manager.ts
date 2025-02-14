@@ -218,12 +218,11 @@ export class TextFeedbackManager {
 			values: tUsedCaseIDs
 		});
 		const tQuadruples: PhraseQuadruple[] = [];
-		const tTargetPhrasesToShow = tUsedCaseIDs.length;
 		// Here is where we put the contents of the text component together
-		for (let i = 0; i < tTargetPhrasesToShow; i++) {
+		tUsedCaseIDs.forEach(async caseId => {
 			const tGetCaseResult = await codapInterface.sendRequest({
 				action: 'get',
-				resource: `dataContext[${tDatasetName}].collection[${tCollectionName}].caseByID[${tUsedCaseIDs[i]}]`
+				resource: `dataContext[${tDatasetName}].collection[${tCollectionName}].caseByID[${caseId}]`
 			}) as GetCaseByIDResponse,
 				tFeatureIDs: number[] = [];
 			if (tGetCaseResult.success && tGetCaseResult.values) {
@@ -248,7 +247,7 @@ export class TextFeedbackManager {
 					};
 				tQuadruples.push(tQuadruple);
 			}
-		}
+		});
 		await this.retitleTextComponent(`Selected texts in ${tDatasetTitle}`);
 		await this.composeText(tQuadruples, textToObject, tColumnFeatureNames.concat(tConstructedFeatureNames));
 	}
