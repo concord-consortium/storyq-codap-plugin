@@ -3,14 +3,15 @@
  * be accessed in more than one file or needs to be saved and restored.
  */
 
-import {makeAutoObservable, toJS} from 'mobx'
+import { makeAutoObservable, toJS } from 'mobx'
 import codapInterface from "../lib/CodapInterface";
 import {
 	GetAttributeListResponse, GetCaseFormulaSearchResponse, GetCollectionListResponse, GetDataContextListResponse
 } from '../types/codap-api-types';
 import {
-	containOptionAbbreviations, Feature, getStarterFeature, kFeatureKindColumn, kFeatureKindNgram, kFeatureKindSearch,
-	kWhatOptionNumber, kWhatOptionText, NgramDetails, SearchDetails, TokenMap, WordListSpec
+	Feature, featureType, getStarterFeature, kFeatureKindColumn, kFeatureKindNgram, kFeatureKindSearch,
+	kFeatureTypeConstructed, kFeatureTypeUnigram, kTokenTypeUnigram, kWhatOptionNumber, kWhatOptionText, NgramDetails,
+	SearchDetails, TokenMap, WordListSpec
 } from "./store_types_and_constants";
 import { targetDatasetStore } from './target_dataset_store';
 
@@ -115,7 +116,7 @@ export class FeatureStore {
 	constructNameFor(iFeature: Feature) {
 		if (iFeature.info.kind === kFeatureKindSearch) {
 			const tDetails = iFeature.info.details as SearchDetails,
-				tFirstPart = containOptionAbbreviations[tDetails.where],
+				tFirstPart = tDetails.where,
 				tSecondPart = tDetails.freeFormText !== '' ? `"${tDetails.freeFormText.trim()}"` :
 					tDetails.punctuation !== '' ? tDetails.punctuation :
 					tDetails.wordList && tDetails.wordList.datasetName !== '' ? tDetails.wordList.datasetName :
@@ -192,23 +193,26 @@ export class FeatureStore {
 	}
 
 	addFeatureUnderConstruction(tFeature: Feature) {
-		const typeMap: Record<string, string> = { [kFeatureKindNgram]: "unigram", [kFeatureKindColumn]: "column" };
+		const typeMap: Record<string, featureType> = {
+			[kFeatureKindNgram]: kFeatureTypeUnigram,
+			[kFeatureKindColumn]: kFeatureKindColumn
+		};
 		tFeature.inProgress = false;
 		tFeature.chosen = true;
-		tFeature.type = typeMap[tFeature.info.kind] ?? "constructed";
+		tFeature.type = typeMap[tFeature.info.kind] ?? kFeatureTypeConstructed;
 		tFeature.description = this.getDescriptionFor(tFeature);
 		this.features.push(tFeature);
 		this.startConstructingFeature();
 	}
 
 	tokenMapAlreadyHasUnigrams() {
-		return this.tokenMap && Object.values(this.tokenMap).some(iToken => iToken.type === 'unigram');
+		return this.tokenMap && Object.values(this.tokenMap).some(iToken => iToken.type === kTokenTypeUnigram);
 	}
 
 	deleteUnigramTokens() {
 		if (this.tokenMap) {
 			for (const [key, token] of Object.entries(this.tokenMap)) {
-				if (token.type === 'unigram')
+				if (token.type === kTokenTypeUnigram)
 					delete this.tokenMap[key];
 			}
 		}
@@ -219,7 +223,7 @@ export class FeatureStore {
 		if (tFoundIndex >= 0) {
 			this.features.splice(tFoundIndex, 1);
 		}
-		if (iFeature.type !== 'unigram') {
+		if (iFeature.type !== kFeatureTypeUnigram) {
 			const { targetDatasetInfo } = targetDatasetStore;
 			await codapInterface.sendRequest({
 				action: 'delete',
@@ -237,7 +241,7 @@ export class FeatureStore {
 				});
 			}
 		}
-		if (iFeature.type === 'unigram') {
+		if (iFeature.type === kFeatureTypeUnigram) {
 			this.deleteUnigramTokens();
 			// Delete all the items in the Features dataset that have type equal to 'unigram'
 			await codapInterface.sendRequest({
@@ -256,7 +260,7 @@ export class FeatureStore {
 			// For every case in Features dataset set the 'chosen' attribute to given value
 			const tCasesRequestResult = await codapInterface.sendRequest({
 				action: 'get',
-				resource: `${resourcePrefix}.caseFormulaSearch[type='unigram']`
+				resource: `${resourcePrefix}.caseFormulaSearch[type='${kFeatureTypeUnigram}']`
 			}) as GetCaseFormulaSearchResponse;
 			if (tCasesRequestResult.success && tCasesRequestResult.values) {
 				const tUpdateRequests: { id: number, values: { chosen: boolean } }[] = tCasesRequestResult.values.map(
@@ -271,7 +275,7 @@ export class FeatureStore {
 		}
 
 		iFeature.chosen = !iFeature.chosen;
-		if (iFeature.type === 'unigram') {
+		if (iFeature.type === kFeatureTypeUnigram) {
 			await syncUnigramsInFeaturesDataset(iFeature.chosen);
 		} else {
 			await codapInterface.sendRequest({

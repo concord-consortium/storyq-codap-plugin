@@ -24,7 +24,7 @@ export const kContainOptionCount = "count";
 
 export const whereOptions = [
 	kContainOptionContain, kContainOptionNotContain, kContainOptionStartWith, kContainOptionEndWith, kContainOptionCount
-];
+] as const;
 type whereOption = typeof whereOptions[number];
 
 export const kWhatOptionText = "text";
@@ -35,7 +35,7 @@ export const kWhatOptionPartOfSpeech = "part of speech";
 
 export const whatOptions = [
 	kWhatOptionNumber, kWhatOptionList, kWhatOptionText, kWhatOptionPunctuation, kWhatOptionPartOfSpeech, ""
-];
+ ] as const;
 type whatOption = typeof whatOptions[number];
 export function isWhatOption(value: string): value is whatOption {
 	return whatOptions.includes(value as whatOption);
@@ -48,7 +48,7 @@ export const kFeatureKindColumn = "column";
 
 export const featureKinds = [
 	kFeatureKindSearch, kFeatureKindNgram, kFeatureKindCount, kFeatureKindColumn, ""
-];
+ ] as const;
 type featureKind = typeof featureKinds[number];
 
 interface FeatureItem {
@@ -115,7 +115,7 @@ export const kSearchWhereCount = "count";
 
 const searchWhereOptions = [
 	kSearchWhereContain, kSearchWhereNotContain, kSearchWhereStartWith, kSearchWhereEndWith, kSearchWhereCount, ""
-];
+] as const;
 export type searchWhereOption = typeof searchWhereOptions[number];
 
 export interface SearchDetails {
@@ -127,22 +127,15 @@ export interface SearchDetails {
 	wordList: WordListSpec
 }
 
-export const containOptionAbbreviations: Record<whereOption, searchWhereOption> = {
-	[kContainOptionContain]: kSearchWhereContain,
-	[kContainOptionCount]: kSearchWhereCount,
-	[kContainOptionEndWith]: kSearchWhereEndWith,
-	[kContainOptionNotContain]: kSearchWhereNotContain,
-	[kContainOptionStartWith]: kSearchWhereStartWith,
-}
-
 type containsFormulaType = (args: string) => string;
 const containsFormula = (args: string) => `patternMatches(${args})>0`;
-export const containFormula: Record<searchWhereOption, containsFormulaType> = {
+export const containFormula: Record<searchWhereOption, containsFormulaType | undefined> = {
 	[kSearchWhereContain]: containsFormula,
 	[kSearchWhereNotContain]: (args: string) => `patternMatches(${args})=0`,
 	[kSearchWhereStartWith]: containsFormula,
 	[kSearchWhereEndWith]: containsFormula,
-	[kSearchWhereCount]: (args: string) => `patternMatches(${args})`
+	[kSearchWhereCount]: (args: string) => `patternMatches(${args})`,
+	"": undefined
 };
 export function getContainFormula(option: searchWhereOption, args: string): string {
 	return (containFormula[option] ?? containsFormula)(args);
@@ -150,12 +143,13 @@ export function getContainFormula(option: searchWhereOption, args: string): stri
 
 type caseFormulaType = (args: string) => string;
 export const defaultTargetCaseFormula = (attrName: string) => `${attrName}=true`;
-const targetCaseFormulas: Record<searchWhereOption, caseFormulaType> = {
+const targetCaseFormulas: Record<searchWhereOption, caseFormulaType | undefined> = {
 	[kSearchWhereContain]: defaultTargetCaseFormula,
 	[kSearchWhereNotContain]: defaultTargetCaseFormula,
 	[kSearchWhereStartWith]: defaultTargetCaseFormula,
 	[kSearchWhereEndWith]: defaultTargetCaseFormula,
-	[kSearchWhereCount]: (attrName: string) => `${attrName}>0`
+	[kSearchWhereCount]: (attrName: string) => `${attrName}>0`,
+	"": undefined
 };
 export function getTargetCaseFormula(option: searchWhereOption) {
 	return targetCaseFormulas[option] ?? defaultTargetCaseFormula;
@@ -172,6 +166,12 @@ export interface NgramDetails {
 export interface ColumnDetails {
 	columnName: string
 }
+
+export const kFeatureTypeUnigram = "unigram";
+export const kFeatureTypeConstructed = "constructed";
+export const kFeatureTypeColumn = "column";
+const featureTypes = [kFeatureTypeUnigram, kFeatureTypeConstructed, kFeatureTypeColumn, ""] as const;
+export type featureType = typeof featureTypes[number];
 
 export interface FeatureDetails {
 	details: SearchDetails | CountDetails | NgramDetails | ColumnDetails | null
@@ -193,7 +193,7 @@ export interface Feature {
 	numberInNegative: number
 	numberInPositive: number
 	targetCaseFormula?: (attrName: string) => string
-	type: string
+	type: featureType
 	usages: number[]
 	weight: number | ''
 }
@@ -270,6 +270,11 @@ export function getEmptyTestingResult() {
 	};
 }
 
+export const kTokenTypeConstructed = "constructed feature";
+export const kTokenTypeUnigram = 'unigram';
+const tokenTypes = [kTokenTypeConstructed, kTokenTypeUnigram] as const;
+export type tokenType = typeof tokenTypes[number];
+
 export interface Token {
 	caseIDs: number[]
 	count: number	// the number of target texts where this token is true (column feature) or found (unigram)
@@ -278,7 +283,7 @@ export interface Token {
 	numNegative: number
 	numPositive: number
 	token: string
-	type: 'constructed feature' | 'unigram'
+	type: tokenType
 	weight: number | null
 }
 

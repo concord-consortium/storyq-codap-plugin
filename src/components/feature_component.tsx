@@ -11,7 +11,8 @@ import { domainStore } from "../stores/domain_store";
 import { featureStore } from "../stores/feature_store";
 import {
 	Feature, featureDescriptors, isWhatOption, kFeatureKindColumn, kFeatureKindCount, kFeatureKindNgram,
-	kFeatureKindSearch, kWhatOptionList, kWhatOptionPunctuation, kWhatOptionText, SearchDetails
+	kFeatureKindSearch, kFeatureTypeColumn, kFeatureTypeUnigram, kWhatOptionList, kWhatOptionPunctuation,
+	kWhatOptionText, SearchDetails
 } from "../stores/store_types_and_constants";
 import { targetStore } from "../stores/target_store";
 import { textStore } from "../stores/text_store";
@@ -39,7 +40,7 @@ export const FeatureComponent = observer(function FeatureComponent({ feature, sh
 					value={feature.chosen}
 					onValueChanged={action(async () => {
 						await featureStore.toggleChosenFor(feature);
-						if (feature.type === 'unigram' && feature.chosen) domainStore.updateNgramFeatures();
+						if (feature.type === kFeatureTypeUnigram && feature.chosen) domainStore.updateNgramFeatures();
 					})}
 					hint={tHint}
 				/>
@@ -102,7 +103,7 @@ export const FeatureComponent = observer(function FeatureComponent({ feature, sh
 						feature.info.ignoreStopWords = true;
 					} else if (feature.info.kind === kFeatureKindColumn) {
 						feature.name = JSON.parse(value).details['columnName'];
-						feature.type = 'column';
+						feature.type = kFeatureTypeColumn;
 					}
 				})}
 			/>
