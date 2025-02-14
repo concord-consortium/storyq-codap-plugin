@@ -16,12 +16,13 @@ import { Button } from "./ui/button";
 import { CheckBox } from "./ui/check-box";
 import { TextBox } from "./ui/text-box";
 
+interface ITrainingPaneProps {}
 export const TrainingPane = observer(class TrainingPane extends Component {
 
 	private modelManager: ModelManager
 
-	constructor() {
-		super({});
+	constructor(props: ITrainingPaneProps) {
+		super(props);
 		this.modelManager = new ModelManager();
 	}
 

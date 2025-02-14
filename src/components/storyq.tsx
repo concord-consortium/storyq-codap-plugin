@@ -17,13 +17,15 @@ import { TabPanel } from './ui/tab-panel';
 
 import '../storyq.css';
 import '../styles/light.compact.css';
+import NotificationManager from "../managers/notification_manager";
 
 interface IStorage {
 	domainStore: IDomainStoreJSON;
 	uiStore: IUiStoreJSON;
 }
 
-const Storyq = observer(class Storyq extends Component<{}, {}> {
+interface IStoryqProps {}
+const Storyq = observer(class Storyq extends Component<IStoryqProps, {}> {
 		private kPluginName = kStoryQPluginName;
 		private kVersion = "2.18.0";
 		private kInitialDimensions = {
@@ -32,8 +34,8 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 		};
 		private testingManager: TestingManager;
 
-		constructor() {
-			super({});
+		constructor(props: IStoryqProps) {
+			super(props);
 			this.restorePluginFromStore = this.restorePluginFromStore.bind(this);
 			this.getPluginStore = this.getPluginStore.bind(this);
 			this.handleSelectionChanged = this.handleSelectionChanged.bind(this);
@@ -45,6 +47,7 @@ const Storyq = observer(class Storyq extends Component<{}, {}> {
 			this.testingManager = new TestingManager(kNonePresent)
 			this.handleCaseNotification = this.handleCaseNotification.bind(this)
 			codapInterface.on('notify', '*', 'createCases', this.handleCaseNotification);
+			new NotificationManager();
 
 			codapInterface.on('update', 'interactiveState', '', this.restorePluginFromStore);
 			codapInterface.on('get', 'interactiveState', '', this.getPluginStore);
