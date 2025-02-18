@@ -3,52 +3,56 @@
  * be accessed in more than one file or needs to be saved and restored.
  */
 
-import {makeAutoObservable, runInAction, toJS} from 'mobx'
-import {Model, TrainingResult} from "./store_types_and_constants";
+import { makeAutoObservable, toJS } from 'mobx';
+import { AIModel } from '../models/ai-model';
+import { TrainingResult } from "./store_types_and_constants";
+
+export interface ITrainingStoreSnapshot {
+	model: AIModel;
+	trainingResults: TrainingResult[];
+}
 
 export class TrainingStore {
-	model: Model
-	trainingResults: TrainingResult[] = []
-	resultCaseIDs: number[] = []
+	model: AIModel;
+	trainingResults: TrainingResult[] = [];
+	resultCaseIDs: number[] = [];
 
 	constructor() {
-		makeAutoObservable(this, {resultCaseIDs: false}, {autoBind: true})
-		this.model = new Model()
+		makeAutoObservable(this, { resultCaseIDs: false }, { autoBind: true });
+		this.model = new AIModel();
 	}
 
 	asJSON() {
 		return {
 			model: this.model.asJSON(),
 			trainingResults: toJS(this.trainingResults)
-		}
+		};
 	}
 
-	fromJSON(json: any) {
+	fromJSON(json: ITrainingStoreSnapshot) {
 		if (json) {
-			this.model.fromJSON(json.model)
-			this.trainingResults = json.trainingResults || []
+			this.model.fromJSON(json.model);
+			this.trainingResults = json.trainingResults || [];
 		}
-		this.checkForActiveModel()
+		this.checkForActiveModel();
 	}
 
 	inactivateAll() {
-		runInAction(()=> {
-			this.trainingResults.forEach(iResult => iResult.isActive = false)
-		})
+		this.trainingResults.forEach(iResult => iResult.isActive = false);
 	}
 
-	getTrainingResultByName(iModelName:string) {
-		return this.trainingResults.find(iResult=>iResult.name === iModelName)
+	getTrainingResultByName(iModelName: string) {
+		return this.trainingResults.find(iResult => iResult.name === iModelName);
 	}
 
-	getFirstActiveModelName() {
-		const tActiveResult = this.trainingResults.find(iResult=>iResult.isActive)
-		return tActiveResult ? tActiveResult.name : ''
+	get firstActiveModelName() {
+		return this.trainingResults.find(iResult => iResult.isActive)?.name ?? '';
 	}
 
 	checkForActiveModel() {
-		if( this.getFirstActiveModelName() === '' && this.trainingResults.length > 0)
+		if (this.firstActiveModelName === '' && this.trainingResults.length > 0)
 			this.trainingResults[0].isActive = true;
 	}
-
 }
+
+export const trainingStore = new TrainingStore();

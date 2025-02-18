@@ -3,99 +3,95 @@
  * be accessed in more than one file or needs to be saved and restored.
  */
 
-import {getCaseValues, getComponentByTypeAndTitleOrName, openTable} from "../lib/codap-helper";
+import { makeAutoObservable } from "mobx";
+import { getCaseValues, openTable } from "../lib/codap-helper";
 import codapInterface from "../lib/CodapInterface";
-import TextFeedbackManager from "../managers/text_feedback_manager";
-import {oneHot, wordTokenizer} from "../lib/one_hot";
-import {Feature, kPosNegConstants, kStoryQPluginName} from "./store_types_and_constants";
-import {TargetStore} from "./target_store";
-import {FeatureStore} from "./feature_store";
-import {TrainingStore} from "./training_store";
-import {TestingStore} from "./testing_store";
-import {TextStore} from "./text_store";
-import {UiStore} from "./ui_store";
+import { oneHot, wordTokenizer } from "../lib/one_hot";
+import {
+	APIRequest, BasicCaseInfo, CreateCaseResponse, CreateCaseValue, CreateDataContextResponse,
+	GetCaseFormulaSearchResponse, GetItemByCaseIDResponse, GetItemSearchResponse, ItemInfo, ItemValues,
+	NotifyDataContextRequest, UpdateCaseRequest, UpdateCaseValue
+} from "../types/codap-api-types";
+import { featureStore, IFeatureStoreJSON } from "./feature_store";
+import { Feature, kPosNegConstants } from "./store_types_and_constants";
+import { ITargetStoreJSON, otherClassColumn, targetStore } from "./target_store";
+import { ITestingStore, testingStore } from "./testing_store";
+import { ITextStoreJSON, textStore } from "./text_store";
+import { ITrainingStoreSnapshot as ITrainingStoreJSON, trainingStore } from "./training_store";
+import { uiStore } from "./ui_store";
+
+export interface IDomainStoreJSON {
+	featureStore: IFeatureStoreJSON;
+	targetStore: ITargetStoreJSON;
+	testingStore: ITestingStore;
+	textStore: ITextStoreJSON;
+	trainingStore: ITrainingStoreJSON;
+}
 
 export class DomainStore {
-	targetStore: TargetStore
-	featureStore: FeatureStore
-	trainingStore: TrainingStore
-	testingStore: TestingStore
-	textStore: TextStore
-	uiStore: UiStore
-	textFeedbackManager: TextFeedbackManager
-
-	constructor(iUiStore: UiStore) {
-		this.targetStore = new TargetStore(() => {
-			return this.featureStore.features.map(iFeature => iFeature.name)
-		})
-		this.featureStore = new FeatureStore(() => this.targetStore.targetDatasetInfo)
-		this.trainingStore = new TrainingStore()
-		this.testingStore = new TestingStore(this.featureStore.getFeatureDatasetID)
-		this.textStore = new TextStore()
-		this.uiStore = iUiStore
-		this.textFeedbackManager = new TextFeedbackManager(this, this.uiStore)
+	constructor() {
+		makeAutoObservable(this);
 	}
 
 	asJSON(): object {
 		return {
-			targetStore: this.targetStore.asJSON(),
-			featureStore: this.featureStore.asJSON(),
-			trainingStore: this.trainingStore.asJSON(),
-			testingStore: this.testingStore.asJSON(),
-			textStore: this.textStore.asJSON()
-		}
+			targetStore: targetStore.asJSON(),
+			featureStore: featureStore.asJSON(),
+			trainingStore: trainingStore.asJSON(),
+			testingStore: testingStore.asJSON(),
+			textStore: textStore.asJSON()
+		};
 	}
 
-	async fromJSON(json: { targetStore: object, featureStore: object, trainingStore: object, testingStore: object, textStore: object }) {
-		this.targetStore.fromJSON(json.targetStore)
-		this.featureStore.fromJSON(json.featureStore)
-		this.trainingStore.fromJSON(json.trainingStore)
-		this.testingStore.fromJSON(json.testingStore)
-		this.textStore.fromJSON(json.textStore)
+	async fromJSON(json: {
+		targetStore: ITargetStoreJSON, featureStore: IFeatureStoreJSON, trainingStore: ITrainingStoreJSON,
+		testingStore: ITestingStore, textStore: ITextStoreJSON
+	}) {
+		targetStore.fromJSON(json.targetStore);
+		featureStore.fromJSON(json.featureStore);
+		trainingStore.fromJSON(json.trainingStore);
+		testingStore.fromJSON(json.testingStore);
+		textStore.fromJSON(json.textStore);
 
-		if (this.textStore.textComponentID !== -1) {
-			await this.addTextComponent()	//Make sure it is in the document
+		if (textStore.textComponentID !== -1) {
+			await textStore.addTextComponent();	//Make sure it is in the document
 		}
-		await this.guaranteeFeaturesDataset()
-		await this.testingStore.updateCodapInfoForTestingPanel()
+		await this.guaranteeFeaturesDataset();
+		await testingStore.updateCodapInfoForTestingPanel();
 	}
 
 	async guaranteeFeaturesDataset(): Promise<boolean> {
-		const tFeatureStore = this.featureStore,
-			tDatasetName = tFeatureStore.featureDatasetInfo.datasetName,
-			tFeatureCollectionName = this.featureStore.featureDatasetInfo.collectionName,
-			tWeightsCollectionName = this.featureStore.featureDatasetInfo.weightsCollectionName,
-			tTargetStore = this.targetStore
+		const { collectionName, datasetName, weightsCollectionName } = featureStore.featureDatasetInfo;
 
 		async function hideWeightsAttributes() {
 			const tShowRequests = [{
 				action: 'update',
-				resource: `dataContext[${tDatasetName}].collection[${tWeightsCollectionName}].attribute[weight]`,
+				resource: `dataContext[${datasetName}].collection[${weightsCollectionName}].attribute[weight]`,
 				values: {hidden: true}
 			},
-				{
-					action: 'update',
-					resource: `dataContext[${tDatasetName}].collection[${tWeightsCollectionName}].attribute[model name]`,
-					values: {hidden: true}
-				}]
-			await codapInterface.sendRequest(tShowRequests)
+			{
+				action: 'update',
+				resource: `dataContext[${datasetName}].collection[${weightsCollectionName}].attribute[model name]`,
+				values: {hidden: true}
+			}];
+			await codapInterface.sendRequest(tShowRequests);
 		}
 
-		if (tFeatureStore.features.length > 0) {
-			if (tFeatureStore.featureDatasetInfo.datasetID === -1) {
-				const tChosenClassKey = this.targetStore.targetChosenClassColumnKey,
-					tUnchosenClassKey = tChosenClassKey === 'left' ? 'right' : 'left',
-					tPositiveAttrName = kPosNegConstants.positive.attrKey + tTargetStore.targetClassNames[tChosenClassKey],
-					tNegativeAttrName = kPosNegConstants.negative.attrKey + tTargetStore.targetClassNames[tUnchosenClassKey],
-					tCreateResult: any = await codapInterface.sendRequest({
+		if (featureStore.features.length > 0) {
+			if (featureStore.featureDatasetID === -1) {
+				const tChosenClassKey = targetStore.targetChosenClassColumnKey,
+					tUnchosenClassKey = otherClassColumn(tChosenClassKey),
+					tPositiveAttrName = kPosNegConstants.positive.attrKey + targetStore.getTargetClassName(tChosenClassKey),
+					tNegativeAttrName = kPosNegConstants.negative.attrKey + targetStore.getTargetClassName(tUnchosenClassKey),
+					tCreateResult = await codapInterface.sendRequest({
 						action: 'create',
 						resource: 'dataContext',
 						values: {
-							name: tDatasetName,
-							title: tDatasetName,
+							name: datasetName,
+							title: datasetName,
 							collections: [{
-								name: tFeatureCollectionName,
-								title: tFeatureCollectionName,
+								name: collectionName,
+								title: collectionName,
 								attrs: [
 									{name: 'name'},
 									{name: 'chosen', type: 'checkbox'},
@@ -109,30 +105,30 @@ export class DomainStore {
 									{name: 'usages', hidden: true}
 								]
 							},
-								{
-									name: tWeightsCollectionName,
-									title: tWeightsCollectionName,
-									parent: tFeatureCollectionName,
-									attrs: [
-										{name: 'model name', type: 'categorical', hidden: false},
-										{name: 'weight', precision: 2, hidden: false}
-									]
-								}]
+							{
+								name: weightsCollectionName,
+								title: weightsCollectionName,
+								parent: collectionName,
+								attrs: [
+									{name: 'model name', type: 'categorical', hidden: false},
+									{name: 'weight', precision: 2, hidden: false}
+								]
+							}]
 						}
-					})
-				if (tCreateResult.success) {
-					tFeatureStore.featureDatasetInfo.datasetID = tCreateResult.values.id
-					tFeatureStore.featureDatasetInfo.datasetName = tDatasetName
-					tFeatureStore.featureDatasetInfo.datasetTitle = tCreateResult.values.title
-					await openTable(tDatasetName)
+					}) as CreateDataContextResponse;
+				if (tCreateResult.success && tCreateResult.values) {
+					featureStore.featureDatasetInfo.datasetID = tCreateResult.values.id;
+					featureStore.featureDatasetInfo.datasetName = datasetName;
+					featureStore.featureDatasetInfo.datasetTitle = tCreateResult.values.title;
+					await openTable(datasetName);
 					// The 'model name' and 'weight' attributes were created as visible as a workaround to a bug.
 					// Now we can hide them
-					await hideWeightsAttributes()
+					await hideWeightsAttributes();
 				}
 			}
-			return true
+			return true;
 		}
-		return false
+		return false;
 	}
 
 	async updateNonNtigramFeaturesDataset() {
@@ -141,46 +137,38 @@ export class DomainStore {
 				features: Feature[]
 			}
 		}
-		const this_ = this,
-			tFeatureStore = this.featureStore,
-			tNonNgramFeatures = tFeatureStore.features.filter(iFeature => iFeature.info.kind !== 'ngram'),
-			tTargetStore = this.targetStore,
+		const tNonNgramFeatures = featureStore.features.filter(iFeature => iFeature.info.kind !== 'ngram'),
 			caseUpdateRequests: Record<string, UpdateRequest> = {},
-			tTargetDatasetName = tTargetStore.targetDatasetInfo.name,
-			tTargetCollectionName = tTargetStore.targetCollectionName
-		let featureDatasetResourceString: string = '',
-			tFeatureItems: { values: { type: string }, id: string }[] = [],
-			tItemsToDelete: { values: object, id: string }[] = [],
-			tFeaturesToAdd: Feature[] = [],
-			tFeaturesToUpdate: Feature[] = []
+			tTargetDatasetName = targetStore.targetDatasetInfo.name,
+			tTargetCollectionName = targetStore.targetCollectionName;
+		let featureDatasetResourceString: string = '';
 
-		async function getExistingFeatureItems(): Promise<{ values: any, id: string }[]> {
-			const tItemsRequestResult: any = await codapInterface.sendRequest({
+		async function getExistingFeatureItems(): Promise<ItemInfo[]> {
+			const tItemsRequestResult = await codapInterface.sendRequest({
 				action: 'get',
 				resource: `${featureDatasetResourceString}.itemSearch[*]`
-			})
-			if (tItemsRequestResult.success)
-				return tItemsRequestResult.values
-			else
-				return []
+			}) as GetItemSearchResponse;
+			if (tItemsRequestResult.success && tItemsRequestResult.values) {
+				return tItemsRequestResult.values;
+			} else {
+				return [];
+			}
 		}
 
-		function featureDoesNotMatchItem(iItem: { [key: string]: any }, iFeature: { [key: string]: any }) {
-			return ['name', 'chosen'/*, 'formula', 'description'*/].some(iKey => {
-					return String(iItem[iKey]).trim() !== String(iFeature[iKey]).trim()
-				}) || iItem[kPosNegConstants.negative.storeKey] !== iFeature[kPosNegConstants.negative.attrKey] ||
-				iItem[kPosNegConstants.positive.storeKey] !== iFeature[kPosNegConstants.positive.attrKey]
+		function featureDoesNotMatchItem(iItem: Feature, iFeature: ItemValues) {
+			return iItem.name.trim() !== iFeature.name.trim() ||
+				String(iItem.chosen).trim() !== iFeature.chosen.trim() ||
+				String(kPosNegConstants.negative.getStoreKey(iItem)) !== iFeature[kPosNegConstants.negative.attrKey] ||
+				String(kPosNegConstants.positive.getStoreKey(iItem)) !== iFeature[kPosNegConstants.positive.attrKey];
 		}
 
 		async function updateFrequenciesUsagesAndFeatureIDs() {
-			const tClassAttrName = this_.targetStore.targetClassAttributeName,
-				tChosenClassKey = this_.targetStore.targetChosenClassColumnKey,
-				tPosClassLabel = this_.targetStore.targetClassNames[tChosenClassKey]
+			const tChosenClassKey = targetStore.targetChosenClassColumnKey;
 
 			tNonNgramFeatures.forEach(iFeature => {
-				iFeature.numberInPositive = 0
-				iFeature.numberInNegative = 0
-				iFeature.usages = []
+				iFeature.numberInPositive = 0;
+				iFeature.numberInNegative = 0;
+				iFeature.usages = [];
 			})
 			/**
 			 * We go through each feature
@@ -191,61 +179,61 @@ export class DomainStore {
 			 * 			- 	we add the feature's case ID to the array of feature IDs for that case
 			 */
 			const countFeaturePromises = tNonNgramFeatures.map(async (iFeature) => {
-				const tTargetCases = await this_.targetStore.updateTargetCases(`\`${iFeature.name}\`=true`)
+				const tTargetCases = await targetStore.updateTargetCases(`\`${iFeature.name}\`=true`);
 				tTargetCases.forEach(iCase => {
 					if (iCase.values[iFeature.name]) {
-						if (iCase.values[tClassAttrName] === tPosClassLabel) {
-							iFeature.numberInPositive++
+						if (iCase.values[targetStore.targetClassAttributeName] === targetStore.getTargetClassName(tChosenClassKey)) {
+							iFeature.numberInPositive++;
 						} else {
-							iFeature.numberInNegative++
+							iFeature.numberInNegative++;
 						}
-						iFeature.usages.push(iCase.id)
-						const iCaseId = `${iCase.id}`
+						iFeature.usages.push(iCase.id);
+						const iCaseId = `${iCase.id}`;
 						if (!caseUpdateRequests[iCaseId]) {
-							caseUpdateRequests[iCaseId] = { values: { features: [] } }
+							caseUpdateRequests[iCaseId] = { values: { features: [] } };
 						}
-						caseUpdateRequests[iCaseId].values.features.push(iFeature)
+						caseUpdateRequests[iCaseId].values.features.push(iFeature);
 					}
-				})
-			})
-			await Promise.all(countFeaturePromises)
+				});
+			});
+			await Promise.all(countFeaturePromises);
 		}
 
 		if (await this.guaranteeFeaturesDataset()) {
-			featureDatasetResourceString = `dataContext[${tFeatureStore.featureDatasetInfo.datasetID}]`
+			featureDatasetResourceString = `dataContext[${featureStore.featureDatasetID}]`;
 
-			tFeatureItems = (await getExistingFeatureItems()).filter(iItem => iItem.values.type !== 'unigram')
-			await updateFrequenciesUsagesAndFeatureIDs()
-			tItemsToDelete = tFeatureItems.filter(iItem => {
-				return !tNonNgramFeatures.find(iFeature => iFeature.featureItemID === iItem.id)
-			})
-			tFeaturesToAdd = tNonNgramFeatures.filter(iFeature => {
+			const tFeatureItems = (await getExistingFeatureItems()).filter(iItem => iItem.values.type !== 'unigram');
+			await updateFrequenciesUsagesAndFeatureIDs();
+			const tItemsToDelete = tFeatureItems.filter(iItem => {
+				return !tNonNgramFeatures.find(iFeature => iFeature.featureItemID === iItem.id);
+			});
+			const tFeaturesToAdd = tNonNgramFeatures.filter(iFeature => {
 				return !tFeatureItems.find(iItem => {
-					return iFeature.featureItemID === iItem.id
-				})
-			})
-			tFeaturesToUpdate = tNonNgramFeatures.filter(iFeature => {
+					return iFeature.featureItemID === iItem.id;
+				});
+			});
+			const tFeaturesToUpdate = tNonNgramFeatures.filter(iFeature => {
 				const tMatchingItem = tFeatureItems.find(iItem => {
-					return iFeature.featureItemID === iItem.id
-				})
-				return tMatchingItem && featureDoesNotMatchItem(iFeature, tMatchingItem.values)
-			})
+					return iFeature.featureItemID === iItem.id;
+				});
+				return tMatchingItem && featureDoesNotMatchItem(iFeature, tMatchingItem.values);
+			});
 			if (tItemsToDelete.length > 0) {
 				await codapInterface.sendRequest(
 					tItemsToDelete.map(iItem => {
 						return {
 							action: 'delete',
 							resource: `${featureDatasetResourceString}.itemByID[${iItem.id}]`
-						}
+						};
 					})
-				)
+				);
 			}
 			if (tFeaturesToAdd.length > 0) {
 				const tValues = tFeaturesToAdd.map(iFeature => {
-					const tChosenClassKey = this.targetStore.targetChosenClassColumnKey,
-						tUnchosenClassKey = tChosenClassKey === 'left' ? 'right' : 'left',
-						tPositiveAttrName = kPosNegConstants.positive.attrKey + tTargetStore.targetClassNames[tChosenClassKey],
-						tNegativeAttrName = kPosNegConstants.negative.attrKey + tTargetStore.targetClassNames[tUnchosenClassKey]
+					const tChosenClassKey = targetStore.targetChosenClassColumnKey,
+						tUnchosenClassKey = otherClassColumn(tChosenClassKey),
+						tPositiveAttrName = kPosNegConstants.positive.attrKey + targetStore.getTargetClassName(tChosenClassKey),
+						tNegativeAttrName = kPosNegConstants.negative.attrKey + targetStore.getTargetClassName(tUnchosenClassKey);
 					let tValuesObject: { values: { [index: string]: {} } } = {
 						values: {
 							chosen: iFeature.chosen,
@@ -257,27 +245,29 @@ export class DomainStore {
 							*/
 							usages: JSON.stringify(iFeature.usages)
 						}
-					}
-					tValuesObject.values[tPositiveAttrName] = iFeature.numberInPositive
-					tValuesObject.values[tNegativeAttrName] = iFeature.numberInNegative
-					return tValuesObject
+					};
+					tValuesObject.values[tPositiveAttrName] = iFeature.numberInPositive;
+					tValuesObject.values[tNegativeAttrName] = iFeature.numberInNegative;
+					return tValuesObject;
 				})
-				const tCreateResult: any = await codapInterface.sendRequest(
+				const tCreateResult = await codapInterface.sendRequest(
 					{
 						action: 'create',
-						resource: `${featureDatasetResourceString}.collection[${tFeatureStore.featureDatasetInfo.collectionName}].case`,
+						resource: `${featureDatasetResourceString}.collection[${featureStore.featureDatasetInfo.collectionName}].case`,
 						values: tValues
 					}
-				)
-				if (tCreateResult.success) {
-					tCreateResult.values.forEach(async (iValue: any, iIndex: number) => {
-						tFeaturesToAdd[iIndex].caseID = iValue.id
-						const tGetItemResult: any = await codapInterface.sendRequest({
+				) as CreateCaseResponse;
+				if (tCreateResult.success && tCreateResult.values) {
+					tCreateResult.values.forEach(async (iValue: BasicCaseInfo, iIndex: number) => {
+						tFeaturesToAdd[iIndex].caseID = String(iValue.id);
+						const tGetItemResult = await codapInterface.sendRequest({
 							action: 'get',
 							resource: `${featureDatasetResourceString}.itemByCaseID[${iValue.id}]`
-						})
-						tFeaturesToAdd[iIndex].featureItemID = tGetItemResult.values.id
-					})
+						}) as GetItemByCaseIDResponse;
+						if (tGetItemResult.success && tGetItemResult.values) {
+							tFeaturesToAdd[iIndex].featureItemID = tGetItemResult.values.id;
+						}
+					});
 				}
 			}
 			if (tFeaturesToUpdate.length > 0) {
@@ -289,82 +279,75 @@ export class DomainStore {
 							values: {
 								chosen: iFeature.chosen,
 								name: iFeature.name,
-								'frequency in positive': iFeature[kPosNegConstants.positive.storeKey],
-								'frequency in negative': iFeature[kPosNegConstants.negative.storeKey]
+								'frequency in positive': iFeature.numberInPositive,
+								'frequency in negative': iFeature.numberInNegative
 							}
 						}
 					})
-				)
+				);
 			}
 			// We've waited until now to update target cases with feature IDs so that we can be sure
 			//	features do have caseIDs to stash in target cases
-			const caseUpdateRequestKeys = Object.keys(caseUpdateRequests)
+			const caseUpdateRequestKeys = Object.keys(caseUpdateRequests);
 			if (caseUpdateRequestKeys.length > 0) {
 				const tValues = caseUpdateRequestKeys.map(iIndex => {
-					const iRequest = caseUpdateRequests[iIndex]
+					const iRequest = caseUpdateRequests[iIndex];
 					return {
 						id: iIndex,
 						values: {featureIDs: JSON.stringify(iRequest.values.features.map(iFeature => iFeature.caseID))}
-					}
-				})
+					};
+				});
 				await codapInterface.sendRequest({
 					action: 'update',
 					resource: `dataContext[${tTargetDatasetName}].collection[${tTargetCollectionName}].case`,
 					values: tValues
-				})
+				});
 			}
 		}
 	}
 
 	async updateNgramFeatures() {
-		if (this.featureStore.tokenMapAlreadyHasUnigrams())
-			return
-		const this_ = this
-		await this.targetStore.updateTargetCases()
-		const tNgramFeatures = this.featureStore.features.filter(iFeature => iFeature.info.kind === 'ngram')
-		await this.guaranteeFeaturesDataset()
+		if (featureStore.tokenMapAlreadyHasUnigrams()) return;
+
+		await targetStore.updateTargetCases();
+		const tNgramFeatures = featureStore.features.filter(iFeature => iFeature.info.kind === 'ngram');
+		await this.guaranteeFeaturesDataset();
 		for (const iNtgramFeature of tNgramFeatures) {
-			const
-				tTargetStore = this.targetStore,
-				tFeatureDatasetName = this.featureStore.featureDatasetInfo.datasetName,
-				tFeatureCollectionName = this.featureStore.featureDatasetInfo.collectionName,
+			const { collectionName, datasetName } = featureStore.featureDatasetInfo,
 				tIgnore = iNtgramFeature.info.ignoreStopWords !== undefined ? iNtgramFeature.info.ignoreStopWords : true,
 				tThreshold = (iNtgramFeature.info.frequencyThreshold || 4),
-				tTargetCases = tTargetStore.targetCases,
-				tTargetAttributeName = tTargetStore.targetAttributeName,
-				tTargetClassAttributeName = this.targetStore.targetClassAttributeName,
-				tDocuments = tTargetCases.map(iCase => {
+				tTargetAttributeName = targetStore.targetAttributeName,
+				tDocuments = targetStore.targetCases.map(iCase => {
 					return {
 						example: iCase.values[tTargetAttributeName],
-						class: iCase.values[tTargetClassAttributeName],
+						class: iCase.values[targetStore.targetClassAttributeName],
 						caseID: Number(iCase.id),
 						columnFeatures: {}
 					}
 				}),
-				tChosenClassKey = tTargetStore.targetChosenClassColumnKey,
-				tUnchosenClassKey = tChosenClassKey === 'left' ? 'right' : 'left',
-				tPositiveAttrName = kPosNegConstants.positive.attrKey + tTargetStore.targetClassNames[tChosenClassKey],
-				tNegativeAttrName = kPosNegConstants.negative.attrKey + tTargetStore.targetClassNames[tUnchosenClassKey]
+				tChosenClassKey = targetStore.targetChosenClassColumnKey,
+				tUnchosenClassKey = otherClassColumn(tChosenClassKey),
+				tPositiveAttrName = kPosNegConstants.positive.attrKey + targetStore.getTargetClassName(tChosenClassKey),
+				tNegativeAttrName = kPosNegConstants.negative.attrKey + targetStore.getTargetClassName(tUnchosenClassKey);
 			// tokenize the target texts
 			const tOneHotResult = oneHot({
 				frequencyThreshold: tThreshold - 1,
 				ignoreStopWords: tIgnore,
 				ignorePunctuation: true,
 				includeUnigrams: true,
-				positiveClass: this.targetStore.getClassName('positive'),
-				negativeClass: this.targetStore.getClassName('negative'),
+				positiveClass: targetStore.getClassName('positive'),
+				negativeClass: targetStore.getClassName('negative'),
 				features: []
-			}, tDocuments)
-			if (!tOneHotResult)
-				return
-			const tTokenArray = tOneHotResult.tokenArray	// Array of unigram features
+			}, tDocuments);
+			if (!tOneHotResult) return;
+			const tTokenArray = tOneHotResult.tokenArray;	// Array of unigram features
 
-			this_.featureStore.tokenMap = tOneHotResult.tokenMap
+			featureStore.setTokenMap(tOneHotResult.tokenMap);
 			// Stash tokens in feature dataset
 			// if (await this.guaranteeFeaturesDataset()) {
-			const tUnigramCreateMsgs: any[] = []
+			const tUnigramCreateMsgs: CreateCaseValue[] = [];
 			tTokenArray.forEach(iFeature => {
-				const tCaseValues: { [index: string]: any } = {
+				const tCaseValues: CreateCaseValue = {
 					values: {
 						chosen: true,
 						name: iFeature.token,
@@ -374,100 +357,75 @@ export class DomainStore {
 						*/
 						usages: JSON.stringify(iFeature.caseIDs)
 					}
-				}
-				tCaseValues.values[tPositiveAttrName] = iFeature.numPositive
-				tCaseValues.values[tNegativeAttrName] = iFeature.numNegative
-				tUnigramCreateMsgs.push(tCaseValues)
+				};
+				tCaseValues.values[tPositiveAttrName] = iFeature.numPositive;
+				tCaseValues.values[tNegativeAttrName] = iFeature.numNegative;
+				tUnigramCreateMsgs.push(tCaseValues);
 			})
-			const tCreateResult: any = await codapInterface.sendRequest({
+			const tCreateResult = await codapInterface.sendRequest({
 				action: 'create',
-				resource: `dataContext[${tFeatureDatasetName}].collection[${tFeatureCollectionName}].case`,
+				resource: `dataContext[${datasetName}].collection[${collectionName}].case`,
 				values: tUnigramCreateMsgs
-			})
+			}) as CreateCaseResponse;
 			// Stash the resultant feature case IDs where we can get them to update target cases
 			// We make a map with featureCaseID as key and usages as value
-			if (tCreateResult.success) {
-				tCreateResult.values.forEach((iValue: { id: number }, iIndex: number) => {
-					tUnigramCreateMsgs[iIndex].featureCaseID = iValue.id
-					tTokenArray[iIndex].featureCaseID = iValue.id
-				})
+			if (tCreateResult.success && tCreateResult.values) {
+				tCreateResult.values.forEach((iValue, iIndex) => {
+					// tUnigramCreateMsgs[iIndex].featureCaseID = iValue.id
+					tTokenArray[iIndex].featureCaseID = iValue.id;
+				});
 				// Put together update messages for the target cases
-				const tUpdateMsgs: { id: number, values: { featureIDs: number[] | string } }[] = []
-				tTargetCases.forEach(iCase => {
-					// console.log(`iCase = ${JSON.stringify(toJS(iCase))}`)
-					const tTheseFeatureIDs = iCase.values.featureIDs
-					const tUpdateValue = {id: iCase.id, values: {featureIDs: tTheseFeatureIDs ? JSON.parse(tTheseFeatureIDs) : []}}
+				const tUpdateMsgs: UpdateCaseValue[] = [];
+				targetStore.targetCases.forEach(iCase => {
+					const tTheseFeatureIDs = iCase.values.featureIDs;
+					const featureIDs: number[] = tTheseFeatureIDs ? JSON.parse(tTheseFeatureIDs) : [];
 					tTokenArray.forEach(iFeature => {
-						if (iFeature.caseIDs.indexOf(iCase.id) >= 0) {
-							// @ts-ignore
-							tUpdateValue.values.featureIDs.push(iFeature.featureCaseID)
+						if (iFeature.caseIDs.indexOf(iCase.id) >= 0 && iFeature.featureCaseID != null) {
+							featureIDs.push(iFeature.featureCaseID);
 						}
-					})
-					// @ts-ignore
-					tUpdateValue.values.featureIDs = JSON.stringify(tUpdateValue.values.featureIDs)
-					tUpdateMsgs.push(tUpdateValue)
+					});
+					const tUpdateValue: UpdateCaseValue = { id: iCase.id, values: { featureIDs: JSON.stringify(featureIDs) } };
+					tUpdateMsgs.push(tUpdateValue);
 				})
 				await codapInterface.sendRequest({
 					action: 'update',
-					resource: `dataContext[${tTargetStore.targetDatasetInfo.name}].collection[${tTargetStore.targetCollectionName}].case`,
+					resource: `dataContext[${targetStore.targetDatasetInfo.name}].collection[${targetStore.targetCollectionName}].case`,
 					values: tUpdateMsgs
-				})
+				});
 			}
 		}
 	}
 
-	async addTextComponent() {
-		await this.textStore.addTextComponent(this.targetStore.targetDatasetInfo.title, this.targetStore.targetAttributeName)
-		await this.clearText()
-		setTimeout(async () => {
-			// Take the focus away from the newly created text component
-			const tPluginID = await getComponentByTypeAndTitleOrName('game', kStoryQPluginName, kStoryQPluginName)
-			await codapInterface.sendRequest({
-				action: 'notify',
-				resource: `component[${tPluginID}]`,
-				values: {
-					request: 'select'
-				}
-			})
-		}, 1000)
-	}
-
-	async clearText() {
-		await this.textStore.clearText(this.targetStore.targetAttributeName)
-	}
-
 	featuresPanelCanBeEnabled() {
-		return this.targetStore.targetAttributeName !== ''
-			&& this.targetStore.targetClassAttributeName !== ''
-			&& this.targetStore.targetChosenClassColumnKey !== ''
+		return targetStore.targetAttributeName !== '' && targetStore.targetClassAttributeName !== ''
+			&& targetStore.targetChosenClassColumnKey;
 	}
 
 	trainingPanelCanBeEnabled() {
-		return this.featuresPanelCanBeEnabled() && this.featureStore.features.length > 0
+		return this.featuresPanelCanBeEnabled() && featureStore.features.length > 0;
 	}
 
 	testingPanelCanBeEnabled() {
-		return this.trainingPanelCanBeEnabled() && this.trainingStore.trainingResults.length > 0
+		return this.trainingPanelCanBeEnabled() && trainingStore.trainingResults.length > 0;
 	}
 
 	async setIsActiveForResultAtIndex(iIndex: number, iIsActive: boolean) {
-		const tTrainingResults = this.trainingStore.trainingResults
-		let tNumActive = 0
-		tTrainingResults[iIndex].isActive = iIsActive
+		const tTrainingResults = trainingStore.trainingResults;
+		let tNumActive = 0;
+		tTrainingResults[iIndex].isActive = iIsActive;
 		tTrainingResults.forEach(iResult => {
 			tNumActive += iResult.isActive ? 1 : 0
-		})
+		});
 		if (tNumActive === 0) {
 			// Always have at least one result active
-			let currIndex = iIndex - 1
-			if (currIndex < 0)
-				currIndex = tTrainingResults.length - 1
-			tTrainingResults[currIndex].isActive = true
+			let currIndex = iIndex - 1;
+			if (currIndex < 0) currIndex = tTrainingResults.length - 1;
+			tTrainingResults[currIndex].isActive = true;
 		}
-		const tFirstActiveResult = tTrainingResults.find(iResult=>iResult.isActive),
-			tIgnore = tFirstActiveResult ? tFirstActiveResult.ignoreStopWords : true
-		await this.syncWeightsAndResultsWithActiveModels()
-		await this.recreateUsagesAndFeatureIDs(tIgnore)
+		const tFirstActiveResult = tTrainingResults.find(iResult => iResult.isActive),
+			tIgnore = tFirstActiveResult ? tFirstActiveResult.ignoreStopWords : true;
+		await this.syncWeightsAndResultsWithActiveModels();
+		await this.recreateUsagesAndFeatureIDs(tIgnore);
 	}
 
 	/**
@@ -475,38 +433,38 @@ export class DomainStore {
 	 * weights and results for all models not currently active.
 	 */
 	async syncWeightsAndResultsWithActiveModels() {
-		if (this.trainingStore.trainingResults.length === 0)
-			return
-		const tTrainingResults = this.trainingStore.trainingResults,
-			tFeatureDatasetName = this.featureStore.featureDatasetInfo.datasetName,
-			tMessages: object[] = [],
-			tWeightsCollectionName = this.featureStore.featureDatasetInfo.weightsCollectionName
-		let tResultIDsToSetaside: number[] = [],
-			tWeightIDsToSetaside: number[] = []// Unset-aside all the weights
+		const { trainingResults } = trainingStore;
+		if (trainingResults.length === 0) return;
+
+		const { datasetName, weightsCollectionName } = featureStore.featureDatasetInfo,
+			tMessages: NotifyDataContextRequest[] = [];
+		// Unset-aside all the weights
 		await codapInterface.sendRequest({
-				action: 'notify',
-				resource: `dataContext[${tFeatureDatasetName}]`,
-				values: {
-					request: "restoreSetasides"
-				}
+			action: 'notify',
+			resource: `dataContext[${datasetName}]`,
+			values: {
+				request: "restoreSetasides"
 			}
-		)
+		});
 
 		// Gather all the cases from the weights collection
-		const tWeightsRequestResult: any = await codapInterface.sendRequest({
+		const getModelNames = async (_datasetName: string, collectionName: string) => {
+			const caseSearchResult = await codapInterface.sendRequest({
 				action: 'get',
-				resource: `dataContext[${tFeatureDatasetName}].collection[${tWeightsCollectionName}].caseFormulaSearch[true]`
-			}),
-			tWeightNameIDPairs: { modelName: string, id: number }[] = tWeightsRequestResult.success ?
-				tWeightsRequestResult.values.map((iValue: { id: number, values: { 'model name': string } }) => {
-					return {modelName: iValue.values['model name'], id: iValue.id}
-				}) : []
+				resource: `dataContext[${_datasetName}].collection[${collectionName}].caseFormulaSearch[true]`
+			}) as GetCaseFormulaSearchResponse;
+			return caseSearchResult.success && caseSearchResult.values
+				? caseSearchResult.values.map((iValue) => {
+						return { modelName: String(iValue.values['model name']), id: iValue.id };
+					})
+				: [];
+		};
+		const tWeightNameIDPairs = await getModelNames(datasetName, weightsCollectionName);
 
 		// Unset-aside results collection for each training result
-		const datasetNames = tTrainingResults.map(iResult=>iResult.targetDatasetName)
-			.filter(iName=>iName!==null && iName!==undefined),
+		const datasetNames = trainingResults.map(iResult => iResult.targetDatasetName).filter(iName => iName != null),
 			datasetNamesSet = new Set(datasetNames),
-			uniqueNames = Array.from(datasetNamesSet)
+			uniqueNames = Array.from(datasetNamesSet);
 		await codapInterface.sendRequest(uniqueNames.map(iName => {
 			return {
 				action: 'notify',
@@ -514,43 +472,33 @@ export class DomainStore {
 				values: {
 					request: "restoreSetasides"
 				}
-			}
-		}))
+			};
+		}));
 		// All cases are showing. Now figure out which weights and results to set aside
 		// First gather all the weight cases with no model name
 /*
 		const tNoNamePairs = tWeightNameIDPairs.filter(iPair=>iPair.modelName === '')
 		tWeightIDsToSetaside = tWeightIDsToSetaside.concat(tNoNamePairs.map(iPair=>iPair.id))
 */
-		for (let tIndex = 0; tIndex < tTrainingResults.length; tIndex++) {
-			const iResult = tTrainingResults[tIndex]
+		trainingResults.forEach(async iResult => {
 			// First the weights
 			if (!iResult.isActive) {
 				const tInactiveWeightPairs = tWeightNameIDPairs.filter(iPair => iPair.modelName === iResult.name),
-					tInactiveWeightIDs = tInactiveWeightPairs.map(iPair => iPair.id)
-				tWeightIDsToSetaside = tWeightIDsToSetaside.concat(tInactiveWeightIDs)
+					tWeightIDsToSetaside = tInactiveWeightPairs.map(iPair => iPair.id);
 				tMessages.push({
 					action: 'notify',
-					resource: `dataContext[${tFeatureDatasetName}]`,
+					resource: `dataContext[${datasetName}]`,
 					values: {
 						request: 'setAside',
 						caseIDs: tWeightIDsToSetaside
 					}
-				})
+				});
 				// Now the results
-				const tDatasetName = iResult.targetDatasetName
-				if( tDatasetName) {
-					const tResultsRequestResult: any = await codapInterface.sendRequest({
-							action: 'get',
-							resource: `dataContext[${tDatasetName}].collection[${'results'}].caseFormulaSearch[true]`
-						}),
-						tResultNameIDPairs: { modelName: string, id: number }[] = tResultsRequestResult.success ?
-							tResultsRequestResult.values.map((iValue: { id: number, values: { 'model name': string } }) => {
-								return {modelName: iValue.values['model name'], id: iValue.id}
-							}) : []
+				const tDatasetName = iResult.targetDatasetName;
+				if (tDatasetName) {
+					const tResultNameIDPairs = await getModelNames(tDatasetName, 'results');
 					const tInactiveResultPairs = tResultNameIDPairs.filter(iPair => iPair.modelName === iResult.name),
-						tInactiveResultIDs = tInactiveResultPairs.map(iPair => iPair.id)
-					tResultIDsToSetaside = tResultIDsToSetaside.concat(tInactiveResultIDs)
+						tResultIDsToSetaside = tInactiveResultPairs.map(iPair => iPair.id);
 					tMessages.push({
 						action: 'notify',
 						resource: `dataContext[${tDatasetName}]`,
@@ -558,18 +506,18 @@ export class DomainStore {
 							request: 'setAside',
 							caseIDs: tResultIDsToSetaside
 						}
-					})
+					});
 				}
 			}
-		}
+		});
 
 		// Do the setting aside all at once
-		await codapInterface.sendRequest(tMessages)
+		await codapInterface.sendRequest(tMessages);
 	}
 
 	setPanel(iPanelIndex: number) {
-		this.uiStore.tabPanelSelectedIndex = iPanelIndex
-		this.targetStore.updateFromCODAP()
+		uiStore.setTabPanelSelectedIndex(iPanelIndex);
+		targetStore.updateFromCODAP();
 	}
 
 	/**
@@ -579,89 +527,83 @@ export class DomainStore {
 	 * 		* The target store's features will get updated IDs for both cases and items
 	 * 	 	* The featureStore's tokenMap's tokens get updated array of case IDs and featureIDs
 	 */
-	async recreateUsagesAndFeatureIDs(iIgnoreStopwords:boolean) {
+	async recreateUsagesAndFeatureIDs(iIgnoreStopwords: boolean) {
+		const tTargetDatasetName = targetStore.targetDatasetInfo.name,
+			{ targetAttributeName, targetCollectionName } = targetStore,
+			tTargetCases = await getCaseValues(tTargetDatasetName, targetCollectionName),
+			{ collectionName, datasetName } = featureStore.featureDatasetInfo,
+			tTokenMap = featureStore.tokenMap,
+			tFeatureCases = await getCaseValues(datasetName, collectionName),
+			tUsageResults: Record<number, number[]> = {}, // Contains IDs of target texts that contain a given feature
+			tTextResults: Record<number, number[]> = {},	// Contains IDs of features found in a given text
+			tFeatureItemRequests: APIRequest[] = [];
 
-		function targetTextHasUnigram(iText:string, iUnigram:string) {
-			return wordTokenizer(iText, iIgnoreStopwords, true).indexOf(iUnigram) >= 0
+		function targetTextHasUnigram(iText: string, iUnigram: string) {
+			return wordTokenizer(iText, iIgnoreStopwords, true).indexOf(iUnigram) >= 0;
 		}
 
-		const tTargetDatasetName = this.targetStore.targetDatasetInfo.name,
-			tTargetCollectionName = this.targetStore.targetCollectionName,
-			tTargetAttributeName = this.targetStore.targetAttributeName,
-			tTargetCases = await getCaseValues(tTargetDatasetName, tTargetCollectionName),
-			tFeatureDatasetName = this.featureStore.featureDatasetInfo.datasetName,
-			tFeatureCollectionName = this.featureStore.featureDatasetInfo.collectionName,
-			tTokenMap = this.featureStore.tokenMap,
-			tFeatureCases = await getCaseValues(tFeatureDatasetName, tFeatureCollectionName),
-			tUsageResults:{ [index:number]:number[]} = {}, // Contains IDs of target texts that contain a given feature
-			tTextResults: {[index:number]:number[]} = {},	// Contains IDs of features found in a given text
-			tFeatureItemRequests:{action:'get', resource:string}[] = []
-		tFeatureCases.forEach(iFeatureCase=>{
-			tFeatureItemRequests.push({action:'get', resource:`dataContext[${tFeatureDatasetName}].itemByCaseID[${iFeatureCase.id}]`})
+		tFeatureCases.forEach(iFeatureCase => {
+			tFeatureItemRequests.push({
+				action:'get', resource:`dataContext[${datasetName}].itemByCaseID[${iFeatureCase.id}]`
+			});
 			const tFeatureName = iFeatureCase.values.name,
-				tFeatureType = iFeatureCase.values.type
+				tFeatureType = iFeatureCase.values.type;
 
-			tTargetCases.forEach(iTargetCase=>{
-				const tTargetHasFeature =
-						['constructed', 'column'].includes(tFeatureType) ? iTargetCase.values[tFeatureName] :
-							tFeatureType === 'unigram' ? targetTextHasUnigram( iTargetCase.values[tTargetAttributeName], tFeatureName) :
-								false
-				if( tTargetHasFeature) {
-					if( !tUsageResults[iFeatureCase.id])
-						tUsageResults[iFeatureCase.id] = []
-					tUsageResults[iFeatureCase.id].push( iTargetCase.id)
-					if( !tTextResults[iTargetCase.id])
-						tTextResults[iTargetCase.id] = []
-					tTextResults[iTargetCase.id].push( iFeatureCase.id)
+			tTargetCases.forEach(iTargetCase => {
+				const tTargetHasFeature = ['constructed', 'column'].includes(tFeatureType)
+					? iTargetCase.values[tFeatureName]
+					: tFeatureType === 'unigram'
+					? targetTextHasUnigram(iTargetCase.values[targetAttributeName], tFeatureName)
+					: false;
+				if (tTargetHasFeature) {
+					if (!tUsageResults[iFeatureCase.id]) tUsageResults[iFeatureCase.id] = [];
+					tUsageResults[iFeatureCase.id].push(iTargetCase.id);
+					if (!tTextResults[iTargetCase.id]) tTextResults[iTargetCase.id] = [];
+					tTextResults[iTargetCase.id].push(iFeatureCase.id);
 				}
 			})
 			// We need to store the featureCaseID in the token map while we've got it
-			if( tTokenMap[tFeatureName]) {
-				tTokenMap[tFeatureName].featureCaseID = iFeatureCase.id
+			if (tTokenMap[tFeatureName]) {
+				tTokenMap[tFeatureName].featureCaseID = iFeatureCase.id;
 			}
-		})
+		});
 		// Now we can update the target and feature cases
-		const tMsgs:Message[] = [
+		const tMsgs: UpdateCaseRequest[] = [
 			{
 				action: 'update',
-				resource: `dataContext[${tTargetDatasetName}].collection[${tTargetCollectionName}].case`,
-				values:[]
+				resource: `dataContext[${tTargetDatasetName}].collection[${targetCollectionName}].case`,
+				values: []
 			},
 			{
 				action: 'update',
-				resource: `dataContext[${tFeatureDatasetName}].collection[${tFeatureCollectionName}].case`,
-				values:[]
+				resource: `dataContext[${datasetName}].collection[${collectionName}].case`,
+				values: []
 			}
-		]
+		];
 		for (let tTextResultsKey in tTextResults) {
-			tMsgs[0].values.push( {
+			tMsgs[0].values?.push({
 				id: tTextResultsKey,
-				values: { featureIDs: tTextResults[tTextResultsKey]}
-			})
+				values: { featureIDs: JSON.stringify(tTextResults[tTextResultsKey]) }
+			});
 		}
 		for (let tUsageResultsKey in tUsageResults) {
-			tMsgs[1].values.push( {
+			tMsgs[1].values?.push({
 				id: tUsageResultsKey,
-				values: {usages: tUsageResults[tUsageResultsKey]}
-			})
+				values: { usages: JSON.stringify(tUsageResults[tUsageResultsKey]) }
+			});
 		}
-		tMsgs[0].values.forEach(iValue=>{
-				iValue.values.featureIDs = JSON.stringify(iValue.values.featureIDs)
-			})
-		tMsgs[1].values.forEach(iValue=>{
-				iValue.values.usages = JSON.stringify(iValue.values.usages)
-			})
-		await codapInterface.sendRequest(tMsgs)
+		await codapInterface.sendRequest(tMsgs);
 
 		// Now we update the case and item ids of the stored features
-		const tItemResults:any = await codapInterface.sendRequest(tFeatureItemRequests)
-		tFeatureCases.forEach((iFeature, iIndex)=>{
-			const tStoredFeature = this.featureStore.features.find(iStoredFeature=>{
-				return iStoredFeature.name === iFeature.values.name
+		const tItemResults = await codapInterface.sendRequest(tFeatureItemRequests) as GetItemByCaseIDResponse[];
+		tFeatureCases.forEach((iFeature, iIndex) => {
+			const tStoredFeature = featureStore.features.find(iStoredFeature => {
+				return iStoredFeature.name === iFeature.values.name;
 			})
-			if( tStoredFeature) {
-				tStoredFeature.featureItemID = tItemResults[iIndex].values.id
-				tStoredFeature.caseID = String(iFeature.id)
+			const result = tItemResults[iIndex];
+			if (tStoredFeature && result.success && result.values) {
+				tStoredFeature.featureItemID = result.values.id;
+				tStoredFeature.caseID = String(iFeature.id);
 			}
 		})
 
@@ -669,21 +611,15 @@ export class DomainStore {
 		//	that is the ID of the feature in the features collection.
 		for (let tTokenMapKey in tTokenMap) {
 			const tToken = tTokenMap[tTokenMapKey],
-				tStoredFeature = this.featureStore.features.find(iStoredFeature=>{
-					return iStoredFeature.name === tTokenMapKey
-				})
-			if(tToken && tStoredFeature) {
-				tToken.featureCaseID = Number(tStoredFeature.caseID)
-				tToken.caseIDs = tUsageResults[Number(tStoredFeature.caseID)]
+				tStoredFeature = featureStore.features.find(iStoredFeature => {
+					return iStoredFeature.name === tTokenMapKey;
+				});
+			if (tToken && tStoredFeature) {
+				tToken.featureCaseID = Number(tStoredFeature.caseID);
+				tToken.caseIDs = tUsageResults[tToken.featureCaseID];
 			}
 		}
 	}
-
 }
 
-interface Message {
-	action:string,
-	resource:string
-	values:any[]
-}
-
+export const domainStore = new DomainStore();

@@ -2,131 +2,104 @@
  * This component provides the space for a user to construct and edit features
  */
 
-import React, {Component} from "react";
-import {DomainStore} from "../stores/domain_store";
-import {observer} from "mobx-react";
-import {UiStore} from "../stores/ui_store";
-import {Button} from "./ui/button";
-import {FeatureConstructor} from "./feature_constructor";
-import {action} from "mobx";
-import {FeatureList} from "./feature_list";
-import {starterFeature} from "../stores/store_types_and_constants";
-import {SQ} from "../lists/lists";
+import { action } from "mobx";
+import { observer } from "mobx-react";
+import React from "react";
+import { SQ } from "../lists/lists";
+import { domainStore } from "../stores/domain_store";
+import { featureStore } from "../stores/feature_store";
+import { targetStore } from "../stores/target_store";
+import { FeatureConstructor } from "./feature_constructor";
+import { FeatureList } from "./feature_list";
+import { Button } from "./ui/button";
 
-interface FeaturePaneState {
-	count: number,
-}
+const AddButton = observer(function AddButton() {
+	const { featureUnderConstruction} = featureStore;
+	const { inProgress } = featureUnderConstruction;
 
-interface FeaturePaneInfo {
-	subscriberIndex: number
-}
+	const handleClick = action(async () => {
+		if (inProgress) {	// Cancel
+			featureStore.startConstructingFeature();
+		}
+		featureUnderConstruction.inProgress = !inProgress;
+	});
 
-export interface Feature_Props {
-	uiStore: UiStore
-	domainStore: DomainStore
-}
+	return (
+		<Button
+			className='sq-button'
+			onClick={handleClick}
+			hint={inProgress ? SQ.hints.featureCancel : SQ.hints.featureAdd}
+		>
+			{inProgress ? "Cancel" : "Add Features"}
+		</Button>
+	);
+});
 
-export const FeaturePane = observer(class FeaturePane extends Component<Feature_Props, FeaturePaneState> {
+const DoneButton = observer(function DoneButton() {
+	const { featureUnderConstruction } = featureStore;
 
-	private featurePaneInfo: FeaturePaneInfo;
+	if (!featureUnderConstruction.inProgress) return null;
 
-	constructor(props: any) {
-		super(props);
-		this.state = {
-			count: 0
-		};
-		this.featurePaneInfo = {subscriberIndex: -1}
-	}
-
-	getButtons() {
-		const tFeatureStore = this.props.domainStore.featureStore,
-			tFeatureUnderConstruction = tFeatureStore.featureUnderConstruction,
-			tInProgress = tFeatureUnderConstruction.inProgress,
-			tButtonLabel = tFeatureUnderConstruction.inProgress ? 'Cancel' : 'Add Features',
-			tButtonHint = tFeatureUnderConstruction.inProgress ? SQ.hints.featureCancel :
-				SQ.hints.featureAdd,
-			tAddButton =
-				(<Button
-						className='sq-button'
-						onClick={action(() => {
-							if( tInProgress) {	// Cancel
-								tFeatureStore.featureUnderConstruction = Object.assign({}, starterFeature)
-							}
-							tFeatureUnderConstruction.inProgress = !tInProgress
-						})}
-						hint={tButtonHint}
-					>
-						{tButtonLabel}
-					</Button>
-				),
-			tDoneButton = tFeatureUnderConstruction.inProgress ? (
-				<Button
-					className='sq-button'
-					disabled={!this.props.domainStore.featureStore.constructionIsDone()}
-					onClick={action(async () => {
-						if( tFeatureUnderConstruction.inProgress) {
-							if(tFeatureUnderConstruction.info.kind === 'ngram' && tFeatureStore.hasNgram()) {
-								window.alert('Sorry, you already have this feature.')
-							}
-							else {
-								tFeatureUnderConstruction.name = this.props.domainStore.featureStore.constructNameFor(tFeatureUnderConstruction)
-								await this.props.domainStore.targetStore.addOrUpdateFeatureToTarget(tFeatureUnderConstruction)
-								await this.props.domainStore.featureStore.addFeatureUnderConstruction(tFeatureUnderConstruction)
-								await this.props.domainStore.updateNonNtigramFeaturesDataset()
-								await this.props.domainStore.updateNgramFeatures()
-								tFeatureUnderConstruction.inProgress = false
-							}
-						}
-					})}
-					hint={SQ.hints.featureDone}
-				>
-					Done
-				</Button>
-			) : ''
-		return (
-			<div>
-				{tAddButton}
-				{tDoneButton}
-			</div>
-		)
-	}
-
-	render() {
-		const this_ = this,
-			tFeatureStore = this.props.domainStore.featureStore
-
-		function featureInstructions() {
-			if (!tFeatureStore.featureUnderConstruction.inProgress) {
-				const
-					tFeatures =tFeatureStore.features,
-					tInstructions = tFeatures.length === 0 ?
-					<p>What features of the training data should StoryQ use to train the model?</p> :
-					<p>Add more features or go to <span
-							onClick={action(()=>this_.props.domainStore.setPanel(2))}
-							style={{cursor: 'pointer'}}
-						>
-								<strong>Training</strong></span>to train your model.</p>
-				return (
-					<div className='sq-info-prompt'>
-						{tInstructions}
-					</div>
-				)
+	// TODO Move this function into domainStore
+	const handleClick = action(async () => {
+		if( featureUnderConstruction.inProgress) {
+			if(featureUnderConstruction.info.kind === 'ngram' && featureStore.hasNgram()) {
+				window.alert('Sorry, you already have this feature.')
+			}
+			else {
+				featureUnderConstruction.name = featureStore.constructNameFor(featureUnderConstruction)
+				await targetStore.addOrUpdateFeatureToTarget(featureUnderConstruction)
+				await featureStore.addFeatureUnderConstruction(featureUnderConstruction)
+				await domainStore.updateNonNtigramFeaturesDataset()
+				await domainStore.updateNgramFeatures()
+				featureUnderConstruction.inProgress = false
 			}
 		}
+	});
 
-		return (
-			<div className='sq-pane'>
-				{featureInstructions()}
-				<FeatureConstructor
-					uiStore={this.props.uiStore}
-					domainStore={this.props.domainStore}
-				/>
-				{this.getButtons()}
-				<FeatureList
-					uiStore={this.props.uiStore}
-					domainStore={this.props.domainStore}
-				/>
+	return (
+		<Button
+			className="sq-button"
+			disabled={!featureStore.constructionIsDone()}
+			onClick={handleClick}
+			hint={SQ.hints.featureDone}
+		>
+			Done
+		</Button>
+	);
+});
+
+const FeatureInstructions = observer(function FeatureInstructions() {
+	if (featureStore.featureUnderConstruction.inProgress) return null;
+
+	return (
+		<div className="sq-info-prompt">
+			{featureStore.features.length === 0
+				? <p>What features of the training data should StoryQ use to train the model?</p>
+				: (
+					<p>
+						Add more features or go to <span
+							onClick={() => domainStore.setPanel(2)}
+							style={{ cursor: "pointer" }}
+						>
+							<strong>Training</strong>
+						</span> to train your model.
+					</p>
+				)}
+		</div>
+	);
+});
+
+export function FeaturePane() {
+	return (
+		<div className='sq-pane'>
+			<FeatureInstructions />
+			<FeatureConstructor />
+			<div>
+				<AddButton />
+				<DoneButton />
 			</div>
-		);
-	}
-})
+			<FeatureList />
+		</div>
+	);
+}

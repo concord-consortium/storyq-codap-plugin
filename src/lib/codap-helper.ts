@@ -1,3 +1,5 @@
+import { setupTextFeedbackManager } from "../managers/text_feedback_manager";
+import { APIRequest, CaseInfo, GetCaseByIDResponse, GetSelectionListResponse } from "../types/codap-api-types";
 import codapInterface from "./CodapInterface";
 
 export interface entityInfo {
@@ -30,7 +32,9 @@ export function initializePlugin(pluginName: string, version: string, dimensions
 		cannotClose: true
 	};
 	try {
-		return codapInterface.init(interfaceConfig, iRestoreStateHandler);
+		const response = codapInterface.init(interfaceConfig, iRestoreStateHandler);
+		setupTextFeedbackManager();
+		return response;
 	} catch (error) {
 		const errorMessage = `Error initializing interactiveFrame: ${error}`;
 		console.warn(errorMessage);
@@ -238,26 +242,26 @@ export async function getCaseValues(
 		return []
 }
 
-export async function getSelectedCasesFrom(iDatasetName: string | null, iCollectionName: string): Promise<any[]> {
-	let tCasesRequest = [],
-		tSelectedCases = [],
-		tResult: any = await codapInterface.sendRequest({
-			action: 'get',
-			resource: `dataContext[${iDatasetName}].selectionList`
-		});
-	if (tResult.success && Array.isArray(tResult.values)) {
-		const tIDsOfSelectedCasesFromCollection =
-			tResult.values.filter((iValue: any) => iValue.collectionName === iCollectionName).map((iObject: any) => iObject.caseID)
-		tCasesRequest = tIDsOfSelectedCasesFromCollection.map(function (iID: any) {
+export async function getSelectedCasesFrom(iDatasetName: string | null, iCollectionName: string) {
+	const tSelectedCases: CaseInfo[] = [];
+	const selectionListResult = await codapInterface.sendRequest({
+		action: 'get',
+		resource: `dataContext[${iDatasetName}].selectionList`
+	}) as GetSelectionListResponse;
+	if (selectionListResult.success && selectionListResult.values) {
+		const tIDsOfSelectedCasesFromCollection = selectionListResult.values
+			.filter(iValue => iValue.collectionName === iCollectionName).map(iObject => iObject.caseID);
+		const tCasesRequest: APIRequest[] = tIDsOfSelectedCasesFromCollection.map(iID => {
 			return {
 				action: 'get',
 				resource: `dataContext[${iDatasetName}].caseByID[${iID}]`
 			}
 		});
-		tResult = await codapInterface.sendRequest(tCasesRequest);
-		tSelectedCases = tResult.map(function (iCaseResult: any) {
-			return (iCaseResult.success) ? (iCaseResult.values.case) :
-				null;
+		const caseResults = await codapInterface.sendRequest(tCasesRequest) as GetCaseByIDResponse[];
+		caseResults.forEach(iCaseResult => {
+			if (iCaseResult.success && iCaseResult.values) {
+				tSelectedCases.push(iCaseResult.values.case);
+			}
 		});
 	}
 	return tSelectedCases;

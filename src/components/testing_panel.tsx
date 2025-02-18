@@ -2,22 +2,20 @@
  * This component shows under the Testing tab
  */
 
-import React, {Component} from "react";
-import {DomainStore} from "../stores/domain_store";
-import {observer} from "mobx-react";
-import {UiStore} from "../stores/ui_store";
-import codapInterface, {CODAP_Notification} from "../lib/CodapInterface";
-import {choicesMenu} from "./component_utilities";
-import {Button} from "./ui/button";
-import {action, toJS} from "mobx";
-import {TestingManager} from "../managers/testing_manager";
-import {SQ} from "../lists/lists";
+import { action } from "mobx";
+import { observer } from "mobx-react";
+import React, { Component } from "react";
+import codapInterface, { CODAP_Notification } from "../lib/CodapInterface";
+import { SQ } from "../lists/lists";
+import { TestingManager } from "../managers/testing_manager";
+import { testingStore } from "../stores/testing_store";
+import { trainingStore } from "../stores/training_store";
+import { ChoicesMenu } from "./choices-menu";
+import { Button } from "./ui/button";
 
 export const kNonePresent = 'None present';
 
 export interface Testing_Props {
-	uiStore: UiStore
-	domainStore: DomainStore
 	testingManager: TestingManager
 }
 
@@ -35,11 +33,12 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 
 	async handleDataContextNotification(iNotification: CODAP_Notification) {
 		if (iNotification.action === 'notify') {
-			if (iNotification.values.operation === 'dataContextCountChanged') {
+			const values = Array.isArray(iNotification.values) ? iNotification.values[0] : iNotification.values;
+			if (values.operation === 'dataContextCountChanged') {
 				await this.updateCodapInfo();
-			} else if (iNotification.values.operation === 'titleChange') {
+			} else if (values.operation === 'titleChange') {
 				action(() => {
-					this.props.domainStore.testingStore.testingDatasetInfo.name = ''
+					testingStore.testingDatasetInfo.name = ''
 				})()
 				await this.updateCodapInfo()
 			}
@@ -47,16 +46,13 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 	}
 
 	async updateCodapInfo() {
-		await this.props.domainStore.testingStore.updateCodapInfoForTestingPanel()
+		await testingStore.updateCodapInfoForTestingPanel()
 	}
 
 	render() {
 		const this_ = this,
-			tTestingStore = this.props.domainStore.testingStore,
-			tTestingClassAttributeName = tTestingStore.testingClassAttributeName,
-			tNumModels = this.props.domainStore.trainingStore.trainingResults.length,
-			tTestingResults = tTestingStore.testingResultsArray
-
+			tNumModels = trainingStore.trainingResults.length,
+			tTestingResults = testingStore.testingResultsArray
 
 		function testingInstructions() {
 			if (tTestingResults.length === 0) {
@@ -69,7 +65,7 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 				return (
 					<div className='sq-info-prompt'>
 						<p>You've tested {tTestingResults.length} time{tTestingResults.length > 1 ? 's' : ''}. Test again?</p>
-						<p>Note that if you add new texts to {tTestingStore.testingDatasetInfo.title}, the testing results will
+						<p>Note that if you add new texts to {testingStore.testingDatasetInfo.title}, the testing results will
 							update.</p>
 					</div>
 				)
@@ -77,77 +73,95 @@ export const TestingPanel = observer(class TestingPanel extends Component<Testin
 		}
 
 		function getModelChoice() {
-			const tModelChoices = this_.props.domainStore.trainingStore.trainingResults.map(iResult => iResult.name),
-				tPrompt = this_.props.domainStore.testingStore.chosenModelName === '' ? 'Choose a model to test'
+			const { chosenModelName } = testingStore;
+			const tModelChoices = trainingStore.trainingResults.map(iResult => iResult.name),
+				tPrompt = chosenModelName === '' ? 'Choose a model to test'
 					: 'The model to test'
-			return choicesMenu(tPrompt, 'Choose a model',
-				SQ.hints.testingModelChoices,
-				tModelChoices,
-				this_.props.domainStore.testingStore.chosenModelName, 'No models to choose from', async (iChoice) => {
-					this_.props.domainStore.testingStore.chosenModelName = iChoice
-					await this_.updateCodapInfo()
-				})
+			return (
+				<ChoicesMenu
+					choices={tModelChoices}
+					hint={SQ.hints.testingModelChoices}
+					noDataText="No models to choose from"
+					onValueChange={async (iChoice) => {
+						testingStore.setChosenModelName(iChoice);
+						await this_.updateCodapInfo();
+					}}
+					placeHolder="Choose a model"
+					prompt={tPrompt}
+					value={chosenModelName}
+				/>
+			);
 		}
 
 		function getTestingDatasetChoice() {
-			const tDatasetInfoArray = tTestingStore.testingDatasetInfoArray,
+			const tDatasetInfoArray = testingStore.testingDatasetInfoArray,
 				tDatasetNames = tDatasetInfoArray.map(iEntity => iEntity.title)
-			return choicesMenu('Choose a data set', 'Your choice',
-				SQ.hints.testingDatasetChoices,
-				tDatasetNames,
-				tTestingStore.testingDatasetInfo.title,
-				'',
-				async (iChoice) => {
-					const tChosenInfo = tDatasetInfoArray.find(iInfo => iInfo.title === iChoice)
-					if (tChosenInfo)
-						tTestingStore.testingDatasetInfo = tChosenInfo
-					await this_.updateCodapInfo()
-				})
+			return (
+				<ChoicesMenu
+					choices={tDatasetNames}
+					hint={SQ.hints.testingDatasetChoices}
+					onValueChange={async (iChoice) => {
+						const tChosenInfo = tDatasetInfoArray.find(iInfo => iInfo.title === iChoice);
+						if (tChosenInfo) testingStore.setTestingDatasetInfo(tChosenInfo);
+						await this_.updateCodapInfo();
+					}}
+					placeHolder="Your choice"
+					prompt="Choose a data set"
+					value={testingStore.testingDatasetInfo.title}
+				/>
+			);
 		}
 
 		function getTestingAttributeChoice() {
-			if (tTestingStore.testingDatasetInfo.title !== '') {
-				const tAttributeNames = tTestingStore.testingAttributeNames
-				return choicesMenu('Choose the column with text', 'Choose a column',
-					SQ.hints.testingColumnChoices,
-					tAttributeNames,
-					tTestingStore.testingAttributeName,
-					'',
-					async (iChoice) => {
-						tTestingStore.testingAttributeName = iChoice
-						await this_.updateCodapInfo()
-					})
+			if (testingStore.testingDatasetInfo.title !== '') {
+				return (
+					<ChoicesMenu
+						choices={testingStore.testingAttributeNames}
+						hint={SQ.hints.testingAttributeChoices}
+						onValueChange={async (iChoice) => {
+							testingStore.setTestingAttributeName(iChoice);
+							await this_.updateCodapInfo();
+						}}
+						placeHolder="Choose a column"
+						prompt="Choose the column with text"
+						value={testingStore.testingAttributeName}
+					/>
+				);
 			}
 		}
 
 		function getClassAttributeChoice() {
-			if (tTestingStore.testingDatasetInfo.title !== '') {
-				const tAttributeNames: string[] = toJS(tTestingStore.testingAttributeNames)
+			if (testingStore.testingDatasetInfo.title !== '') {
+				const tAttributeNames = [...testingStore.testingAttributeNames]
 				tAttributeNames.unshift(kNonePresent)
-				return choicesMenu('Choose the column with the labels (optional)', 'Choose a column',
-					SQ.hints.testingLabelsChoices,
-					tAttributeNames,
-					tTestingClassAttributeName,
-					'',
-					async (iChoice: string) => {
-						tTestingStore.testingClassAttributeName = iChoice
-						await this_.updateCodapInfo()
-					})
+				return (
+					<ChoicesMenu
+						choices={tAttributeNames}
+						hint={SQ.hints.testingLabelsChoices}
+						onValueChange={async (iChoice) => {
+							testingStore.setTestingClassAttributeName(iChoice);
+							await this_.updateCodapInfo();
+						}}
+						placeHolder="Choose a column"
+						prompt="Choose the column with the labels (optional)"
+						value={testingStore.testingClassAttributeName}
+					/>
+				);
 			}
 		}
 
 		function getTestButton() {
 			const
-				tTestingDatasetName = tTestingStore.testingDatasetInfo.title,
-				tChosenModelName = tTestingStore.chosenModelName,
-				tTestingAttributeName = tTestingStore.testingAttributeName,
-				tDisabled = tTestingDatasetName === '' || tChosenModelName === '' || tTestingAttributeName === '',
+				tTestingDatasetName = testingStore.testingDatasetInfo.title,
+				tChosenModelName = testingStore.chosenModelName,
+				noTestingAttributeName = testingStore.testingAttributeName === '',
+				tDisabled = tTestingDatasetName === '' || tChosenModelName === '' || noTestingAttributeName,
 				// The following hint doesn't display if the button is disabled. See
 				// https://supportcenter.devexpress.com/ticket/details/t844498/button-how-to-add-tooltip-to-disabled-button
 				// for suggested solution
 				tHint = tTestingDatasetName === '' ? SQ.hints.testingChooseDataset :
 					(tChosenModelName === '' ? SQ.hints.testingChooseModel :
-						(tTestingAttributeName === '' ? SQ.hints.testingChooseAttribute :
+						(noTestingAttributeName ? SQ.hints.testingChooseAttribute :
 							SQ.hints.testingTest))
 			return (
 				<div className='sq-training-buttons'>

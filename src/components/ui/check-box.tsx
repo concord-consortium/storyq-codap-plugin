@@ -1,19 +1,16 @@
 import React, { useCallback } from "react";
 import clsx from "clsx";
 
-type CheckBoxChangeEvent = CustomEvent<{value: boolean}> & {value: boolean};
-
 interface ICheckBoxProps {
   text: string;
   value: boolean;
-  onValueChanged: (e: CheckBoxChangeEvent) => void;
+  onValueChanged: (value: boolean) => void;
   hint?: string;
   disabled?: boolean;
   style?: React.CSSProperties;
 }
 
-export const CheckBox = (props: ICheckBoxProps) => {
-  const {text, value, onValueChanged, hint, disabled, style} = props;
+export const CheckBox = ({ text, value, onValueChanged, hint, disabled, style }: ICheckBoxProps) => {
   const hasText = text.length > 0;
   const className = clsx(
     "ui-widget ui-checkbox",
@@ -25,15 +22,7 @@ export const CheckBox = (props: ICheckBoxProps) => {
   );
 
   const handleClick = useCallback(() => {
-    if (!disabled) {
-      const syntheticEvent = new CustomEvent('customEvent', {
-        detail: {
-          value: !value
-        }
-      }) as any;
-      syntheticEvent.value = !value;
-      onValueChanged(syntheticEvent);
-    }
+    if (!disabled) onValueChanged(!value);
   }, [disabled, value, onValueChanged]);
 
   return (
@@ -55,5 +44,5 @@ export const CheckBox = (props: ICheckBoxProps) => {
         {hasText && <span className="ui-checkbox-text">{text}</span>}
       </div>
     </div>
-  )
+  );
 }

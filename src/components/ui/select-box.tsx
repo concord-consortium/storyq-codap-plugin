@@ -1,49 +1,39 @@
 import clsx from "clsx";
 import React from "react";
-
-type SelectBoxChangeEvent = CustomEvent<{value: string}> & {value: string};
-
-
-interface SelectBoxItem {
-  name: string;
-  value: string;
-}
-interface SelectBoxGroup {
-  key: string;
-  items: SelectBoxItem[]
-}
+import { FeatureKind } from "../../stores/store_types_and_constants";
+import "./select-box.scss";
 
 interface ISelectBoxProps {
-  dataSource: string[] | number[] | SelectBoxGroup[];
+  dataSource: string[] | number[] | FeatureKind[];
   placeholder: string;
   hint?: string;
-  value?: any;
+  value?: string | number;
   noDataText?: string;
   style?: React.CSSProperties;
   width?: string | number;
   className?: string;
-  defaultValue?: any;
+  defaultValue?: string | number;
   onValueChange?: (option: string) => void;
-  onValueChanged?: (e: SelectBoxChangeEvent) => void;
+  onValueChanged?: (value: string) => void;
 }
 
-export const SelectBox = (props: ISelectBoxProps) => {
-  const {dataSource, placeholder, hint, value, noDataText, onValueChange, onValueChanged, width, defaultValue} = props;
-  const className = clsx("ui-show-invalid-badge ui-selectbox ui-textbox ui-texteditor ui-dropdowneditor-button-visible ui-editor-outlined ui-widget ui-dropdowneditor ui-dropdowneditor-field-clickable ui-dropdowneditor-active", props.className)
+export function SelectBox({
+  className, dataSource, placeholder, hint, value, noDataText, onValueChange, onValueChanged, style, width, defaultValue
+}: ISelectBoxProps) {
+  const _className = clsx(
+    "ui-show-invalid-badge ui-selectbox ui-textbox ui-texteditor ui-dropdowneditor-button-visible ui-editor-outlined",
+    "ui-widget ui-dropdowneditor ui-dropdowneditor-field-clickable ui-dropdowneditor-active", className
+  );
 
-  let style: React.CSSProperties = props.style ?? {};
+  let _style: React.CSSProperties = style ?? {};
   if (width) {
-    style.width = width;
+    _style.width = width;
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const value = e.target.value;
     onValueChange?.(value);
-    if (onValueChanged) {
-      const syntheticEvent = new CustomEvent('customEvent', {detail: {value}}) as any;
-      syntheticEvent.value = value;
-      onValueChanged(syntheticEvent);
-    }
+    onValueChanged?.(value);
   }
 
   if (dataSource.length === 0) {
@@ -52,20 +42,19 @@ export const SelectBox = (props: ISelectBoxProps) => {
 
   return (
     <div
-      className={className}
+      className={_className}
       title={hint}
-      style={style}>
+      style={_style}>
       <div className="ui-dropdowneditor-input-wrapper ui-selectbox-container">
         <div className="ui-texteditor-container">
           <div className="ui-texteditor-input-container">
             <select
-              className="ui-texteditor-input"
-              style={{"WebkitAppearance": "auto"} as any}
+              className="ui-texteditor-input select-box-select"
               value={value ?? defaultValue}
               onChange={handleChange}
               title={hint}
             >
-              {placeholder && <option value="" disabled selected={value === undefined}>{placeholder}</option>}
+              {placeholder && <option value="" disabled>{placeholder}</option>}
               {dataSource.map((item, index) => {
                 if ((typeof item === "string") || (typeof item === "number")) {
                   return <option key={`${item}-${index}`} value={item}>{item}</option>
@@ -74,8 +63,18 @@ export const SelectBox = (props: ISelectBoxProps) => {
                   return null;
                 }
                 return (
-                  <optgroup label={item.key}>
-                    {item.items.map((subItem, subIndex) => <option key={`${subItem.value}-${subIndex}-${index}`} value={subItem.value}>{subItem.name}</option>)}
+                  <optgroup key={item.key} label={item.key}>
+                    {item.items.map((subItem, subIndex) => {
+                      const stringValue = JSON.stringify(subItem.value);
+                      return (
+                        <option
+                          key={`${stringValue}-${subIndex}-${index}`}
+                          value={stringValue}
+                        >
+                          {subItem.name}
+                        </option>
+                      );
+                    })}
                   </optgroup>
                 )
               })}
@@ -86,4 +85,3 @@ export const SelectBox = (props: ISelectBoxProps) => {
     </div>
   )
 }
-

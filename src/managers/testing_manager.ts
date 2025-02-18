@@ -1,48 +1,41 @@
 /**
  * The TestingManager uses information in the domain store to classify texts in a user-chosen dataset
  */
-import {DomainStore} from "../stores/domain_store";
-import {
-	attributeExists,
-	deselectAllCasesIn,
-	getCaseValues
-} from "../lib/codap-helper";
+import { action } from "mobx";
+import { attributeExists, deselectAllCasesIn, getCaseValues } from "../lib/codap-helper";
 import codapInterface from "../lib/CodapInterface";
-import {action} from "mobx";
-import {LogitPrediction} from "../lib/logit_prediction";
-import {wordTokenizer} from "../lib/one_hot";
-import {TestingResult} from "../stores/store_types_and_constants";
-import {computeKappa} from "../utilities/utilities";
+import { LogitPrediction } from "../lib/logit_prediction";
+import { wordTokenizer } from "../lib/one_hot";
+import { targetStore } from "../stores/target_store";
+import { TestingResult } from "../stores/store_types_and_constants";
+import { testingStore } from "../stores/testing_store";
+import { trainingStore } from "../stores/training_store";
+import { CaseValues, CreateAttributeValue, UpdateCaseValue } from "../types/codap-api-types";
+import { computeKappa } from "../utilities/utilities";
 
 export class TestingManager {
+	kNonePresent: string;
 
-	domainStore: DomainStore
-	kNonePresent: string
-
-	constructor(iDomainStore: DomainStore, iNonePresentPrompt: string) {
-		this.domainStore = iDomainStore
-		this.kNonePresent = iNonePresentPrompt
+	constructor(iNonePresentPrompt: string) {
+		this.kNonePresent = iNonePresentPrompt;
 	}
 
 	async classify(iStoreTest:boolean) {
 		const this_ = this,
-			tChosenModelName = this.domainStore.testingStore.chosenModelName,
-			tTrainingResult = this.domainStore.trainingStore.getTrainingResultByName(tChosenModelName),
+			tChosenModelName = testingStore.chosenModelName,
+			tTrainingResult = trainingStore.getTrainingResultByName(tChosenModelName),
 			tStoredModel = tTrainingResult ? tTrainingResult.storedModel : null,
 			tPositiveClassName = tStoredModel ? tStoredModel.positiveClassName : '',
 			tNegativeClassName = tStoredModel ? tStoredModel.negativeClassName : '',
 			tTokens = tStoredModel ? tStoredModel.storedTokens : [],
 			kProbPredAttrNamePrefix = 'probability of ',
-			tTestingStore = this.domainStore.testingStore,
-			tTestingDatasetName = tTestingStore.testingDatasetInfo.name,
-			tTestingDatasetTitle = tTestingStore.testingDatasetInfo.title,
-			tTestingCollectionName = tTestingStore.testingCollectionName,
-			tTestingAttributeName = tTestingStore.testingAttributeName,
-			tClassAttributeName = tTestingStore.testingClassAttributeName,
+			tTestingDatasetName = testingStore.testingDatasetInfo.name,
+			tTestingDatasetTitle = testingStore.testingDatasetInfo.title,
+			tTestingCollectionName = testingStore.testingCollectionName,
+			tClassAttributeName = testingStore.testingClassAttributeName,
 			tTargetPredictedProbabilityName = kProbPredAttrNamePrefix + tPositiveClassName,
-			tTargetPredictedLabelAttributeName = this.domainStore.targetStore.targetPredictedLabelAttributeName,
-			tTargetFeatureIDsAttributeName = this_.domainStore.targetStore.targetFeatureIDsAttributeName,
-			tLabelValues:{id:number, values:any}[] = [],
+			tTargetPredictedLabelAttributeName = targetStore.targetPredictedLabelAttributeName,
+			tLabelValues: UpdateCaseValue[] = [],
 			tMatrix = {posPos: 0, negPos: 0, posNeg: 0, negNeg: 0},
 			tTestingResult: TestingResult = {
 				targetDatasetName: tTestingDatasetName,
@@ -56,25 +49,27 @@ export class TestingManager {
 			},
 			tWeights = tTokens.map(iToken => iToken.weight),
 			tPredictor = tTrainingResult ?
-				new LogitPrediction(tTrainingResult.constantWeightTerm, tWeights, tTrainingResult.threshold) : null
-		let tPhraseCount = 0
+				new LogitPrediction(tTrainingResult.constantWeightTerm, tWeights, tTrainingResult.threshold) : null;
+		let tPhraseCount = 0;
 
 		async function installFeatureAndPredictionAttributes() {
-			const tAttributeRequests: object[] = []
+			const tAttributeRequests: CreateAttributeValue[] = [];
 			if (tTokens) {
 				tTokens.forEach(async (iToken) => {
 					if (iToken.formula !== '') {
-						const tAttributeAlreadyExists = await attributeExists(tTestingDatasetName, tTestingCollectionName, iToken.name)
-						if (!tAttributeAlreadyExists)
+						const tAttributeAlreadyExists =
+							await attributeExists(tTestingDatasetName, tTestingCollectionName, iToken.name);
+						if (!tAttributeAlreadyExists) {
 							tAttributeRequests.push({
 								name: iToken.name,
 								title: iToken.name,
 								formula: iToken.formula
-							})
+							});
+						}
 					}
-				})
-				const tLabelExists = await attributeExists(tTestingDatasetName, tTestingCollectionName,
-					tTargetPredictedLabelAttributeName)
+				});
+				const tLabelExists =
+					await attributeExists(tTestingDatasetName, tTestingCollectionName, tTargetPredictedLabelAttributeName);
 				if (!tLabelExists) {
 					tAttributeRequests.push(
 						{
@@ -89,12 +84,12 @@ export class TestingManager {
 							precision: 3
 						})
 				}
-				const tFeatureIDsAttributeExists = await attributeExists(tTestingDatasetName, tTestingCollectionName,
-					this_.domainStore.targetStore.targetFeatureIDsAttributeName)
+				const tFeatureIDsAttributeExists =
+					await attributeExists(tTestingDatasetName, tTestingCollectionName, targetStore.targetFeatureIDsAttributeName);
 				if (!tFeatureIDsAttributeExists)
 					tAttributeRequests.push(
 						{
-							name: tTargetFeatureIDsAttributeName,
+							name: targetStore.targetFeatureIDsAttributeName,
 							hidden: true
 						})
 
@@ -107,13 +102,13 @@ export class TestingManager {
 		}
 
 		async function classifyEachPhrase() {
-			if (!tStoredModel || !tPredictor)
-				return
-			const tTestCases = await getCaseValues(tTestingDatasetName, tTestingCollectionName)
+			if (!tStoredModel || !tPredictor) return;
+
+			const tTestCases = await getCaseValues(tTestingDatasetName, tTestingCollectionName);
 			tPhraseCount = tTestCases.length
 			tTestCases.forEach(iCase => {
 				let tPhraseID = iCase.id,
-					tPhrase = iCase.values[tTestingAttributeName],
+					tPhrase = iCase.values[testingStore.testingAttributeName],
 					tActual = tClassAttributeName === this_.kNonePresent ? '' :
 						iCase.values[tClassAttributeName],
 					tGiven = Array(tTokens.length).fill(0),
@@ -143,12 +138,12 @@ export class TestingManager {
 						}
 					}
 				});
-				let tCaseValues: { [key: string]: string | number } = {},
+				let tCaseValues: CaseValues = {},
 					tPrediction = tPredictor.predict(tGiven);
 				tCaseValues[tTargetPredictedLabelAttributeName] = tPrediction.class ?
 					tPositiveClassName : tNegativeClassName;
 				tCaseValues[tTargetPredictedProbabilityName] = tPrediction.probability * 100;	// Convert to %
-				tCaseValues[tTargetFeatureIDsAttributeName] = JSON.stringify(tFeatureIDs);
+				tCaseValues[targetStore.targetFeatureIDsAttributeName] = JSON.stringify(tFeatureIDs);
 				tLabelValues.push({
 					id: tPhraseID,
 					values: tCaseValues
@@ -200,20 +195,19 @@ export class TestingManager {
 		}
 
 		if (!tTrainingResult) {
-			console.log(`Unable to use ${tChosenModelName} to classify ${tTestingDatasetName}`)
-			return
+			console.log(`Unable to use ${tChosenModelName} to classify ${tTestingDatasetName}`);
+			return;
 		}
-		await deselectAllCasesIn(tTestingDatasetName)
-		await installFeatureAndPredictionAttributes()
-		await classifyEachPhrase()
-		await updateTargetAndFeatures()
+		await deselectAllCasesIn(tTestingDatasetName);
+		await installFeatureAndPredictionAttributes();
+		await classifyEachPhrase();
+		await updateTargetAndFeatures();
 		action(() => {
-			if( iStoreTest) {
-				tTestingStore.testingResultsArray.push(tTestingResult)
-			}
-			else {
-				tTestingStore.testingResultsArray.pop()
-				tTestingStore.testingResultsArray.push(tTestingResult)
+			if (iStoreTest) {
+				testingStore.testingResultsArray.push(tTestingResult);
+			} else {
+				testingStore.testingResultsArray.pop();
+				testingStore.testingResultsArray.push(tTestingResult);
 			}
 /*
 			tTestingStore.currentTestingResults = tTestingStore.emptyTestingResult()

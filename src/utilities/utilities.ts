@@ -1,4 +1,8 @@
-import {wordTokenizer} from "../lib/one_hot";
+import { Descendant } from "@concord-consortium/slate-editor";
+import { wordTokenizer } from "../lib/one_hot";
+
+export type HighlightFunction =
+	(iText: string, iSelectedWords: (string | number)[], iSpecialFeatures: string[]) => Descendant[];
 
 /**
  *
@@ -6,21 +10,21 @@ import {wordTokenizer} from "../lib/one_hot";
  * @param iSelectedWords - an array of the words to be highlighted
  * @param iSpecialFeatures - an array of features that don't appear in the text but may appear in iSelectedWords
  */
-export function textToObject( iText:string, iSelectedWords:any, iSpecialFeatures:string[]):any {
+export function textToObject(iText: string, iSelectedWords: (string | number)[], iSpecialFeatures: string[]) {
 	let segment = '';
-	let tResultArray:any = [];
-	iSpecialFeatures.forEach( iFeature => {
-		if( iSelectedWords.indexOf( iFeature) >= 0)
-			tResultArray.push( {
+	let tResultArray: Descendant[] = [];
+	iSpecialFeatures.forEach(iFeature => {
+		if (iSelectedWords.indexOf(iFeature) >= 0)
+			tResultArray.push({
 				text: `<${iFeature}> `, bold: true, underlined: true, color: "#0432ff"
 			});
 	});
 
 	// NOTE: this code isn't perfect and doesn't match phrases or match lists like personal pronoun lists
-	let words:string[] = wordTokenizer(iText, false, false);
+	const words = wordTokenizer(iText, false, false);
 	words.forEach((iWord) => {
 		let tRawWord = iWord.toLowerCase();
-		const containedWords = iSelectedWords.map((selectedWord: any) => {
+		const containedWords = iSelectedWords.map(selectedWord => {
 			// Strip out the word from strings like 'contain: "word"'
 			const _containedWord = typeof selectedWord === "string" && selectedWord.match(/contain: "([^"]+)"/);
 			const containedWord = _containedWord ? _containedWord[1] : selectedWord;
@@ -57,9 +61,9 @@ export function textToObject( iText:string, iSelectedWords:any, iSpecialFeatures
  * @param iFeatures {Set} of feature words to be hilighted
  * @param iSpecialFeatures {string[]} These are typically attribute names for column features
  */
-export function phraseToFeatures( iPhrase:string, iFeatures:string[], iSpecialFeatures:string[]):any {
-	let tResultArray:any = [];
-	if( iPhrase) {
+export function phraseToFeatures(iPhrase:string, iFeatures: (string | number)[], iSpecialFeatures: string[]) {
+	let tResultArray: Descendant[] = [];
+	if (iPhrase) {
 		// First prepend any special features that are given as regular features
 		iSpecialFeatures.forEach(iFeature => {
 			if (iFeatures.indexOf(iFeature) >= 0)

@@ -42,6 +42,7 @@
  */
 
 import {IframePhoneRpcEndpoint} from 'iframe-phone';
+import { CaseInfo } from '../types/codap-api-types';
 
 let connection: { call: (arg0: any, arg1: (response: any) => void) => void; } | null = null;
 
@@ -76,10 +77,17 @@ interface IConfig {
 
 let config: IConfig | null = null;
 
+export interface NotificationValues {
+	operation: string;
+	result: {
+		success: boolean;
+		cases?: CaseInfo[];
+	}
+}
 export interface CODAP_Notification {
 	action: string,
-	resource: any,
-	values: any
+	resource: string,
+	values: NotificationValues | NotificationValues[]
 }
 
 /**
@@ -124,10 +132,6 @@ function notificationHandler(request: CODAP_Notification, callback: (arg0: { suc
 		stats.timeCodapFirstReq = stats.timeCodapLastReq;
 	}
 
-	if (action === 'notify' && !Array.isArray(requestValues)) {
-		requestValues = [requestValues];
-	}
-
 	let handled = false;
 	let success = true;
 
@@ -157,7 +161,10 @@ function notificationHandler(request: CODAP_Notification, callback: (arg0: { suc
 			stats.countCodapUnhandledReq++;
 		}
 	} else if (action === 'notify') {
-		requestValues.forEach(function (value: { operation: any; }) {
+		if (!Array.isArray(requestValues)) {
+			requestValues = [requestValues];
+		}
+		requestValues.forEach(function (value: { operation: string; }) {
 			notificationSubscribers.forEach(function (subscription) {
 				// pass this notification to matching subscriptions
 				handled = false;if ((subscription.actionSpec === action) &&

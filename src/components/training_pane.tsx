@@ -1,38 +1,35 @@
 /**
  * This component provides the space for a user to name and run a model
  */
+import React, { Component } from "react";
+import { observer } from "mobx-react";
+import { action } from "mobx";
+import { SQ } from "../lists/lists";
+import { ModelManager } from "../managers/model_manager";
+import { domainStore } from "../stores/domain_store";
+import { featureStore } from "../stores/feature_store";
+import { trainingStore } from "../stores/training_store";
+import { uiStore } from "../stores/ui_store";
+import { TrainingResult } from "../stores/store_types_and_constants";
+import { ProgressBar } from "./progress-bar";
+import { Button } from "./ui/button";
+import { CheckBox } from "./ui/check-box";
+import { TextBox } from "./ui/text-box";
 
-import React, {Component} from "react";
-import {DomainStore} from "../stores/domain_store";
-import {observer} from "mobx-react";
-import {UiStore} from "../stores/ui_store";
-import {TextBox} from "./ui/text-box";
-import {action} from "mobx";
-import {Button} from "./ui/button";
-import {CheckBox} from "./ui/check-box";
-import {ModelManager} from "../managers/model_manager";
-import {ProgressBar} from "./progress_bar";
-import {TrainingResult} from "../stores/store_types_and_constants";
-import {SQ} from "../lists/lists";
-
-export interface Training_Props {
-	uiStore: UiStore
-	domainStore: DomainStore
-}
-
-export const TrainingPane = observer(class TrainingPane extends Component<Training_Props, {}> {
+interface ITrainingPaneProps {}
+export const TrainingPane = observer(class TrainingPane extends Component {
 
 	private modelManager: ModelManager
 
-	constructor(props: any) {
+	constructor(props: ITrainingPaneProps) {
 		super(props);
-		this.modelManager = new ModelManager(this.props.domainStore)
+		this.modelManager = new ModelManager();
 	}
 
 	render() {
 		const this_ = this,
-			tModel = this.props.domainStore.trainingStore.model,
-			tNumResults = this.props.domainStore.trainingStore.trainingResults.length
+			tModel = trainingStore.model,
+			tNumResults = trainingStore.trainingResults.length
 
 		function modelTrainerInstructions() {
 			if (!tModel.beingConstructed) {
@@ -48,7 +45,7 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 						<div className='sq-info-prompt'>
 							<p>You have trained {tNumResults} model{tNumResults > 1 ? 's' : ''}. Train another or
 							proceed to <span
-									onClick={action(()=>this_.props.domainStore.setPanel(3))}
+									onClick={() => domainStore.setPanel(3)}
 									style={{cursor: 'pointer'}}
 								>
 								<strong>Testing</strong></span>.</p>
@@ -72,19 +69,15 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 		}
 
 		function modelTrainer() {
-			const tFeatureString = this_.props.domainStore.featureStore.features.length < 2 ? 'this feature' : 'these features'
+			const tFeatureString = featureStore.features.length < 2 ? 'this feature' : 'these features'
 
 			function nameBox() {
 				return (
 					<TextBox
 						className='sq-fc-part'
 						placeholder="Name"
-						onValueChanged={action((e) => {
-							tModel.name = e.value
-						})}
-						onFocusOut={action(() => {
-							tModel.name = this_.modelManager.guaranteeUniqueModelName(tModel.name)
-						})}
+						onValueChanged={value => tModel.setName(value)}
+						onFocusOut={() => tModel.setName(this_.modelManager.guaranteeUniqueModelName(tModel.name))}
 						value={tModel.name}
 						maxLength={20}
 					/>
@@ -95,7 +88,7 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 				return (
 					<div className='sq-indent'>
 						<ul>
-							{this_.props.domainStore.featureStore.getChosenFeatures().map((iFeature, iIndex) => {
+							{featureStore.getChosenFeatures().map((iFeature, iIndex) => {
 								return (
 									<li key={iIndex}><strong>{iFeature.name}</strong></li>
 								)
@@ -116,12 +109,12 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 								disabled={tDisabled}
 								onClick={action(async () => {
 									if (tInStepMode) {
-										this_.props.domainStore.trainingStore.model.trainingInStepMode = false
+										trainingStore.model.setTrainingInStepMode(false);
 									} else {
-										this_.props.uiStore.trainingPanelShowsEditor = false
-										this_.props.domainStore.trainingStore.model.trainingInProgress = true
-										await this_.modelManager.buildModel()
-										this_.modelManager.nextStep()
+										uiStore.setTrainingPanelShowsEditor(false);
+										trainingStore.model.setTrainingInProgress(true);
+										await this_.modelManager.buildModel();
+										this_.modelManager.nextStep();
 									}
 								})}
 								hint={tHint}>
@@ -137,14 +130,13 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 								className='sq-button'
 								disabled={tDisabled}
 								onClick={action(async () => {
-									const tInProgress = this_.props.domainStore.trainingStore.model.trainingInProgress
-									if (!tInProgress) {
-										this_.props.uiStore.trainingPanelShowsEditor = false
-										this_.props.domainStore.trainingStore.model.trainingInProgress = true
-										this_.props.domainStore.trainingStore.model.trainingInStepMode = true
-										await this_.modelManager.buildModel()
+									if (!trainingStore.model.trainingInProgress) {
+										uiStore.setTrainingPanelShowsEditor(false);
+										trainingStore.model.setTrainingInProgress(true);
+										trainingStore.model.setTrainingInStepMode(true);
+										await this_.modelManager.buildModel();
 									} else {
-										this_.modelManager.nextStep()
+										this_.modelManager.nextStep();
 									}
 								})}
 								hint={SQ.hints.trainingOneStep}>
@@ -159,7 +151,7 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 							<Button
 								className='sq-button'
 								onClick={action(() => {
-									this_.props.uiStore.trainingPanelShowsEditor = !this_.props.uiStore.trainingPanelShowsEditor
+									uiStore.setTrainingPanelShowsEditor(!uiStore.trainingPanelShowsEditor);
 								})}
 								hint={SQ.hints.trainingSettings}>
 								Settings
@@ -180,9 +172,9 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 					)
 				}
 
-				const tDisabled = this_.props.domainStore.trainingStore.model.name === '',
-					tInProgress = this_.props.domainStore.trainingStore.model.trainingInProgress,
-					tInStepMode = this_.props.domainStore.trainingStore.model.trainingInStepMode
+				const tDisabled = trainingStore.model.name === '',
+					tInProgress = trainingStore.model.trainingInProgress,
+					tInStepMode = trainingStore.model.trainingInStepMode
 				return (
 					<div className='sq-training-buttons'>
 						{trainButton()}
@@ -200,9 +192,7 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 							className='sq-fc-part'
 							placeholder=""
 							hint={SQ.hints.trainingSetupIteration}
-							onValueChanged={action((e) => {
-								tModel.iterations = Number(e.value)
-							})}
+							onValueChanged={value => tModel.setIterations(Number(value))}
 							value={String(tModel.iterations)}
 							maxLength={4}
 							width={40}
@@ -210,21 +200,7 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 					)
 				}
 
-				function getCheckbox(iValue: boolean, iLabel: string, iHint: string, setter: (e: any) => void) {
-					return (
-						<CheckBox
-							text={iLabel}
-							hint={iHint}
-							value={iValue}
-							onValueChanged={
-								action((e) => {
-									setter(e)
-								})
-							}
-						/>)
-				}
-
-				if (this_.props.uiStore.trainingPanelShowsEditor) {
+				if (uiStore.trainingPanelShowsEditor) {
 					return (
 						<div className='sq-training-settings-panel'>
 							<div className='sq-fc-part'>
@@ -235,33 +211,22 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 									<span title={SQ.hints.trainingSetupIteration}>Iterations:</span>{iterationsBox()}
 								</div>
 								<div className='sq-training-checkboxes'>
-									{getCheckbox(this_.props.domainStore.trainingStore.model.lockInterceptAtZero,
-										'Lock intercept at 0',
-										SQ.hints.trainingLockIntercept,
-										(e) => {
-											this_.props.domainStore.trainingStore.model.lockInterceptAtZero = e.value
-										})}
-									{getCheckbox(this_.props.domainStore.trainingStore.model.usePoint5AsProbThreshold,
-										'Use 50% as probability threshold',
-										SQ.hints.trainingPointFiveAsThreshold,
-										(e) => {
-											this_.props.domainStore.trainingStore.model.usePoint5AsProbThreshold = e.value
-										})}
+									<CheckBox
+										hint={SQ.hints.trainingLockIntercept}
+										onValueChanged={value => tModel.setLockInterceptAtZero(value)}
+										text='Lock intercept at 0'
+										value={tModel.lockInterceptAtZero}
+									/>
+									<CheckBox
+										hint={SQ.hints.trainingPointFiveAsThreshold}
+										onValueChanged={value => tModel.setUsePoint5AsProbThreshold(value)}
+										text='Use 50% as probability threshold'
+										value={tModel.usePoint5AsProbThreshold}
+									/>
 								</div>
 							</div>
 						</div>
 					)
-				}
-			}
-
-			function getProgressBar() {
-				if (this_.props.domainStore.trainingStore.model.trainingInProgress) {
-					const tIterations = this_.props.domainStore.trainingStore.model.iterations,
-						tCurrentIteration = this_.props.domainStore.trainingStore.model.iteration
-					return (
-						<ProgressBar
-							percentComplete={Math.round(100 * tCurrentIteration / tIterations)}
-						/>)
 				}
 			}
 
@@ -270,14 +235,16 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 					<Button
 						className='sq-button'
 						onClick={action(async () => {
-							tModel.reset()
-							tModel.beingConstructed = true
+							tModel.reset();
+							tModel.setBeingConstructed(true);
 						})}
 						hint={SQ.hints.trainingNewModel}>
 						+ New Model
 					</Button>
 				)
 			} else {
+				const { iteration, iterations } = trainingStore.model;
+
 				return (
 					<div className='sq-component'>
 						<div className='sq-component'>
@@ -291,17 +258,18 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 						</div>
 						{getButtons()}
 						{getSettingsPanel()}
-						{getProgressBar()}
+						<ProgressBar percentComplete={Math.round(100 * iteration / iterations)} />
 					</div>
 				)
 			}
 		}
 
 		function getModelResults() {
+			const { trainingResults } = trainingStore;
 
 			function getIsActiveButon(iIndex: number) {
-				const tTrainingResult = tResults[iIndex],
-					tIsDisabled = tResults.length < 2,
+				const tTrainingResult = trainingResults[iIndex],
+					tIsDisabled = trainingResults.length < 2,
 					tHint = tTrainingResult.isActive ? SQ.hints.trainingMakeModelInactive : SQ.hints.trainingMakeModelActive
 				return (
 					<td
@@ -312,9 +280,7 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 							value={tTrainingResult.isActive}
 							disabled={tIsDisabled}
 							style={{'fontSize': 'large'}}
-							onValueChanged={action(() => {
-								this_.props.domainStore.setIsActiveForResultAtIndex(iIndex, !tTrainingResult.isActive)
-							})}
+							onValueChanged={() => domainStore.setIsActiveForResultAtIndex(iIndex, !tTrainingResult.isActive)}
 							hint={tHint}
 						/>
 					</td>
@@ -333,8 +299,7 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 				}
 			}
 
-			const tResults = this_.props.domainStore.trainingStore.trainingResults
-			if (tResults.length > 0) {
+			if (trainingResults.length > 0) {
 				return (
 					<table>
 						<thead>
@@ -351,7 +316,7 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 						</tr>
 						</thead>
 						<tbody className='sq-model-table'>
-						{tResults.map((iResult, iIndex) => {
+						{trainingResults.map((iResult, iIndex) => {
 							const tFeatureNames = iResult.featureNames && iResult.featureNames.map((iName, iIndex)=>{
 								return <p key={'f'+iIndex}>{iName}</p>
 							})
@@ -380,4 +345,4 @@ export const TrainingPane = observer(class TrainingPane extends Component<Traini
 			</div>
 		);
 	}
-})
+});

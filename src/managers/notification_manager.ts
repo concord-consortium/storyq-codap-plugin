@@ -4,18 +4,15 @@
  * Notifications that apply only to a specific component are handled in that component.
  */
 
-import codapInterface, {CODAP_Notification} from "../lib/CodapInterface";
-import {DomainStore} from "../stores/domain_store";
 import {action} from "mobx";
-import {starterFeature} from "../stores/store_types_and_constants";
+import codapInterface, {CODAP_Notification} from "../lib/CodapInterface";
+import { featureStore } from "../stores/feature_store";
+import { targetStore } from "../stores/target_store";
 
 export default class NotificationManager {
-
-	domainStore: DomainStore
 	updatingStores = false
 
-	constructor(iDomainStore: DomainStore) {
-		this.domainStore = iDomainStore;
+	constructor() {
 		this.handleDataContextChange = this.handleDataContextChange.bind(this)
 		this.handleAttributesChange = this.handleAttributesChange.bind(this)
 		this.handleDeleteFeatureCase = this.handleDeleteFeatureCase.bind(this)
@@ -35,8 +32,8 @@ export default class NotificationManager {
 			if (!this.updatingStores) {
 				this.updatingStores = true;
 				try {
-					await this.domainStore.featureStore.updateWordListSpecs()
-					await this.domainStore.targetStore.updateFromCODAP()
+					await featureStore.updateWordListSpecs()
+					await targetStore.updateFromCODAP()
 				} catch (e) {
 					console.log(`Unable to update feature or target store because`, e);
 				} finally {
@@ -47,62 +44,56 @@ export default class NotificationManager {
 	}
 
 	async handleAttributesChange(/*iNotification: CODAP_Notification*/) {
-		action(async () => {
-			action(() => {
-				this.domainStore.featureStore.featureUnderConstruction = Object.assign({}, starterFeature)
-			})()
-		})()
-		await this.handleDataContextChange()
+		featureStore.startConstructingFeature();
+		await this.handleDataContextChange();
 	}
 
 	handleDeleteFeatureCase(iNotification: CODAP_Notification) {
-		const tFeatureStore = this.domainStore.featureStore,
-			tFeatures = tFeatureStore.features,
-			tDataContextName = iNotification.resource && iNotification.resource.match(/\[(.+)]/)[1],
-			tCases = iNotification.values.result.cases,
-			tDeletedFeatureNames = Array.isArray(tCases) ? tCases.map((iCase: any) => {
-				return iCase.values.name
-			}) : []
-		if (tDeletedFeatureNames.length > 0 && tDataContextName === tFeatureStore.featureDatasetInfo.datasetName) {
+		const { features } = featureStore,
+			tDataContextName = iNotification.resource && iNotification.resource.match(/\[(.+)]/)?.[1],
+			{ values } = iNotification,
+			tCases = Array.isArray(values) ? values[0].result.cases : values.result.cases,
+			tDeletedFeatureNames = tCases && Array.isArray(tCases) ? tCases.map(iCase => String(iCase.values.name)) : [];
+		if (tDeletedFeatureNames.length > 0 && tDataContextName === featureStore.featureDatasetInfo.datasetName) {
 			action(() => {
 				tDeletedFeatureNames.forEach((iName: string) => {
-					const tIndex = tFeatures.findIndex(iFeature => iFeature.name === iName && iFeature.type !== 'unigram')
+					const tIndex = features.findIndex(iFeature => iFeature.name === iName && iFeature.type !== 'unigram')
 					if (tIndex >= 0)
-						tFeatureStore.deleteFeature(tFeatures[tIndex])
+						featureStore.deleteFeature(features[tIndex])
 				})
 			})()
 		}
 	}
 
 	handleUpdateFeatureCase(iNotification: CODAP_Notification) {
-		const tFeatureStore = this.domainStore.featureStore,
-			tFeatures = tFeatureStore.features,
-			tDataContextName = iNotification.resource && iNotification.resource.match(/\[(.+)]/)[1]
-		if (tDataContextName === tFeatureStore.featureDatasetInfo.datasetName) {
-			const tCases = iNotification.values.result.cases,
+		const { features } = featureStore,
+			tDataContextName = iNotification.resource && iNotification.resource.match(/\[(.+)]/)?.[1]
+		if (tDataContextName === featureStore.featureDatasetInfo.datasetName) {
+			const { values } = iNotification;
+			const tCases = Array.isArray(values) ? values[0].result.cases : values.result.cases,
 				tUpdatedCases = Array.isArray(tCases) ? tCases : []
 			if (tUpdatedCases.length > 0) {
 				action(() => {
-					tUpdatedCases.forEach((iCase: any) => {
+					tUpdatedCases.forEach(iCase => {
 						const tChosen = iCase.values.chosen === 'true',
 							tType = iCase.values.type,
-							tName = iCase.values.name,
-							tFoundFeature = tType !== 'unigram' && tFeatures.find(iFeature => iFeature.name === tName)
+							tName = String(iCase.values.name),
+							tFoundFeature = tType !== 'unigram' && features.find(iFeature => iFeature.name === tName)
 						if (tFoundFeature) {
 							tFoundFeature.chosen = tChosen
 						} else if (tType === 'unigram') {
-							const tToken = tFeatureStore.tokenMap[tName]
-							if( tToken && !tChosen) {
-								delete tFeatureStore.tokenMap[tName]
-							} else if(!tToken && tChosen) {
-								tFeatureStore.tokenMap[tName] = {
+							const tToken = featureStore.tokenMap[tName]
+							if (tToken && !tChosen) {
+								delete featureStore.tokenMap[tName]
+							} else if (!tToken && tChosen) {
+								featureStore.tokenMap[tName] = {
 									token: tName,
 									type: 'unigram',
-									count: iCase.values['frequency in positive'] + iCase.values['frequency in negative'],
+									count: Number(iCase.values['frequency in positive']) + Number(iCase.values['frequency in negative']),
 									index: 0,
-									numPositive: iCase.values['frequency in positive'],
-									numNegative: iCase.values['frequency in negative'],
-									caseIDs: JSON.parse(iCase.values.usages),
+									numPositive: Number(iCase.values['frequency in positive']),
+									numNegative: Number(iCase.values['frequency in negative']),
+									caseIDs: JSON.parse(String(iCase.values.usages)),
 									weight: null,
 									featureCaseID: iCase.id
 								}
@@ -113,6 +104,4 @@ export default class NotificationManager {
 			}
 		}
 	}
-
 }
-

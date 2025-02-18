@@ -1,13 +1,11 @@
 import React from "react";
 
-type NumberBoxChangeEvent = CustomEvent<{value?: number}> & {value?: number};
-
 interface INumberBoxProps {
   width: string | number;
   min: number;
   max: number;
   value?: number;
-  onValueChanged: (e: NumberBoxChangeEvent) => void;
+  onValueChanged: (value: number | undefined) => void;
 }
 
 export const NumberBox = (props: INumberBoxProps) => {
@@ -17,9 +15,7 @@ export const NumberBox = (props: INumberBoxProps) => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const intValue = parseInt(e.target.value, 10);
     const newValue = isNaN(intValue) ? undefined : intValue;
-    const syntheticEvent = new CustomEvent('customEvent', { detail: { value: newValue } }) as any;
-    syntheticEvent.value = newValue;
-    onValueChanged(syntheticEvent);
+    onValueChanged(newValue);
   };
 
   return (

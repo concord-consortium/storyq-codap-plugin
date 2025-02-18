@@ -1,14 +1,12 @@
 import React, { useEffect, useState } from "react";
 import clsx from "clsx";
 
-type TextBoxChangeEvent = CustomEvent<{value: string}> & {value: string};
-
 interface ITextBoxProps {
   className: string;
   placeholder: string;
   value: string;
   maxLength: number;
-  onValueChanged: (e: TextBoxChangeEvent) => void;
+  onValueChanged: (value: string) => void;
   hint?: string;
   width?: number;
   onFocusOut?: () => void;
@@ -27,10 +25,7 @@ export const TextBox = (props: ITextBoxProps) => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
     setInternalValue(newValue);
-
-    const syntheticEvent = new CustomEvent('customEvent', { detail: { value: newValue } }) as any;
-    syntheticEvent.value = newValue;
-    onValueChanged(syntheticEvent);
+    onValueChanged(newValue);
   };
 
   return (

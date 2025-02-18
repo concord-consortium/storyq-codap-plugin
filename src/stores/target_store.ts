@@ -3,29 +3,52 @@
  * be accessed in more than one file or needs to be saved and restored.
  */
 
-import {makeAutoObservable, runInAction, toJS} from 'mobx'
+import { makeAutoObservable, toJS } from 'mobx'
 import {
-	Case,
-	entityInfo,
-	getAttributeNames,
-	getCaseValues,
-	getCollectionNames,
-	getDatasetInfoWithFilter,
-	guaranteeAttribute,
+	Case, entityInfo, getAttributeNames, getCaseValues, getCollectionNames, getDatasetInfoWithFilter, guaranteeAttribute,
 	scrollCaseTableToRight
 } from "../lib/codap-helper";
 import codapInterface from "../lib/CodapInterface";
-import {SQ} from "../lists/lists";
-import React from "react";
+import { SQ } from "../lists/lists";
+import { featureStore } from './feature_store';
+import { targetDatasetStore } from './target_dataset_store';
 import {
-	Feature, featureDescriptors, kEmptyEntityInfo, SearchDetails
+	containOptionAbbreviations, Feature, kContainOptionContain, kContainOptionEndWith, kContainOptionNotContain,
+	kContainOptionStartWith, kEmptyEntityInfo, SearchDetails
 } from "./store_types_and_constants";
+import { CreateAttributeResponse } from '../types/codap-api-types';
+
+type panelModes = 'welcome' | 'create' | 'chosen';
+type classColumns = "left" | "right";
+type maybeClassColumns = classColumns | undefined;
+
+export function otherClassColumn(column: maybeClassColumns) {
+	return column === "left" ? "right" : "left";
+}
+
+interface ITargetStore {
+	targetPanelMode: panelModes;
+	datasetInfoArray: entityInfo[];
+	targetCollectionName: string;
+	targetAttributeNames: string[];
+	targetAttributeName: string;
+	targetPredictedLabelAttributeName: string;
+	targetResultsCollectionName: string;
+	targetFeatureIDsAttributeName: string;
+	targetCases: Case[];
+	targetClassAttributeName: string;
+	targetClassAttributeValues: string[];
+	targetClassNames: Record<classColumns, string>;
+	targetColumnFeatureNames: string[];
+	targetLeftColumnKey: classColumns;
+	targetChosenClassColumnKey: maybeClassColumns;
+}
+export interface ITargetStoreJSON extends ITargetStore {
+	targetDatasetInfo: entityInfo;
+}
 
 export class TargetStore {
-	[index: string]: any
-
-	targetPanelMode:'welcome' | 'create' | 'chosen' = 'welcome'
-	targetDatasetInfo: entityInfo = kEmptyEntityInfo
+	targetPanelMode: panelModes = 'welcome'
 	datasetInfoArray: entityInfo[] = []
 	targetCollectionName: string = ''
 	targetAttributeNames: string[] = []
@@ -36,19 +59,73 @@ export class TargetStore {
 	targetCases: Case[] = []
 	targetClassAttributeName: string = ''
 	targetClassAttributeValues: string[] = []
-	targetClassNames: { [index: string]: string, left: string, right: string } = {left: '', right: ''}
-	targetColumnFeatureNames:string[] = []
-	targetLeftColumnKey: 'left' | 'right' = 'left'
-	targetChosenClassColumnKey: '' | 'left' | 'right' = ''
-	textRefs: { ownerCaseID: number, ref: React.RefObject<any> }[] = []
-	getFeatureNamesFunc:()=>string[]
+	targetClassNames: Record<classColumns, string> = { left: "", right: "" }
+	targetColumnFeatureNames: string[] = []
+	targetLeftColumnKey: classColumns = 'left'
+	targetChosenClassColumnKey: maybeClassColumns
 
-	constructor(iGetFeatureNamesFunc:()=>string[]) {
-		makeAutoObservable(this,
-			{textRefs: false, targetLeftColumnKey: false,
-					getFeatureNamesFunc: false},
-			{autoBind: true})
-		this.getFeatureNamesFunc = iGetFeatureNamesFunc
+	constructor() {
+		makeAutoObservable(this, { targetLeftColumnKey: false }, { autoBind: true });
+	}
+	
+	setTargetPanelMode(mode: panelModes) {
+		this.targetPanelMode = mode;
+	}
+
+	setDatasetInfoArray(infoArray: entityInfo[]) {
+		this.datasetInfoArray = infoArray;
+	}
+
+	setTargetCollectionName(name: string) {
+		this.targetCollectionName = name;
+	}
+
+	setTargetAttributeNames(names: string[]) {
+		this.targetAttributeNames = names;
+	}
+
+	setTargetAttributeName(name: string) {
+		this.targetAttributeName = name;
+	}
+
+	setTargetPredictedLabelAttributeName(name: string) {
+		this.targetPredictedLabelAttributeName = name;
+	}
+
+	setTargetResultsCollectionName(name: string) {
+		this.targetResultsCollectionName = name;
+	}
+
+	setTargetFeatureIDsAttributeName(name: string) {
+		this.targetFeatureIDsAttributeName = name;
+	}
+
+	setTargetCases(cases: Case[]) {
+		this.targetCases = cases;
+	}
+
+	setTargetClassAttributeName(name: string) {
+		this.targetClassAttributeName = name;
+	}
+
+	setTargetClassAttributeValues(values: string[]) {
+		this.targetClassAttributeValues = values;
+	}
+
+	setTargetClassNames(names: Record<classColumns, string>) {
+		this.targetClassNames = names;
+	}
+
+	setTargetColumnFeatureNames(names: string[]) {
+		this.targetColumnFeatureNames = names;
+	}
+
+	setTargetLeftColumnKey(key: classColumns) {
+		this.targetLeftColumnKey = key;
+	}
+
+	setTargetChosenClassColumnKey(key: maybeClassColumns) {
+		this.targetChosenClassColumnKey = key;
 	}
 
 	asJSON() {
@@ -65,132 +142,125 @@ export class TargetStore {
 		}
 	}
 
-	fromJSON(json: any) {
-		this.targetPanelMode = json.targetPanelMode ||
-			(json.targetDatasetInfo && json.targetDatasetInfo.name !== '' ? 'chosen' : 'welcome')
+	fromJSON(json: ITargetStoreJSON) {
+		this.setTargetPanelMode(json.targetPanelMode ||
+			(json.targetDatasetInfo && json.targetDatasetInfo.name !== '' ? 'chosen' : 'welcome'));
 		if (Array.isArray(json.targetClassNames))
-			json.targetClassNames = null
-		this.targetDatasetInfo = json.targetDatasetInfo || kEmptyEntityInfo
-		this.targetAttributeName = json.targetAttributeName || ''
-		this.targetClassAttributeValues = json.targetClassAttributeValues || []
-		this.targetClassAttributeName = json.targetClassAttributeName || ''
+			json.targetClassNames = { left: "", right: "" };
+		targetDatasetStore.setTargetDatasetInfo(json.targetDatasetInfo || kEmptyEntityInfo);
+		this.setTargetAttributeName(json.targetAttributeName || '');
+		this.setTargetClassAttributeValues(json.targetClassAttributeValues || []);
+		this.setTargetClassAttributeName(json.targetClassAttributeName || '');
 		if (json.targetClassNames)
-			this.targetClassNames = json.targetClassNames
-		this.targetPredictedLabelAttributeName = json.targetPredictedLabelAttributeName || ''
-		this.targetColumnFeatureNames = json.targetColumnFeatureNames || []
-		this.targetChosenClassColumnKey = json.targetChosenClassColumnKey || ''
+			this.setTargetClassNames(json.targetClassNames);
+		this.setTargetPredictedLabelAttributeName(json.targetPredictedLabelAttributeName || '');
+		this.setTargetColumnFeatureNames(json.targetColumnFeatureNames || []);
+		this.setTargetChosenClassColumnKey(json.targetChosenClassColumnKey);
+	}
+
+	getTargetClassName(key: maybeClassColumns) {
+		return key ? this.targetClassNames[key] : "";
 	}
 
 	getClassName(iClass: 'positive' | 'negative') {
-		const tChosenClassKey = iClass === 'positive' ? this.targetChosenClassColumnKey : (
-			this.targetChosenClassColumnKey === 'left' ? 'right' : 'left'
-		)
-		return this.targetClassNames[tChosenClassKey]
+		const tChosenClassKey = iClass === 'positive'
+			? this.targetChosenClassColumnKey
+			: otherClassColumn(this.targetChosenClassColumnKey);
+		return this.getTargetClassName(tChosenClassKey);
 	}
 
-	async updateFromCODAP(iPropName?: string | null, iValue?: any) {
-		const this_ = this
+	get targetDatasetInfo() {
+		return targetDatasetStore.targetDatasetInfo;
+	}
 
-		/**
-		 * We go through the target cases to find the first two unique values of the targetClassAttributeName
-		 */
-		function chooseClassNames() {
-			const tTargetClassAttributeName = iPropName === 'targetClassAttributeName' ? iValue : this_.targetClassAttributeName
-			if (tTargetClassAttributeName !== '' && tCaseValues.length > 0) {
-				tPositiveClassName = tCaseValues[0].values[tTargetClassAttributeName]
-				const tNegativeClassCase = tCaseValues.find(iCase => iCase.values[tTargetClassAttributeName] !== tPositiveClassName)
-				tNegativeClassName = tNegativeClassCase ? tNegativeClassCase.values[tTargetClassAttributeName] : ''
-				tClassNames = {left: tPositiveClassName, right: tNegativeClassName}
-
-				// Also make a set of the unique values of the class attribute
-				const tClassAttributeValuesSet:Set<string> = new Set()
-				tCaseValues.forEach(iCase=>{
-					tClassAttributeValuesSet.add(iCase.values[tTargetClassAttributeName])
-				})
-				tClassAttributeValues = Array.from(tClassAttributeValuesSet)
-			}
-		}
-
-		function gatherColumnFeatures() {
-			if( tAttrNames.length > 0 && this_.targetAttributeName !== '' &&
-					this_.targetClassAttributeName !== '') {
-				tColumnFeatureNames = tAttrNames.filter(iName=>{
-					return iName !== this_.targetAttributeName && iName !== this_.targetClassAttributeName &&
-						this_.getFeatureNamesFunc().indexOf(iName) < 0
-				})
-			}
-		}
+	async updateFromCODAP(args: { targetClassAttributeName?: string } = {}) {
+		const { targetClassAttributeName } = args;
 
 		const tDatasetNames = await getDatasetInfoWithFilter((anInfo:entityInfo) => {
 			return anInfo && anInfo.numAttributes ? anInfo.numAttributes > 1 : false
 		});
-		let tCollectionNames: string[] = []
-		let tCollectionName = ''
-		let tAttrNames: string[] = []
-		let tCaseValues: Case[] = []
-		let tPositiveClassName = ''
-		let tNegativeClassName = ''
-		let tClassNames = {left: '', right: ''}
-		let tClassAttributeValues:string[]
-		let tColumnFeatureNames:string[] = []
-		const tTargetDatasetName = this.targetDatasetInfo.name
+		let tCollectionNames: string[] = [];
+		let tCollectionName = '';
+		let tAttrNames: string[] = [];
+		let tCaseValues: Case[] = [];
+		let tPositiveClassName = '';
+		let tNegativeClassName = '';
+		let tClassNames = { left: '', right: '' };
+		let tClassAttributeValues: string[] = [];
+		let tColumnFeatureNames: string[] = [];
+		const tTargetDatasetName = this.targetDatasetInfo.name;
 		if (tTargetDatasetName !== '') {
-			tCollectionNames = await getCollectionNames(tTargetDatasetName)
-			tCollectionName = tCollectionNames.length > 0 ? tCollectionNames[0] : ''
-			tAttrNames = tCollectionName !== '' ? await getAttributeNames(tTargetDatasetName, tCollectionName) : []
-			tAttrNames = tAttrNames.filter(iName=>iName!==this.targetFeatureIDsAttributeName)
-			tCaseValues = this.targetAttributeName !== '' ? await getCaseValues(tTargetDatasetName,
-				tCollectionName) : []
-			chooseClassNames()
-			for (let i = 0; i < Math.min(40, tCaseValues.length); i++) {
-				this.textRefs[i] = {ownerCaseID: tCaseValues[i].id, ref: React.createRef()}
+			tCollectionNames = await getCollectionNames(tTargetDatasetName);
+			tCollectionName = tCollectionNames.length > 0 ? tCollectionNames[0] : '';
+			tAttrNames = tCollectionName !== '' ? await getAttributeNames(tTargetDatasetName, tCollectionName) : [];
+			tAttrNames = tAttrNames.filter(iName => iName !== this.targetFeatureIDsAttributeName);
+			tCaseValues = this.targetAttributeName !== ''
+				? await getCaseValues(tTargetDatasetName, tCollectionName) : [];
+
+			// choose class names
+			const tTargetClassAttributeName = targetClassAttributeName ?? this.targetClassAttributeName;
+			if (tTargetClassAttributeName !== '' && tCaseValues.length > 0) {
+				tPositiveClassName = tCaseValues[0].values[tTargetClassAttributeName];
+				const tNegativeClassCase =
+					tCaseValues.find(iCase => iCase.values[tTargetClassAttributeName] !== tPositiveClassName);
+				tNegativeClassName = tNegativeClassCase ? tNegativeClassCase.values[tTargetClassAttributeName] : '';
+				tClassNames = { left: tPositiveClassName, right: tNegativeClassName };
+
+				// Also make a set of the unique values of the class attribute
+				const tClassAttributeValuesSet: Set<string> = new Set();
+				tCaseValues.forEach(iCase => {
+					tClassAttributeValuesSet.add(iCase.values[tTargetClassAttributeName]);
+				})
+				tClassAttributeValues = Array.from(tClassAttributeValuesSet);
 			}
 		}
-		gatherColumnFeatures()
 
-		runInAction(() => {
-			this.datasetInfoArray = tDatasetNames
-			this.targetCollectionName = tCollectionName
-			this.targetAttributeNames = tAttrNames
-			this.targetCases = tCaseValues
-			this.targetClassNames = tClassNames
-			if (iPropName)
-				this[iPropName] = iValue
-			this.targetClassAttributeValues = tClassAttributeValues
-			this.targetPredictedLabelAttributeName = 'predicted ' + this.targetClassAttributeName
-			this.targetColumnFeatureNames = tColumnFeatureNames
-		})
+		// gather column features
+		if (
+			tAttrNames.length > 0 && this.targetAttributeName !== '' && this.targetClassAttributeName !== ''
+		) {
+			tColumnFeatureNames = tAttrNames.filter(iName => {
+				return iName !== this.targetAttributeName && iName !== this.targetClassAttributeName &&
+					featureStore.features.map(iFeature => iFeature.name).indexOf(iName) < 0;
+			});
+		}
+
+		this.setDatasetInfoArray(tDatasetNames);
+		this.setTargetCollectionName(tCollectionName);
+		this.setTargetAttributeNames(tAttrNames);
+		this.setTargetCases(tCaseValues);
+		this.setTargetClassNames(tClassNames);
+		if (targetClassAttributeName) this.setTargetClassAttributeName(targetClassAttributeName);
+		this.setTargetClassAttributeValues(tClassAttributeValues);
+		this.setTargetPredictedLabelAttributeName('predicted ' + this.targetClassAttributeName);
+		this.setTargetColumnFeatureNames(tColumnFeatureNames);
+			
 		if (tTargetDatasetName !== '' && this.targetCollectionName !== '') {
-			await guaranteeAttribute({name: this.targetFeatureIDsAttributeName, hidden: true},
-				tTargetDatasetName, this.targetCollectionName)
+			await guaranteeAttribute({ name: this.targetFeatureIDsAttributeName, hidden: true },
+				tTargetDatasetName, this.targetCollectionName);
 		}
 	}
 
 	resetTargetDataForNewTarget() {
-		this.targetCollectionName = ''
-		this.targetAttributeNames = []
-		this.targetAttributeName = ''
-		this.targetPredictedLabelAttributeName = ''
-		this.targetCases = []
-		this.targetClassAttributeName = ''
-		this.targetClassAttributeValues = []
-		this.targetClassNames = {left: '', right: ''}
-		this.targetColumnFeatureNames = []
-		this.targetLeftColumnKey = 'left'
-		this.targetChosenClassColumnKey = ''
-
+		this.targetCollectionName = '';
+		this.targetAttributeNames = [];
+		this.targetAttributeName = '';
+		this.targetPredictedLabelAttributeName = '';
+		this.targetCases = [];
+		this.targetClassAttributeName = '';
+		this.targetClassAttributeValues = [];
+		this.targetClassNames = { left: '', right: '' };
+		this.targetColumnFeatureNames = [];
+		this.targetLeftColumnKey = 'left';
+		this.targetChosenClassColumnKey = undefined;
 	}
 
 	async updateTargetCases(formula?: string) {
-		const tTargetDatasetName = this.targetDatasetInfo.name,
-			tCollectionName = this.targetCollectionName,
-			tCaseValues = this.targetAttributeName !== ''
-				? await getCaseValues(tTargetDatasetName, tCollectionName, formula)
-				: []
-		runInAction(() => {
-			this.targetCases = tCaseValues
-		})
-		return tCaseValues
+		this.targetCases = this.targetAttributeName !== ''
+			? await getCaseValues(this.targetDatasetInfo.name, this.targetCollectionName, formula)
+			: [];
+
+		return this.targetCases;
 	}
 
 	/**
@@ -198,16 +268,18 @@ export class TargetStore {
 	 * @param iNewFeature
 	 * @param iUpdate
 	 */
+	// TODO Clean up this function
 	async addOrUpdateFeatureToTarget(iNewFeature: Feature, iUpdate ?: boolean) {
 		const this_ = this,
-			tTargetAttr = `\`${this_.targetAttributeName}\``
-		if (!this_.targetDatasetInfo || iNewFeature.info.kind === 'ngram' || iNewFeature.info.kind === 'column')
+			tTargetAttr = `\`${this_.targetAttributeName}\``;
+
+		if (!this.targetDatasetInfo || iNewFeature.info.kind === 'ngram' || iNewFeature.info.kind === 'column')
 			return;
 
 		function freeFormFormula() {
 			const option = (iNewFeature.info.details as SearchDetails).where;
-			const tBegins = option === featureDescriptors.containsOptions[2] ? '^' : '';
-			const tEnds = option === featureDescriptors.containsOptions[3] ? '$' : '';
+			const tBegins = option === containOptionAbbreviations[kContainOptionStartWith] ? '^' : '';
+			const tEnds = option === containOptionAbbreviations[kContainOptionEndWith] ? '$' : '';
 			const text = (iNewFeature.info.details as SearchDetails).freeFormText.trim();
 			// note: the multiple slash escaping is due to all the layers between this code and the CODAP formula evaluator
 			const escapedText = text
@@ -233,17 +305,17 @@ export class TargetStore {
 			const maybeEndingWordBoundary = /\w$/.test(text) ? wordBoundary : '';
 			const tParamString = `${tTargetAttr},"${tBegins}${maybeStartingWordBoundary}${escapedText}${maybeEndingWordBoundary}${tEnds}"`;
 			let tResult = '';
-			switch (option) {//['contain', 'not contain', 'start with', 'end with']
-				case featureDescriptors.containsOptions[0]:	// contain
+			switch (option) {
+				case containOptionAbbreviations[kContainOptionContain]:
 					tResult = `patternMatches(${tParamString})>0`
 					break;
-				case featureDescriptors.containsOptions[1]:	// not contain
+				case containOptionAbbreviations[kContainOptionNotContain]:
 					tResult = `patternMatches(${tParamString})=0`
 					break;
-				case featureDescriptors.containsOptions[2]:	// start with
+				case containOptionAbbreviations[kContainOptionStartWith]:
 					tResult = `patternMatches(${tParamString})>0`
 					break;
-				case featureDescriptors.containsOptions[3]:	// ends with
+				case containOptionAbbreviations[kContainOptionEndWith]:
 					tResult = `patternMatches(${tParamString})>0`
 					break;
 			}
@@ -253,17 +325,17 @@ export class TargetStore {
 		function anyNumberFormula() {
 			const kNumberPattern = `[0-9]+`;
 			let tExpression = '';
-			switch ((iNewFeature.info.details as SearchDetails).where) {//['contain', 'not contain', 'start with', 'end with']
-				case featureDescriptors.containsOptions[0]:	// contain
+			switch ((iNewFeature.info.details as SearchDetails).where) {
+				case containOptionAbbreviations[kContainOptionContain]:
 					tExpression = `patternMatches(${tTargetAttr}, "${kNumberPattern}")>0`
 					break;
-				case featureDescriptors.containsOptions[1]:	// not contain
+				case containOptionAbbreviations[kContainOptionNotContain]:
 					tExpression = `patternMatches(${tTargetAttr}, "${kNumberPattern}")=0`
 					break;
-				case featureDescriptors.containsOptions[2]:	// start with
+				case containOptionAbbreviations[kContainOptionStartWith]:
 					tExpression = `patternMatches(${tTargetAttr}, "^${kNumberPattern}")>0`
 					break;
-				case featureDescriptors.containsOptions[3]:	// end with
+				case containOptionAbbreviations[kContainOptionEndWith]:
 					tExpression = `patternMatches(${tTargetAttr}, "${kNumberPattern}$")>0`
 					break;
 			}
@@ -273,17 +345,17 @@ export class TargetStore {
 		function punctuationFormula() {
 			const tPunc = `\\\\\\\\${(iNewFeature.info.details as SearchDetails).punctuation}`
 			let tExpression = '';
-			switch ((iNewFeature.info.details as SearchDetails).where) {//['contain', 'not contain', 'start with', 'end with']
-				case featureDescriptors.containsOptions[0]:	// contain
+			switch ((iNewFeature.info.details as SearchDetails).where) {
+				case containOptionAbbreviations[kContainOptionContain]:
 					tExpression = `patternMatches(${tTargetAttr}, "${tPunc}")>0`
 					break;
-				case featureDescriptors.containsOptions[1]:	// not contain
+				case containOptionAbbreviations[kContainOptionNotContain]:
 					tExpression = `patternMatches(${tTargetAttr}, "${tPunc}")=0`
 					break;
-				case featureDescriptors.containsOptions[2]:	// start with
+				case containOptionAbbreviations[kContainOptionStartWith]:
 					tExpression = `patternMatches(${tTargetAttr}, "^${tPunc}")>0`
 					break;
-				case featureDescriptors.containsOptions[3]:	// end with
+				case containOptionAbbreviations[kContainOptionEndWith]:
 					tExpression = `patternMatches(${tTargetAttr}, "${tPunc}$")>0`
 					break;
 			}
@@ -296,25 +368,25 @@ export class TargetStore {
 				kListAttributeName = (iNewFeature.info.details as SearchDetails).wordList.firstAttributeName,
 				kWords = SQ.lists[kListName],
 				tWhere = (iNewFeature.info.details as SearchDetails).where,
-				tStartsWithOption = featureDescriptors.containsOptions[0],
-				tEndsWithOption = featureDescriptors.containsOptions[3],
+				tStartsWithOption = containOptionAbbreviations[kContainOptionStartWith],
+				tEndsWithOption = containOptionAbbreviations[kContainOptionEndWith],
 				tCaret = tWhere === tStartsWithOption ? '^' : '',
 				tDollar = tWhere === tEndsWithOption ? '$' : ''
 			if (kWords) {
 				tExpression = kWords.reduce((iSoFar, iWord) => {
 					return iSoFar === '' ? `${tCaret}\\\\\\\\b${iWord}\\\\\\\\b${tDollar}` : iSoFar + `|${tCaret}\\\\\\\\b${iWord}\\\\\\\\b${tDollar}`;
 				}, '');
-				switch (tWhere) {//['contain', 'not contain', 'start with', 'end with']
-					case featureDescriptors.containsOptions[0]:	// contain
+				switch (tWhere) {
+					case containOptionAbbreviations[kContainOptionContain]:
 						tExpression = `patternMatches(${tTargetAttr}, "${tExpression}")>0`;
 						break;
-					case featureDescriptors.containsOptions[1]:	// not contain
+					case containOptionAbbreviations[kContainOptionNotContain]:
 						tExpression = `patternMatches(${tTargetAttr}, "${tExpression}")=0`;
 						break;
-					case featureDescriptors.containsOptions[2]:	// start with
+					case containOptionAbbreviations[kContainOptionStartWith]:
 						tExpression = `patternMatches(${tTargetAttr}, "^${tExpression}")>0`;
 						break;
-					case featureDescriptors.containsOptions[3]:	// end with
+					case containOptionAbbreviations[kContainOptionEndWith]:
 						tExpression = `patternMatches(${tTargetAttr}, "${tExpression}$")>0`;
 						break;
 				}
@@ -343,21 +415,23 @@ export class TargetStore {
 		}
 		if (tFormula !== '')
 			iNewFeature.formula = tFormula
+		const targetDatasetName = this.targetDatasetInfo.name;
 		if (!iUpdate) {
-			const tAttributeResponse: any = await codapInterface.sendRequest({
+			const tAttributeResponse = await codapInterface.sendRequest({
 				action: 'create',
-				resource: `dataContext[${this_.targetDatasetInfo.name}].collection[${this_.targetCollectionName}].attribute`,
+				resource: `dataContext[${targetDatasetName}].collection[${this_.targetCollectionName}].attribute`,
 				values: {
 					name: iNewFeature.name,
 					formula: tFormula
 				}
-			});
-			if (tAttributeResponse.success) {
-				iNewFeature.attrID = tAttributeResponse.values.attrs[0].id
-				await scrollCaseTableToRight(this_.targetDatasetInfo.name);
+			}) as CreateAttributeResponse;
+			if (tAttributeResponse.success && tAttributeResponse.values && tAttributeResponse.values.attrs.length > 0) {
+				iNewFeature.attrID = String(tAttributeResponse.values.attrs[0].id);
+				await scrollCaseTableToRight(targetDatasetName);
 			}
 		} else {
-			const tResource = `dataContext[${this_.targetDatasetInfo.name}].collection[${this_.targetCollectionName}].attribute[${iNewFeature.attrID}]`
+			const tResource = 
+				`dataContext[${targetDatasetName}].collection[${this_.targetCollectionName}].attribute[${iNewFeature.attrID}]`;
 			await codapInterface.sendRequest({
 				action: 'update',
 				resource: tResource,
@@ -371,3 +445,4 @@ export class TargetStore {
 	}
 }
 
+export const targetStore = new TargetStore();

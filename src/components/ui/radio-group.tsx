@@ -1,19 +1,17 @@
 import React from "react";
 import clsx from "clsx";
 
-type RadioGroupChangeEvent = CustomEvent<{value: string}> & {value: string};
-
 interface IRadioGroupProps {
   items: string[];
   value: string;
   hint: string;
-  onValueChange: (e: RadioGroupChangeEvent) => void;
+  onValueChange: (value: string) => void;
 }
 
 interface IRadioGroupItemProps {
   item: string;
   value: string;
-  onValueChange: (e: RadioGroupChangeEvent) => void;
+  onValueChange: (value: string) => void;
 }
 
 const RadioGroupItem = ({item, value, onValueChange}: IRadioGroupItemProps) => {
@@ -27,13 +25,7 @@ const RadioGroupItem = ({item, value, onValueChange}: IRadioGroupItemProps) => {
   });
 
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const syntheticEvent = new CustomEvent('customEvent', {
-      detail: {
-        value: value
-      }
-    }) as any;
-    syntheticEvent.value = value;
-    onValueChange(syntheticEvent);
+    onValueChange(value);
   };
 
   return (

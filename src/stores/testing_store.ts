@@ -3,84 +3,120 @@
  * be accessed in more than one file or needs to be saved and restored.
  */
 
-import {makeAutoObservable, runInAction, toJS} from 'mobx'
+import { makeAutoObservable, toJS } from 'mobx'
 import {
-	entityInfo,
-	getAttributeNames,
-	getCollectionNames,
-	getDatasetInfoWithFilter, guaranteeTableOrCardIsVisibleFor
+	entityInfo, getAttributeNames, getCollectionNames, getDatasetInfoWithFilter, guaranteeTableOrCardIsVisibleFor
 } from "../lib/codap-helper";
-import {
-	kEmptyEntityInfo, TestingResult
-} from "./store_types_and_constants";
+import { featureStore } from './feature_store';
+import { getEmptyTestingResult, kEmptyEntityInfo, TestingResult } from "./store_types_and_constants";
+
+export interface ITestingStore {
+	chosenModelName: string;
+	currentTestingResults: TestingResult;
+	testingAttributeName: string;
+	testingAttributeNames: string[];
+	testingClassAttributeName: string;
+	testingCollectionName: string;
+	testingDatasetInfo: entityInfo;
+	testingDatasetInfoArray: entityInfo[];
+	testingResultsArray: TestingResult[];
+}
 
 export class TestingStore {
-	[index: string]: any;
-	getFeatureSetIDCallback:any
-	chosenModelName: string = ''
-	testingDatasetInfo: entityInfo = kEmptyEntityInfo
-	testingDatasetInfoArray: entityInfo[] = []
-	testingCollectionName: string = ''
-	testingAttributeNames: string[] = []
-	testingAttributeName: string = ''
-	testingClassAttributeName: string = ''
-	currentTestingResults:TestingResult
-	testingResultsArray:TestingResult[] = []
+	chosenModelName = '';
+	currentTestingResults: TestingResult = getEmptyTestingResult();
+	testingAttributeName = '';
+	testingAttributeNames: string[] = [];
+	testingClassAttributeName = '';
+	testingCollectionName = '';
+	testingDatasetInfo: entityInfo = kEmptyEntityInfo;
+	testingDatasetInfoArray: entityInfo[] = [];
+	testingResultsArray: TestingResult[] = [];
 
-	constructor(iGetFeatureSetIDCallback:any) {
-		makeAutoObservable(this, {getFeatureSetIDCallback: false}, {autoBind: true})
-		this.getFeatureSetIDCallback = iGetFeatureSetIDCallback
-		this.currentTestingResults = this.emptyTestingResult()
-	}
-
-	emptyTestingResult():TestingResult {
-		return {
-			targetDatasetName: '', targetDatasetTitle: '', modelName: '', numPositive: 0, numNegative: 0,
-			accuracy: 0, kappa: 0, testBeingConstructed: false
-		}
+	constructor() {
+		makeAutoObservable(this, {}, { autoBind: true });
 	}
 
 	prepareForConstruction() {
-		this.currentTestingResults = this.emptyTestingResult()
-		this.currentTestingResults.testBeingConstructed = true
+		this.currentTestingResults = getEmptyTestingResult();
+		this.currentTestingResults.testBeingConstructed = true;
 	}
 
 	asJSON() {
-		const tJSON = toJS(this)
-		delete tJSON.getFeatureSetIDCallback	// Remove so we don't crash
-		return tJSON
+		return toJS(this);
 	}
 
-	fromJSON(json: any) {
+	fromJSON(json: ITestingStore) {
 		if (json) {
-			for (const [key, value] of Object.entries(json)) {
-				this[key] = value
-			}
+			this.setChosenModelName(json.chosenModelName ?? '');
+			this.setTestingDatasetInfo(json.testingDatasetInfo ?? kEmptyEntityInfo);
+			this.setTestingDatasetInfoArray(json.testingDatasetInfoArray ?? []);
+			this.setTestingCollectionName(json.testingCollectionName ?? '');
+			this.setTestingAttributeNames(json.testingAttributeNames ?? []);
+			this.setTestingAttributeName(json.testingAttributeName ?? '');
+			this.setTestingClassAttributeName(json.testingClassAttributeName ?? '');
+			this.setCurrentTestingResults(json.currentTestingResults ?? getEmptyTestingResult());
+			this.setTestingResultsArray(json.testingResultsArray ?? []);
 		}
+	}
+
+	setChosenModelName(name: string) {
+		this.chosenModelName = name;
+	}
+
+	setCurrentTestingResults(results: TestingResult) {
+		this.currentTestingResults = results;
+	}
+
+	setTestingAttributeName(name: string) {
+		this.testingAttributeName = name;
+	}
+
+	setTestingAttributeNames(names: string[]) {
+		this.testingAttributeNames = names;
+	}
+
+	setTestingClassAttributeName(name: string) {
+		this.testingClassAttributeName = name;
+	}
+
+	setTestingCollectionName(name: string) {
+		this.testingCollectionName = name;
+	}
+
+	setTestingDatasetInfo(info: entityInfo) {
+		this.testingDatasetInfo = info;
+	}
+
+	setTestingDatasetInfoArray(infoArray: entityInfo[]) {
+		this.testingDatasetInfoArray = infoArray;
+	}
+
+	setTestingResultsArray(resultsArray: TestingResult[]) {
+		this.testingResultsArray = resultsArray;
 	}
 
 	async updateCodapInfoForTestingPanel() {
-		const tFeatureDatasetID = this.getFeatureSetIDCallback(),
-			tTestingDatasetName = this.testingDatasetInfo.name,
-			tDatasetEntityInfoArray = await getDatasetInfoWithFilter(
-			(anInfo) => {
-				return anInfo.id !== tFeatureDatasetID
-			})
-		let tCollectionNames: string[] = [],
-			tCollectionName: string = '',
-			tAttributeNames: string[] = []
-		if (tTestingDatasetName !== '') {
-			tCollectionNames = await getCollectionNames(tTestingDatasetName)
-			tCollectionName = tCollectionNames.length > 0 ? tCollectionNames[0] : 'cases'
-			tAttributeNames = tCollectionName !== '' ? await getAttributeNames(tTestingDatasetName, tCollectionName) : []
-		}
-		runInAction(() => {
-			this.testingDatasetInfoArray = tDatasetEntityInfoArray
-			this.testingCollectionName = tCollectionName
-			this.testingAttributeNames = tAttributeNames
-		})
-		guaranteeTableOrCardIsVisibleFor({name: tTestingDatasetName,
-			title: this.testingDatasetInfo.title, id: -1})
-	}
+		this.setTestingDatasetInfoArray(
+			await getDatasetInfoWithFilter(anInfo => anInfo.id !== featureStore.featureDatasetID)
+		);
+		this.setTestingCollectionName('');
+		this.setTestingAttributeNames([]);
 
+		const tTestingDatasetName = this.testingDatasetInfo.name;
+		if (tTestingDatasetName !== '') {
+			const tCollectionNames = await getCollectionNames(tTestingDatasetName);
+			this.setTestingCollectionName(tCollectionNames.length > 0 ? tCollectionNames[0] : 'cases');
+			this.setTestingAttributeNames(this.testingCollectionName !== ''
+				? await getAttributeNames(tTestingDatasetName, this.testingCollectionName) : []);
+		}
+
+		guaranteeTableOrCardIsVisibleFor({
+			name: tTestingDatasetName,
+			title: this.testingDatasetInfo.title,
+			id: -1
+		});
+	}
 }
+
+export const testingStore = new TestingStore();
