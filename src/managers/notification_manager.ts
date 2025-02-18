@@ -10,7 +10,7 @@ import { featureStore } from "../stores/feature_store";
 import { kFeatureTypeUnigram, kTokenTypeUnigram } from "../stores/store_types_and_constants";
 import { targetStore } from "../stores/target_store";
 
-export default class NotificationManager {
+export class NotificationManager {
 	updatingStores = false
 
 	constructor() {

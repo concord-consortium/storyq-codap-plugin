@@ -177,7 +177,7 @@ export class TargetStore {
 	async updateFromCODAP(args: { targetClassAttributeName?: string } = {}) {
 		const { targetClassAttributeName } = args;
 
-		const tDatasetNames = await getDatasetInfoWithFilter((anInfo:entityInfo) => {
+		const tDatasetNames = await getDatasetInfoWithFilter((anInfo: entityInfo) => {
 			return anInfo && anInfo.numAttributes ? anInfo.numAttributes > 1 : false
 		});
 		let tCollectionNames: string[] = [];
