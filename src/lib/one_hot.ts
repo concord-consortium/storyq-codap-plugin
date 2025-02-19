@@ -18,7 +18,7 @@
 // ==========================================================================
 
 import {stopWords} from "./stop_words";
-import {Feature, TokenMap} from "../stores/store_types_and_constants";
+import {Feature, kTokenTypeConstructed, kTokenTypeUnigram, TokenMap} from "../stores/store_types_and_constants";
 import { emoticons } from "./emoticons";
 
 export const kMaxTokens = 1000;
@@ -88,7 +88,7 @@ export const oneHot = (config: OneHotConfig,
 						tFeatureCaseID = tFeatureCaseIDObject ? Number(tFeatureCaseIDObject.caseID) : null
 					tokenMap[aToken] = {
 						token: aToken,
-						type: 'constructed feature',
+						type: kTokenTypeConstructed,
 						count: 1,
 						index: -1,
 						numPositive: 0,
@@ -113,7 +113,7 @@ export const oneHot = (config: OneHotConfig,
 
 			tokens.forEach(aToken => {
 				if (!tokenMap[aToken]) {
-					const tType = aDoc.columnFeatures[aToken] ? 'constructed feature' : 'unigram',
+					const tType = aDoc.columnFeatures[aToken] ? kTokenTypeConstructed : kTokenTypeUnigram,
 						tFeatureCaseIDObject = config.features.find(aFeature => aFeature.name === aToken),
 						tFeatureCaseID = tFeatureCaseIDObject ? Number(tFeatureCaseIDObject.caseID) : null
 					tokenMap[aToken] = {

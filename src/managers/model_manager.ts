@@ -8,11 +8,14 @@ import { LogisticRegression } from "../lib/jsregression";
 import { oneHot } from "../lib/one_hot";
 import { domainStore } from "../stores/domain_store";
 import { featureStore } from "../stores/feature_store";
-import { Feature, NgramDetails, StoredAIModel, Token } from "../stores/store_types_and_constants";
+import { Feature, kFeatureKindNgram, NgramDetails, StoredAIModel, Token } from "../stores/store_types_and_constants";
 import { targetStore } from "../stores/target_store";
 import { trainingStore } from "../stores/training_store";
 import { computeKappa } from "../utilities/utilities";
-import { APIRequest, CaseValues, CreateCaseResponse, CreateCaseValue, GetCaseByIDResponse, GetCaseCountResponse, GetCaseFormulaSearchResponse, GetCollectionListResponse, GetItemSearchResponse, UpdateCaseValue } from "../types/codap-api-types";
+import {
+	APIRequest, CaseValues, CreateCaseResponse, CreateCaseValue, GetCaseByIDResponse, GetCaseCountResponse,
+	GetCaseFormulaSearchResponse, GetCollectionListResponse, GetItemSearchResponse, UpdateCaseValue
+} from "../types/codap-api-types";
 
 export class ModelManager {
 
@@ -311,8 +314,8 @@ export class ModelManager {
 		const tTargetDatasetName = targetStore.targetDatasetInfo.name,
 			tTargetAttributeName = targetStore.targetAttributeName,
 			tTargetColumnFeatureNames = featureStore.targetColumnFeatureNames,
-			tNonNgramFeatures = featureStore.getChosenFeatures().filter(iFeature => iFeature.info.kind !== 'ngram'),
-			tNgramFeatures = featureStore.getChosenFeatures().filter(iFeature => iFeature.info.kind === 'ngram'),
+			tNonNgramFeatures = featureStore.getChosenFeatures().filter(iFeature => iFeature.info.kind !== kFeatureKindNgram),
+			tNgramFeatures = featureStore.getChosenFeatures().filter(iFeature => iFeature.info.kind === kFeatureKindNgram),
 			tUnigramFeature = tNgramFeatures.find(iFeature => (iFeature.info.details as NgramDetails).n === 'uni'),
 			tPositiveClassName = targetStore.getClassName('positive'),
 			tDocuments: {
@@ -322,14 +325,14 @@ export class ModelManager {
 			tLogisticModel = trainingStore.model.logisticModel
 
 		async function setup() {
-			await deselectAllCasesIn(tTargetDatasetName)
-			tLogisticModel.reset()
-			tLogisticModel.iterations = trainingStore.model.iterations
-			tLogisticModel.progressCallback = this_.progressBar
-			tLogisticModel.trace = trainingStore.model.trainingInStepMode
+			await deselectAllCasesIn(tTargetDatasetName);
+			tLogisticModel.reset();
+			tLogisticModel.iterations = trainingStore.model.iterations;
+			tLogisticModel.progressCallback = this_.progressBar;
+			tLogisticModel.trace = trainingStore.model.trainingInStepMode;
 			tLogisticModel.stepModeCallback = trainingStore.model.trainingInStepMode ?
-				this_.stepModeCallback : null
-			tLogisticModel.lockIntercept = trainingStore.model.lockInterceptAtZero
+				this_.stepModeCallback : null;
+			tLogisticModel.lockIntercept = trainingStore.model.lockInterceptAtZero;
 			const tColumnNames = tTargetColumnFeatureNames.concat(
 				featureStore.getChosenFeatures().map(iFeature => {
 					return iFeature.name;
@@ -341,19 +344,29 @@ export class ModelManager {
 				const tCaseID = iCase.id,
 					tText = iCase.values[tTargetAttributeName],
 					tClass = iCase.values[targetStore.targetClassAttributeName],
-					tColumnFeatures: { [key: string]: number | boolean } = {};
+					tColumnFeatures: Record<string, number | boolean> = {};
 				// We're going to put column features into each document as well so one-hot can include them in the vector
 				tColumnNames.forEach((aName) => {
-					let tValue: string | number = iCase.values[aName];
-					if (['1', 'true'].indexOf(String(tValue).toLowerCase()) >= 0)
-						tValue = 1;
-					else
-						tValue = 0;
-					if (tValue)
-						tColumnFeatures[aName] = tValue;
+					const featureValue = iCase.values[aName];
+					const numberValue = Number(featureValue);
+					let tValue: number;
+					if (isFinite(numberValue)) {
+						if (numberValue > 0) {
+							tValue = 1;
+						} else {
+							tValue = 0;
+						}
+					} else {
+						if (['1', 'true'].indexOf(String(featureValue).toLowerCase()) >= 0) {
+							tValue = 1;
+						} else {
+							tValue = 0;
+						}
+					}
+					if (tValue) tColumnFeatures[aName] = tValue;
 				});
-				tDocuments.push({example: tText, class: tClass, caseID: tCaseID, columnFeatures: tColumnFeatures});
-			})
+				tDocuments.push({ example: tText, class: tClass, caseID: tCaseID, columnFeatures: tColumnFeatures });
+			});
 		}
 
 		await setup()

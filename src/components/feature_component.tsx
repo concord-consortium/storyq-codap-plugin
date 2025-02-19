@@ -10,8 +10,9 @@ import { SQ } from "../lists/lists";
 import { domainStore } from "../stores/domain_store";
 import { featureStore } from "../stores/feature_store";
 import {
-	Feature, featureDescriptors, isWhatOption, kKindOfThingOptionList, kKindOfThingOptionPunctuation, kKindOfThingOptionText,
-	SearchDetails
+	Feature, featureDescriptors, isWhatOption, kFeatureKindColumn, kFeatureKindCount, kFeatureKindNgram,
+	kFeatureKindSearch, kFeatureTypeColumn, kFeatureTypeUnigram, kWhatOptionList, kWhatOptionPunctuation,
+	kWhatOptionText, SearchDetails
 } from "../stores/store_types_and_constants";
 import { targetStore } from "../stores/target_store";
 import { textStore } from "../stores/text_store";
@@ -39,7 +40,7 @@ export const FeatureComponent = observer(function FeatureComponent({ feature, sh
 					value={feature.chosen}
 					onValueChanged={action(async () => {
 						await featureStore.toggleChosenFor(feature);
-						if (feature.type === 'unigram' && feature.chosen) domainStore.updateNgramFeatures();
+						if (feature.type === kFeatureTypeUnigram && feature.chosen) domainStore.updateNgramFeatures();
 					})}
 					hint={tHint}
 				/>
@@ -64,12 +65,12 @@ export const FeatureComponent = observer(function FeatureComponent({ feature, sh
 		if (!iFeature.inProgress) {
 			await targetStore.addOrUpdateFeatureToTarget(iFeature, true)
 			switch (iFeature.info.kind) {
-				case 'search':
-				case 'count':
-				case 'column':
+				case kFeatureKindSearch:
+				case kFeatureKindCount:
+				case kFeatureKindColumn:
 					await domainStore.updateNonNtigramFeaturesDataset()
 					break
-				case 'ngram':
+				case kFeatureKindNgram:
 					await domainStore.updateNgramFeatures()
 					break
 			}
@@ -97,12 +98,12 @@ export const FeatureComponent = observer(function FeatureComponent({ feature, sh
 					feature.infoChoice = value;
 					feature.info.kind = JSON.parse(value).kind;
 					feature.info.details = Object.assign(feature.info.details || {}, JSON.parse(value).details);
-					if (feature.info.kind === 'ngram') {
+					if (feature.info.kind === kFeatureKindNgram) {
 						feature.info.frequencyThreshold = 4;
 						feature.info.ignoreStopWords = true;
-					} else if (feature.info.kind === 'column') {
+					} else if (feature.info.kind === kFeatureKindColumn) {
 						feature.name = JSON.parse(value).details['columnName'];
-						feature.type = 'column';
+						feature.type = kFeatureTypeColumn;
 					}
 				})}
 			/>
@@ -110,7 +111,7 @@ export const FeatureComponent = observer(function FeatureComponent({ feature, sh
 	}
 
 	function kindOfThingContainedChoice() {
-		if (feature.info.kind === 'search') {
+		if (feature.info.kind === kFeatureKindSearch) {
 			return (
 				<SelectBox
 					className='sq-new-feature-item sq-fc-part'
@@ -128,7 +129,7 @@ export const FeatureComponent = observer(function FeatureComponent({ feature, sh
 	}
 
 	function freeFormTextBox() {
-		if (featureDetails && featureDetails.what === kKindOfThingOptionText) {
+		if (featureDetails && featureDetails.what === kWhatOptionText) {
 			return (
 				<TextBox
 					className='sq-fc-part'
@@ -145,7 +146,7 @@ export const FeatureComponent = observer(function FeatureComponent({ feature, sh
 	}
 
 	function punctuationChoice() {
-		if (featureDetails && featureDetails.what === kKindOfThingOptionPunctuation) {
+		if (featureDetails && featureDetails.what === kWhatOptionPunctuation) {
 			return (
 				<TextBox
 					className='sq-fc-part'
@@ -162,7 +163,7 @@ export const FeatureComponent = observer(function FeatureComponent({ feature, sh
 	}
 
 	function wordListChoice() {
-		if (featureDetails && featureDetails.what === kKindOfThingOptionList) {
+		if (featureDetails && featureDetails.what === kWhatOptionList) {
 			const tWordListSpecs = featureStore.wordListSpecs,
 				tWordListDatasetNames = tWordListSpecs.map(iDataset => {
 					return iDataset.datasetName;
@@ -198,7 +199,7 @@ export const FeatureComponent = observer(function FeatureComponent({ feature, sh
 	}
 
 	function ngramSettings() {
-		if (feature.info.kind === 'ngram')
+		if (feature.info.kind === kFeatureKindNgram)
 			return (<div className='sq-feature-ngram-settings'>
 				<CheckBox
 					text=' Ignore stopwords'

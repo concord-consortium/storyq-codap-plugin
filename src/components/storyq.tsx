@@ -2,6 +2,7 @@ import { observer } from "mobx-react";
 import React, { Component } from 'react';
 import { initializePlugin, registerObservers } from '../lib/codap-helper';
 import codapInterface, { CODAP_Notification } from "../lib/CodapInterface";
+import { NotificationManager } from "../managers/notification_manager";
 import { TestingManager } from "../managers/testing_manager";
 import { domainStore, IDomainStoreJSON } from "../stores/domain_store";
 import { kStoryQPluginName } from "../stores/store_types_and_constants";
@@ -17,7 +18,6 @@ import { TabPanel } from './ui/tab-panel';
 
 import '../storyq.css';
 import '../styles/light.compact.css';
-import NotificationManager from "../managers/notification_manager";
 
 interface IStorage {
 	domainStore: IDomainStoreJSON;

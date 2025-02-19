@@ -13,8 +13,9 @@ import { SQ } from "../lists/lists";
 import { featureStore } from './feature_store';
 import { targetDatasetStore } from './target_dataset_store';
 import {
-	containOptionAbbreviations, Feature, kContainOptionContain, kContainOptionEndWith, kContainOptionNotContain,
-	kContainOptionStartWith, kEmptyEntityInfo, SearchDetails
+	Feature, getContainFormula, getTargetCaseFormula,  kEmptyEntityInfo, kFeatureKindColumn, kFeatureKindNgram,
+	kSearchWhereEndWith, kSearchWhereStartWith, kWhatOptionList, kWhatOptionNumber, kWhatOptionPunctuation,
+	kWhatOptionText, SearchDetails
 } from "./store_types_and_constants";
 import { CreateAttributeResponse } from '../types/codap-api-types';
 
@@ -176,7 +177,7 @@ export class TargetStore {
 	async updateFromCODAP(args: { targetClassAttributeName?: string } = {}) {
 		const { targetClassAttributeName } = args;
 
-		const tDatasetNames = await getDatasetInfoWithFilter((anInfo:entityInfo) => {
+		const tDatasetNames = await getDatasetInfoWithFilter((anInfo: entityInfo) => {
 			return anInfo && anInfo.numAttributes ? anInfo.numAttributes > 1 : false
 		});
 		let tCollectionNames: string[] = [];
@@ -273,13 +274,13 @@ export class TargetStore {
 		const this_ = this,
 			tTargetAttr = `\`${this_.targetAttributeName}\``;
 
-		if (!this.targetDatasetInfo || iNewFeature.info.kind === 'ngram' || iNewFeature.info.kind === 'column')
+		if (!this.targetDatasetInfo || [kFeatureKindNgram, kFeatureKindColumn].includes(iNewFeature.info.kind))
 			return;
 
 		function freeFormFormula() {
 			const option = (iNewFeature.info.details as SearchDetails).where;
-			const tBegins = option === containOptionAbbreviations[kContainOptionStartWith] ? '^' : '';
-			const tEnds = option === containOptionAbbreviations[kContainOptionEndWith] ? '$' : '';
+			const tBegins = option === kSearchWhereStartWith ? '^' : '';
+			const tEnds = option === kSearchWhereEndWith ? '$' : '';
 			const text = (iNewFeature.info.details as SearchDetails).freeFormText.trim();
 			// note: the multiple slash escaping is due to all the layers between this code and the CODAP formula evaluator
 			const escapedText = text
@@ -303,118 +304,56 @@ export class TargetStore {
 			const wordBoundary = `\\\\\\\\b`;
 			const maybeStartingWordBoundary = /^\w/.test(text) ? wordBoundary : '';
 			const maybeEndingWordBoundary = /\w$/.test(text) ? wordBoundary : '';
-			const tParamString = `${tTargetAttr},"${tBegins}${maybeStartingWordBoundary}${escapedText}${maybeEndingWordBoundary}${tEnds}"`;
-			let tResult = '';
-			switch (option) {
-				case containOptionAbbreviations[kContainOptionContain]:
-					tResult = `patternMatches(${tParamString})>0`
-					break;
-				case containOptionAbbreviations[kContainOptionNotContain]:
-					tResult = `patternMatches(${tParamString})=0`
-					break;
-				case containOptionAbbreviations[kContainOptionStartWith]:
-					tResult = `patternMatches(${tParamString})>0`
-					break;
-				case containOptionAbbreviations[kContainOptionEndWith]:
-					tResult = `patternMatches(${tParamString})>0`
-					break;
-			}
-			return tResult;
+			const wordString = `${maybeStartingWordBoundary}${escapedText}${maybeEndingWordBoundary}`;
+			const tParamString = `${tTargetAttr},"${tBegins}${wordString}${tEnds}"`;
+			return getContainFormula(option, tParamString);
 		}
 
 		function anyNumberFormula() {
 			const kNumberPattern = `[0-9]+`;
-			let tExpression = '';
-			switch ((iNewFeature.info.details as SearchDetails).where) {
-				case containOptionAbbreviations[kContainOptionContain]:
-					tExpression = `patternMatches(${tTargetAttr}, "${kNumberPattern}")>0`
-					break;
-				case containOptionAbbreviations[kContainOptionNotContain]:
-					tExpression = `patternMatches(${tTargetAttr}, "${kNumberPattern}")=0`
-					break;
-				case containOptionAbbreviations[kContainOptionStartWith]:
-					tExpression = `patternMatches(${tTargetAttr}, "^${kNumberPattern}")>0`
-					break;
-				case containOptionAbbreviations[kContainOptionEndWith]:
-					tExpression = `patternMatches(${tTargetAttr}, "${kNumberPattern}$")>0`
-					break;
-			}
-			return tExpression;
+			const option = (iNewFeature.info.details as SearchDetails).where;
+			return getContainFormula(option, `${tTargetAttr}, "${kNumberPattern}"`);
 		}
 
 		function punctuationFormula() {
-			const tPunc = `\\\\\\\\${(iNewFeature.info.details as SearchDetails).punctuation}`
-			let tExpression = '';
-			switch ((iNewFeature.info.details as SearchDetails).where) {
-				case containOptionAbbreviations[kContainOptionContain]:
-					tExpression = `patternMatches(${tTargetAttr}, "${tPunc}")>0`
-					break;
-				case containOptionAbbreviations[kContainOptionNotContain]:
-					tExpression = `patternMatches(${tTargetAttr}, "${tPunc}")=0`
-					break;
-				case containOptionAbbreviations[kContainOptionStartWith]:
-					tExpression = `patternMatches(${tTargetAttr}, "^${tPunc}")>0`
-					break;
-				case containOptionAbbreviations[kContainOptionEndWith]:
-					tExpression = `patternMatches(${tTargetAttr}, "${tPunc}$")>0`
-					break;
-			}
-			return tExpression;
+			const tPunc = `\\\\\\\\${(iNewFeature.info.details as SearchDetails).punctuation}`;
+			const option = (iNewFeature.info.details as SearchDetails).where;
+			return getContainFormula(option, `${tTargetAttr}, "${tPunc}"`);
 		}
 
 		function anyListFormula() {
-			let tExpression;
-			const kListName = (iNewFeature.info.details as SearchDetails).wordList.datasetName,
-				kListAttributeName = (iNewFeature.info.details as SearchDetails).wordList.firstAttributeName,
-				kWords = SQ.lists[kListName],
-				tWhere = (iNewFeature.info.details as SearchDetails).where,
-				tStartsWithOption = containOptionAbbreviations[kContainOptionStartWith],
-				tEndsWithOption = containOptionAbbreviations[kContainOptionEndWith],
-				tCaret = tWhere === tStartsWithOption ? '^' : '',
-				tDollar = tWhere === tEndsWithOption ? '$' : ''
+			const searchDetails = iNewFeature.info.details as SearchDetails;
+			const kListName = searchDetails.wordList.datasetName;
+			const kWords = SQ.lists[kListName];
 			if (kWords) {
-				tExpression = kWords.reduce((iSoFar, iWord) => {
-					return iSoFar === '' ? `${tCaret}\\\\\\\\b${iWord}\\\\\\\\b${tDollar}` : iSoFar + `|${tCaret}\\\\\\\\b${iWord}\\\\\\\\b${tDollar}`;
-				}, '');
-				switch (tWhere) {
-					case containOptionAbbreviations[kContainOptionContain]:
-						tExpression = `patternMatches(${tTargetAttr}, "${tExpression}")>0`;
-						break;
-					case containOptionAbbreviations[kContainOptionNotContain]:
-						tExpression = `patternMatches(${tTargetAttr}, "${tExpression}")=0`;
-						break;
-					case containOptionAbbreviations[kContainOptionStartWith]:
-						tExpression = `patternMatches(${tTargetAttr}, "^${tExpression}")>0`;
-						break;
-					case containOptionAbbreviations[kContainOptionEndWith]:
-						tExpression = `patternMatches(${tTargetAttr}, "${tExpression}$")>0`;
-						break;
-				}
+				const tWhere = searchDetails.where;
+				const tCaret = tWhere === kSearchWhereStartWith ? '^' : '';
+				const tDollar = tWhere === kSearchWhereEndWith ? '$' : '';
+				const tExpression = kWords.map(word => `${tCaret}\\\\\\\\b${word}\\\\\\\\b${tDollar}`).join("|");
+				return getContainFormula(tWhere, `${tTargetAttr}, "${tExpression}"`);
 			} else {
-				tExpression = `wordListMatches(${tTargetAttr},"${kListName}","${kListAttributeName}")>0`
+				const kListAttributeName = searchDetails.wordList.firstAttributeName;
+				return `wordListMatches(${tTargetAttr},"${kListName}","${kListAttributeName}")>0`;
 			}
-			return tExpression;
 		}
 
 		let tFormula = '';
 		switch ((iNewFeature.info.details as SearchDetails).what) {
-			case 'any number':
+			case kWhatOptionNumber:
 				tFormula = anyNumberFormula()
 				break;
-			case 'any item from a list':
+			case kWhatOptionList:
 				tFormula = anyListFormula()
 				break;
-			case 'text':
+			case kWhatOptionText:
 				tFormula = freeFormFormula()
 				break;
-			case 'punctuation':
+			case kWhatOptionPunctuation:
 				tFormula = punctuationFormula()
 				break;
-			case 'part of speech':
-			// tFormula = posFormula()
 		}
-		if (tFormula !== '')
-			iNewFeature.formula = tFormula
+		if (tFormula !== '') iNewFeature.formula = tFormula;
+		iNewFeature.targetCaseFormula = getTargetCaseFormula((iNewFeature.info.details as SearchDetails).where);
 		const targetDatasetName = this.targetDatasetInfo.name;
 		if (!iUpdate) {
 			const tAttributeResponse = await codapInterface.sendRequest({

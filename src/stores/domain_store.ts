@@ -13,7 +13,7 @@ import {
 	NotifyDataContextRequest, UpdateCaseRequest, UpdateCaseValue
 } from "../types/codap-api-types";
 import { featureStore, IFeatureStoreJSON } from "./feature_store";
-import { Feature, kPosNegConstants } from "./store_types_and_constants";
+import { defaultTargetCaseFormula, Feature, kFeatureKindNgram, kPosNegConstants } from "./store_types_and_constants";
 import { ITargetStoreJSON, otherClassColumn, targetStore } from "./target_store";
 import { ITestingStore, testingStore } from "./testing_store";
 import { ITextStoreJSON, textStore } from "./text_store";
@@ -137,7 +137,7 @@ export class DomainStore {
 				features: Feature[]
 			}
 		}
-		const tNonNgramFeatures = featureStore.features.filter(iFeature => iFeature.info.kind !== 'ngram'),
+		const tNonNgramFeatures = featureStore.features.filter(iFeature => iFeature.info.kind !== kFeatureKindNgram),
 			caseUpdateRequests: Record<string, UpdateRequest> = {},
 			tTargetDatasetName = targetStore.targetDatasetInfo.name,
 			tTargetCollectionName = targetStore.targetCollectionName;
@@ -179,7 +179,9 @@ export class DomainStore {
 			 * 			- 	we add the feature's case ID to the array of feature IDs for that case
 			 */
 			const countFeaturePromises = tNonNgramFeatures.map(async (iFeature) => {
-				const tTargetCases = await targetStore.updateTargetCases(`\`${iFeature.name}\`=true`);
+				const name = `\`${iFeature.name}\``;
+				const targetCaseFormula = iFeature.targetCaseFormula ?? defaultTargetCaseFormula;
+				const tTargetCases = await targetStore.updateTargetCases(targetCaseFormula(name));
 				tTargetCases.forEach(iCase => {
 					if (iCase.values[iFeature.name]) {
 						if (iCase.values[targetStore.targetClassAttributeName] === targetStore.getTargetClassName(tChosenClassKey)) {
@@ -310,7 +312,7 @@ export class DomainStore {
 		if (featureStore.tokenMapAlreadyHasUnigrams()) return;
 
 		await targetStore.updateTargetCases();
-		const tNgramFeatures = featureStore.features.filter(iFeature => iFeature.info.kind === 'ngram');
+		const tNgramFeatures = featureStore.features.filter(iFeature => iFeature.info.kind === kFeatureKindNgram);
 		await this.guaranteeFeaturesDataset();
 		for (const iNtgramFeature of tNgramFeatures) {
 			const { collectionName, datasetName } = featureStore.featureDatasetInfo,

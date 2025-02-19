@@ -98,7 +98,6 @@ export class TextFeedbackManager {
 				testingStore.testingDatasetInfo.name !== '' &&
 				testingStore.testingAttributeName !== '' &&
 				!testingStore.currentTestingResults.testBeingConstructed,
-			kMaxStatementsToDisplay = 40,
 			tDatasetName = tUseTestingDataset
 				? testingStore.testingDatasetInfo.name : targetStore.targetDatasetInfo.name,
 			tDatasetTitle = tUseTestingDataset
@@ -218,14 +217,12 @@ export class TextFeedbackManager {
 			resource: `dataContext[${tDatasetName}].selectionList`,
 			values: tUsedCaseIDs
 		});
-		const tQuadruples: PhraseQuadruple[] = [],
-			tEndPhrase = (tUsedCaseIDs.length > kMaxStatementsToDisplay) ? 'Not all statements could be displayed' : '';
-		const tTargetPhrasesToShow = Math.min(tUsedCaseIDs.length, kMaxStatementsToDisplay);
+		const tQuadruples: PhraseQuadruple[] = [];
 		// Here is where we put the contents of the text component together
-		for (let i = 0; i < tTargetPhrasesToShow; i++) {
+		tUsedCaseIDs.forEach(async caseId => {
 			const tGetCaseResult = await codapInterface.sendRequest({
 				action: 'get',
-				resource: `dataContext[${tDatasetName}].collection[${tCollectionName}].caseByID[${tUsedCaseIDs[i]}]`
+				resource: `dataContext[${tDatasetName}].collection[${tCollectionName}].caseByID[${caseId}]`
 			}) as GetCaseByIDResponse,
 				tFeatureIDs: number[] = [];
 			if (tGetCaseResult.success && tGetCaseResult.values) {
@@ -250,9 +247,9 @@ export class TextFeedbackManager {
 					};
 				tQuadruples.push(tQuadruple);
 			}
-		}
+		});
 		await this.retitleTextComponent(`Selected texts in ${tDatasetTitle}`);
-		await this.composeText(tQuadruples, textToObject, tColumnFeatureNames.concat(tConstructedFeatureNames), tEndPhrase);
+		await this.composeText(tQuadruples, textToObject, tColumnFeatureNames.concat(tConstructedFeatureNames));
 	}
 
 	/**
@@ -431,8 +428,7 @@ export class TextFeedbackManager {
 	 * @public
 	 */
 	public async composeText(
-		iPhraseQuadruples: PhraseQuadruple[], iHighlightFunc: HighlightFunction, iSpecialFeatures: string[],
-		iEndPhrase?: string
+		iPhraseQuadruples: PhraseQuadruple[], iHighlightFunc: HighlightFunction, iSpecialFeatures: string[]
 	) {
 		const kHeadingsManager = this.getHeadingsManager();
 		const kProps =
@@ -519,16 +515,6 @@ export class TextFeedbackManager {
 				tItems = tItems.concat(tHeadingItems);
 			}
 		});
-		if (iEndPhrase && iEndPhrase !== '') {
-			tItems.push({
-				"type": "paragraph",
-				"children": [
-					{
-						"text": iEndPhrase
-					}
-				]
-			});
-		}
 		if (tItems.length === 0) {
 			textStore.clearText();
 		} else {

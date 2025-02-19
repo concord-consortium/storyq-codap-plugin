@@ -7,9 +7,10 @@
 import {action} from "mobx";
 import codapInterface, {CODAP_Notification} from "../lib/CodapInterface";
 import { featureStore } from "../stores/feature_store";
+import { kFeatureTypeUnigram, kTokenTypeUnigram } from "../stores/store_types_and_constants";
 import { targetStore } from "../stores/target_store";
 
-export default class NotificationManager {
+export class NotificationManager {
 	updatingStores = false
 
 	constructor() {
@@ -57,11 +58,11 @@ export default class NotificationManager {
 		if (tDeletedFeatureNames.length > 0 && tDataContextName === featureStore.featureDatasetInfo.datasetName) {
 			action(() => {
 				tDeletedFeatureNames.forEach((iName: string) => {
-					const tIndex = features.findIndex(iFeature => iFeature.name === iName && iFeature.type !== 'unigram')
-					if (tIndex >= 0)
-						featureStore.deleteFeature(features[tIndex])
-				})
-			})()
+					const tIndex =
+						features.findIndex(iFeature => iFeature.name === iName && iFeature.type !== kFeatureTypeUnigram);
+					if (tIndex >= 0) featureStore.deleteFeature(features[tIndex]);
+				});
+			})();
 		}
 	}
 
@@ -78,17 +79,17 @@ export default class NotificationManager {
 						const tChosen = iCase.values.chosen === 'true',
 							tType = iCase.values.type,
 							tName = String(iCase.values.name),
-							tFoundFeature = tType !== 'unigram' && features.find(iFeature => iFeature.name === tName)
+							tFoundFeature = tType !== kTokenTypeUnigram && features.find(iFeature => iFeature.name === tName)
 						if (tFoundFeature) {
 							tFoundFeature.chosen = tChosen
-						} else if (tType === 'unigram') {
+						} else if (tType === kTokenTypeUnigram) {
 							const tToken = featureStore.tokenMap[tName]
 							if (tToken && !tChosen) {
 								delete featureStore.tokenMap[tName]
 							} else if (!tToken && tChosen) {
 								featureStore.tokenMap[tName] = {
 									token: tName,
-									type: 'unigram',
+									type: kTokenTypeUnigram,
 									count: Number(iCase.values['frequency in positive']) + Number(iCase.values['frequency in negative']),
 									index: 0,
 									numPositive: Number(iCase.values['frequency in positive']),

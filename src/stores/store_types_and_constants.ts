@@ -20,6 +20,37 @@ export const kContainOptionContain = "contain";
 export const kContainOptionNotContain = "not contain";
 export const kContainOptionStartWith = "start with";
 export const kContainOptionEndWith = "end with";
+export const kContainOptionCount = "count";
+
+export const whereOptions = [
+	kContainOptionContain, kContainOptionNotContain, kContainOptionStartWith, kContainOptionEndWith, kContainOptionCount
+] as const;
+type WhereOption = typeof whereOptions[number];
+
+export const kWhatOptionText = "text";
+export const kWhatOptionPunctuation = "punctuation";
+export const kWhatOptionNumber = "any number";
+export const kWhatOptionList = "any item from a list";
+export const kWhatOptionPartOfSpeech = "part of speech";
+
+export const whatOptions = [
+	kWhatOptionNumber, kWhatOptionList, kWhatOptionText, kWhatOptionPunctuation, kWhatOptionPartOfSpeech, ""
+ ] as const;
+type WhatOption = typeof whatOptions[number];
+export function isWhatOption(value: string): value is WhatOption {
+	return whatOptions.includes(value as WhatOption);
+}
+
+export const kFeatureKindSearch = "search";
+export const kFeatureKindNgram = "ngram";
+export const kFeatureKindCount = "count";
+export const kFeatureKindColumn = "column";
+
+export const featureKinds = [
+	kFeatureKindSearch, kFeatureKindNgram, kFeatureKindCount, kFeatureKindColumn, ""
+ ] as const;
+type FeatureKindOption = typeof featureKinds[number];
+
 interface FeatureItem {
 	disabled?: boolean
 	key?: string
@@ -29,7 +60,7 @@ interface FeatureItem {
 		details: {
 			columnName?: string
 			n?: string
-			where?: string
+			where?: WhereOption
 		}
 	}
 }
@@ -48,10 +79,11 @@ export const featureDescriptors: FeatureDescriptors = {
 		{
 			key: "Extract one feature at a time",
 			items: [
-				{ name: "contain", value: { kind: "search", details: { where: kContainOptionContain } } },
-				{ name: "not contain", value: { kind: "search", details: { where: kContainOptionNotContain } } },
-				{ name: "start with", value: { kind: "search", details: { where: kContainOptionStartWith } } },
-				{ name: "end with", value: { kind: "search", details: { where: kContainOptionEndWith } } }
+				{ name: kContainOptionContain, value: { kind: "search", details: { where: kContainOptionContain } } },
+				{ name: kContainOptionNotContain, value: { kind: "search", details: { where: kContainOptionNotContain } } },
+				{ name: kContainOptionStartWith, value: { kind: "search", details: { where: kContainOptionStartWith } } },
+				{ name: kContainOptionEndWith, value: { kind: "search", details: { where: kContainOptionEndWith } } },
+				{ name: kContainOptionCount, value: { kind: "search", details: { where: kContainOptionCount } } }
 			]
 		},
 		{
@@ -65,35 +97,62 @@ export const featureDescriptors: FeatureDescriptors = {
 			items: []
 		}
 	],
-	containsOptions: [kContainOptionContain, kContainOptionNotContain, kContainOptionStartWith, kContainOptionEndWith],
-	kindOfThingContainedOptions: ['text', 'punctuation', 'any number', 'any item from a list'],
+	containsOptions: [
+		kContainOptionContain, kContainOptionNotContain, kContainOptionStartWith, kContainOptionEndWith,
+		kContainOptionCount
+	],
+	kindOfThingContainedOptions: [
+		kWhatOptionText, kWhatOptionPunctuation, kWhatOptionNumber, kWhatOptionList
+	],
 	caseOptions: ['sensitive', 'insensitive']
 }
 
-export const kKindOfThingOptionList = featureDescriptors.kindOfThingContainedOptions[3]
-export const kKindOfThingOptionText = featureDescriptors.kindOfThingContainedOptions[0]
-export const kKindOfThingOptionPunctuation = featureDescriptors.kindOfThingContainedOptions[1]
+export const kSearchWhereContain = "contain";
+export const kSearchWhereNotContain = "notContain";
+export const kSearchWhereStartWith = "startWith";
+export const kSearchWhereEndWith = "endWith";
+export const kSearchWhereCount = "count";
 
-const whatOptions = ['any number', 'any item from a list', 'text', 'punctuation', 'part of speech', ''];
-type whatOption = typeof whatOptions[number];
-export function isWhatOption(value: string): value is whatOption {
-	return whatOptions.includes(value as whatOption);
-}
+const searchWhereOptions = [
+	kSearchWhereContain, kSearchWhereNotContain, kSearchWhereStartWith, kSearchWhereEndWith, kSearchWhereCount, ""
+] as const;
+export type SearchWhereOption = typeof searchWhereOptions[number];
 
 export interface SearchDetails {
-	where: 'startWith' | 'contain' | 'notContain' | 'endWith' | '',
-	what: whatOption,
+	where: SearchWhereOption,
+	what: WhatOption,
 	caseOption: 'any' | 'upper' | 'lower' | '',
 	freeFormText: string,
 	punctuation: string,
 	wordList: WordListSpec
 }
 
-export const containOptionAbbreviations: Record<string, string> = {
-	[kContainOptionContain]: 'contain',
-	[kContainOptionEndWith]: 'endWith',
-	[kContainOptionNotContain]: 'notContain',
-	[kContainOptionStartWith]: 'startWith',
+type ContainsFormulaType = (args: string) => string;
+const containsFormula = (args: string) => `patternMatches(${args})>0`;
+export const containFormula: Record<SearchWhereOption, ContainsFormulaType | undefined> = {
+	[kSearchWhereContain]: containsFormula,
+	[kSearchWhereNotContain]: (args: string) => `patternMatches(${args})=0`,
+	[kSearchWhereStartWith]: containsFormula,
+	[kSearchWhereEndWith]: containsFormula,
+	[kSearchWhereCount]: (args: string) => `patternMatches(${args})`,
+	"": undefined
+};
+export function getContainFormula(option: SearchWhereOption, args: string): string {
+	return (containFormula[option] ?? containsFormula)(args);
+}
+
+type CaseFormulaType = (args: string) => string;
+export const defaultTargetCaseFormula = (attrName: string) => `${attrName}=true`;
+const targetCaseFormulas: Record<SearchWhereOption, CaseFormulaType | undefined> = {
+	[kSearchWhereContain]: defaultTargetCaseFormula,
+	[kSearchWhereNotContain]: defaultTargetCaseFormula,
+	[kSearchWhereStartWith]: defaultTargetCaseFormula,
+	[kSearchWhereEndWith]: defaultTargetCaseFormula,
+	[kSearchWhereCount]: (attrName: string) => `${attrName}>0`,
+	"": undefined
+};
+export function getTargetCaseFormula(option: SearchWhereOption) {
+	return targetCaseFormulas[option] ?? defaultTargetCaseFormula;
 }
 
 export interface CountDetails {
@@ -108,11 +167,17 @@ export interface ColumnDetails {
 	columnName: string
 }
 
+export const kFeatureTypeUnigram = "unigram";
+export const kFeatureTypeConstructed = "constructed";
+export const kFeatureTypeColumn = "column";
+const featureTypes = [kFeatureTypeUnigram, kFeatureTypeConstructed, kFeatureTypeColumn, ""] as const;
+export type FeatureType = typeof featureTypes[number];
+
 export interface FeatureDetails {
 	details: SearchDetails | CountDetails | NgramDetails | ColumnDetails | null
 	frequencyThreshold?: number
 	ignoreStopWords?: boolean
-	kind: 'search' | 'ngram' | 'count' | 'column' | ''
+	kind: FeatureKindOption
 }
 export interface Feature {
 	attrID: string // ID of the attribute in the target dataset corresponding to this feature
@@ -127,7 +192,8 @@ export interface Feature {
 	name: string
 	numberInNegative: number
 	numberInPositive: number
-	type: string
+	targetCaseFormula?: (attrName: string) => string
+	type: FeatureType
 	usages: number[]
 	weight: number | ''
 }
@@ -204,6 +270,11 @@ export function getEmptyTestingResult() {
 	};
 }
 
+export const kTokenTypeConstructed = "constructed feature";
+export const kTokenTypeUnigram = 'unigram';
+const tokenTypes = [kTokenTypeConstructed, kTokenTypeUnigram] as const;
+export type TokenType = typeof tokenTypes[number];
+
 export interface Token {
 	caseIDs: number[]
 	count: number	// the number of target texts where this token is true (column feature) or found (unigram)
@@ -212,7 +283,7 @@ export interface Token {
 	numNegative: number
 	numPositive: number
 	token: string
-	type: 'constructed feature' | 'unigram'
+	type: TokenType
 	weight: number | null
 }
 

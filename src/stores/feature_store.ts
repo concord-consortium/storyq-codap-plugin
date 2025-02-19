@@ -3,12 +3,15 @@
  * be accessed in more than one file or needs to be saved and restored.
  */
 
-import {makeAutoObservable, toJS} from 'mobx'
+import { makeAutoObservable, toJS } from 'mobx'
 import codapInterface from "../lib/CodapInterface";
-import { GetAttributeListResponse, GetCaseFormulaSearchResponse, GetCollectionListResponse, GetDataContextListResponse } from '../types/codap-api-types';
 import {
-	Feature, getStarterFeature, kKindOfThingOptionText, containOptionAbbreviations, NgramDetails, SearchDetails, TokenMap,
-	WordListSpec
+	GetAttributeListResponse, GetCaseFormulaSearchResponse, GetCollectionListResponse, GetDataContextListResponse
+} from '../types/codap-api-types';
+import {
+	Feature, FeatureType, getStarterFeature, kFeatureKindColumn, kFeatureKindNgram, kFeatureKindSearch,
+	kFeatureTypeConstructed, kFeatureTypeUnigram, kTokenTypeUnigram, kWhatOptionNumber, kWhatOptionText, NgramDetails,
+	SearchDetails, TokenMap, WordListSpec
 } from "./store_types_and_constants";
 import { targetDatasetStore } from './target_dataset_store';
 
@@ -102,27 +105,27 @@ export class FeatureStore {
 		const tFeature = this.featureUnderConstruction,
 			tDetails = this.featureUnderConstruction.info.details as SearchDetails,
 			tKindOK = tFeature.info.kind !== '',
-			tDoneNgram = tKindOK && tFeature.info.kind === 'ngram',
-			tDoneSearch = tKindOK && tFeature.info.kind === 'search' &&
-				[tDetails.where, tDetails.what].every(iString => iString !== '') &&
-				(tDetails.what !== kKindOfThingOptionText || tDetails.freeFormText !== ''),
-			tDoneColumn = tKindOK && tFeature.info.kind === 'column';
+			tDoneNgram = tKindOK && tFeature.info.kind === kFeatureKindNgram,
+			tDoneSearch = tKindOK && tFeature.info.kind === kFeatureKindSearch &&
+				tDetails.where !== '' && tDetails.what !== '' &&
+				(tDetails.what !== kWhatOptionText || tDetails.freeFormText !== ''),
+			tDoneColumn = tKindOK && tFeature.info.kind === kFeatureKindColumn;
 		return tDoneNgram || tDoneSearch || tDoneColumn;
 	}
 
 	constructNameFor(iFeature: Feature) {
-		if (iFeature.info.kind === 'search') {
+		if (iFeature.info.kind === kFeatureKindSearch) {
 			const tDetails = iFeature.info.details as SearchDetails,
-				tFirstPart = containOptionAbbreviations[tDetails.where],
+				tFirstPart = tDetails.where,
 				tSecondPart = tDetails.freeFormText !== '' ? `"${tDetails.freeFormText.trim()}"` :
 					tDetails.punctuation !== '' ? tDetails.punctuation :
 					tDetails.wordList && tDetails.wordList.datasetName !== '' ? tDetails.wordList.datasetName :
-					tDetails.what === 'any number' ? 'anyNumber' : '';
+					tDetails.what === kWhatOptionNumber ? 'anyNumber' : '';
 			return `${tFirstPart}: ${tSecondPart}`;
-		} else if (iFeature.info.kind === 'ngram') {
+		} else if (iFeature.info.kind === kFeatureKindNgram) {
 			const ignoringPart = iFeature.info.ignoreStopWords ? 'ignoring stopwords' : '';
 			return `single words with frequency ≥ ${iFeature.info.frequencyThreshold}${ignoringPart}`;
-		} else if (iFeature.info.kind === 'column') {
+		} else if (iFeature.info.kind === kFeatureKindColumn) {
 			return iFeature.name;	// already has column name stashed here
 		} else {
 			return '';
@@ -130,14 +133,14 @@ export class FeatureStore {
 	}
 
 	getDescriptionFor(iFeature: Feature) {
-		if (iFeature.info.kind === 'search') {
+		if (iFeature.info.kind === kFeatureKindSearch) {
 			const tDetails = iFeature.info.details as SearchDetails,
 				tFirstPart = `${tDetails.where} ${tDetails.what}`,
 				tSecondPart = tDetails.freeFormText !== '' ? `"${tDetails.freeFormText}"` : '',
 				tThirdPart = tDetails.wordList && tDetails.wordList.datasetName !== '' ?
 					` of ${tDetails.wordList.datasetName}` : '';
 			return `${tFirstPart} ${tSecondPart}${tThirdPart}`
-		} else if (iFeature.info.kind === 'ngram') {
+		} else if (iFeature.info.kind === kFeatureKindNgram) {
 			return `${(iFeature.info.details as NgramDetails).n}gram with frequency threshold of ${iFeature.info.frequencyThreshold},
 			${iFeature.info.ignoreStopWords ? '' : ' not'} ignoring stop words`;
 		} else {
@@ -177,36 +180,39 @@ export class FeatureStore {
 	}
 
 	getConstructedFeatureNames() {
-		return this.features.filter(iFeature => iFeature.info.kind !== 'ngram').map(iFeature => iFeature.name);
+		return this.features.filter(iFeature => iFeature.info.kind !== kFeatureKindNgram).map(iFeature => iFeature.name);
 	}
 
 	getShouldIgnoreStopwords() {
-		const tNtigramFeature = this.features.find(iFeature => iFeature.info.kind === 'ngram');
+		const tNtigramFeature = this.features.find(iFeature => iFeature.info.kind === kFeatureKindNgram);
 		return tNtigramFeature ? tNtigramFeature.info.ignoreStopWords : true;
 	}
 
 	hasNgram() {
-		return Boolean(this.features.find(iFeature => iFeature.info.kind === 'ngram'));
+		return Boolean(this.features.find(iFeature => iFeature.info.kind === kFeatureKindNgram));
 	}
 
 	addFeatureUnderConstruction(tFeature: Feature) {
-		const typeMap: Record<string, string> = { ngram: "unigram", column: "column" };
+		const typeMap: Record<string, FeatureType> = {
+			[kFeatureKindNgram]: kFeatureTypeUnigram,
+			[kFeatureKindColumn]: kFeatureKindColumn
+		};
 		tFeature.inProgress = false;
 		tFeature.chosen = true;
-		tFeature.type = typeMap[tFeature.info.kind] ?? "constructed";
+		tFeature.type = typeMap[tFeature.info.kind] ?? kFeatureTypeConstructed;
 		tFeature.description = this.getDescriptionFor(tFeature);
 		this.features.push(tFeature);
 		this.startConstructingFeature();
 	}
 
 	tokenMapAlreadyHasUnigrams() {
-		return this.tokenMap && Object.values(this.tokenMap).some(iToken => iToken.type === 'unigram');
+		return this.tokenMap && Object.values(this.tokenMap).some(iToken => iToken.type === kTokenTypeUnigram);
 	}
 
 	deleteUnigramTokens() {
 		if (this.tokenMap) {
 			for (const [key, token] of Object.entries(this.tokenMap)) {
-				if (token.type === 'unigram')
+				if (token.type === kTokenTypeUnigram)
 					delete this.tokenMap[key];
 			}
 		}
@@ -217,7 +223,7 @@ export class FeatureStore {
 		if (tFoundIndex >= 0) {
 			this.features.splice(tFoundIndex, 1);
 		}
-		if (iFeature.type !== 'unigram') {
+		if (iFeature.type !== kFeatureTypeUnigram) {
 			const { targetDatasetInfo } = targetDatasetStore;
 			await codapInterface.sendRequest({
 				action: 'delete',
@@ -235,7 +241,7 @@ export class FeatureStore {
 				});
 			}
 		}
-		if (iFeature.type === 'unigram') {
+		if (iFeature.type === kFeatureTypeUnigram) {
 			this.deleteUnigramTokens();
 			// Delete all the items in the Features dataset that have type equal to 'unigram'
 			await codapInterface.sendRequest({
@@ -254,7 +260,7 @@ export class FeatureStore {
 			// For every case in Features dataset set the 'chosen' attribute to given value
 			const tCasesRequestResult = await codapInterface.sendRequest({
 				action: 'get',
-				resource: `${resourcePrefix}.caseFormulaSearch[type='unigram']`
+				resource: `${resourcePrefix}.caseFormulaSearch[type='${kFeatureTypeUnigram}']`
 			}) as GetCaseFormulaSearchResponse;
 			if (tCasesRequestResult.success && tCasesRequestResult.values) {
 				const tUpdateRequests: { id: number, values: { chosen: boolean } }[] = tCasesRequestResult.values.map(
@@ -269,7 +275,7 @@ export class FeatureStore {
 		}
 
 		iFeature.chosen = !iFeature.chosen;
-		if (iFeature.type === 'unigram') {
+		if (iFeature.type === kFeatureTypeUnigram) {
 			await syncUnigramsInFeaturesDataset(iFeature.chosen);
 		} else {
 			await codapInterface.sendRequest({

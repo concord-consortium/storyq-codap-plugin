@@ -8,6 +8,7 @@ import React from "react";
 import { SQ } from "../lists/lists";
 import { domainStore } from "../stores/domain_store";
 import { featureStore } from "../stores/feature_store";
+import { kFeatureKindNgram } from "../stores/store_types_and_constants";
 import { targetStore } from "../stores/target_store";
 import { FeatureConstructor } from "./feature_constructor";
 import { FeatureList } from "./feature_list";
@@ -43,7 +44,7 @@ const DoneButton = observer(function DoneButton() {
 	// TODO Move this function into domainStore
 	const handleClick = action(async () => {
 		if( featureUnderConstruction.inProgress) {
-			if(featureUnderConstruction.info.kind === 'ngram' && featureStore.hasNgram()) {
+			if(featureUnderConstruction.info.kind === kFeatureKindNgram && featureStore.hasNgram()) {
 				window.alert('Sorry, you already have this feature.')
 			}
 			else {
