@@ -1,4 +1,5 @@
 import React from "react";
+import { clsx } from "clsx";
 import { ITextSection, ITextSectionTitle } from "../../stores/text_store";
 
 import "./text-section.scss";
@@ -37,7 +38,9 @@ export function TextSection({ height, textSection }: ITextSectionProps) {
           return (
             <div className="phrase-row">
               <div className="phrase-index">{indexString}</div>
-              <div className="phrase">{text.phrase}</div>
+              <div className="phrase">
+                {text.textParts.map(part =><span className={clsx(part.classNames)}>{part.text}</span>)}
+              </div>
             </div>
           );
         })}

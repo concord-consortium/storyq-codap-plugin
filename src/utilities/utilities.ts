@@ -58,6 +58,49 @@ export function textToObject(iText: string, iSelectedWords: (string | number)[],
 	return tResultArray;
 }
 
+interface TextParts {
+	text: string;
+	classNames?: string[];
+}
+export function highlightFeatures(text: string, selectedFeatures: (string | number)[]) {
+	let segment = '';
+	const textParts: TextParts[] = [];
+
+	// NOTE: this code isn't perfect and doesn't match phrases or match lists like personal pronoun lists
+	const words = wordTokenizer(text, false, false);
+	const targetWords = selectedFeatures.map(selectedWord => {
+		// Strip out the word from strings like 'contain: "word"' and 'count: "word"'
+		const _containedWord = typeof selectedWord === "string" && selectedWord.match(/contain: "([^"]+)"/);
+		const _countWord = typeof selectedWord === "string" && selectedWord.match(/count: "([^"]+)"/);
+		const containedWord = _containedWord ? _containedWord[1]
+			: _countWord ? _countWord[1]
+			: selectedWord;
+		return typeof containedWord === "string" ? containedWord.toLowerCase() : containedWord;
+	});
+	words.forEach(word => {
+		let lowerWord = word.toLowerCase();
+
+		if (targetWords.indexOf(lowerWord) >= 0) {
+			if (segment !== '') {
+				textParts.push({ text: segment });
+				segment = '';
+			}
+			textParts.push({
+				text: word, classNames: ["highlighted"]
+			});
+			textParts.push({
+				text: ' '
+			})
+		} else {
+			segment += word + ' ';
+		}
+	});
+
+	if (segment !== '') textParts.push({ text: segment });
+
+	return textParts;
+}
+
 /**
  *
  * @param {string} iPhrase - the string to be converted to an RTE object with highlighted words

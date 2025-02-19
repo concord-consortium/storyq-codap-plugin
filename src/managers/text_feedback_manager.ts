@@ -10,11 +10,11 @@ import codapInterface, { CODAP_Notification } from "../lib/CodapInterface";
 import { featureStore } from "../stores/feature_store";
 import { targetStore } from "../stores/target_store";
 import { testingStore } from "../stores/testing_store";
-import { textStore } from "../stores/text_store";
+import { ITextSectionText, textStore } from "../stores/text_store";
 import { trainingStore } from "../stores/training_store";
 import { uiStore } from "../stores/ui_store";
 import { APIRequest, GetCaseByIDResponse, GetSelectionListResponse } from "../types/codap-api-types";
-import { HighlightFunction, phraseToFeatures, textToObject } from "../utilities/utilities";
+import { highlightFeatures, HighlightFunction, phraseToFeatures, textToObject } from "../utilities/utilities";
 import { ClassLabel, HeadingsManager, PhraseQuadruple } from "./headings_manager";
 
 export function setupTextFeedbackManager() {
@@ -435,7 +435,7 @@ export class TextFeedbackManager {
 		const kProps =
 			['negNeg', 'negPos', 'negBlank', 'posNeg', 'posPos', 'posBlank', 'blankNeg', 'blankPos', 'blankBlank'];
 		const tClassItems: Record<string, Descendant[]> = {};
-		const rawItems: Record<string, PhraseQuadruple[]> = {};
+		const texts: Record<string, ITextSectionText[]> = {};
 		kProps.forEach(iProp => tClassItems[iProp] = []);
 		let tItems: Descendant[] = [];
 
@@ -499,8 +499,11 @@ export class TextFeedbackManager {
 				type: 'list-item',
 				children: tSquare.concat(iHighlightFunc(iQuadruple.phrase, iQuadruple.nonNtigramFeatures, iSpecialFeatures))
 			});
-			if (!rawItems[tGroup]) rawItems[tGroup] = [];
-			rawItems[tGroup].push(iQuadruple);
+			if (!texts[tGroup]) texts[tGroup] = [];
+			texts[tGroup].push({
+				textParts: highlightFeatures(iQuadruple.phrase, iQuadruple.nonNtigramFeatures),
+				index: iQuadruple.index
+			});
 		}
 
 		iPhraseQuadruples.forEach(iTriple => addOnePhrase(iTriple));
@@ -512,7 +515,7 @@ export class TextFeedbackManager {
 			if (tPhrases.length !== 0) {
 				textStore.textSections.push({
 					title: kHeadingsManager.niceHeadings[iProp],
-					text: rawItems[iProp]
+					text: texts[iProp]
 				});
 				const tHeadingItems = [
 					kHeadingsManager.getHeading(iProp),
