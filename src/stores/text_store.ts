@@ -10,6 +10,7 @@ import codapInterface from "../lib/CodapInterface";
 import { CreateComponentResponse, GetComponentListResponse } from '../types/codap-api-types';
 import { kStoryQPluginName } from './store_types_and_constants';
 import { targetStore } from './target_store';
+import { PhraseQuadruple } from '../managers/headings_manager';
 
 export interface ITextStoreJSON {
 	textComponentTitle: string;
@@ -23,7 +24,7 @@ export interface ITextSectionTitle {
 }
 export interface ITextSection {
 	title?: ITextSectionTitle;
-	text: string[];
+	text: PhraseQuadruple[];
 }
 
 export class TextStore {

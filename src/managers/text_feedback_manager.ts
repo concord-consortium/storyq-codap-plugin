@@ -236,6 +236,7 @@ export class TextFeedbackManager {
 					}
 				}
 
+				console.log(`--- case info`, tGetCaseResult.values);
 				const tChildren = await this.getChildCases(tGetCaseResult.values.case.children, tDatasetName, 'results'),
 					tFoundChild = tChildren.find(iChild => iChild['model name'] === trainingStore.firstActiveModelName),
 					tPredictedClass = tFoundChild ? tFoundChild[tPredictedLabelAttributeName] : '',
@@ -243,7 +244,7 @@ export class TextFeedbackManager {
 					tPhrase = tGetCaseResult.values.case.values[tAttributeName],
 					tQuadruple = {
 						actual: String(tActualClass), predicted: String(tPredictedClass), phrase: String(tPhrase),
-						nonNtigramFeatures: tFeatureIDs.map(anID => tFeaturesMap[anID])
+						nonNtigramFeatures: tFeatureIDs.map(anID => tFeaturesMap[anID]), index: tGetCaseResult.values.caseIndex
 					};
 				tQuadruples.push(tQuadruple);
 			}
@@ -434,7 +435,7 @@ export class TextFeedbackManager {
 		const kProps =
 			['negNeg', 'negPos', 'negBlank', 'posNeg', 'posPos', 'posBlank', 'blankNeg', 'blankPos', 'blankBlank'];
 		const tClassItems: Record<string, Descendant[]> = {};
-		const rawItems: Record<string, string[]> = {};
+		const rawItems: Record<string, PhraseQuadruple[]> = {};
 		kProps.forEach(iProp => tClassItems[iProp] = []);
 		let tItems: Descendant[] = [];
 
@@ -499,7 +500,7 @@ export class TextFeedbackManager {
 				children: tSquare.concat(iHighlightFunc(iQuadruple.phrase, iQuadruple.nonNtigramFeatures, iSpecialFeatures))
 			});
 			if (!rawItems[tGroup]) rawItems[tGroup] = [];
-			rawItems[tGroup].push(iQuadruple.phrase);
+			rawItems[tGroup].push(iQuadruple);
 		}
 
 		iPhraseQuadruples.forEach(iTriple => addOnePhrase(iTriple));

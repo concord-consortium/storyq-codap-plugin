@@ -33,7 +33,12 @@ export function TextSection({ height, textSection }: ITextSectionProps) {
       </p>
       <div className="text-section-text" style={{ height: textHeight }}>
         {textSection.text.map(text => {
-          return <p>{text}</p>;
+          return (
+            <div className="phrase-row">
+              <div className="phrase-index">{text.index}{text.index != null && "."}</div>
+              <div className="phrase">{text.phrase}</div>
+            </div>
+          );
         })}
       </div>
     </div>

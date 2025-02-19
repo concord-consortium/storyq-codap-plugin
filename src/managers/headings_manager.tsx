@@ -6,7 +6,7 @@ import { Descendant } from "@concord-consortium/slate-editor";
 import { ITextSectionTitle } from "../stores/text_store";
 
 export interface PhraseQuadruple {
-	actual: string, predicted: string, phrase: string, nonNtigramFeatures: (string | number)[]
+	actual: string, predicted: string, phrase: string, nonNtigramFeatures: (string | number)[], index?: number
 }
 export interface ClassLabel { negLabel: string, posLabel: string, blankLabel: string}
 export interface HeadingSpec {

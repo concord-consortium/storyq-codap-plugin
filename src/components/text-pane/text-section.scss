@@ -11,8 +11,23 @@
   .text-section-text {
     overflow-y: scroll;
 
-    p {
+    .phrase-row {
+      display: flex;
+      flex-direction: row;
       margin: 0 5px 15px 5px;
+
+      .phrase-index {
+        align-items: flex-start;
+        display: flex;
+        justify-content: flex-end;
+        margin-right: 8px;
+        text-align: right;
+        width: 30px;
+      }
+
+      .phrase {
+        width: 386px;
+      }
     }
   }
 }
