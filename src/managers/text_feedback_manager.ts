@@ -519,6 +519,7 @@ export class TextFeedbackManager {
 			textStore.clearText();
 		} else {
 			// Send it all off to the text object
+			textStore.setTextDisplay(JSON.stringify(tItems));
 			await codapInterface.sendRequest({
 				action: 'update',
 				resource: `component[${textStore.textComponentID}]`,

@@ -22,6 +22,10 @@ table {
     margin-left: 10px;
 }
 
+.storyq-container {
+    display: flex;
+}
+
 .storyq {
     height: 100vh;
     text-align: left;
@@ -29,6 +33,7 @@ table {
     flex-direction: column;
     justify-content: space-between;
     gap: 0;
+    width: 429px;
 }
 
 .sq-welcome {
