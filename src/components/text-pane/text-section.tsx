@@ -18,16 +18,20 @@ function TextSectionTitle({ title }: ITextSectionTitleProps) {
   );
 }
 
+const titleHeight = 22;
+
 interface ITextSectionProps {
+  height: number;
   textSection: ITextSection;
 }
-export function TextSection({ textSection }: ITextSectionProps) {
+export function TextSection({ height, textSection }: ITextSectionProps) {
+  const textHeight = height - titleHeight;
   return (
-    <div className="text-section">
-      <p className="text-section-title">
+    <div className="text-section" style={{ height }}>
+      <p className="text-section-title" style={{ height: titleHeight }}>
         <TextSectionTitle title={textSection.title} />
       </p>
-      <p className="text-section-text">
+      <p className="text-section-text" style={{ height: textHeight }}>
         {textSection.text}
       </p>
     </div>

@@ -5,14 +5,19 @@ import { TextSection } from "./text-section";
 
 import "./text-pane.scss";
 
+const paneHeight = 395;
+const titleHeight = 22;
+const containerHeight = paneHeight - titleHeight;
+
 export const TextPane = observer(function TextPane() {
+  const sectionHeight = containerHeight / textStore.textSections.length;
   return (
-    <div className="text-pane">
-      <p className="text-title">
+    <div className="text-pane" style={{ height: paneHeight }}>
+      <p className="text-title" style={{ height: titleHeight }}>
         {textStore.textComponentTitle}
       </p>
-      <div className="text-container">
-        {textStore.textSections.map(textSection => <TextSection textSection={textSection} />)}
+      <div className="text-container" style={{ height: containerHeight }}>
+        {textStore.textSections.map(textSection => <TextSection height={sectionHeight} textSection={textSection} />)}
       </div>
     </div>
   );
