@@ -502,9 +502,14 @@ export class TextFeedbackManager {
 		iPhraseQuadruples.forEach(iTriple => addOnePhrase(iTriple));
 
 		// The phrases are all in their groups. Create the array of group objects
+		textStore.setTextSections([]);
 		kProps.forEach(iProp => {
 			const tPhrases = tClassItems[iProp];
 			if (tPhrases.length !== 0) {
+				textStore.textSections.push({
+					title: kHeadingsManager.niceHeadings[iProp],
+					text: JSON.stringify(tPhrases)
+				});
 				const tHeadingItems = [
 					kHeadingsManager.getHeading(iProp),
 					{
@@ -519,7 +524,6 @@ export class TextFeedbackManager {
 			textStore.clearText();
 		} else {
 			// Send it all off to the text object
-			textStore.setTextDisplay(JSON.stringify(tItems));
 			await codapInterface.sendRequest({
 				action: 'update',
 				resource: `component[${textStore.textComponentID}]`,

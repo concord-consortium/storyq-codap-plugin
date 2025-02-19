@@ -12,7 +12,7 @@ import { IUiStoreJSON, uiStore } from "../stores/ui_store";
 import { FeaturePanel } from "./feature_panel";
 import { TargetPanel } from "./target_panel";
 import { TestingPanel, kNonePresent } from "./testing_panel";
-import { TextPane } from "./text-pane";
+import { TextPane } from "./text-pane/text-pane";
 import { TrainingPanel } from "./training_panel";
 import { Item } from './ui/item';
 import { TabPanel } from './ui/tab-panel';

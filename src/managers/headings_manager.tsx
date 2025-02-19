@@ -3,6 +3,7 @@
  */
 
 import { Descendant } from "@concord-consortium/slate-editor";
+import { ITextSectionTitle } from "../stores/text_store";
 
 export interface PhraseQuadruple {
 	actual: string, predicted: string, phrase: string, nonNtigramFeatures: (string | number)[]
@@ -20,6 +21,7 @@ export class HeadingsManager {
 		negNeg: { text: "" }, negPos: { text: "" }, negBlank: { text: "" }, blankNeg: { text: "" }, posNeg: { text: "" },
 		posPos: { text: "" }, posBlank: { text: "" }, blankPos: { text: "" }, blankBlank: { text: "" }
 	};
+	public niceHeadings: Record<string, ITextSectionTitle> = {};
 	public colors = { green: '#1aff1a', red: '#4b0092', blue: '#0000ff', orange: '#ff7700' }
 
 	getHeading(headingCode: string) {
@@ -74,6 +76,7 @@ export class HeadingsManager {
 				children
 			}
 		}
+
 		this.classLabels = {
 			negLabel: iNegLabel,
 			posLabel: iPosLabel,
@@ -90,6 +93,16 @@ export class HeadingsManager {
 			blankNeg: fillInHeading(null, iNegLabel, this.colors.orange),
 			blankPos: fillInHeading(null, iPosLabel, this.colors.blue),
 			blankBlank: { text: "" }
+		}
+		this.niceHeadings = {
+			negNeg: { actual: iNegLabel, predicted: iNegLabel, color: this.colors.green },
+			negPos: { actual: iNegLabel, predicted: iPosLabel, color: this.colors.red },
+			negBlank: { actual: iNegLabel, color: this.colors.red },
+			posNeg: { actual: iPosLabel, predicted: iNegLabel, color: this.colors.red },
+			posPos: { actual: iPosLabel, predicted: iPosLabel, color: this.colors.green },
+			posBlank: { actual: iPosLabel, color: this.colors.green },
+			blankNeg: { predicted: iNegLabel, color: this.colors.orange },
+			blankPos: { predicted: iPosLabel, color: this.colors.blue }
 		}
 	}
 }

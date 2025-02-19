@@ -16,10 +16,20 @@ export interface ITextStoreJSON {
 	textComponentID: number;
 }
 
+export interface ITextSectionTitle {
+	actual?: string;
+	predicted?: string;
+	color: string;
+}
+export interface ITextSection {
+	title?: ITextSectionTitle;
+	text: string;
+}
+
 export class TextStore {
 	textComponentTitle: string = '';
 	textComponentID: number = -1;
-	textDisplay = "";
+	textSections: ITextSection[] = [];
 
 	constructor() {
 		makeAutoObservable(this, {}, { autoBind: true });
@@ -43,8 +53,8 @@ export class TextStore {
 		this.textComponentTitle = title;
 	}
 
-	setTextDisplay(text: string) {
-		this.textDisplay = text;
+	setTextSections(sections: ITextSection[]) {
+		this.textSections = sections;
 	}
 
 	/**
@@ -106,7 +116,7 @@ export class TextStore {
 
 	async clearText() {
 		const attributeName = pluralize(targetStore.targetAttributeName)
-		this.setTextDisplay("");
+		this.setTextSections([]);
 		await codapInterface.sendRequest({
 			action: 'update',
 			resource: `component[${this.textComponentID}]`,
