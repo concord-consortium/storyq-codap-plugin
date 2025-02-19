@@ -18,7 +18,7 @@ function TextSectionTitle({ title }: ITextSectionTitleProps) {
   );
 }
 
-const titleHeight = 22;
+const titleHeight = 26;
 
 interface ITextSectionProps {
   height: number;
