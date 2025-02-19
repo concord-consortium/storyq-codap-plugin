@@ -12,8 +12,8 @@ function TextSectionTitle({ title }: ITextSectionTitleProps) {
   const { actual, predicted, color } = title;
   return (
     <p>
-      {actual && <span>True label: <span style={{ color }}>{actual}</span>{predicted && ", "}</span>}
-      {predicted && <span>Predicted label: <span style={{ color }}>{predicted}</span></span>}
+      {actual && <span>True label: <span className="label" style={{ color }}>{actual}</span>{predicted && ", "}</span>}
+      {predicted && <span>Predicted label: <span className="label" style={{ color }}>{predicted}</span></span>}
     </p>
   );
 }

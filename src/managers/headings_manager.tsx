@@ -97,10 +97,10 @@ export class HeadingsManager {
 		this.niceHeadings = {
 			negNeg: { actual: iNegLabel, predicted: iNegLabel, color: this.colors.green },
 			negPos: { actual: iNegLabel, predicted: iPosLabel, color: this.colors.red },
-			negBlank: { actual: iNegLabel, color: this.colors.red },
+			negBlank: { actual: iNegLabel, color: "#5885e1" },
 			posNeg: { actual: iPosLabel, predicted: iNegLabel, color: this.colors.red },
 			posPos: { actual: iPosLabel, predicted: iPosLabel, color: this.colors.green },
-			posBlank: { actual: iPosLabel, color: this.colors.green },
+			posBlank: { actual: iPosLabel, color: "#dd9e5a" },
 			blankNeg: { predicted: iNegLabel, color: this.colors.orange },
 			blankPos: { predicted: iPosLabel, color: this.colors.blue }
 		}
