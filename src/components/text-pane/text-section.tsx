@@ -33,9 +33,10 @@ export function TextSection({ height, textSection }: ITextSectionProps) {
       </p>
       <div className="text-section-text" style={{ height: textHeight }}>
         {textSection.text.map(text => {
+          const indexString = text.index != null ? `${text.index + 1}. ` : "";
           return (
             <div className="phrase-row">
-              <div className="phrase-index">{text.index}{text.index != null && "."}</div>
+              <div className="phrase-index">{indexString}</div>
               <div className="phrase">{text.phrase}</div>
             </div>
           );

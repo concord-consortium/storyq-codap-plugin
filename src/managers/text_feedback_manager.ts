@@ -236,7 +236,6 @@ export class TextFeedbackManager {
 					}
 				}
 
-				console.log(`--- case info`, tGetCaseResult.values);
 				const tChildren = await this.getChildCases(tGetCaseResult.values.case.children, tDatasetName, 'results'),
 					tFoundChild = tChildren.find(iChild => iChild['model name'] === trainingStore.firstActiveModelName),
 					tPredictedClass = tFoundChild ? tFoundChild[tPredictedLabelAttributeName] : '',
@@ -398,7 +397,8 @@ export class TextFeedbackManager {
 					phrase: String(tCaseValues[tAttributeName]),
 					predicted: tPredictedResult,
 					actual: String(tCaseValues[tClassAttributeName]),
-					nonNtigramFeatures: tFeatureIDsForThisText	// Numbers for now. Strings later
+					nonNtigramFeatures: tFeatureIDsForThisText,	// Numbers for now. Strings later
+					index: iResult.values.caseIndex
 				});
 			}
 		});
