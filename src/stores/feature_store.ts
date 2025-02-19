@@ -9,7 +9,7 @@ import {
 	GetAttributeListResponse, GetCaseFormulaSearchResponse, GetCollectionListResponse, GetDataContextListResponse
 } from '../types/codap-api-types';
 import {
-	Feature, featureType, getStarterFeature, kFeatureKindColumn, kFeatureKindNgram, kFeatureKindSearch,
+	Feature, FeatureType, getStarterFeature, kFeatureKindColumn, kFeatureKindNgram, kFeatureKindSearch,
 	kFeatureTypeConstructed, kFeatureTypeUnigram, kTokenTypeUnigram, kWhatOptionNumber, kWhatOptionText, NgramDetails,
 	SearchDetails, TokenMap, WordListSpec
 } from "./store_types_and_constants";
@@ -193,7 +193,7 @@ export class FeatureStore {
 	}
 
 	addFeatureUnderConstruction(tFeature: Feature) {
-		const typeMap: Record<string, featureType> = {
+		const typeMap: Record<string, FeatureType> = {
 			[kFeatureKindNgram]: kFeatureTypeUnigram,
 			[kFeatureKindColumn]: kFeatureKindColumn
 		};
