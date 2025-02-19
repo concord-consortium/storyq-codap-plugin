@@ -39,6 +39,10 @@ export class TextStore {
 		}
 	}
 
+	setTextComponentTitle(title: string) {
+		this.textComponentTitle = title;
+	}
+
 	setTextDisplay(text: string) {
 		this.textDisplay = text;
 	}

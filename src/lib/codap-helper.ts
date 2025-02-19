@@ -84,30 +84,6 @@ export async function guaranteeTableOrCardIsVisibleFor(iDatasetInfo: entityInfo)
 	}
 }
 
-export async function openStory(iTextComponentName: string): Promise<number> {
-	let theMessage = {
-		action: 'create',
-		resource: 'component',
-		values: {
-			type: 'text',
-			name: iTextComponentName,
-			title: iTextComponentName,
-			dimensions: {
-				width: 500,
-				height: 300
-			},
-			position: 'top'
-		}
-	};
-	const theResult: any = await codapInterface.sendRequest(theMessage)
-		.catch(() => {
-			console.log(`Could not open text component`);
-			return 0;
-		});
-	// console.log(`openStoryResult is ${JSON.stringify(theResult)}`);
-	return theResult.values.id;
-}
-
 export function isNotAModel(iValue: any): boolean {
 	return iValue.title.toLowerCase().indexOf('model') < 0;
 }

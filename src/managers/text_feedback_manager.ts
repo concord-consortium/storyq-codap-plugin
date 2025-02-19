@@ -541,6 +541,7 @@ export class TextFeedbackManager {
 	}
 
 	async retitleTextComponent(iTitle: string) {
+		textStore.setTextComponentTitle(iTitle);
 		await codapInterface.sendRequest({
 			action: 'update',
 			resource: `component[${textStore.textComponentID}]`,

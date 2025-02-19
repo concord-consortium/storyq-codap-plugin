@@ -7,9 +7,14 @@ import "./text-pane.scss";
 export const TextPane = observer(function TextPane() {
   return (
     <div className="text-pane">
-      <p>
-        {textStore.textDisplay}
+      <p className="text-title">
+        {textStore.textComponentTitle}
       </p>
+      <div className="text-container">
+        <p>
+          {textStore.textDisplay}
+        </p>
+      </div>
     </div>
   );
 });
