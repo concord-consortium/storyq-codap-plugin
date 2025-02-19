@@ -434,6 +434,7 @@ export class TextFeedbackManager {
 		const kProps =
 			['negNeg', 'negPos', 'negBlank', 'posNeg', 'posPos', 'posBlank', 'blankNeg', 'blankPos', 'blankBlank'];
 		const tClassItems: Record<string, Descendant[]> = {};
+		const rawItems: Record<string, string[]> = {};
 		kProps.forEach(iProp => tClassItems[iProp] = []);
 		let tItems: Descendant[] = [];
 
@@ -497,6 +498,8 @@ export class TextFeedbackManager {
 				type: 'list-item',
 				children: tSquare.concat(iHighlightFunc(iQuadruple.phrase, iQuadruple.nonNtigramFeatures, iSpecialFeatures))
 			});
+			if (!rawItems[tGroup]) rawItems[tGroup] = [];
+			rawItems[tGroup].push(iQuadruple.phrase);
 		}
 
 		iPhraseQuadruples.forEach(iTriple => addOnePhrase(iTriple));
@@ -508,7 +511,7 @@ export class TextFeedbackManager {
 			if (tPhrases.length !== 0) {
 				textStore.textSections.push({
 					title: kHeadingsManager.niceHeadings[iProp],
-					text: JSON.stringify(tPhrases)
+					text: rawItems[iProp]
 				});
 				const tHeadingItems = [
 					kHeadingsManager.getHeading(iProp),

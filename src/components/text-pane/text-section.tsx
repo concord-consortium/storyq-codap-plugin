@@ -31,9 +31,11 @@ export function TextSection({ height, textSection }: ITextSectionProps) {
       <p className="text-section-title" style={{ height: titleHeight }}>
         <TextSectionTitle title={textSection.title} />
       </p>
-      <p className="text-section-text" style={{ height: textHeight }}>
-        {textSection.text}
-      </p>
+      <div className="text-section-text" style={{ height: textHeight }}>
+        {textSection.text.map(text => {
+          return <p>{text}</p>;
+        })}
+      </div>
     </div>
   );
 }

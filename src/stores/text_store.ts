@@ -23,7 +23,7 @@ export interface ITextSectionTitle {
 }
 export interface ITextSection {
 	title?: ITextSectionTitle;
-	text: string;
+	text: string[];
 }
 
 export class TextStore {
