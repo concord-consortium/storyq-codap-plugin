@@ -1,5 +1,5 @@
 import { Descendant } from "@concord-consortium/slate-editor";
-import { wordTokenizer } from "../lib/one_hot";
+import { allTokenizer } from "../lib/one_hot";
 import { ITextPart } from "../stores/store_types_and_constants";
 
 export type HighlightFunction =
@@ -22,7 +22,7 @@ export function textToObject(iText: string, iSelectedWords: (string | number)[],
 	});
 
 	// NOTE: this code isn't perfect and doesn't match phrases or match lists like personal pronoun lists
-	const words = wordTokenizer(iText, false, false);
+	const words = allTokenizer(iText);
 	words.forEach((iWord) => {
 		let tRawWord = iWord.toLowerCase();
 		const containedWords = iSelectedWords.map(selectedWord => {
@@ -45,12 +45,9 @@ export function textToObject(iText: string, iSelectedWords: (string | number)[],
 			tResultArray.push({
 				text: iWord, bold: true, underlined: true, color: "#000000"
 			});
-			tResultArray.push({
-				text: ' '
-			})
 		}
 		else {
-			segment += iWord + ' ';
+			segment += iWord;
 		}
 	});
 
@@ -64,7 +61,7 @@ export function highlightFeatures(text: string, selectedFeatures: (string | numb
 	const textParts: ITextPart[] = [];
 
 	// NOTE: this code isn't perfect and doesn't match phrases or match lists like personal pronoun lists
-	const words = wordTokenizer(text, false, false);
+	const words = allTokenizer(text);
 	const targetWords = selectedFeatures.map(selectedWord => {
 		// Strip out the word from strings like 'contain: "word"' and 'count: "word"'
 		const _containedWord = typeof selectedWord === "string" && selectedWord.match(/contain: "([^"]+)"/);
@@ -85,11 +82,8 @@ export function highlightFeatures(text: string, selectedFeatures: (string | numb
 			textParts.push({
 				text: word, classNames: ["highlighted"]
 			});
-			textParts.push({
-				text: ' '
-			})
 		} else {
-			segment += word + ' ';
+			segment += word;
 		}
 	});
 

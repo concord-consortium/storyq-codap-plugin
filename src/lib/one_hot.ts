@@ -23,18 +23,34 @@ import { emoticons } from "./emoticons";
 
 export const kMaxTokens = 1000;
 
+const words = `(\\w+['’]{0,1}\\w*)`;
+const emojis = `[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{25A0}-\u{2BFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F900}-\u{1F9FF}\u{1FA70}-\u{1FAFF}]`;
+const whitespace = /\s+/.source;
+const punctuation = `[,!:@#$%^&*()\\-_[\\]{};'".<>/?\`~]|\\d+`;
+const emojiconsOrWords = `${emoticons}|${emojis}|${words}`;
+
+/**
+ * Convert the given string into an array of tokens, maintaining case. Tokens include whitespace so the
+ * text can be recreated by joining the tokens.
+ */
+export function allTokenizer(text: string) {
+	if (text) {
+		const tExpressionPattern = `${emojiconsOrWords}|${whitespace}|${punctuation}`;
+		const tExpression = new RegExp(tExpressionPattern, 'gu');
+		return text.match(tExpression) || [];
+	}
+	return [];
+}
+
 /**
  * Convert the given string into an array of lowercase words.
  */
 export const wordTokenizer = (text: string, ignoreStopWords: boolean, ignorePunctuation: boolean): string[] => {
-	let tokens: string[] = [];
+	const tokens: string[] = [];
 	if (text) {
-		let words = `(\\w+['’]{0,1}\\w*)`;
-		let emojis = `[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{25A0}-\u{2BFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F900}-\u{1F9FF}\u{1FA70}-\u{1FAFF}]`;
-		let emojiconsOrWords = `${emoticons}|${emojis}|${words}`;
-		let tExpressionPattern = ignorePunctuation ? emojiconsOrWords : `${emojiconsOrWords}|[,!:@#$%^&*()\\-_[\\]{};'".<>/?\`~]|\\d+`;
-		let tExpression = new RegExp(tExpressionPattern, 'gu');
-		let tWords: RegExpMatchArray | [] = text.match(tExpression) || [];
+		const tExpressionPattern = ignorePunctuation ? emojiconsOrWords : `${emojiconsOrWords}|${punctuation}`;
+		const tExpression = new RegExp(tExpressionPattern, 'gu');
+		const tWords: RegExpMatchArray | [] = text.toLowerCase().match(tExpression) || [];
 		tWords.forEach((aWord) => {
 			if (!ignoreStopWords || !stopWords[aWord])
 				tokens.push(aWord);
