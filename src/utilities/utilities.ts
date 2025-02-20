@@ -1,5 +1,6 @@
 import { Descendant } from "@concord-consortium/slate-editor";
 import { wordTokenizer } from "../lib/one_hot";
+import { ITextPart } from "../stores/store_types_and_constants";
 
 export type HighlightFunction =
 	(iText: string, iSelectedWords: (string | number)[], iSpecialFeatures: string[]) => Descendant[];
@@ -58,13 +59,9 @@ export function textToObject(iText: string, iSelectedWords: (string | number)[],
 	return tResultArray;
 }
 
-interface TextParts {
-	text: string;
-	classNames?: string[];
-}
 export function highlightFeatures(text: string, selectedFeatures: (string | number)[]) {
 	let segment = '';
-	const textParts: TextParts[] = [];
+	const textParts: ITextPart[] = [];
 
 	// NOTE: this code isn't perfect and doesn't match phrases or match lists like personal pronoun lists
 	const words = wordTokenizer(text, false, false);

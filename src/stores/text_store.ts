@@ -8,30 +8,12 @@ import pluralize from "pluralize";
 import { getComponentByTypeAndTitleOrName } from "../lib/codap-helper";
 import codapInterface from "../lib/CodapInterface";
 import { CreateComponentResponse, GetComponentListResponse } from '../types/codap-api-types';
-import { kStoryQPluginName } from './store_types_and_constants';
+import { ITextSection, kStoryQPluginName } from './store_types_and_constants';
 import { targetStore } from './target_store';
 
 export interface ITextStoreJSON {
 	textComponentTitle: string;
 	textComponentID: number;
-}
-
-export interface ITextSectionTitle {
-	actual?: string;
-	color: string;
-	predicted?: string;
-}
-export interface ITextPart {
-	classNames?: string[];
-	text: string;
-}
-export interface ITextSectionText {
-	index?: number;
-	textParts: ITextPart[];
-}
-export interface ITextSection {
-	title?: ITextSectionTitle;
-	text: ITextSectionText[];
 }
 
 export class TextStore {

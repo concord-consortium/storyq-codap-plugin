@@ -299,3 +299,21 @@ export interface WordListSpec {
 	datasetName: string
 	firstAttributeName: string
 }
+
+export interface ITextSectionTitle {
+	actual?: string;
+	color: string;
+	predicted?: string;
+}
+export interface ITextPart {
+	classNames?: string[];
+	text: string;
+}
+export interface ITextSectionText {
+	index?: number;
+	textParts: ITextPart[];
+}
+export interface ITextSection {
+	title?: ITextSectionTitle;
+	text: ITextSectionText[];
+}

@@ -3,7 +3,7 @@
  */
 
 import { Descendant } from "@concord-consortium/slate-editor";
-import { ITextSectionTitle } from "../stores/text_store";
+import { ITextSectionTitle } from "../stores/store_types_and_constants";
 
 export interface PhraseQuadruple {
 	actual: string, predicted: string, phrase: string, nonNtigramFeatures: (string | number)[], index?: number

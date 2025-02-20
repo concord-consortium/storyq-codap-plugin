@@ -1,6 +1,6 @@
 import React from "react";
 import { clsx } from "clsx";
-import { ITextSection, ITextSectionTitle } from "../../stores/text_store";
+import { ITextSection, ITextSectionTitle } from "../../stores/store_types_and_constants";
 
 import "./text-section.scss";
 
