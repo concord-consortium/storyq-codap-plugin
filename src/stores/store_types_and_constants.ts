@@ -286,6 +286,20 @@ export interface Token {
 	type: TokenType
 	weight: number | null
 }
+export function getNewToken(initialValues: Partial<Token>) {
+	return {
+		caseIDs: [],
+		count: 1,
+		featureCaseID: null,
+		index: -1,
+		numNegative: 0,
+		numPositive: 0,
+		token: '',
+		type: kTokenTypeConstructed as TokenType,
+		weight: null,
+		...initialValues
+	};
+}
 
 export type TokenMap = Record<string, Token>;
 
