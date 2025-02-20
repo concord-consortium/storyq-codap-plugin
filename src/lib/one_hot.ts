@@ -83,14 +83,6 @@ export interface Document {
  * encoding of those documents consisting of an array representing the presence or absence
  * of each of the "tokens" in the document set.
  * For StoryQ, with each token we keep track of the document caseIDs in which it occurs.
- * @result
- * {
- *   oneHotResult:{ oneHotExample:number[], class:string }[],
- *   tokenMap: [key:string]: { token:string, type:string, count:number, index:number,
- *			caseIDs:number[], weight:number|null, featureCaseID:number|null },
- *	 tokenArray: { token:string, count:number, index:number,
- *	 		caseIDs:number[], weight:number|null, featureCaseID:number}[]
- * }
  */
 export function oneHot(config: OneHotConfig, documents: Document[]) {
 	const tTokenMapIsPredefined = !!config.tokenMap;
@@ -193,9 +185,5 @@ export function oneHot(config: OneHotConfig, documents: Document[]) {
 		return { oneHotExample: tVector, class: aDoc.class };
 	});
 
-	return {
-		oneHotResult: oneHotArray,
-		tokenMap,
-		tokenArray
-	};
+	return { oneHotResult: oneHotArray, tokenMap, tokenArray };
 }
