@@ -34,7 +34,7 @@ export const wordTokenizer = (text: string, ignoreStopWords: boolean, ignorePunc
 		let emojiconsOrWords = `${emoticons}|${emojis}|${words}`;
 		let tExpressionPattern = ignorePunctuation ? emojiconsOrWords : `${emojiconsOrWords}|[,!:@#$%^&*()\\-_[\\]{};'".<>/?\`~]|\\d+`;
 		let tExpression = new RegExp(tExpressionPattern, 'gu');
-		let tWords: RegExpMatchArray | [] = text.toLowerCase().match(tExpression) || [];
+		let tWords: RegExpMatchArray | [] = text.match(tExpression) || [];
 		tWords.forEach((aWord) => {
 			if (!ignoreStopWords || !stopWords[aWord])
 				tokens.push(aWord);
