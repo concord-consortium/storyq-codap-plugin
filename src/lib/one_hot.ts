@@ -17,8 +17,10 @@
 //  limitations under the License.
 // ==========================================================================
 
-import {stopWords} from "./stop_words";
-import {Feature, getNewToken, kTokenTypeConstructed, kTokenTypeUnigram, Token, TokenMap} from "../stores/store_types_and_constants";
+import { stopWords } from "./stop_words";
+import {
+	Feature, getNewToken, kTokenTypeConstructed, kTokenTypeUnigram, TokenMap
+} from "../stores/store_types_and_constants";
 import { emoticons } from "./emoticons";
 
 export const kMaxTokens = 1000;
