@@ -17,7 +17,13 @@ export const TextPane = observer(function TextPane() {
         {textStore.textComponentTitle}
       </p>
       <div className="text-container" style={{ height: containerHeight }}>
-        {textStore.textSections.map(textSection => <TextSection height={sectionHeight} textSection={textSection} />)}
+        {textStore.textSections.map(textSection => (
+          <TextSection
+            height={sectionHeight}
+            key={`section-${textSection.title?.actual}-${textSection.title?.predicted}`}
+            textSection={textSection}
+          />
+        ))}
       </div>
     </div>
   );

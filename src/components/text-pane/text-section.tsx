@@ -12,10 +12,10 @@ function TextSectionTitle({ title }: ITextSectionTitleProps) {
 
   const { actual, predicted, color } = title;
   return (
-    <p>
+    <>
       {actual && <span>True label: <span className="label" style={{ color }}>{actual}</span>{predicted && ", "}</span>}
       {predicted && <span>Predicted label: <span className="label" style={{ color }}>{predicted}</span></span>}
-    </p>
+    </>
   );
 }
 
@@ -36,10 +36,14 @@ export function TextSection({ height, textSection }: ITextSectionProps) {
         {textSection.text.map(text => {
           const indexString = text.index != null ? `${text.index + 1}. ` : "";
           return (
-            <div className="phrase-row">
+            <div className="phrase-row" key={indexString}>
               <div className="phrase-index">{indexString}</div>
               <div className="phrase">
-                {text.textParts.map(part =><span className={clsx(part.classNames)}>{part.text}</span>)}
+                {text.textParts.map((part, index) => (
+                  <span className={clsx(part.classNames)} key={`${index}-${part.text}`}>
+                    {part.text}
+                  </span>
+                ))}
               </div>
             </div>
           );
