@@ -124,12 +124,6 @@ export async function highlightFeatures(text: string, selectedFeatures: (string 
 
 		let foundMatch = false;
 
-		// Look for matches with single words.
-		if (targetWords.includes(word.toLowerCase())) {
-			foundMatch = true;
-			highlightWord(word);
-		}
-
 		// Look for matches with phrases.
 		targetPhrases.forEach(phrase => {
 			if (foundMatch) return;
@@ -152,6 +146,12 @@ export async function highlightFeatures(text: string, selectedFeatures: (string 
 				}
 			});
 		});
+
+		// Look for matches with single words.
+		if (!foundMatch && targetWords.includes(word.toLowerCase())) {
+			foundMatch = true;
+			highlightWord(word);
+		}
 
 		// If it's not a match, add it to the current segment with basic text.
 		if (!foundMatch) {
