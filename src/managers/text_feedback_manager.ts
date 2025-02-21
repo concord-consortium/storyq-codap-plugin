@@ -441,7 +441,7 @@ export class TextFeedbackManager {
 		let tItems: Descendant[] = [];
 
 
-		function addOnePhrase(iQuadruple: PhraseQuadruple) {
+		async function addOnePhrase(iQuadruple: PhraseQuadruple) {
 			const kLabels: ClassLabel = kHeadingsManager.classLabels;
 
 			let tGroup: string,
@@ -502,12 +502,14 @@ export class TextFeedbackManager {
 			});
 			if (!texts[tGroup]) texts[tGroup] = [];
 			texts[tGroup].push({
-				textParts: highlightFeatures(iQuadruple.phrase, iQuadruple.nonNtigramFeatures),
+				textParts: await highlightFeatures(iQuadruple.phrase, iQuadruple.nonNtigramFeatures),
 				index: iQuadruple.index
 			});
 		}
 
-		iPhraseQuadruples.forEach(iTriple => addOnePhrase(iTriple));
+		for (const iTriple of iPhraseQuadruples) {
+			await addOnePhrase(iTriple);
+		}
 
 		// The phrases are all in their groups. Create the array of group objects
 		textStore.setTextSections([]);

@@ -228,11 +228,6 @@ export function getStarterFeature(): Feature {
 	};
 }
 
-export interface WordListSpec {
-	datasetName: string,
-	firstAttributeName: string
-}
-
 export interface TrainingResult {
 	accuracy: number
 	constantWeightTerm: number

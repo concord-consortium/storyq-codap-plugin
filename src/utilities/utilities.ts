@@ -1,6 +1,8 @@
 import { Descendant } from "@concord-consortium/slate-editor";
 import { allTokenizer } from "../lib/one_hot";
+import { SQ } from "../lists/lists";
 import { ITextPart } from "../stores/store_types_and_constants";
+import { featureStore } from "../stores/feature_store";
 
 export type HighlightFunction =
 	(iText: string, iSelectedWords: (string | number)[], iSpecialFeatures: string[]) => Descendant[];
@@ -58,7 +60,7 @@ export function textToObject(iText: string, iSelectedWords: (string | number)[],
 
 // Highlighting for the modern internal text pane
 // NOTE: this code isn't perfect and doesn't match lists like personal pronoun lists
-export function highlightFeatures(text: string, selectedFeatures: (string | number)[]) {
+export async function highlightFeatures(text: string, selectedFeatures: (string | number)[]) {
 	let segment = '';
 	const textParts: ITextPart[] = [];
 	const addSegment = () => {
@@ -80,24 +82,36 @@ export function highlightFeatures(text: string, selectedFeatures: (string | numb
 	// Process features
 	const targetWords: string[] = [];
 	const targetPhrases: string[][] = [];
-	selectedFeatures.forEach(selectedWord => {
-		// Strip out the word from strings like 'contain: "word"' and 'count: "word"'
-		const _containedWord = typeof selectedWord === "string" && selectedWord.match(/contain: "([^"]+)"/);
-		const _countWord = typeof selectedWord === "string" && selectedWord.match(/count: "([^"]+)"/);
-		const containedWord = _containedWord ? _containedWord[1]
-			: _countWord ? _countWord[1]
-			: selectedWord;
-		if (typeof containedWord === "string") {
-			const containedPhrase = allTokenizer(containedWord);
-			// If a word contains multiple parts, treat it as a phrase.
-			if (containedPhrase.length > 1) {
-				targetPhrases.push(containedPhrase.map(word => word.toLowerCase()));
-			// Otherwise treat it as a single word.
-			} else {
-				targetWords.push(containedWord.toLowerCase());
-			}
+	for (const selectedWord of selectedFeatures) {
+		if (typeof selectedWord === "string") {
+			// Strip out the word from strings like 'contain: "word"' and 'count: "word"'
+			const _containWord = selectedWord.match(/contain: "([^"]+)"/);
+			const _countWord = selectedWord.match(/count: "([^"]+)"/);
+			const singleWord = _containWord ? _containWord[1]
+				: _countWord ? _countWord[1]
+				: selectedWord;
+
+			// Check to see if the feature references a list
+			const containList = !_containWord && selectedWord.match(/^contain:\s+([^"\s].*[^"\s]|\S)$/);
+			const countList = !_countWord && selectedWord.match(/^count:\s+([^"\s].*[^"\s]|\S)$/);
+			const list =
+				(containList && (SQ.lists[containList[1]] ?? await featureStore.getWordListFromDatasetName(containList[1])))
+				|| (countList && (SQ.lists[countList[1]] ?? await featureStore.getWordListFromDatasetName(countList[1])));
+			const finalList = list || [singleWord];
+
+			// Add all relevant words and phrases
+			finalList.forEach((containedWord: string) => {
+				const containedPhrase = allTokenizer(containedWord);
+				// If a word contains multiple parts, treat it as a phrase.
+				if (containedPhrase.length > 1) {
+					targetPhrases.push(containedPhrase.map(word => word.toLowerCase()));
+				// Otherwise treat it as a single word.
+				} else {
+					targetWords.push(containedWord.toLowerCase());
+				}
+			});
 		}
-	});
+	}
 
 	// Look through text looking for feature matches
 	let phraseWords = 0;

@@ -164,24 +164,18 @@ export const FeatureComponent = observer(function FeatureComponent({ feature, sh
 
 	function wordListChoice() {
 		if (featureDetails && featureDetails.what === kWhatOptionList) {
-			const tWordListSpecs = featureStore.wordListSpecs,
-				tWordListDatasetNames = tWordListSpecs.map(iDataset => {
-					return iDataset.datasetName;
-				}),
-				tLists = Object.keys(SQ.lists).concat(tWordListDatasetNames)
+			const tWordListDatasetNames = featureStore.wordListSpecs.map(iDataset => iDataset.datasetName);
+			const tLists = Object.keys(SQ.lists).concat(tWordListDatasetNames);
 
 			const handleValueChange = action((option: string) => {
-				const tWordListSpec = tWordListSpecs.find((iSpec) => {
+				const tWordListSpec = featureStore.wordListSpecs.find((iSpec) => {
 					return iSpec.datasetName === option
 				})
-				let tAttributeName = ''
-				if (tWordListSpec) {
-					tAttributeName = tWordListSpec.firstAttributeName
-				}
+				const tAttributeName = tWordListSpec?.firstAttributeName ?? '';
 				(feature.info.details as SearchDetails).wordList = {
 					datasetName: option,
 					firstAttributeName: tAttributeName
-				}
+				};
 			})
 
 			return (
