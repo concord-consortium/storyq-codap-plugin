@@ -220,6 +220,7 @@ p {
 }
 
 .sq-component {
+    align-items: center;
     display: flex;
     margin: 2px;
     padding: 2px;
