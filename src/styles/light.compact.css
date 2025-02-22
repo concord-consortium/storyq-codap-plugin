@@ -3376,23 +3376,24 @@
   cursor: default
 }
 
-.ui-checkbox-icon {
-  flex-shrink: 0;
-  position: relative;
-  background-position: 0 0;
-  background-size: cover;
-  background-repeat: no-repeat
-}
-
 .ui-checkbox-container {
   overflow: hidden;
   white-space: nowrap;
   height: 100%;
   width: 100%;
-  vertical-align: middle;
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  text-overflow: clip
+  justify-content: center;
+  text-overflow: clip;
+
+  .ui-checkbox-icon {
+    background-position: 0 0;
+    background-size: cover;
+    background-repeat: no-repeat;
+    flex-shrink: 0;
+    padding: 0;
+    position: relative;
+  }
 }
 
 .ui-checkbox-text {
