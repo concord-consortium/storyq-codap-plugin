@@ -9,6 +9,7 @@ import { kStoryQPluginName } from "../stores/store_types_and_constants";
 import { targetStore } from '../stores/target_store';
 import { testingStore } from "../stores/testing_store";
 import { IUiStoreJSON, uiStore } from "../stores/ui_store";
+import { CollapseButton, collapseButtonWidth } from "./collapse-button";
 import { FeaturePanel } from "./feature_panel";
 import { TargetPanel } from "./target_panel";
 import { TestingPanel, kNonePresent } from "./testing_panel";
@@ -20,6 +21,8 @@ import { TabPanel } from './ui/tab-panel';
 import '../storyq.css';
 import '../styles/light.compact.css';
 
+const paneWidth = 430;
+
 interface IStorage {
 	domainStore: IDomainStoreJSON;
 	uiStore: IUiStoreJSON;
@@ -30,7 +33,7 @@ const Storyq = observer(class Storyq extends Component<IStoryqProps, {}> {
 		private kPluginName = kStoryQPluginName;
 		private kVersion = "2.18.0";
 		private kInitialDimensions = {
-			width: 860,
+			width: (paneWidth + collapseButtonWidth) * 2,
 			height: 420
 		};
 		private testingManager: TestingManager;
@@ -87,29 +90,39 @@ const Storyq = observer(class Storyq extends Component<IStoryqProps, {}> {
 		}
 
 		public render() {
+			const leftDirection = uiStore.showStoryQPanel ? "left" : "right";
+			const rightDirection = uiStore.showTextPanel ? "right" : "left";
+			const onLeftButtonClick = () => uiStore.showStoryQPanel
+				? uiStore.setShowStoryQPanel(false) : uiStore.setShowStoryQPanel(true);
+			const onRightButtonClick = () => uiStore.showTextPanel
+				? uiStore.setShowTextPanel(false) : uiStore.setShowTextPanel(true);
 			return (
 				<div className="storyq-container">
-					<div className="storyq">
-						<TabPanel
-							id='tabPanel'
-							selectedIndex={uiStore.tabPanelSelectedIndex}
-							onSelectionChanged={(index: number) => this.handleSelectionChanged(index)}
-						>
-							<Item title='Setup' text='Specify the text data you want to work with'>
-								<TargetPanel />
-							</Item>
-							<Item title='Features' disabled={!domainStore.featuresPanelCanBeEnabled()}>
-								<FeaturePanel />
-							</Item>
-							<Item title='Training' disabled={!domainStore.trainingPanelCanBeEnabled()}>
-								<TrainingPanel />
-							</Item>
-							<Item title='Testing' disabled={!domainStore.testingPanelCanBeEnabled()}>
-								<TestingPanel testingManager={this.testingManager} />
-							</Item>
-						</TabPanel>
-					</div>
-					<TextPane />
+					{uiStore.showStoryQPanel && (
+						<div className="storyq">
+							<TabPanel
+								id='tabPanel'
+								selectedIndex={uiStore.tabPanelSelectedIndex}
+								onSelectionChanged={(index: number) => this.handleSelectionChanged(index)}
+							>
+								<Item title='Setup' text='Specify the text data you want to work with'>
+									<TargetPanel />
+								</Item>
+								<Item title='Features' disabled={!domainStore.featuresPanelCanBeEnabled()}>
+									<FeaturePanel />
+								</Item>
+								<Item title='Training' disabled={!domainStore.trainingPanelCanBeEnabled()}>
+									<TrainingPanel />
+								</Item>
+								<Item title='Testing' disabled={!domainStore.testingPanelCanBeEnabled()}>
+									<TestingPanel testingManager={this.testingManager} />
+								</Item>
+							</TabPanel>
+						</div>
+					)}
+					{uiStore.showTextPanel && <CollapseButton direction={leftDirection} onClick={onLeftButtonClick} />}
+					{uiStore.showStoryQPanel && <CollapseButton direction={rightDirection} onClick={onRightButtonClick} />}
+					{uiStore.showTextPanel && <TextPane />}
 				</div>
 			);
 		}
