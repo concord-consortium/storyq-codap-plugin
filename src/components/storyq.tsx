@@ -1,6 +1,7 @@
+import { IReactionDisposer, reaction } from "mobx";
 import { observer } from "mobx-react";
 import React, { Component } from 'react';
-import { initializePlugin, registerObservers } from '../lib/codap-helper';
+import { initializePlugin, registerObservers, updatePluginDimensions } from '../lib/codap-helper';
 import codapInterface, { CODAP_Notification } from "../lib/CodapInterface";
 import { NotificationManager } from "../managers/notification_manager";
 import { TestingManager } from "../managers/testing_manager";
@@ -22,6 +23,10 @@ import '../storyq.css';
 import '../styles/light.compact.css';
 
 const paneWidth = 430;
+function getPluginWidth() {
+	return (paneWidth + collapseButtonWidth) * (uiStore.showStoryQPanel && uiStore.showTextPanel ? 2 : 1);
+}
+const pluginHeight = 420;
 
 interface IStorage {
 	domainStore: IDomainStoreJSON;
@@ -33,10 +38,11 @@ const Storyq = observer(class Storyq extends Component<IStoryqProps, {}> {
 		private kPluginName = kStoryQPluginName;
 		private kVersion = "2.18.0";
 		private kInitialDimensions = {
-			width: (paneWidth + collapseButtonWidth) * 2,
-			height: 420
+			width: getPluginWidth(),
+			height: pluginHeight
 		};
 		private testingManager: TestingManager;
+		private resizeDisposer: IReactionDisposer;
 
 		constructor(props: IStoryqProps) {
 			super(props);
@@ -57,6 +63,15 @@ const Storyq = observer(class Storyq extends Component<IStoryqProps, {}> {
 			codapInterface.on('get', 'interactiveState', '', this.getPluginStore);
 			initializePlugin(this.kPluginName, this.kVersion, this.kInitialDimensions, this.restorePluginFromStore)
 				.then(registerObservers).catch(registerObservers);
+
+			this.resizeDisposer = reaction(
+				() => [uiStore.showStoryQPanel, uiStore.showTextPanel],
+				() => updatePluginDimensions(getPluginWidth(), pluginHeight)
+			);
+		}
+
+		componentWillUnmount() {
+			this.resizeDisposer?.();
 		}
 
 		getPluginStore() {
@@ -90,8 +105,6 @@ const Storyq = observer(class Storyq extends Component<IStoryqProps, {}> {
 		}
 
 		public render() {
-			const leftDirection = uiStore.showStoryQPanel ? "left" : "right";
-			const rightDirection = uiStore.showTextPanel ? "right" : "left";
 			const onLeftButtonClick = () => uiStore.showStoryQPanel
 				? uiStore.setShowStoryQPanel(false) : uiStore.setShowStoryQPanel(true);
 			const onRightButtonClick = () => uiStore.showTextPanel
@@ -120,8 +133,8 @@ const Storyq = observer(class Storyq extends Component<IStoryqProps, {}> {
 							</TabPanel>
 						</div>
 					)}
-					{uiStore.showTextPanel && <CollapseButton direction={leftDirection} onClick={onLeftButtonClick} />}
-					{uiStore.showStoryQPanel && <CollapseButton direction={rightDirection} onClick={onRightButtonClick} />}
+					{uiStore.showTextPanel && <CollapseButton direction="left" onClick={onLeftButtonClick} />}
+					{uiStore.showStoryQPanel && <CollapseButton direction="right" onClick={onRightButtonClick} />}
 					{uiStore.showTextPanel && <TextPane />}
 				</div>
 			);
