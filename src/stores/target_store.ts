@@ -14,8 +14,8 @@ import { featureStore } from './feature_store';
 import { targetDatasetStore } from './target_dataset_store';
 import {
 	Feature, getContainFormula, getTargetCaseFormula,  kEmptyEntityInfo, kFeatureKindColumn, kFeatureKindNgram,
-	kSearchWhereEndWith, kSearchWhereStartWith, kWhatOptionList, kWhatOptionNumber, kWhatOptionPunctuation,
-	kWhatOptionText, SearchDetails
+	kNumberPattern, kSearchWhereEndWith, kSearchWhereStartWith, kWhatOptionList, kWhatOptionNumber,
+	kWhatOptionPunctuation, kWhatOptionText, SearchDetails
 } from "./store_types_and_constants";
 import { CreateAttributeResponse } from '../types/codap-api-types';
 
@@ -310,7 +310,6 @@ export class TargetStore {
 		}
 
 		function anyNumberFormula() {
-			const kNumberPattern = `[0-9]+`;
 			const option = (iNewFeature.info.details as SearchDetails).where;
 			return getContainFormula(option, `${tTargetAttr}, "${kNumberPattern}"`);
 		}

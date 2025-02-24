@@ -1,7 +1,7 @@
 import { Descendant } from "@concord-consortium/slate-editor";
 import { allTokenizer } from "../lib/one_hot";
 import { SQ } from "../lists/lists";
-import { ITextPart } from "../stores/store_types_and_constants";
+import { ITextPart, kAnyNumberKeyword, kNumberRegExp } from "../stores/store_types_and_constants";
 import { featureStore } from "../stores/feature_store";
 
 export type HighlightFunction =
@@ -63,6 +63,7 @@ export function textToObject(iText: string, iSelectedWords: (string | number)[],
 export async function highlightFeatures(text: string, selectedFeatures: (string | number)[]) {
 	let segment = '';
 	const textParts: ITextPart[] = [];
+	let highlightNumbers = false;
 	const addSegment = () => {
 		if (segment !== '') {
 			textParts.push({ text: segment });
@@ -92,16 +93,18 @@ export async function highlightFeatures(text: string, selectedFeatures: (string 
 				: selectedWord;
 
 			// Check to see if the feature references a list
-			const containList = !_containWord && selectedWord.match(/^contain:\s+([^"\s].*[^"\s]|\S)$/);
-			const countList = !_countWord && selectedWord.match(/^count:\s+([^"\s].*[^"\s]|\S)$/);
-			const list =
-				(containList && (SQ.lists[containList[1]] ?? await featureStore.getWordListFromDatasetName(containList[1])))
-				|| (countList && (SQ.lists[countList[1]] ?? await featureStore.getWordListFromDatasetName(countList[1])));
-			if (!list && (containList || countList)) {
-				// If we found a match without quotes but didn't find a list, just use the word or phrase.
-				singleWord = containList ? containList[1]
-					: countList ? countList[1]
-					: singleWord;
+			const containMatch = !_containWord && selectedWord.match(/^contain:\s+([^"\s].*[^"\s]|\S)$/);
+			const countMatch = !_countWord && selectedWord.match(/^count:\s+([^"\s].*[^"\s]|\S)$/);
+			const match = containMatch ? containMatch[1] : countMatch ? countMatch[1] : "";
+			const list = SQ.lists[match] ?? await featureStore.getWordListFromDatasetName(match);
+			if (match && !list) {
+				// If we found a match without quotes but didn't find a list, just use the word or phrase,
+				// unless it's the all numbers keyword.
+				if (match === kAnyNumberKeyword) {
+					highlightNumbers = true;
+					continue;
+				}
+				singleWord = match;
 			}
 			const finalList = list || [singleWord];
 
@@ -129,6 +132,12 @@ export async function highlightFeatures(text: string, selectedFeatures: (string 
 		}
 
 		let foundMatch = false;
+
+		// Look for numbers if we care about them.
+		if (highlightNumbers && word.match(kNumberRegExp)) {
+			foundMatch = true;
+			highlightWord(word);
+		}
 
 		// Look for matches with phrases.
 		targetPhrases.forEach(phrase => {
