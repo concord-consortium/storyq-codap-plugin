@@ -8,7 +8,7 @@ import pluralize from "pluralize";
 import { getComponentByTypeAndTitleOrName } from "../lib/codap-helper";
 import codapInterface from "../lib/CodapInterface";
 import { CreateComponentResponse, GetComponentListResponse } from '../types/codap-api-types';
-import { kStoryQPluginName } from './store_types_and_constants';
+import { ITextSection, kStoryQPluginName } from './store_types_and_constants';
 import { targetStore } from './target_store';
 
 export interface ITextStoreJSON {
@@ -19,6 +19,7 @@ export interface ITextStoreJSON {
 export class TextStore {
 	textComponentTitle: string = '';
 	textComponentID: number = -1;
+	textSections: ITextSection[] = [];
 
 	constructor() {
 		makeAutoObservable(this, {}, { autoBind: true });
@@ -36,6 +37,14 @@ export class TextStore {
 			this.textComponentTitle = json.textComponentTitle || '';
 			this.textComponentID = json.textComponentID || -1;
 		}
+	}
+
+	setTextComponentTitle(title: string) {
+		this.textComponentTitle = title;
+	}
+
+	setTextSections(sections: ITextSection[]) {
+		this.textSections = sections;
 	}
 
 	/**
@@ -97,6 +106,7 @@ export class TextStore {
 
 	async clearText() {
 		const attributeName = pluralize(targetStore.targetAttributeName)
+		this.setTextSections([]);
 		await codapInterface.sendRequest({
 			action: 'update',
 			resource: `component[${this.textComponentID}]`,

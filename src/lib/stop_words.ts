@@ -1,4 +1,4 @@
-export const stopWords: { [key: string]:{} } = {
+export const stopWords: Record<string, boolean> = {
   "a": true,
   "about": true,
   "above": true,

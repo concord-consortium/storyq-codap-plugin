@@ -1,0 +1,39 @@
+.text-section {
+  .text-section-title {
+    align-items: center;
+    display: flex;
+    font-size: 16px;
+    font-weight: 600;
+
+    .label {
+      font-weight: 700;
+    }
+  }
+
+  .text-section-text {
+    overflow-y: scroll;
+
+    .phrase-row {
+      display: flex;
+      flex-direction: row;
+      margin: 0 5px 15px 5px;
+
+      .phrase-index {
+        align-items: flex-start;
+        display: flex;
+        justify-content: flex-end;
+        margin-right: 8px;
+        text-align: right;
+        width: 30px;
+      }
+
+      .phrase {
+        width: 386px;
+
+        .highlighted {
+          background-color: #fdf2d0;
+        }
+      }
+    }
+  }
+}

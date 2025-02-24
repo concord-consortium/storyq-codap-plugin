@@ -1,0 +1,17 @@
+.text-pane {
+  color: #666;
+  width: 429px;
+
+  .text-title {
+    font-size: 18px;
+    font-weight: bold;
+    margin: 6px 0;
+    text-align: center;
+    width: 100%;
+  }
+
+  .text-container {
+    overflow-y: scroll;
+    padding: 4px;
+  }
+}

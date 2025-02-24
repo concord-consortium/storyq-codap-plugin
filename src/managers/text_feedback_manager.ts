@@ -8,13 +8,14 @@ import { Descendant } from "@concord-consortium/slate-editor";
 import { datasetExists, getCaseValues, getSelectedCasesFrom } from "../lib/codap-helper";
 import codapInterface, { CODAP_Notification } from "../lib/CodapInterface";
 import { featureStore } from "../stores/feature_store";
+import { ITextSectionText } from "../stores/store_types_and_constants";
 import { targetStore } from "../stores/target_store";
 import { testingStore } from "../stores/testing_store";
 import { textStore } from "../stores/text_store";
 import { trainingStore } from "../stores/training_store";
 import { uiStore } from "../stores/ui_store";
 import { APIRequest, GetCaseByIDResponse, GetSelectionListResponse } from "../types/codap-api-types";
-import { HighlightFunction, phraseToFeatures, textToObject } from "../utilities/utilities";
+import { highlightFeatures, HighlightFunction, phraseToFeatures, textToObject } from "../utilities/utilities";
 import { ClassLabel, HeadingsManager, PhraseQuadruple } from "./headings_manager";
 
 export function setupTextFeedbackManager() {
@@ -243,7 +244,7 @@ export class TextFeedbackManager {
 					tPhrase = tGetCaseResult.values.case.values[tAttributeName],
 					tQuadruple = {
 						actual: String(tActualClass), predicted: String(tPredictedClass), phrase: String(tPhrase),
-						nonNtigramFeatures: tFeatureIDs.map(anID => tFeaturesMap[anID])
+						nonNtigramFeatures: tFeatureIDs.map(anID => tFeaturesMap[anID]), index: tGetCaseResult.values.caseIndex
 					};
 				tQuadruples.push(tQuadruple);
 			}
@@ -397,7 +398,8 @@ export class TextFeedbackManager {
 					phrase: String(tCaseValues[tAttributeName]),
 					predicted: tPredictedResult,
 					actual: String(tCaseValues[tClassAttributeName]),
-					nonNtigramFeatures: tFeatureIDsForThisText	// Numbers for now. Strings later
+					nonNtigramFeatures: tFeatureIDsForThisText,	// Numbers for now. Strings later
+					index: iResult.values.caseIndex
 				});
 			}
 		});
@@ -434,11 +436,12 @@ export class TextFeedbackManager {
 		const kProps =
 			['negNeg', 'negPos', 'negBlank', 'posNeg', 'posPos', 'posBlank', 'blankNeg', 'blankPos', 'blankBlank'];
 		const tClassItems: Record<string, Descendant[]> = {};
+		const texts: Record<string, ITextSectionText[]> = {};
 		kProps.forEach(iProp => tClassItems[iProp] = []);
 		let tItems: Descendant[] = [];
 
 
-		function addOnePhrase(iQuadruple: PhraseQuadruple) {
+		async function addOnePhrase(iQuadruple: PhraseQuadruple) {
 			const kLabels: ClassLabel = kHeadingsManager.classLabels;
 
 			let tGroup: string,
@@ -497,14 +500,26 @@ export class TextFeedbackManager {
 				type: 'list-item',
 				children: tSquare.concat(iHighlightFunc(iQuadruple.phrase, iQuadruple.nonNtigramFeatures, iSpecialFeatures))
 			});
+			if (!texts[tGroup]) texts[tGroup] = [];
+			texts[tGroup].push({
+				textParts: await highlightFeatures(iQuadruple.phrase, iQuadruple.nonNtigramFeatures),
+				index: iQuadruple.index
+			});
 		}
 
-		iPhraseQuadruples.forEach(iTriple => addOnePhrase(iTriple));
+		for (const iTriple of iPhraseQuadruples) {
+			await addOnePhrase(iTriple);
+		}
 
 		// The phrases are all in their groups. Create the array of group objects
+		textStore.setTextSections([]);
 		kProps.forEach(iProp => {
 			const tPhrases = tClassItems[iProp];
 			if (tPhrases.length !== 0) {
+				textStore.textSections.push({
+					title: kHeadingsManager.niceHeadings[iProp],
+					text: texts[iProp]
+				});
 				const tHeadingItems = [
 					kHeadingsManager.getHeading(iProp),
 					{
@@ -540,6 +555,7 @@ export class TextFeedbackManager {
 	}
 
 	async retitleTextComponent(iTitle: string) {
+		textStore.setTextComponentTitle(iTitle);
 		await codapInterface.sendRequest({
 			action: 'update',
 			resource: `component[${textStore.textComponentID}]`,

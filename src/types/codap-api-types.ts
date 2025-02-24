@@ -106,7 +106,7 @@ export interface CaseInfo {
 }
 export interface GetCaseByIDResponse {
   success: boolean
-  values?: { case: CaseInfo }
+  values?: { case: CaseInfo, caseIndex: number }
 }
 export interface GetCaseFormulaSearchResponse {
   success: boolean

@@ -4,15 +4,6 @@ import {entityInfo} from "./lib/codap-helper";
  * Types and interfaces for StoryQ
  */
 
-export interface StoryqStorage {
-	success: boolean,
-	values: {
-		domainStore: object,
-		uiStore: object
-	}
-
-}
-
 export interface FMStorage {
 	datasetName: string | null;
 	targetDatasetInfo: entityInfo | null,

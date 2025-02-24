@@ -228,11 +228,6 @@ export function getStarterFeature(): Feature {
 	};
 }
 
-export interface WordListSpec {
-	datasetName: string,
-	firstAttributeName: string
-}
-
 export interface TrainingResult {
 	accuracy: number
 	constantWeightTerm: number
@@ -286,6 +281,20 @@ export interface Token {
 	type: TokenType
 	weight: number | null
 }
+export function getNewToken(initialValues: Partial<Token>) {
+	return {
+		caseIDs: [],
+		count: 1,
+		featureCaseID: null,
+		index: -1,
+		numNegative: 0,
+		numPositive: 0,
+		token: '',
+		type: kTokenTypeConstructed as TokenType,
+		weight: null,
+		...initialValues
+	};
+}
 
 export type TokenMap = Record<string, Token>;
 
@@ -298,4 +307,22 @@ export interface StoredAIModel {
 export interface WordListSpec {
 	datasetName: string
 	firstAttributeName: string
+}
+
+export interface ITextSectionTitle {
+	actual?: string;
+	color: string;
+	predicted?: string;
+}
+export interface ITextPart {
+	classNames?: string[];
+	text: string;
+}
+export interface ITextSectionText {
+	index?: number;
+	textParts: ITextPart[];
+}
+export interface ITextSection {
+	title?: ITextSectionTitle;
+	text: ITextSectionText[];
 }
