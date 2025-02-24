@@ -47,6 +47,14 @@ export class TextStore {
 		this.textSections = sections;
 	}
 
+	getTextSectionId(textSection: ITextSection) {
+		return `section-${textSection.title?.actual}-${textSection.title?.predicted}`;
+	}
+
+	toggleTextSectionVisibility(textSection: ITextSection) {
+		textSection.hidden = !textSection.hidden;
+	}
+
 	/**
 	 * Only add a text component if one with the designated name does not already exist.
 	 */

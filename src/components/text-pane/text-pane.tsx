@@ -1,7 +1,7 @@
 import React from "react";
 import { observer } from "mobx-react";
 import { textStore } from "../../stores/text_store";
-import { TextSection } from "./text-section";
+import { TextSection, textSectionTitleHeight } from "./text-section";
 
 import "./text-pane.scss";
 
@@ -10,7 +10,10 @@ const titleHeight = 22;
 const containerHeight = paneHeight - titleHeight;
 
 export const TextPane = observer(function TextPane() {
-  const sectionHeight = containerHeight / textStore.textSections.length;
+  const visibleTextSectionCount = textStore.textSections.filter(textSection => !textSection.hidden).length;
+  const textHeight = containerHeight - textStore.textSections.length * textSectionTitleHeight;
+  const sectionHeight = textHeight / visibleTextSectionCount;
+
   return (
     <div className="text-pane" style={{ height: paneHeight }}>
       <p className="text-title" style={{ height: titleHeight }}>
@@ -19,8 +22,8 @@ export const TextPane = observer(function TextPane() {
       <div className="text-container" style={{ height: containerHeight }}>
         {textStore.textSections.map(textSection => (
           <TextSection
-            height={sectionHeight}
-            key={`section-${textSection.title?.actual}-${textSection.title?.predicted}`}
+            key={textStore.getTextSectionId(textSection)}
+            textHeight={sectionHeight}
             textSection={textSection}
           />
         ))}
