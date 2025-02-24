@@ -6,8 +6,9 @@ import { TextSection, textSectionTitleHeight } from "./text-section";
 import "./text-pane.scss";
 
 const paneHeight = 395;
-const titleHeight = 22;
-const containerHeight = paneHeight - titleHeight;
+const titleHeight = 34;
+const containerVerticalPadding = 4;
+const containerHeight = paneHeight - titleHeight - containerVerticalPadding * 2;
 
 export const TextPane = observer(function TextPane() {
   const visibleTextSectionCount = textStore.textSections.filter(textSection => !textSection.hidden).length;
@@ -16,9 +17,9 @@ export const TextPane = observer(function TextPane() {
 
   return (
     <div className="text-pane" style={{ height: paneHeight }}>
-      <p className="text-title" style={{ height: titleHeight }}>
+      <div className="text-title" style={{ height: titleHeight }}>
         {textStore.textComponentTitle}
-      </p>
+      </div>
       <div className="text-container" style={{ height: containerHeight }}>
         {textStore.textSections.map(textSection => (
           <TextSection

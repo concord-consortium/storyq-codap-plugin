@@ -1,9 +1,12 @@
 import React from "react";
 import { clsx } from "clsx";
+import { ReactComponent as ArrowIcon } from "../../assets/arrow-icon.svg";
 import { ITextSection, ITextSectionTitle } from "../../stores/store_types_and_constants";
 import { textStore } from "../../stores/text_store";
 
 import "./text-section.scss";
+
+export const textSectionTitleHeight = 26;
 
 interface ITextSectionTitleProps {
   count: number;
@@ -27,23 +30,27 @@ function TextSectionTitle({ count, title }: ITextSectionTitleProps) {
   );
 }
 
-export const textSectionTitleHeight = 26;
-
 interface ITextSectionProps {
   textHeight: number;
   textSection: ITextSection;
 }
 export function TextSection({ textHeight, textSection }: ITextSectionProps) {
-  const height = textSectionTitleHeight + (!textSection.hidden ? textHeight : 0);
+  const { hidden, text, title } = textSection;
+  const height = textSectionTitleHeight + (!hidden ? textHeight : 0);
   return (
     <div className="text-section" style={{ height }}>
       <div className="text-section-title" style={{ height: textSectionTitleHeight }}>
-        <TextSectionTitle count={textSection.text.length} title={textSection.title} />
-        <button onClick={() => textStore.toggleTextSectionVisibility(textSection)}>X</button>
+        <TextSectionTitle count={text.length} title={title} />
+        <button
+          className={clsx("hide-button", { hidden })}
+          onClick={() => textStore.toggleTextSectionVisibility(textSection)}
+        >
+          <ArrowIcon />
+        </button>
       </div>
-      {!textSection.hidden && (
+      {!hidden && (
         <div className="text-section-text" style={{ height: textHeight }}>
-          {textSection.text.map(text => {
+          {text.map(text => {
             const indexString = text.index != null ? `${text.index + 1}. ` : "";
             return (
               <div className="phrase-row" key={indexString}>

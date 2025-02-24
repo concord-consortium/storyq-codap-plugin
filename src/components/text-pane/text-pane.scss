@@ -3,14 +3,17 @@
   width: 429px;
 
   .text-title {
+    align-items: center;
+    display: flex;
     font-size: 18px;
     font-weight: bold;
-    margin: 6px 0;
-    text-align: center;
+    justify-content: center;
     width: 100%;
   }
 
   .text-container {
+    display: flex;
+    flex-direction: column;
     overflow-y: scroll;
     padding: 4px;
   }
