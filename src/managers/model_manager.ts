@@ -5,7 +5,7 @@ import { action, runInAction } from "mobx";
 import { deselectAllCasesIn } from "../lib/codap-helper";
 import codapInterface from "../lib/CodapInterface";
 import { LogisticRegression } from "../lib/jsregression";
-import { oneHot } from "../lib/one_hot";
+import { Document, oneHot } from "../lib/one_hot";
 import { domainStore } from "../stores/domain_store";
 import { featureStore } from "../stores/feature_store";
 import { Feature, kFeatureKindNgram, NgramDetails, StoredAIModel, Token } from "../stores/store_types_and_constants";
@@ -318,10 +318,7 @@ export class ModelManager {
 			tNgramFeatures = featureStore.getChosenFeatures().filter(iFeature => iFeature.info.kind === kFeatureKindNgram),
 			tUnigramFeature = tNgramFeatures.find(iFeature => (iFeature.info.details as NgramDetails).n === 'uni'),
 			tPositiveClassName = targetStore.getClassName('positive'),
-			tDocuments: {
-				example: string, class: string, caseID: number,
-				columnFeatures: { [key: string]: number | boolean }
-			}[] = [],
+			tDocuments: Document[] = [],
 			tLogisticModel = trainingStore.model.logisticModel
 
 		async function setup() {

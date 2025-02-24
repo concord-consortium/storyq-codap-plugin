@@ -1,6 +1,8 @@
 import { Descendant } from "@concord-consortium/slate-editor";
-import { wordTokenizer } from "../lib/one_hot";
+import { allTokenizer } from "../lib/one_hot";
+import { SQ } from "../lists/lists";
 import { ITextPart } from "../stores/store_types_and_constants";
+import { featureStore } from "../stores/feature_store";
 
 export type HighlightFunction =
 	(iText: string, iSelectedWords: (string | number)[], iSpecialFeatures: string[]) => Descendant[];
@@ -22,7 +24,7 @@ export function textToObject(iText: string, iSelectedWords: (string | number)[],
 	});
 
 	// NOTE: this code isn't perfect and doesn't match phrases or match lists like personal pronoun lists
-	const words = wordTokenizer(iText, false, false);
+	const words = allTokenizer(iText);
 	words.forEach((iWord) => {
 		let tRawWord = iWord.toLowerCase();
 		const containedWords = iSelectedWords.map(selectedWord => {
@@ -45,12 +47,9 @@ export function textToObject(iText: string, iSelectedWords: (string | number)[],
 			tResultArray.push({
 				text: iWord, bold: true, underlined: true, color: "#000000"
 			});
-			tResultArray.push({
-				text: ' '
-			})
 		}
 		else {
-			segment += iWord + ' ';
+			segment += iWord;
 		}
 	});
 
@@ -59,41 +58,109 @@ export function textToObject(iText: string, iSelectedWords: (string | number)[],
 	return tResultArray;
 }
 
-export function highlightFeatures(text: string, selectedFeatures: (string | number)[]) {
+// Highlighting for the modern internal text pane
+// NOTE: this code isn't perfect and doesn't match lists like personal pronoun lists
+export async function highlightFeatures(text: string, selectedFeatures: (string | number)[]) {
 	let segment = '';
 	const textParts: ITextPart[] = [];
+	const addSegment = () => {
+		if (segment !== '') {
+			textParts.push({ text: segment });
+			segment = '';
+		}
+	};
+	const highlightWord = (word: string) => {
+		addSegment();
+		textParts.push({
+			text: word, classNames: ["highlighted"]
+		});
+	};
 
-	// NOTE: this code isn't perfect and doesn't match phrases or match lists like personal pronoun lists
-	const words = wordTokenizer(text, false, false);
-	const targetWords = selectedFeatures.map(selectedWord => {
-		// Strip out the word from strings like 'contain: "word"' and 'count: "word"'
-		const _containedWord = typeof selectedWord === "string" && selectedWord.match(/contain: "([^"]+)"/);
-		const _countWord = typeof selectedWord === "string" && selectedWord.match(/count: "([^"]+)"/);
-		const containedWord = _containedWord ? _containedWord[1]
-			: _countWord ? _countWord[1]
-			: selectedWord;
-		return typeof containedWord === "string" ? containedWord.toLowerCase() : containedWord;
-	});
-	words.forEach(word => {
-		let lowerWord = word.toLowerCase();
+	// Get pieces of text
+	const words = allTokenizer(text);
 
-		if (targetWords.indexOf(lowerWord) >= 0) {
-			if (segment !== '') {
-				textParts.push({ text: segment });
-				segment = '';
-			}
-			textParts.push({
-				text: word, classNames: ["highlighted"]
+	// Process features
+	const targetWords: string[] = [];
+	const targetPhrases: string[][] = [];
+	for (const selectedWord of selectedFeatures) {
+		if (typeof selectedWord === "string") {
+			// Strip out the word from strings like 'contain: "word"' and 'count: "word"'
+			const _containWord = selectedWord.match(/contain: "([^"]+)"/);
+			const _countWord = selectedWord.match(/count: "([^"]+)"/);
+			const singleWord = _containWord ? _containWord[1]
+				: _countWord ? _countWord[1]
+				: selectedWord;
+
+			// Check to see if the feature references a list
+			const containList = !_containWord && selectedWord.match(/^contain:\s+([^"\s].*[^"\s]|\S)$/);
+			const countList = !_countWord && selectedWord.match(/^count:\s+([^"\s].*[^"\s]|\S)$/);
+			const list =
+				(containList && (SQ.lists[containList[1]] ?? await featureStore.getWordListFromDatasetName(containList[1])))
+				|| (countList && (SQ.lists[countList[1]] ?? await featureStore.getWordListFromDatasetName(countList[1])));
+			const finalList = list || [singleWord];
+
+			// Add all relevant words and phrases
+			finalList.forEach((containedWord: string) => {
+				const containedPhrase = allTokenizer(containedWord);
+				// If a word contains multiple parts, treat it as a phrase.
+				if (containedPhrase.length > 1) {
+					targetPhrases.push(containedPhrase.map(word => word.toLowerCase()));
+				// Otherwise treat it as a single word.
+				} else {
+					targetWords.push(containedWord.toLowerCase());
+				}
 			});
-			textParts.push({
-				text: ' '
-			})
-		} else {
-			segment += word + ' ';
+		}
+	}
+
+	// Look through text looking for feature matches
+	let phraseWords = 0;
+	words.forEach((word, index) => {
+		// If this word is part of a phrase that was previously found, skip it.
+		if (phraseWords > 0) {
+			phraseWords--;
+			return;
+		}
+
+		let foundMatch = false;
+
+		// Look for matches with phrases.
+		targetPhrases.forEach(phrase => {
+			if (foundMatch) return;
+
+			let phraseMatch = true;
+			const phraseParts: string[] = [];
+			phrase.forEach((phraseWord, phraseIndex) => {
+				if (!phraseMatch) return;
+
+				const reviewWord = words[index + phraseIndex];
+				if (reviewWord.toLowerCase() === phraseWord) {
+					phraseParts.push(reviewWord);
+				} else {
+					phraseMatch = false;
+				}
+				if (phraseMatch && phraseIndex >= phrase.length - 1) {
+					foundMatch = true;
+					phraseWords = phrase.length - 1; // Skip the rest of the words in the phrase.
+					highlightWord(phraseParts.join(""));
+				}
+			});
+		});
+
+		// Look for matches with single words.
+		if (!foundMatch && targetWords.includes(word.toLowerCase())) {
+			foundMatch = true;
+			highlightWord(word);
+		}
+
+		// If it's not a match, add it to the current segment with basic text.
+		if (!foundMatch) {
+			segment += word;
 		}
 	});
 
-	if (segment !== '') textParts.push({ text: segment });
+	// Add the final segment, if there is one.
+	addSegment();
 
 	return textParts;
 }

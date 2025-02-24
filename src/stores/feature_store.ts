@@ -6,7 +6,8 @@
 import { makeAutoObservable, toJS } from 'mobx'
 import codapInterface from "../lib/CodapInterface";
 import {
-	GetAttributeListResponse, GetCaseFormulaSearchResponse, GetCollectionListResponse, GetDataContextListResponse
+	GetAttributeListResponse, GetCaseFormulaSearchResponse, GetCollectionListResponse, GetDataContextListResponse,
+	GetItemSearchResponse
 } from '../types/codap-api-types';
 import {
 	Feature, FeatureType, getStarterFeature, kFeatureKindColumn, kFeatureKindNgram, kFeatureKindSearch,
@@ -94,6 +95,19 @@ export class FeatureStore {
 			this.setFeatureUnderConstruction(json.featureUnderConstruction || getStarterFeature());
 			this.setTokenMap(json.tokenMap || {});
 			this.setTargetColumnFeatureNames(json.targetColumnFeatureNames || []);
+		}
+	}
+
+	async getWordListFromDatasetName(datasetName: string) {
+		const attributeName = this.wordListSpecs.find(iSpec => iSpec.datasetName === datasetName)?.firstAttributeName;
+		if (!attributeName) return;
+
+		const result = await codapInterface.sendRequest({
+			action: 'get',
+			resource: `dataContext[${datasetName}].itemSearch[*]`
+		}) as GetItemSearchResponse;
+		if (result.success && result.values) {
+			return result.values.map(item => item.values[attributeName]);
 		}
 	}
 
