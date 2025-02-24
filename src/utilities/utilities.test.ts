@@ -1,3 +1,4 @@
+import { kAnyNumberKeyword } from "../stores/store_types_and_constants";
 import { highlightFeatures } from "./utilities";
 
 describe("highlightFeatures", () => {
@@ -61,6 +62,26 @@ describe("highlightFeatures", () => {
     expect(result).toEqual([
       { text: "Test", classNames: ["highlighted"] },
       { text: " text." }
+    ]);
+  });
+
+  it("should handle a punctuation feature", async () => {
+    const text = `Test text.`;
+    const selectedFeatures = ["count: ."];
+    const result = await highlightFeatures(text, selectedFeatures);
+    expect(result).toEqual([
+      { text: "Test text" },
+      { text: ".", classNames: ["highlighted"] }
+    ]);
+  });
+
+  it("should handle numbers", async () => {
+    const text = `123 abc`;
+    const selectedFeatures = [`contain: ${kAnyNumberKeyword}`];
+    const result = await highlightFeatures(text, selectedFeatures);
+    expect(result).toEqual([
+      { text: "123", classNames: ["highlighted"] },
+      { text: " abc" }
     ]);
   });
 
