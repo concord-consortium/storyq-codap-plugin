@@ -5,16 +5,23 @@ import { ITextSection, ITextSectionTitle } from "../../stores/store_types_and_co
 import "./text-section.scss";
 
 interface ITextSectionTitleProps {
+  count: number;
   title?: ITextSectionTitle;
 }
-function TextSectionTitle({ title }: ITextSectionTitleProps) {
+function TextSectionTitle({ count, title }: ITextSectionTitleProps) {
   if (!title) return null;
 
   const { actual, predicted, color } = title;
   return (
     <>
-      {actual && <span>True label: <span className="label" style={{ color }}>{actual}</span>{predicted && ", "}</span>}
+      {actual && (
+        <span>
+          True label: <span className="label" style={{ color }}>{actual}</span>
+          {predicted && <span>,&nbsp;</span>}
+        </span>
+      )}
       {predicted && <span>Predicted label: <span className="label" style={{ color }}>{predicted}</span></span>}
+      <span>&nbsp;</span>{`(${count} case${count === 1 ? "" : "s"})`}
     </>
   );
 }
@@ -30,7 +37,7 @@ export function TextSection({ height, textSection }: ITextSectionProps) {
   return (
     <div className="text-section" style={{ height }}>
       <p className="text-section-title" style={{ height: titleHeight }}>
-        <TextSectionTitle title={textSection.title} />
+        <TextSectionTitle count={textSection.text.length} title={textSection.title} />
       </p>
       <div className="text-section-text" style={{ height: textHeight }}>
         {textSection.text.map(text => {
