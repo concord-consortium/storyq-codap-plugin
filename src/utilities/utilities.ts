@@ -87,7 +87,7 @@ export async function highlightFeatures(text: string, selectedFeatures: (string 
 			// Strip out the word from strings like 'contain: "word"' and 'count: "word"'
 			const _containWord = selectedWord.match(/contain: "([^"]+)"/);
 			const _countWord = selectedWord.match(/count: "([^"]+)"/);
-			const singleWord = _containWord ? _containWord[1]
+			let singleWord = _containWord ? _containWord[1]
 				: _countWord ? _countWord[1]
 				: selectedWord;
 
@@ -97,6 +97,12 @@ export async function highlightFeatures(text: string, selectedFeatures: (string 
 			const list =
 				(containList && (SQ.lists[containList[1]] ?? await featureStore.getWordListFromDatasetName(containList[1])))
 				|| (countList && (SQ.lists[countList[1]] ?? await featureStore.getWordListFromDatasetName(countList[1])));
+			if (!list && (containList || countList)) {
+				// If we found a match without quotes but didn't find a list, just use the word or phrase.
+				singleWord = containList ? containList[1]
+					: countList ? countList[1]
+					: singleWord;
+			}
 			const finalList = list || [singleWord];
 
 			// Add all relevant words and phrases
