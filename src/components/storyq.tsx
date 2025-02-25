@@ -1,6 +1,7 @@
+import { IReactionDisposer, reaction } from "mobx";
 import { observer } from "mobx-react";
 import React, { Component } from 'react';
-import { initializePlugin, registerObservers } from '../lib/codap-helper';
+import { initializePlugin, registerObservers, updatePluginDimensions } from '../lib/codap-helper';
 import codapInterface, { CODAP_Notification } from "../lib/CodapInterface";
 import { NotificationManager } from "../managers/notification_manager";
 import { TestingManager } from "../managers/testing_manager";
@@ -9,6 +10,7 @@ import { kStoryQPluginName } from "../stores/store_types_and_constants";
 import { targetStore } from '../stores/target_store';
 import { testingStore } from "../stores/testing_store";
 import { IUiStoreJSON, uiStore } from "../stores/ui_store";
+import { CollapseButton, collapseButtonWidth } from "./collapse-button";
 import { FeaturePanel } from "./feature_panel";
 import { TargetPanel } from "./target_panel";
 import { TestingPanel, kNonePresent } from "./testing_panel";
@@ -20,6 +22,12 @@ import { TabPanel } from './ui/tab-panel';
 import '../storyq.css';
 import '../styles/light.compact.css';
 
+const paneWidth = 430;
+function getPluginWidth() {
+	return (paneWidth + collapseButtonWidth) * (uiStore.showStoryQPanel && uiStore.showTextPanel ? 2 : 1);
+}
+const pluginHeight = 420;
+
 interface IStorage {
 	domainStore: IDomainStoreJSON;
 	uiStore: IUiStoreJSON;
@@ -30,10 +38,11 @@ const Storyq = observer(class Storyq extends Component<IStoryqProps, {}> {
 		private kPluginName = kStoryQPluginName;
 		private kVersion = "2.18.0";
 		private kInitialDimensions = {
-			width: 860,
-			height: 420
+			width: getPluginWidth(),
+			height: pluginHeight
 		};
 		private testingManager: TestingManager;
+		private resizeDisposer: IReactionDisposer;
 
 		constructor(props: IStoryqProps) {
 			super(props);
@@ -54,6 +63,15 @@ const Storyq = observer(class Storyq extends Component<IStoryqProps, {}> {
 			codapInterface.on('get', 'interactiveState', '', this.getPluginStore);
 			initializePlugin(this.kPluginName, this.kVersion, this.kInitialDimensions, this.restorePluginFromStore)
 				.then(registerObservers).catch(registerObservers);
+
+			this.resizeDisposer = reaction(
+				() => [uiStore.showStoryQPanel, uiStore.showTextPanel],
+				() => updatePluginDimensions(getPluginWidth(), pluginHeight)
+			);
+		}
+
+		componentWillUnmount() {
+			this.resizeDisposer?.();
 		}
 
 		getPluginStore() {
@@ -87,29 +105,37 @@ const Storyq = observer(class Storyq extends Component<IStoryqProps, {}> {
 		}
 
 		public render() {
+			const onLeftButtonClick = () => uiStore.showStoryQPanel
+				? uiStore.setShowStoryQPanel(false) : uiStore.setShowStoryQPanel(true);
+			const onRightButtonClick = () => uiStore.showTextPanel
+				? uiStore.setShowTextPanel(false) : uiStore.setShowTextPanel(true);
 			return (
 				<div className="storyq-container">
-					<div className="storyq">
-						<TabPanel
-							id='tabPanel'
-							selectedIndex={uiStore.tabPanelSelectedIndex}
-							onSelectionChanged={(index: number) => this.handleSelectionChanged(index)}
-						>
-							<Item title='Setup' text='Specify the text data you want to work with'>
-								<TargetPanel />
-							</Item>
-							<Item title='Features' disabled={!domainStore.featuresPanelCanBeEnabled()}>
-								<FeaturePanel />
-							</Item>
-							<Item title='Training' disabled={!domainStore.trainingPanelCanBeEnabled()}>
-								<TrainingPanel />
-							</Item>
-							<Item title='Testing' disabled={!domainStore.testingPanelCanBeEnabled()}>
-								<TestingPanel testingManager={this.testingManager} />
-							</Item>
-						</TabPanel>
-					</div>
-					<TextPane />
+					{uiStore.showStoryQPanel && (
+						<div className="storyq">
+							<TabPanel
+								id='tabPanel'
+								selectedIndex={uiStore.tabPanelSelectedIndex}
+								onSelectionChanged={(index: number) => this.handleSelectionChanged(index)}
+							>
+								<Item title='Setup' text='Specify the text data you want to work with'>
+									<TargetPanel />
+								</Item>
+								<Item title='Features' disabled={!domainStore.featuresPanelCanBeEnabled()}>
+									<FeaturePanel />
+								</Item>
+								<Item title='Training' disabled={!domainStore.trainingPanelCanBeEnabled()}>
+									<TrainingPanel />
+								</Item>
+								<Item title='Testing' disabled={!domainStore.testingPanelCanBeEnabled()}>
+									<TestingPanel testingManager={this.testingManager} />
+								</Item>
+							</TabPanel>
+						</div>
+					)}
+					{uiStore.showTextPanel && <CollapseButton direction="left" onClick={onLeftButtonClick} />}
+					{uiStore.showStoryQPanel && <CollapseButton direction="right" onClick={onRightButtonClick} />}
+					{uiStore.showTextPanel && <TextPane />}
 				</div>
 			);
 		}

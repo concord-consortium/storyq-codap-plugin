@@ -368,3 +368,12 @@ export async function scrollCaseTableToRight(iDataContextName: string): Promise<
 	return false;
 }
 
+export async function updatePluginDimensions(width: number, height: number) {
+	codapInterface.sendRequest({
+		action: 'update',
+		resource: 'interactiveFrame',
+		values: {
+			dimensions: { width, height }
+		}
+	});
+}

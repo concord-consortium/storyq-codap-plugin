@@ -2,11 +2,39 @@
   .text-section-title {
     align-items: center;
     display: flex;
-    font-size: 16px;
-    font-weight: 600;
+    font-size: 14px;
+    font-weight: 700;
+    justify-content: space-between;
 
     .label {
-      font-weight: 700;
+      font-weight: 800;
+    }
+
+    .hide-button {
+      align-items: center;
+      background-color: rgba(0, 0, 0, 0);
+      border: none;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      margin-right: 5px; // To move the button away from the resize handle
+      padding: 0;
+
+      &.hidden {
+        svg {
+          rotate: 180deg;
+        }
+      }
+
+      &:hover {
+        .arrow-outline {
+          fill: #ddd;
+        }
+
+        .arrow-center {
+          fill: #ddd;
+        }
+      }
     }
   }
 

@@ -9,11 +9,15 @@ const tTitles = ['Target', 'Features', 'Training', 'Testing'];
 export interface IUiStoreJSON {
 	tabPanelSelectedIndex: number;
 	trainingPanelShowsEditor: boolean;
+	showStoryQPanel?: boolean;
+	showTextPanel?: boolean;
 }
 
 export class UiStore {
-	tabPanelSelectedIndex: number = 0;
-	trainingPanelShowsEditor: boolean = false;
+	tabPanelSelectedIndex = 0;
+	trainingPanelShowsEditor = false;
+	showStoryQPanel = true;
+	showTextPanel = true;
 
 	constructor() {
 		makeAutoObservable(this);
@@ -31,6 +35,8 @@ export class UiStore {
 		if (json) {
 			this.tabPanelSelectedIndex = json.tabPanelSelectedIndex ?? 0;
 			this.trainingPanelShowsEditor = json.trainingPanelShowsEditor ?? false;
+			this.showStoryQPanel = json.showStoryQPanel ?? true;
+			this.showTextPanel = json.showTextPanel ?? true;
 		}
 	}
 
@@ -40,6 +46,14 @@ export class UiStore {
 
 	setTrainingPanelShowsEditor(value: boolean) {
 		this.trainingPanelShowsEditor = value;
+	}
+
+	setShowStoryQPanel(value: boolean) {
+		this.showStoryQPanel = value;
+	}
+
+	setShowTextPanel(value: boolean) {
+		this.showTextPanel = value;
 	}
 }
 
