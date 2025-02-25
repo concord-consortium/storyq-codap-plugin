@@ -10,7 +10,7 @@ import {
 	GetItemSearchResponse
 } from '../types/codap-api-types';
 import {
-	Feature, FeatureType, getStarterFeature, kFeatureKindColumn, kFeatureKindNgram, kFeatureKindSearch,
+	Feature, FeatureType, getStarterFeature, kAnyNumberKeyword, kFeatureKindColumn, kFeatureKindNgram, kFeatureKindSearch,
 	kFeatureTypeConstructed, kFeatureTypeUnigram, kTokenTypeUnigram, kWhatOptionNumber, kWhatOptionText, NgramDetails,
 	SearchDetails, TokenMap, WordListSpec
 } from "./store_types_and_constants";
@@ -134,7 +134,7 @@ export class FeatureStore {
 				tSecondPart = tDetails.freeFormText !== '' ? `"${tDetails.freeFormText.trim()}"` :
 					tDetails.punctuation !== '' ? tDetails.punctuation :
 					tDetails.wordList && tDetails.wordList.datasetName !== '' ? tDetails.wordList.datasetName :
-					tDetails.what === kWhatOptionNumber ? 'anyNumber' : '';
+					tDetails.what === kWhatOptionNumber ? kAnyNumberKeyword : '';
 			return `${tFirstPart}: ${tSecondPart}`;
 		} else if (iFeature.info.kind === kFeatureKindNgram) {
 			const ignoringPart = iFeature.info.ignoreStopWords ? 'ignoring stopwords' : '';
@@ -155,7 +155,8 @@ export class FeatureStore {
 					` of ${tDetails.wordList.datasetName}` : '';
 			return `${tFirstPart} ${tSecondPart}${tThirdPart}`
 		} else if (iFeature.info.kind === kFeatureKindNgram) {
-			return `${(iFeature.info.details as NgramDetails).n}gram with frequency threshold of ${iFeature.info.frequencyThreshold},
+			const n = (iFeature.info.details as NgramDetails).n;
+			return `${n}gram with frequency threshold of ${iFeature.info.frequencyThreshold},
 			${iFeature.info.ignoreStopWords ? '' : ' not'} ignoring stop words`;
 		} else {
 			return '';

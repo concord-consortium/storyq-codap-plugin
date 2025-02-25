@@ -16,6 +16,10 @@ export const kEmptyEntityInfo = {name: '', title: '', id: 0},
 		}
 	}
 
+export const kAnyNumberKeyword = "anyNumber";
+export const kNumberPattern = `[0-9]+`;
+export const kNumberRegExp = new RegExp(kNumberPattern);
+
 export const kContainOptionContain = "contain";
 export const kContainOptionNotContain = "not contain";
 export const kContainOptionStartWith = "start with";
