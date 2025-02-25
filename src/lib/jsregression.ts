@@ -8,11 +8,15 @@ interface IRegressionConfig {
   kappa?: number;
   lambda: number;
   threshold?: number;
-  trace: boolean;
+  trace?: boolean;
   lockIntercept?: boolean;
   progressCallback?: ProgressCallback;
   stepModeCallback?: StepModeCallback;
 }
+
+const kDefaultAlpha = 0.001;
+const kDefaultIterations = 100;
+const kDefaultLambda = 0.0;
 
 interface IFitResultConfig {
   alpha: number;
@@ -36,7 +40,7 @@ export class LinearRegression {
   theta: number[] = [];
 
   constructor(config?: IRegressionConfig) {
-    const { iterations = 1000, alpha = 0.001, lambda = 0.0, trace = false } = config || {};
+    const { iterations = 1000, alpha = kDefaultAlpha, lambda = kDefaultLambda, trace = false } = config || {};
     this.iterations = iterations;
     this.alpha = alpha;
     this.lambda = lambda;
@@ -125,9 +129,9 @@ export class LinearRegression {
 }
 
 export class LogisticRegression {
-  alpha = 0.001;
+  alpha = kDefaultAlpha;
   dim = 0;
-  lambda = 0;
+  lambda = kDefaultLambda;
   lockIntercept?: boolean;
   iterations = 20;
   fitResult: IFitResult | undefined;
@@ -148,7 +152,9 @@ export class LogisticRegression {
   }
 
   setup(config: IRegressionConfig) {
-    const { alpha = 0.001, iterations = 100, lambda = 0, trace = false } = config || {};
+    const {
+      alpha = kDefaultAlpha, iterations = kDefaultIterations, lambda = kDefaultLambda, trace = false
+    } = config || {};
     this.lockIntercept = config.lockIntercept;
     this.alpha = alpha;
     this.lambda = lambda;
@@ -284,99 +290,72 @@ export function getDefaultLogisticRegression() {
 }
 
 export class MultiClassLogistic {
-  alpha = 0.001;
-  iterations = 100;
-  lambda = 0;
+  alpha = kDefaultAlpha;
+  classes?: number[];
+  dim = 0;
+  iterations = kDefaultIterations;
+  lambda = kDefaultLambda;
+  logistics: Record<number, LogisticRegression> = {};
 
   constructor(config?: IRegressionConfig) {
-    const { alpha, iterations, lambda } = config || {};
-}
-
-export var MultiClassLogistic = function (config) {
-  config = config || {};
-  if (!config.alpha) {
-    config.alpha = 0.001;
+    const { alpha = kDefaultAlpha, iterations = kDefaultIterations, lambda = kDefaultLambda } = config || {};
+    this.alpha = alpha;
+    this.lambda = lambda;
+    this.iterations = iterations;
   }
-  if (!config.iterations) {
-    config.iterations = 100;
-  }
-  if (!config.lambda) {
-    config.lambda = 0;
-  }
-  this.alpha = config.alpha;
-  this.lambda = config.lambda;
-  this.iterations = config.iterations;
-};
 
-MultiClassLogistic.prototype.fit = function (data, classes) {
-  this.dim = data[0].length;
-  var N = data.length;
-
-  if (!classes) {
-    classes = [];
-    for (var i = 0; i < N; ++i) {
-      var found = false;
-      var label = data[i][this.dim - 1];
-      for (var j = 0; j < classes.length; ++j) {
-        // eslint-disable-next-line
-        if (label == classes[j]) {
-          found = true;
-          break;
+  fit(data: number[][], classes?: number[]) {
+    this.dim = data[0].length;
+    const N = data.length;
+  
+    if (!classes) {
+      const classSet = new Set<number>(data.map(row => row[this.dim - 1]));
+      classes = Array.from(classSet);
+    }
+  
+    this.classes = classes;
+  
+    this.logistics = {};
+    const result = {};
+    this.classes.forEach(c => {
+      this.logistics[c] = new LogisticRegression({
+        alpha: this.alpha,
+        lambda: this.lambda,
+        iterations: this.iterations
+      });
+      const data_c = [];
+      for (let i = 0; i < N; ++i) {
+        const row: number[] = [];
+        for (let j = 0; j < this.dim - 1; ++j) {
+          row.push(data[i][j]);
         }
+        row.push(data[i][this.dim - 1] === c ? 1 : 0);
+        data_c.push(row);
       }
-      if (!found) {
-        classes.push(label);
-      }
-    }
-  }
-
-  this.classes = classes;
-
-  this.logistics = {};
-  var result = {};
-  for (var k = 0; k < this.classes.length; ++k) {
-    var c = this.classes[k];
-    this.logistics[c] = new LogisticRegression({
-      alpha: this.alpha,
-      lambda: this.lambda,
-      iterations: this.iterations
+      result[c] = this.logistics[c].fit(data_c);
     });
-    var data_c = [];
-    for (i = 0; i < N; ++i) {
-      var row = [];
-      for (j = 0; j < this.dim - 1; ++j) {
-        row.push(data[i][j]);
-      }
-      // eslint-disable-next-line
-      row.push(data[i][this.dim - 1] == c ? 1 : 0);
-      data_c.push(row);
-    }
-    result[c] = this.logistics[c].fit(data_c);
-  }
-  return result;
-};
+    return result;
+  };
 
-MultiClassLogistic.prototype.transform = function (x) {
-  if (x[0].length) { // x is a matrix
-    var predicted_array = [];
-    for (var i = 0; i < x.length; ++i) {
-      var predicted = this.transform(x[i]);
-      predicted_array.push(predicted);
-    }
+  transformRow(row: number[]) {
+    let max_prob = 0.0;
+    let best_c = -1;
+    this.classes?.forEach(c => {
+      var prob_c = this.logistics[c].transformRow(row);
+      if (max_prob < prob_c) {
+        max_prob = prob_c;
+        best_c = c;
+      }
+    });
+  
+    return best_c;
+  }
+
+  transform(x: number[][] | number[]) {
+    if (typeof x[0] === "number") return this.transformRow(x as number[]);
+    
+    const predicted_array: number[] = [];
+    x.forEach(row => predicted_array.push(this.transformRow(row as number[])));
     return predicted_array;
   }
-
-
-  var max_prob = 0.0;
-  var best_c = '';
-  for (var k = 0; k < this.classes.length; ++k) {
-    var c = this.classes[k];
-    var prob_c = this.logistics[c].transform(x);
-    if (max_prob < prob_c) {
-      max_prob = prob_c;
-      best_c = c;
-    }
-  }
-
-  return best_c;
 }
