@@ -1,6 +1,6 @@
 # Testing StoryQ
 
-StoryQ requires datasets to work properly. There are two codap3 documents saved in this directory that will allow you to test the plugin easily.
+StoryQ requires datasets to work properly. There are three codap3 documents saved in this directory that will allow you to test the plugin easily.
 
 ## Setting up a test document
 
@@ -30,13 +30,13 @@ Here you'll determine which features your AI models might care about. There are 
 #### First dropdown
 - **contain** True if a case includes the item specified in the second drop down.
 - **not contain** True if a case does not include the item specified in the second drop down.
-- **start with** *Currently works like contain, which is incorrect.*
-- **end with** *Currently works like contain, which is incorrect.*
+- **start with** *Currently works like contain, which is incorrect. I haven't gotten a straight answer on how this should work.*
+- **end with** *Currently works like contain, which is incorrect. I haven't gotten a straight answer on how this should work.*
 - **count** Displays the number of times the item specified in the second drop down occurs in each case. But for the purposes of training and testing models, this works the same as contain.
 - **single words** This will create a separate contain feature for each word that appears in the dataset. There are a couple of exceptions:
   - Stop words (listed in `stop_words.ts`) will be excluded if `Ignore stopwords` is checked.
   - Words that appear infrequently (default less than 4, but the user can change this) are excluded.
-**other columns as features** I'm not sure how these are supposed to work or if they are working properly.
+- **other columns as features** I'm not sure how these are supposed to work or if they are working properly. It doesn't seem like they're working.
 
 #### Second dropdown
 The first five options described above allow you to select from a second dropdown.
