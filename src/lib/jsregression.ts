@@ -30,6 +30,7 @@ interface IFitResult {
   config: IFitResultConfig
 }
 
+// This class doesn't seem to be used anywhere in StoryQ
 export class LinearRegression {
   iterations: number;
   alpha: number;
@@ -289,6 +290,7 @@ export function getDefaultLogisticRegression() {
 	});
 }
 
+// This class doesn't seem to be used anywhere in StoryQ
 export class MultiClassLogistic {
   alpha = kDefaultAlpha;
   classes?: number[];
@@ -316,7 +318,7 @@ export class MultiClassLogistic {
     this.classes = classes;
   
     this.logistics = {};
-    const result = {};
+    const result: Record<number, any> = {};
     this.classes.forEach(c => {
       this.logistics[c] = new LogisticRegression({
         alpha: this.alpha,
@@ -332,6 +334,7 @@ export class MultiClassLogistic {
         row.push(data[i][this.dim - 1] === c ? 1 : 0);
         data_c.push(row);
       }
+      // FIXME: LogisticRegression.fit does not return anything, so result will be full of undefineds
       result[c] = this.logistics[c].fit(data_c);
     });
     return result;
