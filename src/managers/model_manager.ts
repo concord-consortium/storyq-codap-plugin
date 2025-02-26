@@ -328,7 +328,7 @@ export class ModelManager {
 			tLogisticModel.progressCallback = this_.progressBar;
 			tLogisticModel.trace = trainingStore.model.trainingInStepMode;
 			tLogisticModel.stepModeCallback = trainingStore.model.trainingInStepMode ?
-				this_.stepModeCallback : null;
+				this_.stepModeCallback : undefined;
 			tLogisticModel.lockIntercept = trainingStore.model.lockInterceptAtZero;
 			const tColumnNames = tTargetColumnFeatureNames.concat(
 				featureStore.getChosenFeatures().map(iFeature => {
@@ -414,13 +414,15 @@ export class ModelManager {
 			this_ = this
 		runInAction(async () => {
 			tModel.setIteration(iIteration);
-			if (iIteration >= tIterations) {
+			if (iIteration >= tIterations && tModel.logisticModel.fitResult) {
 				const tLogisticModel = tModel.logisticModel;
 
-				await this_.computeResults(tModel.logisticModel.fitResult.theta)
+				await this_.computeResults(tModel.logisticModel.fitResult.theta);
 
 				action(() => {
-					trainingStore.inactivateAll()
+					if (!tLogisticModel.fitResult) return;
+
+					trainingStore.inactivateAll();
 
 					trainingStore.trainingResults.push({
 						name: tModel.name,
@@ -431,7 +433,7 @@ export class ModelManager {
 						ignoreStopWords: tModel.ignoreStopWords,
 						settings: {
 							iterations: tLogisticModel.iterations,
-							locked: tLogisticModel.lockIntercept,
+							locked: !!tLogisticModel.lockIntercept,
 							thresholdAtPoint5: tModel.usePoint5AsProbThreshold
 						},
 						accuracy: tLogisticModel.accuracy || 0,
@@ -439,8 +441,8 @@ export class ModelManager {
 						featureNames: featureStore.getChosenFeatureNames(),
 						hasNgram: featureStore.hasNgram(),
 						storedModel: this.fillOutCurrentStoredModel(tLogisticModel)
-					})
-				})()
+					});
+				})();
 
 				await domainStore.syncWeightsAndResultsWithActiveModels()
 				await domainStore.recreateUsagesAndFeatureIDs(tModel.ignoreStopWords)
@@ -460,14 +462,14 @@ export class ModelManager {
 		const tLogisticModel = trainingStore.model.logisticModel
 		tLogisticModel.trace = trainingStore.model.trainingInStepMode
 		tLogisticModel.stepModeCallback = trainingStore.model.trainingInStepMode ?
-			this.stepModeCallback : null
+			this.stepModeCallback : undefined
 
 		this.stepModeContinueCallback && this.stepModeContinueCallback(this.stepModeIteration + 1)
 	}
 
 	fillOutCurrentStoredModel(iLogisticModel: LogisticRegression): StoredAIModel {
 		const tTokenArray = iLogisticModel._oneHot.tokenArray,
-			tWeights = iLogisticModel.fitResult.theta	// toss the constant term
+			tWeights = iLogisticModel.fitResult?.theta ?? []	// toss the constant term
 
 		return {
 			storedTokens: tTokenArray.map((iToken: any, iIndex: number) => {
@@ -568,7 +570,7 @@ export class ModelManager {
 			// Determine the probability threshold that yields the fewest discrepant classifications
 			// First compute the probabilities separating them into two arrays
 			iTools.documents.forEach((aDoc: any, iIndex: number) => {
-				let tProbability: number = iTools.logisticModel.transform(iTools.oneHotData[iIndex]),
+				let tProbability: number = iTools.logisticModel.transformRow(iTools.oneHotData[iIndex]),
 					tActual = iTools.oneHotData[iIndex][tOneHotLength - 1];
 				if (tActual) {
 					tPosProbs.push(tProbability);
