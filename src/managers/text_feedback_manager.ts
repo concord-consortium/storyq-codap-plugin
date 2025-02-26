@@ -237,15 +237,15 @@ export class TextFeedbackManager {
 					}
 				}
 
-				const tChildren = await this.getChildCases(tGetCaseResult.values.case.children, tDatasetName, 'results'),
-					tFoundChild = tChildren.find(iChild => iChild['model name'] === trainingStore.firstActiveModelName),
-					tPredictedClass = tFoundChild ? tFoundChild[tPredictedLabelAttributeName] : '',
-					tActualClass = tGetCaseResult.values.case.values[tClassAttributeName],
-					tPhrase = tGetCaseResult.values.case.values[tAttributeName],
-					tQuadruple = {
-						actual: String(tActualClass), predicted: String(tPredictedClass), phrase: String(tPhrase),
-						nonNtigramFeatures: tFeatureIDs.map(anID => tFeaturesMap[anID]), index: tGetCaseResult.values.caseIndex
-					};
+				const tChildren = await this.getChildCases(tGetCaseResult.values.case.children, tDatasetName, 'results');
+				const tFoundChild = tChildren.find(iChild => iChild['model name'] === trainingStore.firstActiveModelName);
+				const tPredictedClass = tFoundChild ? tFoundChild[tPredictedLabelAttributeName] : '';
+				const tActualClass = tGetCaseResult.values.case.values[tClassAttributeName];
+				const tPhrase = tGetCaseResult.values.case.values[tAttributeName];
+				const tQuadruple = {
+					actual: String(tActualClass), predicted: String(tPredictedClass), phrase: String(tPhrase),
+					nonNtigramFeatures: tFeatureIDs.map(anID => tFeaturesMap[anID]), index: tGetCaseResult.values.caseIndex
+				};
 				tQuadruples.push(tQuadruple);
 			}
 		});
