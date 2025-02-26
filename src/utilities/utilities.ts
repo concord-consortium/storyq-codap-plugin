@@ -29,8 +29,8 @@ export function textToObject(iText: string, iSelectedWords: (string | number)[],
 		let tRawWord = iWord.toLowerCase();
 		const containedWords = iSelectedWords.map(selectedWord => {
 			// Strip out the word from strings like 'contain: "word"' and 'count: "word"'
-			const _containedWord = typeof selectedWord === "string" && selectedWord.match(/contain: "([^"]+)"/);
-			const _countWord = typeof selectedWord === "string" && selectedWord.match(/count: "([^"]+)"/);
+			const _containedWord = typeof selectedWord === "string" && selectedWord.match(/^contain: "([^"]+)"/);
+			const _countWord = typeof selectedWord === "string" && selectedWord.match(/^count: "([^"]+)"/);
 			const containedWord = _containedWord ? _containedWord[1]
 				: _countWord ? _countWord[1]
 				: selectedWord;
@@ -86,8 +86,8 @@ export async function highlightFeatures(text: string, selectedFeatures: (string 
 	for (const selectedWord of selectedFeatures) {
 		if (typeof selectedWord === "string") {
 			// Strip out the word from strings like 'contain: "word"' and 'count: "word"'
-			const _containWord = selectedWord.match(/contain: "([^"]+)"/);
-			const _countWord = selectedWord.match(/count: "([^"]+)"/);
+			const _containWord = selectedWord.match(/^contain: "([^"]+)"/);
+			const _countWord = selectedWord.match(/^count: "([^"]+)"/);
 			let singleWord = _containWord ? _containWord[1]
 				: _countWord ? _countWord[1]
 				: selectedWord;
