@@ -11,6 +11,7 @@ import { featureStore } from "../stores/feature_store";
 import { trainingStore } from "../stores/training_store";
 import { uiStore } from "../stores/ui_store";
 import { TrainingResult } from "../stores/store_types_and_constants";
+import { FeatureList } from "./feature_list";
 import { ProgressBar } from "./progress-bar";
 import { Button } from "./ui/button";
 import { CheckBox } from "./ui/check-box";
@@ -81,20 +82,6 @@ export const TrainingPane = observer(class TrainingPane extends Component {
 						value={tModel.name}
 						maxLength={20}
 					/>
-				)
-			}
-
-			function featureList() {
-				return (
-					<div className='sq-indent'>
-						<ul>
-							{featureStore.getChosenFeatures().map((iFeature, iIndex) => {
-								return (
-									<li key={iIndex}><strong>{iFeature.name}</strong></li>
-								)
-							})}
-						</ul>
-					</div>
 				)
 			}
 
@@ -254,7 +241,7 @@ export const TrainingPane = observer(class TrainingPane extends Component {
 							<p>Once trained,
 								<strong>{tModel.name === '' ? 'your model ' : ' ' + (tModel.name + ' ')}</strong>
 								will contain {tFeatureString}:</p>
-							{featureList()}
+							<FeatureList />
 						</div>
 						{getButtons()}
 						{getSettingsPanel()}
