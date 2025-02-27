@@ -14,24 +14,29 @@ import { Button } from "./ui/button";
 import { CheckBox } from "./ui/check-box";
 
 export interface IFeatureListItemProps {
+  allowChoose?: boolean
   allowDelete?: boolean
   feature: Feature
 }
 
-export const FeatureListItem = observer(function FeatureListItem({ allowDelete = true, feature }: IFeatureListItemProps) {
+export const FeatureListItem = observer(function FeatureListItem({
+  allowChoose = true, allowDelete = true, feature
+}: IFeatureListItemProps) {
   const tHint = feature.chosen ? SQ.hints.featureTableCheckboxRemove : SQ.hints.featureTableCheckboxAdd;
 
   return (
     <div className='sq-component'>
-      <CheckBox
-        text=''
-        value={feature.chosen}
-        onValueChanged={action(async () => {
-          await featureStore.toggleChosenFor(feature);
-          if (feature.type === kFeatureTypeUnigram && feature.chosen) domainStore.updateNgramFeatures();
-        })}
-        hint={tHint}
-      />
+      {allowChoose && (
+        <CheckBox
+          text=''
+          value={feature.chosen}
+          onValueChanged={action(async () => {
+            await featureStore.toggleChosenFor(feature);
+            if (feature.type === kFeatureTypeUnigram && feature.chosen) domainStore.updateNgramFeatures();
+          })}
+          hint={tHint}
+        />
+      )}
       <p><strong>{feature.name}</strong></p>
       {allowDelete && (
         <Button
@@ -39,8 +44,8 @@ export const FeatureListItem = observer(function FeatureListItem({ allowDelete =
           text=''
           icon='clear'
           onClick={action(async () => {
-            await featureStore.deleteFeature(feature)
-            await textStore.clearText()
+            await featureStore.deleteFeature(feature);
+            await textStore.clearText();
           })}
           hint={SQ.hints.featureTableRemove}
         />

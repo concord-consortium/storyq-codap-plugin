@@ -100,7 +100,7 @@ export function FeaturePane() {
 				<AddButton />
 				<DoneButton />
 			</div>
-			<FeatureList />
+			<FeatureList allowChoose={false} />
 		</div>
 	);
 }
