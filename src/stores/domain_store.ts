@@ -93,16 +93,17 @@ export class DomainStore {
 								name: collectionName,
 								title: collectionName,
 								attrs: [
-									{name: 'name'},
-									{name: 'chosen', type: 'checkbox'},
-									{name: tPositiveAttrName},
-									{name: tNegativeAttrName},
-									{name: 'type', hidden: true},
+									{ name: 'name' },
+									{ name: 'chosen', type: 'checkbox', hidden: true },
+									{ name: 'highlight', type: 'checkbox' },
+									{ name: tPositiveAttrName },
+									{ name: tNegativeAttrName },
+									{ name: 'type', hidden: true },
 									/*
 																		{name: 'description'},
 																		{name: 'formula'},
 									*/
-									{name: 'usages', hidden: true}
+									{ name: 'usages', hidden: true }
 								]
 							},
 							{
@@ -239,6 +240,7 @@ export class DomainStore {
 					let tValuesObject: { values: { [index: string]: {} } } = {
 						values: {
 							chosen: iFeature.chosen,
+							highlight: iFeature.highlight,
 							name: iFeature.name,
 							type: iFeature.type,
 							/*
@@ -309,7 +311,7 @@ export class DomainStore {
 	}
 
 	async updateNgramFeatures() {
-		if (featureStore.tokenMapAlreadyHasUnigrams()) return;
+		if (featureStore.tokenMapAlreadyHasUnigrams) return;
 
 		await targetStore.updateTargetCases();
 		const tNgramFeatures = featureStore.features.filter(iFeature => iFeature.info.kind === kFeatureKindNgram);

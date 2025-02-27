@@ -190,6 +190,7 @@ export interface Feature {
 	description: string
 	featureItemID: string // ID of the item in the feature table corresponding to this feature
 	formula: string
+	highlight: boolean
 	inProgress: boolean
 	info: FeatureDetails
 	infoChoice: string
@@ -210,6 +211,7 @@ export function getStarterFeature(): Feature {
 		description: '',
 		featureItemID: '',
 		formula: '',
+		highlight: false,
 		inProgress: false,
 		info: {
 			kind: '',

@@ -163,12 +163,8 @@ export class FeatureStore {
 		}
 	}
 
-	getChosenFeatureNames() {
-		return this.getChosenFeatures().map(iFeature => iFeature.name);
-	}
-
-	getChosenFeatures() {
-		return this.features.filter(iFeature => iFeature.chosen);
+	getFeatureByCaseId(caseId: string | number) {
+		return this.features.find(feature => feature.caseID === `${caseId}`);
 	}
 
 	getFormulaFor(iFeatureName: string) {
@@ -178,8 +174,20 @@ export class FeatureStore {
 		return tFoundObject ? tFoundObject.formula : '';
 	}
 
+	get chosenFeatureNames() {
+		return this.chosenFeatures.map(iFeature => iFeature.name);
+	}
+
+	get chosenFeatures() {
+		return this.features.filter(iFeature => iFeature.chosen);
+	}
+
 	get featureDatasetID() {
 		return this.featureDatasetInfo.datasetID;
+	}
+
+	get highlightedFeatures() {
+		return this.features.filter(feature => feature.highlight);
 	}
 
 	guaranteeUniqueFeatureName(iCandidate: string) {
@@ -194,16 +202,16 @@ export class FeatureStore {
 		return tTest;
 	}
 
-	getConstructedFeatureNames() {
+	get constructedFeatureNames() {
 		return this.features.filter(iFeature => iFeature.info.kind !== kFeatureKindNgram).map(iFeature => iFeature.name);
 	}
 
-	getShouldIgnoreStopwords() {
+	get shouldIgnoreStopwords() {
 		const tNtigramFeature = this.features.find(iFeature => iFeature.info.kind === kFeatureKindNgram);
 		return tNtigramFeature ? tNtigramFeature.info.ignoreStopWords : true;
 	}
 
-	hasNgram() {
+	get hasNgram() {
 		return Boolean(this.features.find(iFeature => iFeature.info.kind === kFeatureKindNgram));
 	}
 
@@ -214,13 +222,14 @@ export class FeatureStore {
 		};
 		tFeature.inProgress = false;
 		tFeature.chosen = true;
+		tFeature.highlight = true;
 		tFeature.type = typeMap[tFeature.info.kind] ?? kFeatureTypeConstructed;
 		tFeature.description = this.getDescriptionFor(tFeature);
 		this.features.push(tFeature);
 		this.startConstructingFeature();
 	}
 
-	tokenMapAlreadyHasUnigrams() {
+	get tokenMapAlreadyHasUnigrams() {
 		return this.tokenMap && Object.values(this.tokenMap).some(iToken => iToken.type === kTokenTypeUnigram);
 	}
 

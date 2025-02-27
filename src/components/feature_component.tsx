@@ -53,7 +53,7 @@ export const FeatureComponent = observer(function FeatureComponent({ feature }: 
 			}
 		})
 		// @ts-ignore
-		featureDescriptors.featureKinds[1].items[0].disabled = featureStore.hasNgram()
+		featureDescriptors.featureKinds[1].items[0].disabled = featureStore.hasNgram
 		return (
 			<SelectBox
 				className='sq-new-feature-item sq-fc-part'

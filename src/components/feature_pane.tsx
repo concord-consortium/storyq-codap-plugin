@@ -44,7 +44,7 @@ const DoneButton = observer(function DoneButton() {
 	// TODO Move this function into domainStore
 	const handleClick = action(async () => {
 		if( featureUnderConstruction.inProgress) {
-			if(featureUnderConstruction.info.kind === kFeatureKindNgram && featureStore.hasNgram()) {
+			if(featureUnderConstruction.info.kind === kFeatureKindNgram && featureStore.hasNgram) {
 				window.alert('Sorry, you already have this feature.')
 			}
 			else {
