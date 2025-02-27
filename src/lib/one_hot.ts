@@ -19,7 +19,7 @@
 
 import { stopWords } from "./stop_words";
 import {
-	Feature, getNewToken, kTokenTypeConstructed, kTokenTypeUnigram, TokenMap
+	Feature, getNewToken, kNumberPattern, kTokenTypeConstructed, kTokenTypeUnigram, TokenMap
 } from "../stores/store_types_and_constants";
 import { emoticons } from "./emoticons";
 
@@ -37,7 +37,7 @@ const emojiconsOrWords = `${emoticons}|${emojis}|${words}`;
  */
 export function allTokenizer(text: string) {
 	if (text) {
-		const tExpressionPattern = `${emojiconsOrWords}|${whitespace}|${punctuation}`;
+		const tExpressionPattern = `${kNumberPattern}|${emojiconsOrWords}|${whitespace}|${punctuation}`;
 		const tExpression = new RegExp(tExpressionPattern, 'gu');
 		return text.match(tExpression) || [];
 	}
