@@ -5,19 +5,15 @@
 import { observer } from "mobx-react";
 import React from "react";
 import { featureStore } from "../stores/feature_store";
-import { FeatureComponent } from "./feature_component";
+import { FeatureListItem } from "./feature_list_item";
 
 export const FeatureList = observer(function FeatureList() {
 	return (
 		<div className="sq-container">
 			<div className="sq-feature-list">
-				{featureStore.features.map((feature, index) => {
-					return <FeatureComponent
-						key={index}
-						feature={feature}
-						shortened={true}
-					/>
-				})}
+				{featureStore.features.map((feature, index) => (
+					<FeatureListItem key={index} feature={feature} />
+				))}
 			</div>
 		</div>
 	);
