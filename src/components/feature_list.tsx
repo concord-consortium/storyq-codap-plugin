@@ -7,12 +7,15 @@ import React from "react";
 import { featureStore } from "../stores/feature_store";
 import { FeatureListItem } from "./feature_list_item";
 
-export const FeatureList = observer(function FeatureList() {
+interface IFeatureListProps {
+	allowDelete?: boolean
+}
+export const FeatureList = observer(function FeatureList({ allowDelete = true }: IFeatureListProps) {
 	return (
 		<div className="sq-container">
 			<div className="sq-feature-list">
 				{featureStore.features.map((feature, index) => (
-					<FeatureListItem key={index} feature={feature} />
+					<FeatureListItem allowDelete={allowDelete} key={index} feature={feature} />
 				))}
 			</div>
 		</div>

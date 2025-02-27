@@ -14,10 +14,11 @@ import { Button } from "./ui/button";
 import { CheckBox } from "./ui/check-box";
 
 export interface IFeatureListItemProps {
+  allowDelete?: boolean
   feature: Feature
 }
 
-export const FeatureListItem = observer(function FeatureListItem({ feature }: IFeatureListItemProps) {
+export const FeatureListItem = observer(function FeatureListItem({ allowDelete = true, feature }: IFeatureListItemProps) {
   const tHint = feature.chosen ? SQ.hints.featureTableCheckboxRemove : SQ.hints.featureTableCheckboxAdd;
 
   return (
@@ -32,16 +33,18 @@ export const FeatureListItem = observer(function FeatureListItem({ feature }: IF
         hint={tHint}
       />
       <p><strong>{feature.name}</strong></p>
-      <Button
-        className='sq-feature-delete'
-        text=''
-        icon='clear'
-        onClick={action(async () => {
-          await featureStore.deleteFeature(feature)
-          await textStore.clearText()
-        })}
-        hint={SQ.hints.featureTableRemove}
-      />
+      {allowDelete && (
+        <Button
+          className='sq-feature-delete'
+          text=''
+          icon='clear'
+          onClick={action(async () => {
+            await featureStore.deleteFeature(feature)
+            await textStore.clearText()
+          })}
+          hint={SQ.hints.featureTableRemove}
+        />
+      )}
     </div>
   );
 });
