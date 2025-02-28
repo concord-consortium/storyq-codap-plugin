@@ -76,15 +76,17 @@ export class NotificationManager {
 			if (tUpdatedCases.length > 0) {
 				action(() => {
 					tUpdatedCases.forEach(iCase => {
-						const tChosen = iCase.values.chosen === 'true',
-							tType = iCase.values.type,
-							tName = String(iCase.values.name),
-							tFoundFeature = tType !== kTokenTypeUnigram && features.find(iFeature => iFeature.name === tName);
+						const tChosen = iCase.values.chosen === 'true';
+						const highlight = iCase.values.highlight === "true";
+						const tType = iCase.values.type;
+						const tName = String(iCase.values.name);
+						const tFoundFeature = tType !== kTokenTypeUnigram && features.find(iFeature => iFeature.name === tName);
 						if (tFoundFeature) {
 							tFoundFeature.chosen = tChosen;
-							tFoundFeature.highlight = iCase.values.highlight === 'true';
+							tFoundFeature.highlight = highlight;
 						} else if (tType === kTokenTypeUnigram) {
 							const tToken = featureStore.tokenMap[tName];
+							if (tToken) tToken.highlight = highlight;
 							if (tToken && !tChosen) {
 								delete featureStore.tokenMap[tName];
 							} else if (!tToken && tChosen) {
@@ -93,6 +95,7 @@ export class NotificationManager {
 									type: kTokenTypeUnigram,
 									count: Number(iCase.values['frequency in positive']) + Number(iCase.values['frequency in negative']),
 									index: 0,
+									highlight: true,
 									numPositive: Number(iCase.values['frequency in positive']),
 									numNegative: Number(iCase.values['frequency in negative']),
 									caseIDs: JSON.parse(String(iCase.values.usages)),

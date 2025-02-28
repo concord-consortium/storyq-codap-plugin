@@ -537,7 +537,6 @@ export class DomainStore {
 			{ targetAttributeName, targetCollectionName } = targetStore,
 			tTargetCases = await getCaseValues(tTargetDatasetName, targetCollectionName),
 			{ collectionName, datasetName } = featureStore.featureDatasetInfo,
-			tTokenMap = featureStore.tokenMap,
 			tFeatureCases = await getCaseValues(datasetName, collectionName),
 			tUsageResults: Record<number, number[]> = {}, // Contains IDs of target texts that contain a given feature
 			tTextResults: Record<number, number[]> = {},	// Contains IDs of features found in a given text
@@ -568,8 +567,8 @@ export class DomainStore {
 				}
 			})
 			// We need to store the featureCaseID in the token map while we've got it
-			if (tTokenMap[tFeatureName]) {
-				tTokenMap[tFeatureName].featureCaseID = iFeatureCase.id;
+			if (featureStore.tokenMap[tFeatureName]) {
+				featureStore.tokenMap[tFeatureName].featureCaseID = iFeatureCase.id;
 			}
 		});
 		// Now we can update the target and feature cases
@@ -614,8 +613,8 @@ export class DomainStore {
 
 		// Finally, we update featureStore.tokenMap. Each token has caseIDs corresponding to usages and a featureID
 		//	that is the ID of the feature in the features collection.
-		for (let tTokenMapKey in tTokenMap) {
-			const tToken = tTokenMap[tTokenMapKey],
+		for (let tTokenMapKey in featureStore.tokenMap) {
+			const tToken = featureStore.tokenMap[tTokenMapKey],
 				tStoredFeature = featureStore.features.find(iStoredFeature => {
 					return iStoredFeature.name === tTokenMapKey;
 				});

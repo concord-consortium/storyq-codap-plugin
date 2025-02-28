@@ -280,6 +280,7 @@ export interface Token {
 	caseIDs: number[]
 	count: number	// the number of target texts where this token is true (column feature) or found (unigram)
 	featureCaseID: number | null
+	highlight?: boolean
 	index: number
 	numNegative: number
 	numPositive: number
@@ -292,6 +293,7 @@ export function getNewToken(initialValues: Partial<Token>) {
 		caseIDs: [],
 		count: 1,
 		featureCaseID: null,
+		highlight: true,
 		index: -1,
 		numNegative: 0,
 		numPositive: 0,

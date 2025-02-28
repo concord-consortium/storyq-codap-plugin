@@ -12,7 +12,7 @@ import {
 import {
 	Feature, FeatureType, getStarterFeature, kAnyNumberKeyword, kFeatureKindColumn, kFeatureKindNgram, kFeatureKindSearch,
 	kFeatureTypeConstructed, kFeatureTypeUnigram, kTokenTypeUnigram, kWhatOptionNumber, kWhatOptionText, NgramDetails,
-	SearchDetails, TokenMap, WordListSpec
+	SearchDetails, Token, TokenMap, WordListSpec
 } from "./store_types_and_constants";
 import { targetDatasetStore } from './target_dataset_store';
 
@@ -32,6 +32,7 @@ export interface IFeatureStoreJSON {
 }
 
 export class FeatureStore {
+	caseIdTokenMap: Record<number, Token> = {}
 	features: Feature[] = []
 	featureUnderConstruction: Feature = getStarterFeature();
 	featureDatasetInfo = {
@@ -167,6 +168,25 @@ export class FeatureStore {
 		return this.features.find(feature => feature.caseID === `${caseId}`);
 	}
 
+	getTokenByCaseId(caseId: string | number) {
+		const numberId = Number(caseId);
+		const token = this.caseIdTokenMap[numberId];
+		if (token) {
+			if (this.tokenMap[token.token]) {
+				return token;
+			} else {
+				// If the token no longer exists in the tokenMap, remove it from the caseIdTokenMap
+				delete this.caseIdTokenMap[numberId];
+			}
+		} else {
+			const foundToken = Object.values(this.tokenMap).find(iToken => iToken.featureCaseID === Number(caseId));
+			if (foundToken) {
+				this.caseIdTokenMap[numberId] = foundToken;
+				return foundToken;
+			}
+		}
+	}
+
 	getFormulaFor(iFeatureName: string) {
 		const tFoundObject = this.features.find(iFeature => {
 			return iFeature.name === iFeatureName && iFeature.formula !== '';
@@ -188,6 +208,13 @@ export class FeatureStore {
 
 	get highlightedFeatures() {
 		return this.features.filter(feature => feature.highlight);
+	}
+
+	get highlights() {
+		return [
+			...this.features.map(feature => feature.highlight),
+			...Object.values(this.tokenMap).map(token => token.highlight)
+		];
 	}
 
 	guaranteeUniqueFeatureName(iCandidate: string) {

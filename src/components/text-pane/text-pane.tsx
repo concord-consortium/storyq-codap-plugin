@@ -17,7 +17,7 @@ export const TextPane = observer(function TextPane() {
   // Update the text pane when the highlight state of any feature changes
   useEffect(() => {
     return reaction(
-      () => featureStore.features.map(feature => feature.highlight),
+      () => featureStore.highlights,
       () => textFeedbackManager?.updateTextPane()
     );
   });

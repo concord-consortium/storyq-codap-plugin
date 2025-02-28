@@ -248,7 +248,7 @@ export class TextFeedbackManager {
 						caseFeatureIDs.forEach(iValue => {
 							if (
 								(typeof iValue === 'number' || typeof iValue === 'string') &&
-								featureStore.getFeatureByCaseId(iValue)?.highlight
+								(featureStore.getFeatureByCaseId(iValue)?.highlight || featureStore.getTokenByCaseId(iValue)?.highlight)
 							) {
 								tFeatureIDs.push(Number(iValue));
 							}
@@ -431,7 +431,9 @@ export class TextFeedbackManager {
 		// We can now convert each quad's array of feature IDs to features
 		tQuadruples.forEach(iQuad => {
 			iQuad.nonNtigramFeatures = iQuad.nonNtigramFeatures
-				.filter(id => !!featureStore.getFeatureByCaseId(id)?.highlight)
+				.filter(id => {
+					return !!featureStore.getFeatureByCaseId(id)?.highlight || !!featureStore.getTokenByCaseId(id)?.highlight;
+				})	
 				.map(iID => tFeaturesMap[Number(iID)]);
 		});
 
