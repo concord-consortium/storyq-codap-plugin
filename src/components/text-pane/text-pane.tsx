@@ -20,7 +20,7 @@ export const TextPane = observer(function TextPane() {
       () => featureStore.highlights,
       () => textFeedbackManager?.updateTextPane()
     );
-  });
+  }, []);
 
   const visibleTextSectionCount = textStore.textSections.filter(textSection => !textSection.hidden).length;
   const textHeight = containerHeight - textStore.textSections.length * textSectionTitleHeight;
