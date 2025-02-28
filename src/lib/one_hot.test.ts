@@ -1,10 +1,12 @@
-import { wordTokenizer } from "./one_hot";
+import { allTokenizer, wordTokenizer } from "./one_hot";
 
 // to make the two boolean parameters easier to understand
 const ignoreStopWords = true;
 const dontIgnoreStopWords = false;
 const ignorePunctuation = true;
 const dontIgnorePunctuation = false;
+
+const challengingReview = "I had Royal Milk Tea not bad with boba no jelly. It was a little expensive $5.00+ for a small about the size of a grande at Starbucks. Didn't try anything else.";
 
 describe("wordTokenizer", () => {
   it("tokenizes empty strings", () => {
@@ -50,4 +52,31 @@ describe("wordTokenizer", () => {
     expect(wordTokenizer("🍕 makes me }:-) and not }:(", dontIgnoreStopWords, dontIgnorePunctuation)).toStrictEqual(["🍕", "makes", "me", "}:-)", "and", "not", "}:("]);
   });
 
+  it("tokenizes challenging reviews", () => {
+    expect(wordTokenizer(challengingReview, dontIgnoreStopWords, ignorePunctuation)).toStrictEqual([
+      "i", "had", "royal", "milk", "tea", "not", "bad", "with", "boba", "no", "jelly", "it", "was", "a", "little",
+      "expensive", "5.00", "for", "a", "small", "about", "the", "size", "of", "a", "grande", "at", "starbucks",
+      "didn't", "try", "anything", "else"
+    ]);
+  });
+});
+
+describe("allTokenizer", () => {
+  it("tokenizes empty strings", () => {
+    expect(allTokenizer("")).toStrictEqual([]);
+  });
+
+  it("tokenizes words", () => {
+    expect(allTokenizer("hello world")).toStrictEqual(["hello", " ", "world"]);
+    expect(allTokenizer("Hello world!")).toStrictEqual(["Hello", " ", "world", "!"]);
+  });
+
+  it("tokenizes challenging reviews", () => {
+    expect(allTokenizer(challengingReview)).toStrictEqual([
+      "I", " ", "had", " ", "Royal", " ", "Milk", " ", "Tea", " ", "not", " ", "bad", " ", "with", " ", "boba", " ",
+      "no", " ", "jelly", ".", " ", "It", " ", "was", " ", "a", " ", "little", " ", "expensive", " ", "$", "5.00", "+",
+      " ", "for", " ", "a", " ", "small", " ", "about", " ", "the", " ", "size", " ", "of", " ", "a", " ", "grande",
+      " ", "at", " ", "Starbucks", ".", " ", "Didn't", " ", "try", " ", "anything", " ", "else", "."
+    ]);
+  });
 });
