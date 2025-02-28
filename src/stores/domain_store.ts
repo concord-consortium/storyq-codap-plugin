@@ -354,6 +354,7 @@ export class DomainStore {
 				const tCaseValues: CreateCaseValue = {
 					values: {
 						chosen: true,
+						highlight: true,
 						name: iFeature.token,
 						type: 'unigram',
 						/*
