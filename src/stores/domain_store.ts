@@ -93,16 +93,17 @@ export class DomainStore {
 								name: collectionName,
 								title: collectionName,
 								attrs: [
-									{name: 'name'},
-									{name: 'chosen', type: 'checkbox'},
-									{name: tPositiveAttrName},
-									{name: tNegativeAttrName},
-									{name: 'type', hidden: true},
+									{ name: 'name' },
+									{ name: 'chosen', type: 'checkbox', hidden: true },
+									{ name: 'highlight', type: 'checkbox' },
+									{ name: tPositiveAttrName },
+									{ name: tNegativeAttrName },
+									{ name: 'type', hidden: true },
 									/*
 																		{name: 'description'},
 																		{name: 'formula'},
 									*/
-									{name: 'usages', hidden: true}
+									{ name: 'usages', hidden: true }
 								]
 							},
 							{
@@ -239,6 +240,7 @@ export class DomainStore {
 					let tValuesObject: { values: { [index: string]: {} } } = {
 						values: {
 							chosen: iFeature.chosen,
+							highlight: iFeature.highlight,
 							name: iFeature.name,
 							type: iFeature.type,
 							/*
@@ -309,7 +311,7 @@ export class DomainStore {
 	}
 
 	async updateNgramFeatures() {
-		if (featureStore.tokenMapAlreadyHasUnigrams()) return;
+		if (featureStore.tokenMapAlreadyHasUnigrams) return;
 
 		await targetStore.updateTargetCases();
 		const tNgramFeatures = featureStore.features.filter(iFeature => iFeature.info.kind === kFeatureKindNgram);
@@ -352,6 +354,7 @@ export class DomainStore {
 				const tCaseValues: CreateCaseValue = {
 					values: {
 						chosen: true,
+						highlight: true,
 						name: iFeature.token,
 						type: 'unigram',
 						/*
@@ -534,7 +537,6 @@ export class DomainStore {
 			{ targetAttributeName, targetCollectionName } = targetStore,
 			tTargetCases = await getCaseValues(tTargetDatasetName, targetCollectionName),
 			{ collectionName, datasetName } = featureStore.featureDatasetInfo,
-			tTokenMap = featureStore.tokenMap,
 			tFeatureCases = await getCaseValues(datasetName, collectionName),
 			tUsageResults: Record<number, number[]> = {}, // Contains IDs of target texts that contain a given feature
 			tTextResults: Record<number, number[]> = {},	// Contains IDs of features found in a given text
@@ -565,8 +567,8 @@ export class DomainStore {
 				}
 			})
 			// We need to store the featureCaseID in the token map while we've got it
-			if (tTokenMap[tFeatureName]) {
-				tTokenMap[tFeatureName].featureCaseID = iFeatureCase.id;
+			if (featureStore.tokenMap[tFeatureName]) {
+				featureStore.tokenMap[tFeatureName].featureCaseID = iFeatureCase.id;
 			}
 		});
 		// Now we can update the target and feature cases
@@ -611,8 +613,8 @@ export class DomainStore {
 
 		// Finally, we update featureStore.tokenMap. Each token has caseIDs corresponding to usages and a featureID
 		//	that is the ID of the feature in the features collection.
-		for (let tTokenMapKey in tTokenMap) {
-			const tToken = tTokenMap[tTokenMapKey],
+		for (let tTokenMapKey in featureStore.tokenMap) {
+			const tToken = featureStore.tokenMap[tTokenMapKey],
 				tStoredFeature = featureStore.features.find(iStoredFeature => {
 					return iStoredFeature.name === tTokenMapKey;
 				});

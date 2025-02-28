@@ -113,35 +113,34 @@ export class ModelManager {
 			});
 		}
 
-		function generateFeatureRequests() {
-			iTokens.forEach(aToken => {
-				if (tUpdatingExistingWeights) {
-					tUpdateRequests.push({
-						id: tFeatureWeightCaseIDs[aToken.token],
-						values: {
-							'model name': tModelName,
-						}
-					});
-				} else {
-					tFeatureWeightCaseIDs[aToken.token] = -1;
-					tTokenArray.push(aToken.token);
-					tCreationRequests.push({
-						parent: aToken.featureCaseID || 0,
-						values: {
-							'model name': tModelName,
-						}
-					});
-				}
-			});
-		}
-
 		// Start with features/weights collection
 		await showWeightAttributes();
 		if (tUpdatingExistingWeights) {
 			await getFeatureWeightCaseIDs();
 			featureStore.featureWeightCaseIDs = tFeatureWeightCaseIDs;
 		}
-		generateFeatureRequests()
+		
+		// generate feature requests
+		iTokens.forEach(aToken => {
+			if (tUpdatingExistingWeights) {
+				tUpdateRequests.push({
+					id: tFeatureWeightCaseIDs[aToken.token],
+					values: {
+						'model name': tModelName,
+					}
+				});
+			} else {
+				tFeatureWeightCaseIDs[aToken.token] = -1;
+				tTokenArray.push(aToken.token);
+				tCreationRequests.push({
+					parent: aToken.featureCaseID || 0,
+					values: {
+						'model name': tModelName,
+					}
+				});
+			}
+		});
+			
 		if (tUpdatingExistingWeights) {
 			await codapInterface.sendRequest({
 				action: 'update',
@@ -314,8 +313,8 @@ export class ModelManager {
 		const tTargetDatasetName = targetStore.targetDatasetInfo.name,
 			tTargetAttributeName = targetStore.targetAttributeName,
 			tTargetColumnFeatureNames = featureStore.targetColumnFeatureNames,
-			tNonNgramFeatures = featureStore.getChosenFeatures().filter(iFeature => iFeature.info.kind !== kFeatureKindNgram),
-			tNgramFeatures = featureStore.getChosenFeatures().filter(iFeature => iFeature.info.kind === kFeatureKindNgram),
+			tNonNgramFeatures = featureStore.chosenFeatures.filter(iFeature => iFeature.info.kind !== kFeatureKindNgram),
+			tNgramFeatures = featureStore.chosenFeatures.filter(iFeature => iFeature.info.kind === kFeatureKindNgram),
 			tUnigramFeature = tNgramFeatures.find(iFeature => (iFeature.info.details as NgramDetails).n === 'uni'),
 			tPositiveClassName = targetStore.getClassName('positive'),
 			tDocuments: Document[] = [],
@@ -331,7 +330,7 @@ export class ModelManager {
 				this_.stepModeCallback : undefined;
 			tLogisticModel.lockIntercept = trainingStore.model.lockInterceptAtZero;
 			const tColumnNames = tTargetColumnFeatureNames.concat(
-				featureStore.getChosenFeatures().map(iFeature => {
+				featureStore.chosenFeatures.map(iFeature => {
 					return iFeature.name;
 				})
 			);
@@ -438,8 +437,8 @@ export class ModelManager {
 						},
 						accuracy: tLogisticModel.accuracy || 0,
 						kappa: (tLogisticModel.accuracy === 0) ? 0 : (tLogisticModel.kappa || 0),
-						featureNames: featureStore.getChosenFeatureNames(),
-						hasNgram: featureStore.hasNgram(),
+						featureNames: featureStore.chosenFeatureNames,
+						hasNgram: featureStore.hasNgram,
 						storedModel: this.fillOutCurrentStoredModel(tLogisticModel)
 					});
 				})();
@@ -509,7 +508,7 @@ export class ModelManager {
 
 	async updateWeights(iModelName: string, iTokens: any, iWeights: number[]) {
 		const { collectionName, datasetName } = featureStore.featureDatasetInfo,
-			tFeatures = featureStore.getChosenFeatures(),
+			tFeatures = featureStore.chosenFeatures,
 			tUpdateRequests: UpdateCaseValue[] = [],
 			tFeatureWeightCaseIDs = featureStore.featureWeightCaseIDs
 
