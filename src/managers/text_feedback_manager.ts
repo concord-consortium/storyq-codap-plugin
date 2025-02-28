@@ -18,14 +18,16 @@ import { APIRequest, GetCaseByIDResponse, GetSelectionListResponse } from "../ty
 import { highlightFeatures, HighlightFunction, phraseToFeatures, textToObject } from "../utilities/utilities";
 import { ClassLabel, HeadingsManager, PhraseQuadruple } from "./headings_manager";
 
+export let textFeedbackManager: TextFeedbackManager | undefined;
 export function setupTextFeedbackManager() {
-	return new TextFeedbackManager();
+	textFeedbackManager = new TextFeedbackManager();
 }
 
 export class TextFeedbackManager {
 	headingsManager: HeadingsManager;
 	isSelectingFeatures = false;
 	isSelectingTargetPhrases = false;
+	lastSelectionType: "features" | "targetDataset" = "features";
 
 	constructor() {
 		this.handleNotification = this.handleNotification.bind(this);
@@ -34,6 +36,8 @@ export class TextFeedbackManager {
 	}
 
 	async handleNotification(iNotification: CODAP_Notification) {
+		if (this.isSelectingFeatures || this.isSelectingTargetPhrases) return;
+
 		const tTargetDatasetName = targetStore.targetDatasetInfo.name,
 			tTestingDatasetName = testingStore.testingDatasetInfo.name,
 			tFeatureDatasetName = featureStore.featureDatasetInfo.datasetName;
@@ -41,25 +45,35 @@ export class TextFeedbackManager {
 		const { values } = iNotification;
 		const operation = Array.isArray(values) ? values[0].operation : values.operation;
 		if (iNotification.action === 'notify' && operation === 'selectCases') {
-			try {
-				const tDataContextName = iNotification.resource && iNotification.resource.match(/\[(.+)]/)?.[1];
-				if (tDataContextName) {
-					if (tDataContextName === tFeatureDatasetName && !this.isSelectingFeatures) {
-						this.isSelectingTargetPhrases = true;
-						await this.handleFeatureSelection();
-						this.isSelectingTargetPhrases = false;
-					} else if (
-						[tTestingDatasetName, tTargetDatasetName].includes(tDataContextName) && !this.isSelectingTargetPhrases
-					) {
-						this.isSelectingFeatures = true;
-						await this.handleTargetDatasetSelection();
-						this.isSelectingFeatures = false;
-					}
+			const tDataContextName = iNotification.resource && iNotification.resource.match(/\[(.+)]/)?.[1];
+			if (tDataContextName) {
+				let updatePane = false;
+				if (tDataContextName === tFeatureDatasetName) {
+					this.lastSelectionType = "features";
+					updatePane = true;
+				} else if ([tTestingDatasetName, tTargetDatasetName].includes(tDataContextName)) {
+					this.lastSelectionType = "targetDataset";
+					updatePane = true;
 				}
-			} finally {
-				this.isSelectingFeatures = false
-				this.isSelectingTargetPhrases = false
+				if (updatePane) await this.updateTextPane();
 			}
+		}
+	}
+
+	async updateTextPane() {
+		try {
+			if (this.lastSelectionType === "features" && !this.isSelectingFeatures) {
+				this.isSelectingTargetPhrases = true;
+				await this.handleFeatureSelection();
+				this.isSelectingTargetPhrases = false;
+			} else if (this.lastSelectionType === "targetDataset" && !this.isSelectingTargetPhrases) {
+				this.isSelectingFeatures = true;
+				await this.handleTargetDatasetSelection();
+				this.isSelectingFeatures = false;
+			}
+		} finally {
+			this.isSelectingFeatures = false;
+			this.isSelectingTargetPhrases = false;
 		}
 	}
 

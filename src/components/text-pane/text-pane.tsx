@@ -1,5 +1,8 @@
-import React from "react";
+import React, { useEffect } from "react";
+import { reaction } from "mobx";
 import { observer } from "mobx-react";
+import { textFeedbackManager } from "../../managers/text_feedback_manager";
+import { featureStore } from "../../stores/feature_store";
 import { textStore } from "../../stores/text_store";
 import { TextSection, textSectionTitleHeight } from "./text-section";
 
@@ -11,6 +14,14 @@ const containerVerticalPadding = 4;
 const containerHeight = paneHeight - titleHeight - containerVerticalPadding * 2;
 
 export const TextPane = observer(function TextPane() {
+  // Update the text pane when the highlight state of any feature changes
+  useEffect(() => {
+    return reaction(
+      () => featureStore.features.map(feature => feature.highlight),
+      () => textFeedbackManager?.updateTextPane()
+    );
+  });
+
   const visibleTextSectionCount = textStore.textSections.filter(textSection => !textSection.hidden).length;
   const textHeight = containerHeight - textStore.textSections.length * textSectionTitleHeight;
   const sectionHeight = textHeight / visibleTextSectionCount;
