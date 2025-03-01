@@ -17,7 +17,13 @@ export const kEmptyEntityInfo = {name: '', title: '', id: 0},
 	}
 
 export const kAnyNumberKeyword = "anyNumber";
-export const kNumberPattern = `[0-9]+`;
+// This matches any number, including negatives, decimals, and fractions, preceded by the start of the string,
+// followed by punctuation or the end of the string, or preceded or followed by currency symbols or quotes.
+export const kNumberPattern =
+	`(?<=^|[\\s"$£€¥₹₩₽₱])(?:-?\\d+(?:\\.\\d+)?(?:\\/\\d+(?:\\.\\d+)?)?%?)(?=[\\s+.,!?;:\\/"'$£€¥₹₩₽₱)]|$)`;
+// Codap requires \ and " to be escaped. Otherwise this is the same as kNumberPattern.
+export const kCodapNumberPattern =
+	`(?<=^|[\\\\s\\"$£€¥₹₩₽₱])(?:-?\\\\d+(?:\\\\.\\\\d+)?(?:\\\\/\\\\d+(?:\\\\.\\\\d+)?)?%?)(?=[\\\\s+.,!?;:\\\\/\\"'$£€¥₹₩₽₱)]|$)`;
 export const kNumberRegExp = new RegExp(kNumberPattern);
 
 export const kContainOptionContain = "contain";

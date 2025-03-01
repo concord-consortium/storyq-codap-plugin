@@ -10,14 +10,14 @@ import {
 } from "../lib/codap-helper";
 import codapInterface from "../lib/CodapInterface";
 import { SQ } from "../lists/lists";
+import { CreateAttributeResponse } from '../types/codap-api-types';
 import { featureStore } from './feature_store';
 import { targetDatasetStore } from './target_dataset_store';
 import {
-	Feature, getContainFormula, getTargetCaseFormula,  kEmptyEntityInfo, kFeatureKindColumn, kFeatureKindNgram,
-	kNumberPattern, kSearchWhereEndWith, kSearchWhereStartWith, kWhatOptionList, kWhatOptionNumber,
+	Feature, getContainFormula, getTargetCaseFormula,  kCodapNumberPattern,  kEmptyEntityInfo, kFeatureKindColumn,
+	kFeatureKindNgram, kSearchWhereEndWith, kSearchWhereStartWith, kWhatOptionList, kWhatOptionNumber,
 	kWhatOptionPunctuation, kWhatOptionText, SearchDetails
 } from "./store_types_and_constants";
-import { CreateAttributeResponse } from '../types/codap-api-types';
 
 type panelModes = 'welcome' | 'create' | 'chosen';
 type classColumns = "left" | "right";
@@ -311,7 +311,7 @@ export class TargetStore {
 
 		function anyNumberFormula() {
 			const option = (iNewFeature.info.details as SearchDetails).where;
-			return getContainFormula(option, `${tTargetAttr}, "${kNumberPattern}"`);
+			return getContainFormula(option, `${tTargetAttr}, "${kCodapNumberPattern}"`);
 		}
 
 		function punctuationFormula() {
