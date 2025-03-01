@@ -11,12 +11,9 @@ import { domainStore } from "../stores/domain_store";
 import { featureStore } from "../stores/feature_store";
 import {
 	Feature, featureDescriptors, isWhatOption, kFeatureKindColumn, kFeatureKindCount, kFeatureKindNgram,
-	kFeatureKindSearch, kFeatureTypeColumn, kFeatureTypeUnigram, kWhatOptionList, kWhatOptionPunctuation,
-	kWhatOptionText, SearchDetails
+	kFeatureKindSearch, kFeatureTypeColumn, kWhatOptionList, kWhatOptionPunctuation, kWhatOptionText, SearchDetails
 } from "../stores/store_types_and_constants";
 import { targetStore } from "../stores/target_store";
-import { textStore } from "../stores/text_store";
-import { Button } from "./ui/button";
 import { CheckBox } from "./ui/check-box";
 import { NumberBox } from "./ui/number-box";
 import { SelectBox } from "./ui/select-box";
@@ -26,39 +23,9 @@ import "./feature_component.scss";
 
 export interface FeatureComponentProps {
 	feature: Feature
-	shortened: boolean
 }
 
-export const FeatureComponent = observer(function FeatureComponent({ feature, shortened }: FeatureComponentProps) {
-	if (shortened) {
-		const tHint = feature.chosen ? SQ.hints.featureTableCheckboxRemove :
-			SQ.hints.featureTableCheckboxAdd
-		return (
-			<div className='sq-component'>
-				<CheckBox
-					text=''
-					value={feature.chosen}
-					onValueChanged={action(async () => {
-						await featureStore.toggleChosenFor(feature);
-						if (feature.type === kFeatureTypeUnigram && feature.chosen) domainStore.updateNgramFeatures();
-					})}
-					hint={tHint}
-				/>
-				<p><strong>{feature.name}</strong></p>
-				<Button
-					className='sq-feature-delete'
-					text=''
-					icon='clear'
-					onClick={action(async () => {
-						await featureStore.deleteFeature(feature)
-						await textStore.clearText()
-					})}
-					hint={SQ.hints.featureTableRemove}
-				/>
-			</div>
-		);
-	}
-
+export const FeatureComponent = observer(function FeatureComponent({ feature }: FeatureComponentProps) {
 	const featureDetails = feature.info.details as SearchDetails;
 
 	const updateFeaturesDataset = async (iFeature: Feature) => {
@@ -86,7 +53,7 @@ export const FeatureComponent = observer(function FeatureComponent({ feature, sh
 			}
 		})
 		// @ts-ignore
-		featureDescriptors.featureKinds[1].items[0].disabled = featureStore.hasNgram()
+		featureDescriptors.featureKinds[1].items[0].disabled = featureStore.hasNgram
 		return (
 			<SelectBox
 				className='sq-new-feature-item sq-fc-part'
