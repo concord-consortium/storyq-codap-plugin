@@ -12,6 +12,7 @@ import {
 	GetCaseFormulaSearchResponse, GetItemByCaseIDResponse, GetItemSearchResponse, ItemInfo, ItemValues,
 	NotifyDataContextRequest, UpdateCaseRequest, UpdateCaseValue
 } from "../types/codap-api-types";
+import { getFeatureColor, kNoColor } from "../utilities/color-utils";
 import { featureStore, IFeatureStoreJSON } from "./feature_store";
 import { defaultTargetCaseFormula, Feature, kFeatureKindNgram, kPosNegConstants } from "./store_types_and_constants";
 import { ITargetStoreJSON, otherClassColumn, targetStore } from "./target_store";
@@ -19,7 +20,6 @@ import { ITestingStore, testingStore } from "./testing_store";
 import { ITextStoreJSON, textStore } from "./text_store";
 import { ITrainingStoreSnapshot as ITrainingStoreJSON, trainingStore } from "./training_store";
 import { uiStore } from "./ui_store";
-import { getFeatureColor } from "../utilities/color-utils";
 
 export interface IDomainStoreJSON {
 	featureStore: IFeatureStoreJSON;
@@ -242,7 +242,7 @@ export class DomainStore {
 					let tValuesObject: { values: { [index: string]: {} } } = {
 						values: {
 							chosen: iFeature.chosen,
-							color: getFeatureColor(),
+							color: iFeature.color ?? getFeatureColor(),
 							highlight: iFeature.highlight,
 							name: iFeature.name,
 							type: iFeature.type,
@@ -357,7 +357,7 @@ export class DomainStore {
 				const tCaseValues: CreateCaseValue = {
 					values: {
 						chosen: true,
-						color: getFeatureColor(),
+						color: iFeature.color !== kNoColor ? iFeature.color : getFeatureColor(),
 						highlight: true,
 						name: iFeature.token,
 						type: 'unigram',

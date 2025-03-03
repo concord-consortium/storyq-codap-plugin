@@ -1,3 +1,4 @@
+export const kNoColor = "NO_COLOR";
 const featureColors = ["#ffe671", "#dbb6fb", "#45f1eb", "#a8e620", "#fb93e8", "#9ce1ff"];
 let featureColorIndex = 0;
 

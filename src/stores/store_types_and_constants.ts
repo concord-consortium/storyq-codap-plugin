@@ -2,6 +2,8 @@
  * These types and constants are used primarily by the various store classes
  */
 
+import { kNoColor } from "../utilities/color-utils";
+
 export const kStoryQPluginName = "StoryQ"
 
 export const kEmptyEntityInfo = {name: '', title: '', id: 0},
@@ -187,6 +189,7 @@ export interface Feature {
 	attrID: string // ID of the attribute in the target dataset corresponding to this feature
 	caseID: string // ID of the feature as a case in the feature table
 	chosen: boolean
+	color: string
 	description: string
 	featureItemID: string // ID of the item in the feature table corresponding to this feature
 	formula: string
@@ -208,6 +211,7 @@ export function getStarterFeature(): Feature {
 		attrID: '',
 		caseID: '',
 		chosen: false,
+		color: kNoColor,
 		description: '',
 		featureItemID: '',
 		formula: '',
@@ -278,6 +282,7 @@ export type TokenType = typeof tokenTypes[number];
 
 export interface Token {
 	caseIDs: number[]
+	color: string
 	count: number	// the number of target texts where this token is true (column feature) or found (unigram)
 	featureCaseID: number | null
 	highlight?: boolean
@@ -291,6 +296,7 @@ export interface Token {
 export function getNewToken(initialValues: Partial<Token>) {
 	return {
 		caseIDs: [],
+		color: initialValues.color ?? kNoColor,
 		count: 1,
 		featureCaseID: null,
 		highlight: true,

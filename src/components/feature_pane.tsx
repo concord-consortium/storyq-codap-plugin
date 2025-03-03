@@ -10,6 +10,7 @@ import { domainStore } from "../stores/domain_store";
 import { featureStore } from "../stores/feature_store";
 import { kFeatureKindNgram } from "../stores/store_types_and_constants";
 import { targetStore } from "../stores/target_store";
+import { getFeatureColor, kNoColor } from "../utilities/color-utils";
 import { FeatureConstructor } from "./feature_constructor";
 import { FeatureList } from "./feature_list";
 import { Button } from "./ui/button";
@@ -46,8 +47,11 @@ const DoneButton = observer(function DoneButton() {
 		if( featureUnderConstruction.inProgress) {
 			if(featureUnderConstruction.info.kind === kFeatureKindNgram && featureStore.hasNgram) {
 				window.alert('Sorry, you already have this feature.')
-			}
-			else {
+			} else {
+				// Ngram features don't have colors because each of their tokens gets a different color
+				if (featureUnderConstruction.color === kNoColor && featureUnderConstruction.info.kind !== kFeatureKindNgram) {
+					featureUnderConstruction.color = getFeatureColor();
+				}
 				featureUnderConstruction.name = featureStore.constructNameFor(featureUnderConstruction)
 				await targetStore.addOrUpdateFeatureToTarget(featureUnderConstruction)
 				await featureStore.addFeatureUnderConstruction(featureUnderConstruction)
