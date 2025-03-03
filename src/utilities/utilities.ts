@@ -59,7 +59,6 @@ export function textToObject(iText: string, iSelectedWords: (string | number)[],
 }
 
 // Highlighting for the modern internal text pane
-// NOTE: this code isn't perfect and doesn't match lists like personal pronoun lists
 export async function highlightFeatures(text: string, selectedFeatures: (string | number)[]) {
 	let segment = '';
 	const textParts: ITextPart[] = [];

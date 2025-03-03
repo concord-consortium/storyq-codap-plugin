@@ -19,6 +19,7 @@ import { ITestingStore, testingStore } from "./testing_store";
 import { ITextStoreJSON, textStore } from "./text_store";
 import { ITrainingStoreSnapshot as ITrainingStoreJSON, trainingStore } from "./training_store";
 import { uiStore } from "./ui_store";
+import { getFeatureColor } from "../utilities/color-utils";
 
 export interface IDomainStoreJSON {
 	featureStore: IFeatureStoreJSON;
@@ -95,6 +96,7 @@ export class DomainStore {
 								attrs: [
 									{ name: 'name' },
 									{ name: 'chosen', type: 'checkbox', hidden: true },
+									{ name: 'color', type: 'color' },
 									{ name: 'highlight', type: 'checkbox' },
 									{ name: tPositiveAttrName },
 									{ name: tNegativeAttrName },
@@ -240,6 +242,7 @@ export class DomainStore {
 					let tValuesObject: { values: { [index: string]: {} } } = {
 						values: {
 							chosen: iFeature.chosen,
+							color: getFeatureColor(),
 							highlight: iFeature.highlight,
 							name: iFeature.name,
 							type: iFeature.type,
@@ -354,6 +357,7 @@ export class DomainStore {
 				const tCaseValues: CreateCaseValue = {
 					values: {
 						chosen: true,
+						color: getFeatureColor(),
 						highlight: true,
 						name: iFeature.token,
 						type: 'unigram',
