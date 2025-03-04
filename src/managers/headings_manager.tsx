@@ -30,7 +30,14 @@ export class HeadingsManager {
 		posPos: { text: "" }, posBlank: { text: "" }, blankPos: { text: "" }, blankBlank: { text: "" }
 	};
 	public niceHeadings: Record<string, ITextSectionTitle> = {};
-	public colors = { green: '#1aff1a', red: '#4b0092', blue: '#0000ff', orange: '#ff7700' }
+	public colors = {
+		green: '#1aff1a',
+		red: '#4b0092',
+		blue: '#0000ff',
+		orange: '#ff7700',
+		positiveOrange: '#e45b00',
+		negativeBlue: '#0066ff'
+	};
 
 	getHeading(headingCode: string) {
 		switch (headingCode) {
@@ -105,10 +112,10 @@ export class HeadingsManager {
 		this.niceHeadings = {
 			negNeg: { actual: iNegLabel, predicted: iNegLabel, color: this.colors.green },
 			negPos: { actual: iNegLabel, predicted: iPosLabel, color: this.colors.red },
-			negBlank: { actual: iNegLabel, color: "#5885e1" },
+			negBlank: { actual: iNegLabel, color: this.colors.negativeBlue },
 			posNeg: { actual: iPosLabel, predicted: iNegLabel, color: this.colors.red },
 			posPos: { actual: iPosLabel, predicted: iPosLabel, color: this.colors.green },
-			posBlank: { actual: iPosLabel, color: "#dd9e5a" },
+			posBlank: { actual: iPosLabel, color: this.colors.positiveOrange },
 			blankNeg: { predicted: iNegLabel, color: this.colors.orange },
 			blankPos: { predicted: iPosLabel, color: this.colors.blue }
 		}

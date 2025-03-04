@@ -1,13 +1,25 @@
 .text-section {
   .text-section-title {
     align-items: center;
+    background-color: #dceff2;
+    color: #222;
     display: flex;
     font-size: 14px;
-    font-weight: 700;
+    font-weight: 600;
     justify-content: space-between;
+    width: 100%;
 
-    .label {
-      font-weight: 800;
+    .actual-title {
+      margin-left: 15px;
+
+      .label {
+        font-weight: bold;
+      }
+
+      .case-count {
+        font-style: italic;
+        font-weight: 500;
+      }
     }
 
     .hide-button {
@@ -20,19 +32,13 @@
       margin-right: 5px; // To move the button away from the resize handle
       padding: 0;
 
-      &.hidden {
-        svg {
-          rotate: 180deg;
-        }
+      svg {
+        rotate: 90deg;
       }
 
-      &:hover {
-        .arrow-outline {
-          fill: #ddd;
-        }
-
-        .arrow-center {
-          fill: #ddd;
+      &.hidden {
+        svg {
+          rotate: -90deg;
         }
       }
     }

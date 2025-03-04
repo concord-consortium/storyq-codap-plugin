@@ -1,13 +1,13 @@
 import React from "react";
 import { clsx } from "clsx";
 import { toJS } from "mobx";
-import { ReactComponent as ArrowIcon } from "../../assets/arrow-icon.svg";
+import { ReactComponent as CollapseExpandIcon } from "../../assets/collapse-expand-icon.svg";
 import { ITextSection, ITextSectionTitle } from "../../stores/store_types_and_constants";
 import { textStore } from "../../stores/text_store";
 
 import "./text-section.scss";
 
-export const textSectionTitleHeight = 26;
+export const textSectionTitleHeight = 28;
 
 interface ITextSectionTitleProps {
   count: number;
@@ -18,7 +18,7 @@ function TextSectionTitle({ count, title }: ITextSectionTitleProps) {
 
   const { actual, predicted, color } = title;
   return (
-    <span>
+    <span className="actual-title">
       {actual && (
         <span>
           True label: <span className="label" style={{ color }}>{actual}</span>
@@ -26,7 +26,8 @@ function TextSectionTitle({ count, title }: ITextSectionTitleProps) {
         </span>
       )}
       {predicted && <span>Predicted label: <span className="label" style={{ color }}>{predicted}</span></span>}
-      <span>&nbsp;</span>{`(${count} case${count === 1 ? "" : "s"})`}
+      <span>&nbsp;</span>
+      <span className="case-count">{`(${count} case${count === 1 ? "" : "s"})`}</span>
     </span>
   );
 }
@@ -46,7 +47,7 @@ export function TextSection({ textHeight, textSection }: ITextSectionProps) {
           className={clsx("hide-button", { hidden })}
           onClick={() => textStore.toggleTextSectionVisibility(textSection)}
         >
-          <ArrowIcon />
+          <CollapseExpandIcon />
         </button>
       </div>
       {!hidden && (
