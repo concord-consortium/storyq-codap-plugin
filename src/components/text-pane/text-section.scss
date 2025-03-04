@@ -1,40 +1,53 @@
 .text-section {
   .text-section-title {
     align-items: center;
+    background-color: #dceff2;
+    border: none;
+    color: #222222;
+    cursor: pointer;
     display: flex;
     font-size: 14px;
-    font-weight: 700;
+    font-weight: 600;
     justify-content: space-between;
+    padding: 0;
+    width: 100%;
 
-    .label {
-      font-weight: 800;
+    .actual-title {
+      margin-left: 15px;
+
+      .label {
+        font-weight: bold;
+      }
+
+      .case-count {
+        font-style: italic;
+        font-weight: 500;
+      }
     }
 
-    .hide-button {
+    .hide-icon {
       align-items: center;
-      background-color: rgba(0, 0, 0, 0);
-      border: none;
-      cursor: pointer;
       display: flex;
       justify-content: center;
-      margin-right: 5px; // To move the button away from the resize handle
-      padding: 0;
+      margin-right: 10px;
+
+      svg {
+        rotate: 90deg;
+      }
 
       &.hidden {
         svg {
-          rotate: 180deg;
+          rotate: -90deg;
         }
       }
+    }
 
-      &:hover {
-        .arrow-outline {
-          fill: #ddd;
-        }
+    &:hover {
+      background-color: #b9dfe5;
+    }
 
-        .arrow-center {
-          fill: #ddd;
-        }
-      }
+    &:active {
+      background-color: #95cfd7;
     }
   }
 
@@ -44,10 +57,12 @@
     .phrase-row {
       display: flex;
       flex-direction: row;
-      margin: 0 5px 15px 5px;
+      font-size: 14px;
+      padding: 8px 15px;
 
       .phrase-index {
         align-items: flex-start;
+        color: #222222;
         display: flex;
         justify-content: flex-end;
         margin-right: 8px;
@@ -56,12 +71,22 @@
       }
 
       .phrase {
+        color: #595959;
         width: 386px;
 
         .highlighted {
           background-color: #fdf2d0;
+          color: #222222;
+          font-weight: bold;
         }
       }
+    }
+
+    .divider {
+      background-color: #72bfca;
+      height: 1px;
+      margin-left: 15px;
+      width: calc(100% - 30px);
     }
   }
 }

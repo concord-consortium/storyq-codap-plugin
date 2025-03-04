@@ -51,6 +51,10 @@ export class FeatureStore {
 		makeAutoObservable(this, { tokenMap: false, featureWeightCaseIDs: false }, { autoBind: true });
 	}
 
+	setCaseIdTokenMap(map: Record<number, Token>) {
+		this.caseIdTokenMap = map;
+	}
+
 	setFeatures(features: Feature[]) {
 		this.features = features;
 	}
@@ -168,23 +172,28 @@ export class FeatureStore {
 		return this.features.find(feature => feature.caseID === `${caseId}`);
 	}
 
+	addToken(name: string, token: Token) {
+		this.tokenMap[name] = token;
+		if (token.featureCaseID) this.caseIdTokenMap[token.featureCaseID] = token;
+	}
+
+	deleteToken(name: string) {
+		const token = this.tokenMap[name];
+		if (token) {
+			delete this.tokenMap[name];
+			if (token.featureCaseID != null) delete this.caseIdTokenMap[token.featureCaseID];
+		}
+	}
+
+	clearTokens() {
+		this.setTokenMap({});
+		this.setCaseIdTokenMap({});
+	}
+
 	getTokenByCaseId(caseId: string | number) {
 		const numberId = Number(caseId);
-		const token = this.caseIdTokenMap[numberId];
-		if (token) {
-			if (this.tokenMap[token.token]) {
-				return token;
-			} else {
-				// If the token no longer exists in the tokenMap, remove it from the caseIdTokenMap
-				delete this.caseIdTokenMap[numberId];
-			}
-		} else {
-			const foundToken = Object.values(this.tokenMap).find(iToken => iToken.featureCaseID === Number(caseId));
-			if (foundToken) {
-				this.caseIdTokenMap[numberId] = foundToken;
-				return foundToken;
-			}
-		}
+		return this.caseIdTokenMap[numberId] ??
+			Object.values(this.tokenMap).find(iToken => iToken.featureCaseID === numberId);
 	}
 
 	getFormulaFor(iFeatureName: string) {
@@ -213,7 +222,9 @@ export class FeatureStore {
 	get highlights() {
 		return [
 			...this.features.map(feature => feature.highlight),
-			...Object.values(this.tokenMap).map(token => token.highlight)
+			...Object.values(this.tokenMap).map(token => token.highlight),
+			...this.features.map(feature => feature.color),
+			...Object.values(this.tokenMap).map(token => token.color)
 		];
 	}
 
@@ -264,7 +275,7 @@ export class FeatureStore {
 		if (this.tokenMap) {
 			for (const [key, token] of Object.entries(this.tokenMap)) {
 				if (token.type === kTokenTypeUnigram)
-					delete this.tokenMap[key];
+					this.deleteToken(key);
 			}
 		}
 	}

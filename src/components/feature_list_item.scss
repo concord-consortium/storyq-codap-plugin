@@ -1,0 +1,43 @@
+.feature-list-item {
+  align-items: center;
+  background-color: white;
+  border: solid 1px #177991;
+  border-radius: 3px;
+  display: flex;
+  justify-content: space-between;
+  margin: 4px;
+  padding: 4px;
+  width: 400px;
+
+  .left-item {
+    display: flex;
+
+    .feature-name {
+      font-size: 14.5px;
+      font-weight: 500;
+      margin-left: 6px;
+    }
+  }
+
+  .close-button {
+    align-items: center;
+    border: none;
+    background-color: rgba(0, 0, 0, 0);
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    margin: 0;
+    padding: 0;
+
+    .fill {
+      fill: #8b8b8b;
+      opacity: .5;
+    }
+
+    &:hover {
+      .fill {
+        opacity: 1;
+      }
+    }
+  }
+}
