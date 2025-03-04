@@ -20,7 +20,13 @@ export const kEmptyEntityInfo = {name: '', title: '', id: 0},
 	}
 
 export const kAnyNumberKeyword = "anyNumber";
-export const kNumberPattern = `[0-9]+`;
+// This matches any number, including negatives, decimals, and fractions, preceded by the start of the string,
+// followed by punctuation or the end of the string, or preceded or followed by currency symbols or quotes.
+export const kNumberPattern =
+	`(?<=^|[\\s"$£€¥₹₩₽₱])(?:-?\\d+(?:\\.\\d+)?(?:\\/\\d+(?:\\.\\d+)?)?%?)(?=[\\s+.,!?;:\\/"'$£€¥₹₩₽₱)]|$)`;
+// Codap requires \ and " to be escaped. Otherwise this is the same as kNumberPattern.
+export const kCodapNumberPattern =
+	`(?<=^|[\\\\s\\"$£€¥₹₩₽₱])(?:-?\\\\d+(?:\\\\.\\\\d+)?(?:\\\\/\\\\d+(?:\\\\.\\\\d+)?)?%?)(?=[\\\\s+.,!?;:\\\\/\\"'$£€¥₹₩₽₱)]|$)`;
 export const kNumberRegExp = new RegExp(kNumberPattern);
 
 export const kContainOptionContain = "contain";
@@ -136,12 +142,17 @@ export interface SearchDetails {
 
 type ContainsFormulaType = (args: string) => string;
 const containsFormula = (args: string) => `patternMatches(${args})>0`;
-export const containFormula: Record<SearchWhereOption, ContainsFormulaType | undefined> = {
+const notContainsFormula = (args: string) => `patternMatches(${args})=0`;
+const countFormula = (args: string) => `patternMatches(${args})`;
+export const containFormula: Record<WhereOption | SearchWhereOption, ContainsFormulaType | undefined> = {
 	[kSearchWhereContain]: containsFormula,
-	[kSearchWhereNotContain]: (args: string) => `patternMatches(${args})=0`,
+	[kSearchWhereNotContain]: notContainsFormula,
+	[kContainOptionNotContain]: notContainsFormula,
 	[kSearchWhereStartWith]: containsFormula,
+	[kContainOptionStartWith]: containsFormula,
 	[kSearchWhereEndWith]: containsFormula,
-	[kSearchWhereCount]: (args: string) => `patternMatches(${args})`,
+	[kContainOptionEndWith]: containsFormula,
+	[kSearchWhereCount]: countFormula,
 	"": undefined
 };
 export function getContainFormula(option: SearchWhereOption, args: string): string {
