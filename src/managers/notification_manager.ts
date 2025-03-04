@@ -85,13 +85,17 @@ export class NotificationManager {
 						if (tFoundFeature) {
 							tFoundFeature.chosen = tChosen;
 							tFoundFeature.highlight = highlight;
+							tFoundFeature.color = String(iCase.values.color);
 						} else if (tType === kTokenTypeUnigram) {
 							const tToken = featureStore.tokenMap[tName];
-							if (tToken) tToken.highlight = highlight;
+							if (tToken) {
+								tToken.highlight = highlight;
+								tToken.color = String(iCase.values.color);
+							}
 							if (tToken && !tChosen) {
-								delete featureStore.tokenMap[tName];
+								featureStore.deleteToken(tName);
 							} else if (!tToken && tChosen) {
-								featureStore.tokenMap[tName] = {
+								featureStore.addToken(tName, {
 									token: tName,
 									type: kTokenTypeUnigram,
 									count: Number(iCase.values['frequency in positive']) + Number(iCase.values['frequency in negative']),
@@ -103,7 +107,7 @@ export class NotificationManager {
 									caseIDs: JSON.parse(String(iCase.values.usages)),
 									weight: null,
 									featureCaseID: iCase.id
-								};
+								});
 							}
 						}
 					});

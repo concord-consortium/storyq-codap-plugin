@@ -344,12 +344,12 @@ export class DomainStore {
 				includeUnigrams: true,
 				positiveClass: targetStore.getClassName('positive'),
 				negativeClass: targetStore.getClassName('negative'),
-				features: []
+				features: [],
+				newTokenMap: true
 			}, tDocuments);
 			if (!tOneHotResult) return;
 			const tTokenArray = tOneHotResult.tokenArray;	// Array of unigram features
 
-			featureStore.setTokenMap(tOneHotResult.tokenMap);
 			// Stash tokens in feature dataset
 			// if (await this.guaranteeFeaturesDataset()) {
 			const tUnigramCreateMsgs: CreateCaseValue[] = [];

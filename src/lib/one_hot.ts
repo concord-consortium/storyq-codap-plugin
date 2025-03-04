@@ -18,6 +18,7 @@
 // ==========================================================================
 
 import { stopWords } from "./stop_words";
+import { featureStore } from "../stores/feature_store";
 import {
 	Feature, getNewToken, kTokenTypeConstructed, kTokenTypeUnigram, TokenMap
 } from "../stores/store_types_and_constants";
@@ -69,7 +70,7 @@ export interface OneHotConfig {
 	positiveClass: string;
 	negativeClass: string;
 	features: Feature[];
-	tokenMap?: TokenMap;
+	newTokenMap?: boolean;
 }
 
 export interface Document {
@@ -87,9 +88,6 @@ export interface Document {
  * For StoryQ, with each token we keep track of the document caseIDs in which it occurs.
  */
 export function oneHot(config: OneHotConfig, documents: Document[]) {
-	const tTokenMapIsPredefined = !!config.tokenMap;
-	const tokenMap = config.tokenMap ?? {};	// Keeps track of counts of words
-
 	const documentTokens: Record<number, Set<string>> = {};
 	documents.forEach((aDoc, index) => {
 		const tText = config.includeUnigrams ? aDoc.example : '';
@@ -98,44 +96,45 @@ export function oneHot(config: OneHotConfig, documents: Document[]) {
 		Object.keys(aDoc.columnFeatures).forEach(aFeature => documentTokens[index].add(aFeature));
 	});
 
-	if (tTokenMapIsPredefined) {	// Unigrams are already taken care of when the feature was added. Only constructed features remain
+	if (!config.newTokenMap) {	// Unigrams are already taken care of when the feature was added. Only constructed features remain
 		documents.forEach(aDoc => {
 			const tokens = Object.keys(aDoc.columnFeatures);
 			tokens.forEach(aToken => {
-				if (!tokenMap[aToken]) {
+				if (!featureStore.tokenMap[aToken]) {
 					const tFeatureCaseIDObject = config.features.find(aFeature => aFeature.name === aToken);
 					const tFeatureCaseID = tFeatureCaseIDObject ? Number(tFeatureCaseIDObject.caseID) : null;
-					tokenMap[aToken] = getNewToken({
+					featureStore.addToken(aToken, getNewToken({
 						token: aToken,
 						type: kTokenTypeConstructed,
 						featureCaseID: tFeatureCaseID
-					});
+					}));
 				} else {
-					tokenMap[aToken].count++;
+					featureStore.tokenMap[aToken].count++;
 				}
 			})
 			aDoc.tokens = aDoc.tokens ? aDoc.tokens.concat(tokens) : tokens;
 		})
 	} else {
+		featureStore.clearTokens();
 		documents.forEach((aDoc, index) => {
 			documentTokens[index].forEach(aToken => {
-				if (!tokenMap[aToken]) {
+				if (!featureStore.tokenMap[aToken]) {
 					const tType = aDoc.columnFeatures[aToken] ? kTokenTypeConstructed : kTokenTypeUnigram;
 					const tFeatureCaseIDObject = config.features.find(aFeature => aFeature.name === aToken);
 					const tFeatureCaseID = tFeatureCaseIDObject ? Number(tFeatureCaseIDObject.caseID) : null;
-					tokenMap[aToken] = getNewToken({
+					featureStore.addToken(aToken, getNewToken({
 						token: aToken,
 						type: tType,
 						featureCaseID: tFeatureCaseID
-					});
+					}));
 				} else {
-					tokenMap[aToken].count++;
+					featureStore.tokenMap[aToken].count++;
 				}
-				tokenMap[aToken].caseIDs.push(aDoc.caseID);
+				featureStore.tokenMap[aToken].caseIDs.push(aDoc.caseID);
 				if (aDoc.class === config.positiveClass) {
-					tokenMap[aToken].numPositive++;
+					featureStore.tokenMap[aToken].numPositive++;
 				} else {
-					tokenMap[aToken].numNegative++;
+					featureStore.tokenMap[aToken].numNegative++;
 				}
 			});
 			aDoc.tokens = Array.from(documentTokens[index]);
@@ -143,7 +142,7 @@ export function oneHot(config: OneHotConfig, documents: Document[]) {
 	}
 
 	// Convert tokenMap to an array and sort descending
-	let tokenArray = Object.values(tokenMap).sort((aToken1, aToken2) => {
+	let tokenArray = Object.values(featureStore.tokenMap).sort((aToken1, aToken2) => {
 		return aToken2.count - aToken1.count;
 	});
 
@@ -168,9 +167,11 @@ export function oneHot(config: OneHotConfig, documents: Document[]) {
 	});
 
 	// Delete the unneeded tokens from tokenMap
-	Object.keys(tokenMap).forEach((aKey) => {
-		if (tokenMap[aKey].index === -1)
-			delete tokenMap[aKey];
+	Object.keys(featureStore.tokenMap).forEach((aKey) => {
+		const token = featureStore.tokenMap[aKey];
+		if (token.index === -1) {
+			featureStore.deleteToken(aKey);
+		}
 	});
 
 	// Create an array of one-hot vectors corresponding to the original document examples
@@ -178,8 +179,8 @@ export function oneHot(config: OneHotConfig, documents: Document[]) {
 	let oneHotArray: { oneHotExample: number[], class: string }[] = documents.map((aDoc, index) => {
 		const tVector: number[] = Array(kVectorLength).fill(0);
 		documentTokens[index].forEach(aWord => {
-			if (tokenMap[aWord]) {
-				const tWordIndex = tokenMap[aWord].index;
+			if (featureStore.tokenMap[aWord]) {
+				const tWordIndex = featureStore.tokenMap[aWord].index;
 				if (tWordIndex >= 0 && tWordIndex < kVectorLength) tVector[tWordIndex] = 1;
 			}
 		});
@@ -187,5 +188,5 @@ export function oneHot(config: OneHotConfig, documents: Document[]) {
 		return { oneHotExample: tVector, class: aDoc.class };
 	});
 
-	return { oneHotResult: oneHotArray, tokenMap, tokenArray };
+	return { oneHotResult: oneHotArray, tokenArray };
 }
