@@ -243,7 +243,7 @@ export class DomainStore {
 						values: {
 							chosen: iFeature.chosen,
 							color: iFeature.color ?? getFeatureColor(),
-							highlight: iFeature.highlight,
+							highlight: !!iFeature.highlight,
 							name: iFeature.name,
 							type: iFeature.type,
 							/*
@@ -354,10 +354,11 @@ export class DomainStore {
 			// if (await this.guaranteeFeaturesDataset()) {
 			const tUnigramCreateMsgs: CreateCaseValue[] = [];
 			tTokenArray.forEach(iFeature => {
+				iFeature.color = iFeature.color !== kNoColor ? iFeature.color : getFeatureColor();
 				const tCaseValues: CreateCaseValue = {
 					values: {
 						chosen: true,
-						color: iFeature.color !== kNoColor ? iFeature.color : getFeatureColor(),
+						color: iFeature.color,
 						highlight: true,
 						name: iFeature.token,
 						type: 'unigram',

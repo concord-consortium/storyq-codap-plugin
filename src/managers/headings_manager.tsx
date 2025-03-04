@@ -3,10 +3,18 @@
  */
 
 import { Descendant } from "@concord-consortium/slate-editor";
-import { ITextSectionTitle } from "../stores/store_types_and_constants";
+import { FeatureOrToken, ITextSectionTitle } from "../stores/store_types_and_constants";
 
+export interface NonNtigramFeature {
+	word: (string | number),
+	feature: FeatureOrToken
+}
 export interface PhraseQuadruple {
-	actual: string, predicted: string, phrase: string, nonNtigramFeatures: (string | number)[], index?: number
+	actual: string,
+	predicted: string,
+	phrase: string,
+	nonNtigramFeatures: NonNtigramFeature[],
+	index?: number
 }
 export interface ClassLabel { negLabel: string, posLabel: string, blankLabel: string}
 export interface HeadingSpec {
