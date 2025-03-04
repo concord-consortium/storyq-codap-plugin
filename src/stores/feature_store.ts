@@ -12,7 +12,7 @@ import {
 import {
 	Feature, FeatureType, getStarterFeature, kAnyNumberKeyword, kFeatureKindColumn, kFeatureKindNgram, kFeatureKindSearch,
 	kFeatureTypeConstructed, kFeatureTypeUnigram, kTokenTypeUnigram, kWhatOptionNumber, kWhatOptionText, NgramDetails,
-	SearchDetails, TokenMap, WordListSpec
+	SearchDetails, Token, TokenMap, WordListSpec
 } from "./store_types_and_constants";
 import { targetDatasetStore } from './target_dataset_store';
 
@@ -32,6 +32,7 @@ export interface IFeatureStoreJSON {
 }
 
 export class FeatureStore {
+	caseIdTokenMap: Record<number, Token> = {}
 	features: Feature[] = []
 	featureUnderConstruction: Feature = getStarterFeature();
 	featureDatasetInfo = {
@@ -163,12 +164,27 @@ export class FeatureStore {
 		}
 	}
 
-	getChosenFeatureNames() {
-		return this.getChosenFeatures().map(iFeature => iFeature.name);
+	getFeatureByCaseId(caseId: string | number) {
+		return this.features.find(feature => feature.caseID === `${caseId}`);
 	}
 
-	getChosenFeatures() {
-		return this.features.filter(iFeature => iFeature.chosen);
+	getTokenByCaseId(caseId: string | number) {
+		const numberId = Number(caseId);
+		const token = this.caseIdTokenMap[numberId];
+		if (token) {
+			if (this.tokenMap[token.token]) {
+				return token;
+			} else {
+				// If the token no longer exists in the tokenMap, remove it from the caseIdTokenMap
+				delete this.caseIdTokenMap[numberId];
+			}
+		} else {
+			const foundToken = Object.values(this.tokenMap).find(iToken => iToken.featureCaseID === Number(caseId));
+			if (foundToken) {
+				this.caseIdTokenMap[numberId] = foundToken;
+				return foundToken;
+			}
+		}
 	}
 
 	getFormulaFor(iFeatureName: string) {
@@ -178,8 +194,27 @@ export class FeatureStore {
 		return tFoundObject ? tFoundObject.formula : '';
 	}
 
+	get chosenFeatureNames() {
+		return this.chosenFeatures.map(iFeature => iFeature.name);
+	}
+
+	get chosenFeatures() {
+		return this.features.filter(iFeature => iFeature.chosen);
+	}
+
 	get featureDatasetID() {
 		return this.featureDatasetInfo.datasetID;
+	}
+
+	get highlightedFeatures() {
+		return this.features.filter(feature => feature.highlight);
+	}
+
+	get highlights() {
+		return [
+			...this.features.map(feature => feature.highlight),
+			...Object.values(this.tokenMap).map(token => token.highlight)
+		];
 	}
 
 	guaranteeUniqueFeatureName(iCandidate: string) {
@@ -194,16 +229,16 @@ export class FeatureStore {
 		return tTest;
 	}
 
-	getConstructedFeatureNames() {
+	get constructedFeatureNames() {
 		return this.features.filter(iFeature => iFeature.info.kind !== kFeatureKindNgram).map(iFeature => iFeature.name);
 	}
 
-	getShouldIgnoreStopwords() {
+	get shouldIgnoreStopwords() {
 		const tNtigramFeature = this.features.find(iFeature => iFeature.info.kind === kFeatureKindNgram);
 		return tNtigramFeature ? tNtigramFeature.info.ignoreStopWords : true;
 	}
 
-	hasNgram() {
+	get hasNgram() {
 		return Boolean(this.features.find(iFeature => iFeature.info.kind === kFeatureKindNgram));
 	}
 
@@ -214,13 +249,14 @@ export class FeatureStore {
 		};
 		tFeature.inProgress = false;
 		tFeature.chosen = true;
+		tFeature.highlight = true;
 		tFeature.type = typeMap[tFeature.info.kind] ?? kFeatureTypeConstructed;
 		tFeature.description = this.getDescriptionFor(tFeature);
 		this.features.push(tFeature);
 		this.startConstructingFeature();
 	}
 
-	tokenMapAlreadyHasUnigrams() {
+	get tokenMapAlreadyHasUnigrams() {
 		return this.tokenMap && Object.values(this.tokenMap).some(iToken => iToken.type === kTokenTypeUnigram);
 	}
 

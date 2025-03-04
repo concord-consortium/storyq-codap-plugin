@@ -18,14 +18,16 @@ import { APIRequest, GetCaseByIDResponse, GetSelectionListResponse } from "../ty
 import { highlightFeatures, HighlightFunction, phraseToFeatures, textToObject } from "../utilities/utilities";
 import { ClassLabel, HeadingsManager, PhraseQuadruple } from "./headings_manager";
 
+export let textFeedbackManager: TextFeedbackManager | undefined;
 export function setupTextFeedbackManager() {
-	return new TextFeedbackManager();
+	textFeedbackManager = new TextFeedbackManager();
 }
 
 export class TextFeedbackManager {
 	headingsManager: HeadingsManager;
 	isSelectingFeatures = false;
 	isSelectingTargetPhrases = false;
+	lastSelectionType: "features" | "targetDataset" = "features";
 
 	constructor() {
 		this.handleNotification = this.handleNotification.bind(this);
@@ -34,6 +36,8 @@ export class TextFeedbackManager {
 	}
 
 	async handleNotification(iNotification: CODAP_Notification) {
+		if (this.isSelectingFeatures || this.isSelectingTargetPhrases) return;
+
 		const tTargetDatasetName = targetStore.targetDatasetInfo.name,
 			tTestingDatasetName = testingStore.testingDatasetInfo.name,
 			tFeatureDatasetName = featureStore.featureDatasetInfo.datasetName;
@@ -41,25 +45,35 @@ export class TextFeedbackManager {
 		const { values } = iNotification;
 		const operation = Array.isArray(values) ? values[0].operation : values.operation;
 		if (iNotification.action === 'notify' && operation === 'selectCases') {
-			try {
-				const tDataContextName = iNotification.resource && iNotification.resource.match(/\[(.+)]/)?.[1];
-				if (tDataContextName) {
-					if (tDataContextName === tFeatureDatasetName && !this.isSelectingFeatures) {
-						this.isSelectingTargetPhrases = true;
-						await this.handleFeatureSelection();
-						this.isSelectingTargetPhrases = false;
-					} else if (
-						[tTestingDatasetName, tTargetDatasetName].includes(tDataContextName) && !this.isSelectingTargetPhrases
-					) {
-						this.isSelectingFeatures = true;
-						await this.handleTargetDatasetSelection();
-						this.isSelectingFeatures = false;
-					}
+			const tDataContextName = iNotification.resource && iNotification.resource.match(/\[(.+)]/)?.[1];
+			if (tDataContextName) {
+				let updatePane = false;
+				if (tDataContextName === tFeatureDatasetName) {
+					this.lastSelectionType = "features";
+					updatePane = true;
+				} else if ([tTestingDatasetName, tTargetDatasetName].includes(tDataContextName)) {
+					this.lastSelectionType = "targetDataset";
+					updatePane = true;
 				}
-			} finally {
-				this.isSelectingFeatures = false
-				this.isSelectingTargetPhrases = false
+				if (updatePane) await this.updateTextPane();
 			}
+		}
+	}
+
+	async updateTextPane() {
+		try {
+			if (this.lastSelectionType === "features" && !this.isSelectingFeatures) {
+				this.isSelectingTargetPhrases = true;
+				await this.handleFeatureSelection();
+				this.isSelectingTargetPhrases = false;
+			} else if (this.lastSelectionType === "targetDataset" && !this.isSelectingTargetPhrases) {
+				this.isSelectingFeatures = true;
+				await this.handleTargetDatasetSelection();
+				this.isSelectingFeatures = false;
+			}
+		} finally {
+			this.isSelectingFeatures = false;
+			this.isSelectingTargetPhrases = false;
 		}
 	}
 
@@ -232,7 +246,12 @@ export class TextFeedbackManager {
 					const caseFeatureIDs = JSON.parse(tFeatureValue);
 					if (Array.isArray(caseFeatureIDs)) {
 						caseFeatureIDs.forEach(iValue => {
-							if (typeof iValue === 'number' || typeof iValue === 'string') tFeatureIDs.push(Number(iValue));
+							if (
+								(typeof iValue === 'number' || typeof iValue === 'string') &&
+								(featureStore.getFeatureByCaseId(iValue)?.highlight || featureStore.getTokenByCaseId(iValue)?.highlight)
+							) {
+								tFeatureIDs.push(Number(iValue));
+							}
 						});
 					}
 				}
@@ -260,6 +279,34 @@ export class TextFeedbackManager {
 	 * features highlighted and non-features grayed out
 	 */
 	public async handleTargetDatasetSelection() {
+		const tUseTestingDataset = uiStore.selectedPanelTitle === 'Testing' &&
+				testingStore.testingDatasetInfo.name !== '' &&
+				testingStore.testingAttributeName !== '',
+			tDatasetName = tUseTestingDataset
+				? testingStore.testingDatasetInfo.name : targetStore.targetDatasetInfo.name,
+			tCollectionName = tUseTestingDataset
+				? testingStore.testingCollectionName : targetStore.targetCollectionName,
+			tDatasetTitle = tUseTestingDataset
+				? testingStore.testingDatasetInfo.title : targetStore.targetDatasetInfo.title,
+			tAttributeName = tUseTestingDataset
+				? testingStore.testingAttributeName : targetStore.targetAttributeName,
+			{ collectionName, datasetName } = featureStore.featureDatasetInfo,
+			tClassAttributeName = tUseTestingDataset
+				? testingStore.testingClassAttributeName : targetStore.targetClassAttributeName,
+			tPredictedLabelAttributeName = targetStore.targetPredictedLabelAttributeName,
+			tColumnFeatureNames = featureStore.targetColumnFeatureNames,
+			tConstructedFeatureNames = featureStore.features.map(iFeature => iFeature.name),
+			tFeaturesMap: Record<number, string> = {},
+			// Get all the selected cases in the target dataset. Some will be results and some will be texts
+			tSelectionListResult = await codapInterface.sendRequest({
+				action: 'get',
+				resource: `dataContext[${tDatasetName}].selectionList`
+			}) as GetSelectionListResponse,
+			tSelectedTextsSet: Set<number> = new Set(),
+			tCaseRequests: APIRequest[] = [],
+			tFeatureIDsSet: Set<number> = new Set(),
+			tQuadruples: PhraseQuadruple[] = [];
+
 		async function handleSelectionInFeaturesDataset() {
 			// Select the features or, possibly, deselect all features
 			await codapInterface.sendRequest({
@@ -289,35 +336,6 @@ export class TextFeedbackManager {
 				});
 			}
 		}
-
-		const tUseTestingDataset = uiStore.selectedPanelTitle === 'Testing' &&
-				testingStore.testingDatasetInfo.name !== '' &&
-				testingStore.testingAttributeName !== '',
-			tDatasetName = tUseTestingDataset
-				? testingStore.testingDatasetInfo.name : targetStore.targetDatasetInfo.name,
-			tCollectionName = tUseTestingDataset
-				? testingStore.testingCollectionName : targetStore.targetCollectionName,
-			tDatasetTitle = tUseTestingDataset
-				? testingStore.testingDatasetInfo.title : targetStore.targetDatasetInfo.title,
-			tAttributeName = tUseTestingDataset
-				? testingStore.testingAttributeName : targetStore.targetAttributeName,
-			{ collectionName, datasetName } = featureStore.featureDatasetInfo,
-			tClassAttributeName = tUseTestingDataset
-				? testingStore.testingClassAttributeName : targetStore.targetClassAttributeName,
-			tPredictedLabelAttributeName = targetStore.targetPredictedLabelAttributeName,
-			tColumnFeatureNames = featureStore.targetColumnFeatureNames,
-			tConstructedFeatureNames = featureStore.features.map(iFeature => iFeature.name),
-			tFeaturesMap: Record<number, string> = {},
-			// Get all the selected cases in the target dataset. Some will be results and some will be texts
-			tSelectionListResult = await codapInterface.sendRequest({
-				action: 'get',
-				resource: `dataContext[${tDatasetName}].selectionList`
-			}) as GetSelectionListResponse,
-			tSelectedTextsSet: Set<number> = new Set(),
-			tCaseRequests: APIRequest[] = [],
-			tFeatureIDsSet: Set<number> = new Set(),
-			tQuadruples: PhraseQuadruple[] = [];
-
 
 		// For the texts, we just need to record their caseIDs. For the results, we record a request to get parents
 		if (tSelectionListResult.success && tSelectionListResult.values) {
@@ -412,7 +430,11 @@ export class TextFeedbackManager {
 
 		// We can now convert each quad's array of feature IDs to features
 		tQuadruples.forEach(iQuad => {
-			iQuad.nonNtigramFeatures = iQuad.nonNtigramFeatures.map(iID => tFeaturesMap[Number(iID)]);
+			iQuad.nonNtigramFeatures = iQuad.nonNtigramFeatures
+				.filter(id => {
+					return !!featureStore.getFeatureByCaseId(id)?.highlight || !!featureStore.getTokenByCaseId(id)?.highlight;
+				})	
+				.map(iID => tFeaturesMap[Number(iID)]);
 		});
 
 		await this.retitleTextComponent(`Selected texts in ${tDatasetTitle}`);

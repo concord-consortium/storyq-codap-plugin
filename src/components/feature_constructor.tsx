@@ -12,10 +12,7 @@ export const FeatureConstructor = observer(function FeatureConstructor() {
 
 	return (
 		<div>
-			<FeatureComponent
-				feature={featureStore.featureUnderConstruction}
-				shortened = {false}
-			/>
+			<FeatureComponent feature={featureStore.featureUnderConstruction} />
 		</div>
 	);
 });
