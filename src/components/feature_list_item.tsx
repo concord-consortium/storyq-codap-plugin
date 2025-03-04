@@ -10,7 +10,6 @@ import { domainStore } from "../stores/domain_store";
 import { featureStore } from "../stores/feature_store";
 import { Feature, kFeatureTypeUnigram } from "../stores/store_types_and_constants";
 import { textStore } from "../stores/text_store";
-// import { Button } from "./ui/button";
 import { CheckBox } from "./ui/check-box";
 
 import { ReactComponent as CloseIcon } from "../assets/close-icon.svg";

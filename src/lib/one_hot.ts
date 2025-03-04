@@ -17,12 +17,12 @@
 //  limitations under the License.
 // ==========================================================================
 
-import { stopWords } from "./stop_words";
 import { featureStore } from "../stores/feature_store";
 import {
-	Feature, getNewToken, kNumberPattern, kTokenTypeConstructed, kTokenTypeUnigram, TokenMap
+	Feature, getNewToken, kNumberPattern, kTokenTypeConstructed, kTokenTypeUnigram
 } from "../stores/store_types_and_constants";
 import { emoticons } from "./emoticons";
+import { stopWords } from "./stop_words";
 
 export const kMaxTokens = 1000;
 
