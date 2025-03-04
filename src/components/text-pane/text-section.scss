@@ -2,11 +2,14 @@
   .text-section-title {
     align-items: center;
     background-color: #dceff2;
+    border: none;
     color: #222;
+    cursor: pointer;
     display: flex;
     font-size: 14px;
     font-weight: 600;
     justify-content: space-between;
+    padding: 0;
     width: 100%;
 
     .actual-title {
@@ -22,15 +25,11 @@
       }
     }
 
-    .hide-button {
+    .hide-icon {
       align-items: center;
-      background-color: rgba(0, 0, 0, 0);
-      border: none;
-      cursor: pointer;
       display: flex;
       justify-content: center;
-      margin-right: 5px; // To move the button away from the resize handle
-      padding: 0;
+      margin-right: 10px;
 
       svg {
         rotate: 90deg;
@@ -41,6 +40,14 @@
           rotate: -90deg;
         }
       }
+    }
+
+    &:hover {
+      background-color: #b9dfe5;
+    }
+
+    &:active {
+      background-color: #95cfd7;
     }
   }
 
