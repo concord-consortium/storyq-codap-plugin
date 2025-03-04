@@ -3,7 +3,7 @@
     align-items: center;
     background-color: #dceff2;
     border: none;
-    color: #222;
+    color: #222222;
     cursor: pointer;
     display: flex;
     font-size: 14px;
@@ -57,10 +57,12 @@
     .phrase-row {
       display: flex;
       flex-direction: row;
-      margin: 0 5px 15px 5px;
+      font-size: 14px;
+      padding: 8px 15px;
 
       .phrase-index {
         align-items: flex-start;
+        color: #222222;
         display: flex;
         justify-content: flex-end;
         margin-right: 8px;
@@ -78,6 +80,13 @@
           font-weight: bold;
         }
       }
+    }
+
+    .divider {
+      background-color: #72bfca;
+      height: 1px;
+      margin-left: 15px;
+      width: calc(100% - 30px);
     }
   }
 }

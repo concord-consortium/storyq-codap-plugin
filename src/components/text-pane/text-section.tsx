@@ -57,22 +57,25 @@ export function TextSection({ textHeight, textSection }: ITextSectionProps) {
       </button>
       {!hidden && (
         <div className="text-section-text" style={{ height: textHeight }}>
-          {text.map(textSectionText => {
-            const indexString = textSectionText.index != null ? `${textSectionText.index + 1}. ` : "";
+          {text.map((textSectionText, index) => {
+            const indexString = textSectionText.index != null ? `${textSectionText.index + 1}:` : "";
             return (
-              <div className="phrase-row" key={indexString}>
-                <div className="phrase-index">{indexString}</div>
-                <div className="phrase">
-                  {textSectionText.textParts.map((part, index) => {
-                    const style = part.style ? toJS(part.style) : undefined;
-                    return (
-                      <span className={clsx(part.classNames)} key={`${index}-${part.text}`} style={style}>
-                        {part.text}
-                      </span>
-                    );
-                  })}
+              <>
+                <div className="phrase-row" key={indexString}>
+                  <div className="phrase-index">{indexString}</div>
+                  <div className="phrase">
+                    {textSectionText.textParts.map((part, index) => {
+                      const style = part.style ? toJS(part.style) : undefined;
+                      return (
+                        <span className={clsx(part.classNames)} key={`${index}-${part.text}`} style={style}>
+                          {part.text}
+                        </span>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+                {index < text.length - 1 && <div className="divider" />}
+              </>
             );
           })}
         </div>
