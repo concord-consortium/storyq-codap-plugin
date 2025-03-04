@@ -56,10 +56,13 @@
       }
 
       .phrase {
+        color: #595959;
         width: 386px;
 
         .highlighted {
           background-color: #fdf2d0;
+          color: #222222;
+          font-weight: bold;
         }
       }
     }
