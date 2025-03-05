@@ -8,7 +8,7 @@ import pluralize from "pluralize";
 import { getComponentByTypeAndTitleOrName } from "../lib/codap-helper";
 import codapInterface from "../lib/CodapInterface";
 import { CreateComponentResponse, GetComponentListResponse } from '../types/codap-api-types';
-import { ITextSection, kStoryQPluginName } from './store_types_and_constants';
+import { ITextSection, kStoryQPluginName, TitleDataset } from './store_types_and_constants';
 import { targetStore } from './target_store';
 
 export interface ITextStoreJSON {
@@ -20,6 +20,7 @@ export class TextStore {
 	textComponentTitle: string = '';
 	textComponentID: number = -1;
 	textSections: ITextSection[] = [];
+	titleDataset: TitleDataset = "target";
 
 	constructor() {
 		makeAutoObservable(this, {}, { autoBind: true });
@@ -43,6 +44,10 @@ export class TextStore {
 		this.textComponentTitle = title;
 	}
 
+	setTitleDataset(titleDataset: TitleDataset) {
+		this.titleDataset = titleDataset;
+	}
+
 	setTextSections(sections: ITextSection[]) {
 		this.textSections = sections;
 	}
@@ -55,14 +60,18 @@ export class TextStore {
 		textSection.hidden = !textSection.hidden;
 	}
 
+	updateTitle(datasetName: string, attributeName: string) {
+		this.textComponentTitle = `Selected ${pluralize(attributeName)} in ${datasetName}`;
+	}
+
 	/**
 	 * Only add a text component if one with the designated name does not already exist.
 	 */
 	async addTextComponent() {
 		const iDatasetName = targetStore.targetDatasetInfo.title;
 		const iAttributeName = targetStore.targetAttributeName;
+		this.updateTitle(iDatasetName, iAttributeName);
 		let tFoundIt = false;
-		this.textComponentTitle = `Selected ${pluralize(iAttributeName)} in ${iDatasetName}`;
 		const tListResult = await codapInterface.sendRequest(
 			{
 				action: 'get',

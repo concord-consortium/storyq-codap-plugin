@@ -19,6 +19,7 @@ export class NotificationManager {
 		this.handleDeleteFeatureCase = this.handleDeleteFeatureCase.bind(this)
 		this.handleUpdateFeatureCase = this.handleUpdateFeatureCase.bind(this)
 		codapInterface.on('notify', '*', 'dataContextCountChanged', this.handleDataContextChange);
+		codapInterface.on('notify', '*', 'updateDataContext', this.handleDataContextChange);
 		codapInterface.on('notify', '*', 'createCases', this.handleDataContextChange);
 		codapInterface.on('notify', '*', 'titleChange', this.handleDataContextChange);
 		codapInterface.on('notify', '*', 'createAttributes', this.handleAttributesChange);

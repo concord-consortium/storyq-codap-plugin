@@ -9,6 +9,7 @@ import {
 } from "../lib/codap-helper";
 import { featureStore } from './feature_store';
 import { getEmptyTestingResult, kEmptyEntityInfo, TestingResult } from "./store_types_and_constants";
+import { uiStore } from './ui_store';
 
 export interface ITestingStore {
 	chosenModelName: string;
@@ -116,6 +117,13 @@ export class TestingStore {
 			title: this.testingDatasetInfo.title,
 			id: -1
 		});
+	}
+
+	get useTestingDataset() {
+		return uiStore.selectedPanelTitle === 'Testing' &&
+			testingStore.testingDatasetInfo.name !== '' &&
+			testingStore.testingAttributeName !== '' &&
+			!testingStore.currentTestingResults.testBeingConstructed;
 	}
 }
 

@@ -346,3 +346,5 @@ export interface ITextSection {
 	text: ITextSectionText[];
 	title?: ITextSectionTitle;
 }
+
+export type TitleDataset = "target" | "testing";

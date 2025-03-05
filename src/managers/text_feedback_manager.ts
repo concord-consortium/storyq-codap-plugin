@@ -102,6 +102,29 @@ export class TextFeedbackManager {
 		return await Promise.all(tPromises);
 	}
 
+	getBasicInfo() {
+		const conditionalInfo = testingStore.useTestingDataset
+			? {
+				tDatasetName: testingStore.testingDatasetInfo.name,
+				tCollectionName: testingStore.testingCollectionName,
+				tAttributeName: testingStore.testingAttributeName,
+				tClassAttributeName: testingStore.testingClassAttributeName
+			} : {
+				tDatasetName: targetStore.targetDatasetInfo.name,
+				tCollectionName: targetStore.targetCollectionName,
+				tAttributeName: targetStore.targetAttributeName,
+				tClassAttributeName: targetStore.targetClassAttributeName
+			};
+		const { collectionName, datasetName } = featureStore.featureDatasetInfo;
+		return {
+			tPredictedLabelAttributeName: targetStore.targetPredictedLabelAttributeName,
+			tColumnFeatureNames: featureStore.targetColumnFeatureNames,
+			tConstructedFeatureNames: featureStore.features.map(iFeature => iFeature.name),
+			collectionName, datasetName,
+			...conditionalInfo
+		};
+	}
+
 	/**
 	 * If the Features dataset has cases selected, for each selected case
 	 * 	- Pull out the array of 'usages' - the the case IDs of the cases in the dataset being analyzed
@@ -109,24 +132,11 @@ export class TextFeedbackManager {
 	 * 	- Pull the phrase from the target case
 	 */
 	async handleFeatureSelection() {
-		const tUseTestingDataset = uiStore.selectedPanelTitle === 'Testing' &&
-				testingStore.testingDatasetInfo.name !== '' &&
-				testingStore.testingAttributeName !== '' &&
-				!testingStore.currentTestingResults.testBeingConstructed,
-			tDatasetName = tUseTestingDataset
-				? testingStore.testingDatasetInfo.name : targetStore.targetDatasetInfo.name,
-			tDatasetTitle = tUseTestingDataset
-				? testingStore.testingDatasetInfo.title : targetStore.targetDatasetInfo.title,
-			tCollectionName = tUseTestingDataset
-				? testingStore.testingCollectionName : targetStore.targetCollectionName,
-			tAttributeName = tUseTestingDataset
-				? testingStore.testingAttributeName : targetStore.targetAttributeName,
-			{ collectionName, datasetName } = featureStore.featureDatasetInfo,
-			tClassAttributeName = tUseTestingDataset
-				? testingStore.testingClassAttributeName : targetStore.targetClassAttributeName,
-			tPredictedLabelAttributeName = targetStore.targetPredictedLabelAttributeName,
-			tColumnFeatureNames = featureStore.targetColumnFeatureNames,
-			tConstructedFeatureNames = featureStore.features.map(iFeature => iFeature.name),
+		const { useTestingDataset } = testingStore,
+			{
+				tDatasetName, tCollectionName, tAttributeName, tClassAttributeName, tPredictedLabelAttributeName,
+				tColumnFeatureNames, tConstructedFeatureNames, collectionName, datasetName
+			} = this.getBasicInfo(),
 			tFeaturesMap: Record<number, string> = {},
 			tSelectedFeaturesSet: Set<number> = new Set(),
 			tUsedIDsSet: Set<number> = new Set(),
@@ -149,7 +159,7 @@ export class TextFeedbackManager {
 		}
 
 		// If we have a testing dataset but no test has been run, we're done
-		if (tUseTestingDataset && testingStore.testingResultsArray.length === 0) {
+		if (useTestingDataset && testingStore.testingResultsArray.length === 0) {
 			return;
 		}
 
@@ -188,7 +198,7 @@ export class TextFeedbackManager {
 		// If we're using the testing dataset, we go through each of the target phrases and pull out the case IDs
 		// of the cases that use the selected features. We determine this by looking at the featureIDs attribute
 		// of each target phrase case and checking whether that array contains any of the selected feature IDs.
-		if (tUseTestingDataset) {
+		if (useTestingDataset) {
 			const tTestCases = await getCaseValues(tDatasetName, tCollectionName);
 			tTestCases.forEach(iCase => {
 				const tFeatureIDs = iCase.values.featureIDs
@@ -268,7 +278,8 @@ export class TextFeedbackManager {
 				tQuadruples.push(tQuadruple);
 			}
 		});
-		await this.retitleTextComponent(`Selected texts in ${tDatasetTitle}`);
+		textStore.setTitleDataset(useTestingDataset ? "testing" : "target");
+		await this.retitleTextComponent();
 		await this.composeText(tQuadruples, textToObject, tColumnFeatureNames.concat(tConstructedFeatureNames));
 	}
 
@@ -279,23 +290,11 @@ export class TextFeedbackManager {
 	 * features highlighted and non-features grayed out
 	 */
 	public async handleTargetDatasetSelection() {
-		const tUseTestingDataset = uiStore.selectedPanelTitle === 'Testing' &&
-				testingStore.testingDatasetInfo.name !== '' &&
-				testingStore.testingAttributeName !== '',
-			tDatasetName = tUseTestingDataset
-				? testingStore.testingDatasetInfo.name : targetStore.targetDatasetInfo.name,
-			tCollectionName = tUseTestingDataset
-				? testingStore.testingCollectionName : targetStore.targetCollectionName,
-			tDatasetTitle = tUseTestingDataset
-				? testingStore.testingDatasetInfo.title : targetStore.targetDatasetInfo.title,
-			tAttributeName = tUseTestingDataset
-				? testingStore.testingAttributeName : targetStore.targetAttributeName,
-			{ collectionName, datasetName } = featureStore.featureDatasetInfo,
-			tClassAttributeName = tUseTestingDataset
-				? testingStore.testingClassAttributeName : targetStore.targetClassAttributeName,
-			tPredictedLabelAttributeName = targetStore.targetPredictedLabelAttributeName,
-			tColumnFeatureNames = featureStore.targetColumnFeatureNames,
-			tConstructedFeatureNames = featureStore.features.map(iFeature => iFeature.name),
+		const { useTestingDataset } = testingStore,
+			{
+				tDatasetName, tCollectionName, tAttributeName, tClassAttributeName, tPredictedLabelAttributeName,
+				tColumnFeatureNames, tConstructedFeatureNames, collectionName, datasetName
+			} = this.getBasicInfo(),
 			tFeaturesMap: Record<number, string> = {},
 			// Get all the selected cases in the target dataset. Some will be results and some will be texts
 			tSelectionListResult = await codapInterface.sendRequest({
@@ -389,7 +388,7 @@ export class TextFeedbackManager {
 				}
 				// If we're using the testing dataset, the predicted value belongs is to be found
 				// in tCaseValues
-				if (tUseTestingDataset) {
+				if (useTestingDataset) {
 					tPredictedResult = String(tCaseValues[tPredictedLabelAttributeName]) || '';
 				} else {
 					// The predicted value, if there is one, belongs to the child case that has the correct
@@ -437,7 +436,8 @@ export class TextFeedbackManager {
 				.map(iID => tFeaturesMap[Number(iID)]);
 		});
 
-		await this.retitleTextComponent(`Selected texts in ${tDatasetTitle}`);
+		textStore.setTitleDataset(useTestingDataset ? "testing" : "target");
+		await this.retitleTextComponent();
 		await this.composeText(tQuadruples, phraseToFeatures, tColumnFeatureNames.concat(tConstructedFeatureNames));
 	}
 
@@ -576,13 +576,12 @@ export class TextFeedbackManager {
 		}
 	}
 
-	async retitleTextComponent(iTitle: string) {
-		textStore.setTextComponentTitle(iTitle);
+	async retitleTextComponent() {
 		await codapInterface.sendRequest({
 			action: 'update',
 			resource: `component[${textStore.textComponentID}]`,
 			values: {
-				title: iTitle
+				title: textStore.textComponentTitle
 			}
 		});
 	}
