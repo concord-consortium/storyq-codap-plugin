@@ -82,7 +82,7 @@ export class TextFeedbackManager {
 		this.headingsManager.setupHeadings(
 			targetStore.getClassName('negative'),
 			targetStore.getClassName('positive'),
-			'', 'Actual', 'Predicted'
+			''
 		);
 		return this.headingsManager;
 	}
