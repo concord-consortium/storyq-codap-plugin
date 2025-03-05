@@ -9,6 +9,7 @@ import codapInterface, {CODAP_Notification} from "../lib/CodapInterface";
 import { featureStore } from "../stores/feature_store";
 import { kFeatureTypeUnigram, kTokenTypeUnigram } from "../stores/store_types_and_constants";
 import { targetStore } from "../stores/target_store";
+import { getFeatureColor } from "../utilities/color-utils";
 
 export class NotificationManager {
 	updatingStores = false
@@ -85,24 +86,29 @@ export class NotificationManager {
 						if (tFoundFeature) {
 							tFoundFeature.chosen = tChosen;
 							tFoundFeature.highlight = highlight;
+							tFoundFeature.color = String(iCase.values.color);
 						} else if (tType === kTokenTypeUnigram) {
 							const tToken = featureStore.tokenMap[tName];
-							if (tToken) tToken.highlight = highlight;
+							if (tToken) {
+								tToken.highlight = highlight;
+								tToken.color = String(iCase.values.color);
+							}
 							if (tToken && !tChosen) {
-								delete featureStore.tokenMap[tName];
+								featureStore.deleteToken(tName);
 							} else if (!tToken && tChosen) {
-								featureStore.tokenMap[tName] = {
+								featureStore.addToken(tName, {
 									token: tName,
 									type: kTokenTypeUnigram,
 									count: Number(iCase.values['frequency in positive']) + Number(iCase.values['frequency in negative']),
 									index: 0,
+									color: getFeatureColor(),
 									highlight: true,
 									numPositive: Number(iCase.values['frequency in positive']),
 									numNegative: Number(iCase.values['frequency in negative']),
 									caseIDs: JSON.parse(String(iCase.values.usages)),
 									weight: null,
 									featureCaseID: iCase.id
-								};
+								});
 							}
 						}
 					});

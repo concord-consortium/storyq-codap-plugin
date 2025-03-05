@@ -12,6 +12,7 @@ import {
 	GetCaseFormulaSearchResponse, GetItemByCaseIDResponse, GetItemSearchResponse, ItemInfo, ItemValues,
 	NotifyDataContextRequest, UpdateCaseRequest, UpdateCaseValue
 } from "../types/codap-api-types";
+import { getFeatureColor, kNoColor } from "../utilities/color-utils";
 import { featureStore, IFeatureStoreJSON } from "./feature_store";
 import { defaultTargetCaseFormula, Feature, kFeatureKindNgram, kPosNegConstants } from "./store_types_and_constants";
 import { ITargetStoreJSON, otherClassColumn, targetStore } from "./target_store";
@@ -92,6 +93,7 @@ export class DomainStore {
 								attrs: [
 									{ name: 'name' },
 									{ name: 'chosen', type: 'checkbox', hidden: true },
+									{ name: 'color', type: 'color' },
 									{ name: 'highlight', type: 'checkbox' },
 									{ name: tPositiveAttrName },
 									{ name: tNegativeAttrName },
@@ -237,7 +239,8 @@ export class DomainStore {
 					let tValuesObject: { values: { [index: string]: {} } } = {
 						values: {
 							chosen: iFeature.chosen,
-							highlight: iFeature.highlight,
+							color: iFeature.color ?? getFeatureColor(),
+							highlight: !!iFeature.highlight,
 							name: iFeature.name,
 							type: iFeature.type,
 							/*
@@ -338,19 +341,21 @@ export class DomainStore {
 				includeUnigrams: true,
 				positiveClass: targetStore.getClassName('positive'),
 				negativeClass: targetStore.getClassName('negative'),
-				features: []
+				features: [],
+				newTokenMap: true
 			}, tDocuments);
 			if (!tOneHotResult) return;
 			const tTokenArray = tOneHotResult.tokenArray;	// Array of unigram features
 
-			featureStore.setTokenMap(tOneHotResult.tokenMap);
 			// Stash tokens in feature dataset
 			// if (await this.guaranteeFeaturesDataset()) {
 			const tUnigramCreateMsgs: CreateCaseValue[] = [];
 			tTokenArray.forEach(iFeature => {
+				iFeature.color = iFeature.color !== kNoColor ? iFeature.color : getFeatureColor();
 				const tCaseValues: CreateCaseValue = {
 					values: {
 						chosen: true,
+						color: iFeature.color,
 						highlight: true,
 						name: iFeature.token,
 						type: 'unigram',

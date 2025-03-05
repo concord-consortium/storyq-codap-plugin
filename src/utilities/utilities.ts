@@ -1,45 +1,51 @@
 import { allTokenizer } from "../lib/one_hot";
 import { SQ } from "../lists/lists";
-import { ITextPart, kAnyNumberKeyword, kNumberRegExp } from "../stores/store_types_and_constants";
+import { NonNtigramFeature } from "../managers/headings_manager";
+import { FeatureOrToken, ITextPart, kAnyNumberKeyword, kNumberRegExp } from "../stores/store_types_and_constants";
 import { featureStore } from "../stores/feature_store";
 
 // Highlighting for the modern internal text pane
-// NOTE: this code isn't perfect and doesn't match lists like personal pronoun lists
-export async function highlightFeatures(text: string, selectedFeatures: (string | number)[]) {
+export async function highlightFeatures(text: string, selectedFeatures: NonNtigramFeature[]) {
 	let segment = '';
 	const textParts: ITextPart[] = [];
 	let highlightNumbers = false;
+	let numberFeature: FeatureOrToken | undefined;
 	const addSegment = () => {
 		if (segment !== '') {
 			textParts.push({ text: segment });
 			segment = '';
 		}
 	};
-	const highlightWord = (word: string) => {
+	const highlightWord = (word: string, feature?: FeatureOrToken) => {
 		addSegment();
-		textParts.push({
-			text: word, classNames: ["highlighted"]
-		});
+		const style = feature?.color ? { backgroundColor: feature.color } : undefined;
+		textParts.push({ text: word, classNames: ["highlighted"], style });
 	};
 
 	// Get pieces of text
 	const words = allTokenizer(text);
 
 	// Process features
-	const targetWords: string[] = [];
-	const targetPhrases: string[][] = [];
-	for (const selectedWord of selectedFeatures) {
-		if (typeof selectedWord === "string") {
+	const targetWords: {
+		word: string,
+		feature: FeatureOrToken
+	}[] = [];
+	const targetPhrases: {
+		phrase: string[],
+		feature: FeatureOrToken
+	}[] = [];
+	for (const feature of selectedFeatures) {
+		if (typeof feature.word === "string") {
 			// Strip out the word from strings like 'contain: "word"' and 'count: "word"'
-			const _containWord = selectedWord.match(/^contain: "([^"]+)"/);
-			const _countWord = selectedWord.match(/^count: "([^"]+)"/);
+			const _containWord = feature.word.match(/^contain: "([^"]+)"/);
+			const _countWord = feature.word.match(/^count: "([^"]+)"/);
 			let singleWord = _containWord ? _containWord[1]
 				: _countWord ? _countWord[1]
-				: selectedWord;
+				: feature.word;
 
 			// Check to see if the feature references a list
-			const containMatch = !_containWord && selectedWord.match(/^contain:\s+([^"\s].*[^"\s]|\S)$/);
-			const countMatch = !_countWord && selectedWord.match(/^count:\s+([^"\s].*[^"\s]|\S)$/);
+			const containMatch = !_containWord && feature.word.match(/^contain:\s+([^"\s].*[^"\s]|\S)$/);
+			const countMatch = !_countWord && feature.word.match(/^count:\s+([^"\s].*[^"\s]|\S)$/);
 			const match = containMatch ? containMatch[1] : countMatch ? countMatch[1] : "";
 			const list = SQ.lists[match] ?? await featureStore.getWordListFromDatasetName(match);
 			if (match && !list) {
@@ -47,6 +53,7 @@ export async function highlightFeatures(text: string, selectedFeatures: (string 
 				// unless it's the all numbers keyword.
 				if (match === kAnyNumberKeyword) {
 					highlightNumbers = true;
+					numberFeature = feature.feature;
 					continue;
 				}
 				singleWord = match;
@@ -58,10 +65,10 @@ export async function highlightFeatures(text: string, selectedFeatures: (string 
 				const containedPhrase = allTokenizer(containedWord);
 				// If a word contains multiple parts, treat it as a phrase.
 				if (containedPhrase.length > 1) {
-					targetPhrases.push(containedPhrase.map(word => word.toLowerCase()));
+					targetPhrases.push({ phrase: containedPhrase.map(word => word.toLowerCase()), feature: feature.feature });
 				// Otherwise treat it as a single word.
 				} else {
-					targetWords.push(containedWord.toLowerCase());
+					targetWords.push({ word: containedWord.toLowerCase(), feature: feature.feature });
 				}
 			});
 		}
@@ -81,16 +88,17 @@ export async function highlightFeatures(text: string, selectedFeatures: (string 
 		// Look for numbers if we care about them.
 		if (highlightNumbers && word.match(kNumberRegExp)) {
 			foundMatch = true;
-			highlightWord(word);
+			highlightWord(word, numberFeature);
 		}
 
 		// Look for matches with phrases.
 		targetPhrases.forEach(phrase => {
 			if (foundMatch) return;
 
+			const targetPhraseWords = phrase.phrase;
 			let phraseMatch = true;
 			const phraseParts: string[] = [];
-			phrase.forEach((phraseWord, phraseIndex) => {
+			targetPhraseWords.forEach((phraseWord, phraseIndex) => {
 				if (!phraseMatch) return;
 
 				const reviewWord = words[index + phraseIndex];
@@ -99,19 +107,21 @@ export async function highlightFeatures(text: string, selectedFeatures: (string 
 				} else {
 					phraseMatch = false;
 				}
-				if (phraseMatch && phraseIndex >= phrase.length - 1) {
+				if (phraseMatch && phraseIndex >= targetPhraseWords.length - 1) {
 					foundMatch = true;
-					phraseWords = phrase.length - 1; // Skip the rest of the words in the phrase.
-					highlightWord(phraseParts.join(""));
+					phraseWords = targetPhraseWords.length - 1; // Skip the rest of the words in the phrase.
+					highlightWord(phraseParts.join(""), phrase.feature);
 				}
 			});
 		});
 
 		// Look for matches with single words.
-		if (!foundMatch && targetWords.includes(word.toLowerCase())) {
-			foundMatch = true;
-			highlightWord(word);
-		}
+		targetWords.forEach(targetWord => {
+			if (!foundMatch && targetWord.word === word.toLowerCase()) {
+				foundMatch = true;
+				highlightWord(word, targetWord.feature);
+			}
+		});
 
 		// If it's not a match, add it to the current segment with basic text.
 		if (!foundMatch) {

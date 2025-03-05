@@ -12,7 +12,7 @@ import { TextSection, textSectionTitleHeight } from "./text-section";
 import "./text-pane.scss";
 
 const paneHeight = 395;
-const titleHeight = 34;
+const titleHeight = 36;
 const containerVerticalPadding = 4;
 const containerHeight = paneHeight - titleHeight - containerVerticalPadding * 2;
 
