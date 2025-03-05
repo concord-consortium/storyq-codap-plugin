@@ -1,12 +1,13 @@
 import React from "react";
 import { clsx } from "clsx";
-import { ReactComponent as ArrowIcon } from "../../assets/arrow-icon.svg";
+import { toJS } from "mobx";
+import { ReactComponent as CollapseExpandIcon } from "../../assets/collapse-expand-icon.svg";
 import { ITextSection, ITextSectionTitle } from "../../stores/store_types_and_constants";
 import { textStore } from "../../stores/text_store";
 
 import "./text-section.scss";
 
-export const textSectionTitleHeight = 26;
+export const textSectionTitleHeight = 28;
 
 interface ITextSectionTitleProps {
   count: number;
@@ -17,15 +18,20 @@ function TextSectionTitle({ count, title }: ITextSectionTitleProps) {
 
   const { actual, predicted, color } = title;
   return (
-    <span>
+    <span className="actual-title">
       {actual && (
-        <span>
-          True label: <span className="label" style={{ color }}>{actual}</span>
+        <>
+          <span>True label: </span><span className="label" style={{ color }}>{actual}</span>
           {predicted && <span>,&nbsp;</span>}
-        </span>
+        </>
       )}
-      {predicted && <span>Predicted label: <span className="label" style={{ color }}>{predicted}</span></span>}
-      <span>&nbsp;</span>{`(${count} case${count === 1 ? "" : "s"})`}
+      {predicted && (
+        <>
+          <span>Predicted label: </span><span className="label" style={{ color }}>{predicted}</span>
+        </>
+      )}
+      <span>&nbsp;</span>
+      <span className="case-count">{`(${count} case${count === 1 ? "" : "s"})`}</span>
     </span>
   );
 }
@@ -39,30 +45,37 @@ export function TextSection({ textHeight, textSection }: ITextSectionProps) {
   const height = textSectionTitleHeight + (!hidden ? textHeight : 0);
   return (
     <div className="text-section" style={{ height }}>
-      <div className="text-section-title" style={{ height: textSectionTitleHeight }}>
+      <button
+        className="text-section-title"
+        onClick={() => textStore.toggleTextSectionVisibility(textSection)}
+        style={{ height: textSectionTitleHeight }}
+      >
         <TextSectionTitle count={text.length} title={title} />
-        <button
-          className={clsx("hide-button", { hidden })}
-          onClick={() => textStore.toggleTextSectionVisibility(textSection)}
-        >
-          <ArrowIcon />
-        </button>
-      </div>
+        <div className={clsx("hide-icon", { hidden })}>
+          <CollapseExpandIcon />
+        </div>
+      </button>
       {!hidden && (
         <div className="text-section-text" style={{ height: textHeight }}>
-          {text.map(text => {
-            const indexString = text.index != null ? `${text.index + 1}. ` : "";
+          {text.map((textSectionText, index) => {
+            const indexString = textSectionText.index != null ? `${textSectionText.index + 1}:` : "";
             return (
-              <div className="phrase-row" key={indexString}>
-                <div className="phrase-index">{indexString}</div>
-                <div className="phrase">
-                  {text.textParts.map((part, index) => (
-                    <span className={clsx(part.classNames)} key={`${index}-${part.text}`}>
-                      {part.text}
-                    </span>
-                  ))}
+              <>
+                <div className="phrase-row" key={indexString}>
+                  <div className="phrase-index">{indexString}</div>
+                  <div className="phrase">
+                    {textSectionText.textParts.map((part, index) => {
+                      const style = part.style ? toJS(part.style) : undefined;
+                      return (
+                        <span className={clsx(part.classNames)} key={`${index}-${part.text}`} style={style}>
+                          {part.text}
+                        </span>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+                {index < text.length - 1 && <div className="divider" />}
+              </>
             );
           })}
         </div>

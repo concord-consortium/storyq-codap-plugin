@@ -2,6 +2,9 @@
  * These types and constants are used primarily by the various store classes
  */
 
+import { CSSProperties } from "react";
+import { kNoColor } from "../utilities/color-utils";
+
 export const kStoryQPluginName = "StoryQ"
 
 export const kEmptyEntityInfo = {name: '', title: '', id: 0},
@@ -182,6 +185,11 @@ export interface ColumnDetails {
 	columnName: string
 }
 
+export interface FeatureOrToken {
+	color: string
+	highlight?: boolean
+}
+
 export const kFeatureTypeUnigram = "unigram";
 export const kFeatureTypeConstructed = "constructed";
 export const kFeatureTypeColumn = "column";
@@ -194,14 +202,13 @@ export interface FeatureDetails {
 	ignoreStopWords?: boolean
 	kind: FeatureKindOption
 }
-export interface Feature {
+export interface Feature extends FeatureOrToken {
 	attrID: string // ID of the attribute in the target dataset corresponding to this feature
 	caseID: string // ID of the feature as a case in the feature table
 	chosen: boolean
 	description: string
 	featureItemID: string // ID of the item in the feature table corresponding to this feature
 	formula: string
-	highlight: boolean
 	inProgress: boolean
 	info: FeatureDetails
 	infoChoice: string
@@ -219,6 +226,7 @@ export function getStarterFeature(): Feature {
 		attrID: '',
 		caseID: '',
 		chosen: false,
+		color: kNoColor,
 		description: '',
 		featureItemID: '',
 		formula: '',
@@ -287,11 +295,10 @@ export const kTokenTypeUnigram = 'unigram';
 const tokenTypes = [kTokenTypeConstructed, kTokenTypeUnigram] as const;
 export type TokenType = typeof tokenTypes[number];
 
-export interface Token {
+export interface Token extends FeatureOrToken {
 	caseIDs: number[]
 	count: number	// the number of target texts where this token is true (column feature) or found (unigram)
 	featureCaseID: number | null
-	highlight?: boolean
 	index: number
 	numNegative: number
 	numPositive: number
@@ -302,6 +309,7 @@ export interface Token {
 export function getNewToken(initialValues: Partial<Token>) {
 	return {
 		caseIDs: [],
+		color: initialValues.color ?? kNoColor,
 		count: 1,
 		featureCaseID: null,
 		highlight: true,
@@ -335,6 +343,7 @@ export interface ITextSectionTitle {
 }
 export interface ITextPart {
 	classNames?: string[];
+	style?: CSSProperties;
 	text: string;
 }
 export interface ITextSectionText {

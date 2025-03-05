@@ -8,7 +8,7 @@ import { Descendant } from "@concord-consortium/slate-editor";
 import { datasetExists, getCaseValues, getSelectedCasesFrom } from "../lib/codap-helper";
 import codapInterface, { CODAP_Notification } from "../lib/CodapInterface";
 import { featureStore } from "../stores/feature_store";
-import { ITextSectionText } from "../stores/store_types_and_constants";
+import { FeatureOrToken, ITextSectionText } from "../stores/store_types_and_constants";
 import { targetStore } from "../stores/target_store";
 import { testingStore } from "../stores/testing_store";
 import { textStore } from "../stores/text_store";
@@ -16,7 +16,7 @@ import { trainingStore } from "../stores/training_store";
 import { uiStore } from "../stores/ui_store";
 import { APIRequest, GetCaseByIDResponse, GetSelectionListResponse } from "../types/codap-api-types";
 import { highlightFeatures, HighlightFunction, phraseToFeatures, textToObject } from "../utilities/utilities";
-import { ClassLabel, HeadingsManager, PhraseQuadruple } from "./headings_manager";
+import { ClassLabel, HeadingsManager, NonNtigramFeature, PhraseQuadruple } from "./headings_manager";
 
 export let textFeedbackManager: TextFeedbackManager | undefined;
 export function setupTextFeedbackManager() {
@@ -238,19 +238,18 @@ export class TextFeedbackManager {
 			const tGetCaseResult = await codapInterface.sendRequest({
 				action: 'get',
 				resource: `dataContext[${tDatasetName}].collection[${tCollectionName}].caseByID[${caseId}]`
-			}) as GetCaseByIDResponse,
-				tFeatureIDs: number[] = [];
+			}) as GetCaseByIDResponse;
+			const features: NonNtigramFeature[] = [];
 			if (tGetCaseResult.success && tGetCaseResult.values) {
 				const tFeatureValue = tGetCaseResult.values.case.values.featureIDs;
 				if (typeof tFeatureValue === 'string' && tFeatureValue.length > 0) {
 					const caseFeatureIDs = JSON.parse(tFeatureValue);
 					if (Array.isArray(caseFeatureIDs)) {
 						caseFeatureIDs.forEach(iValue => {
-							if (
-								(typeof iValue === 'number' || typeof iValue === 'string') &&
-								(featureStore.getFeatureByCaseId(iValue)?.highlight || featureStore.getTokenByCaseId(iValue)?.highlight)
-							) {
-								tFeatureIDs.push(Number(iValue));
+							const featureOrToken: FeatureOrToken | undefined =
+								featureStore.getFeatureByCaseId(iValue) ?? featureStore.getTokenByCaseId(iValue);
+							if ((typeof iValue === 'number' || typeof iValue === 'string') && featureOrToken?.highlight) {
+								features.push({ word: Number(iValue), feature: featureOrToken });
 							}
 						});
 					}
@@ -262,8 +261,14 @@ export class TextFeedbackManager {
 				const tActualClass = tGetCaseResult.values.case.values[tClassAttributeName];
 				const tPhrase = tGetCaseResult.values.case.values[tAttributeName];
 				const tQuadruple = {
-					actual: String(tActualClass), predicted: String(tPredictedClass), phrase: String(tPhrase),
-					nonNtigramFeatures: tFeatureIDs.map(anID => tFeaturesMap[anID]), index: tGetCaseResult.values.caseIndex
+					actual: String(tActualClass),
+					predicted: String(tPredictedClass),
+					phrase: String(tPhrase),
+					nonNtigramFeatures: features.map(feature => ({
+						word: tFeaturesMap[Number(feature.word)],
+						feature: feature.feature
+					})),
+					index: tGetCaseResult.values.caseIndex
 				};
 				tQuadruples.push(tQuadruple);
 			}
@@ -412,11 +417,26 @@ export class TextFeedbackManager {
 					}
 				}
 
+				const possibleNonNtigramFeatures = tFeatureIDsForThisText.map(id => {
+					const featureOrToken: FeatureOrToken | undefined =
+						featureStore.getFeatureByCaseId(Number(id)) ?? featureStore.getTokenByCaseId(Number(id));
+					if (featureOrToken?.highlight) {
+						return {
+							// We save the id in the word section just to get the types to match.
+							// After handling selection, we use the id to look up the word in the feature map.
+							word: String(id),
+							feature: featureOrToken
+						};
+					}
+					return undefined;
+				});
+				const nonNtigramFeatures: NonNtigramFeature[] =
+					possibleNonNtigramFeatures.filter(iFeature => !!iFeature) as NonNtigramFeature[];
 				tQuadruples.push({
 					phrase: String(tCaseValues[tAttributeName]),
 					predicted: tPredictedResult,
 					actual: String(tCaseValues[tClassAttributeName]),
-					nonNtigramFeatures: tFeatureIDsForThisText,	// Numbers for now. Strings later
+					nonNtigramFeatures,
 					index: iResult.values.caseIndex
 				});
 			}
@@ -431,10 +451,7 @@ export class TextFeedbackManager {
 		// We can now convert each quad's array of feature IDs to features
 		tQuadruples.forEach(iQuad => {
 			iQuad.nonNtigramFeatures = iQuad.nonNtigramFeatures
-				.filter(id => {
-					return !!featureStore.getFeatureByCaseId(id)?.highlight || !!featureStore.getTokenByCaseId(id)?.highlight;
-				})	
-				.map(iID => tFeaturesMap[Number(iID)]);
+				.map(feature => ({ ...feature, word: tFeaturesMap[Number(feature.word)] }));
 		});
 
 		await this.retitleTextComponent(`Selected texts in ${tDatasetTitle}`);
@@ -518,9 +535,10 @@ export class TextFeedbackManager {
 				text: tGroup !== kProps[kProps.length - 1] ? '■ ' : '', // Don't add the square if we're in 'blankBlank'
 				color: tColor
 			}];
+			const words = iQuadruple.nonNtigramFeatures.map(feature => feature.word);
 			tClassItems[tGroup].push({
 				type: 'list-item',
-				children: tSquare.concat(iHighlightFunc(iQuadruple.phrase, iQuadruple.nonNtigramFeatures, iSpecialFeatures))
+				children: tSquare.concat(iHighlightFunc(iQuadruple.phrase, words, iSpecialFeatures))
 			});
 			if (!texts[tGroup]) texts[tGroup] = [];
 			texts[tGroup].push({

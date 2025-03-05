@@ -380,8 +380,7 @@ export class ModelManager {
 				includeUnigrams: Boolean(tUnigramFeature),
 				positiveClass: tPositiveClassName,
 				negativeClass: targetStore.getClassName('negative'),
-				features: tNonNgramFeatures,
-				tokenMap: featureStore.tokenMap
+				features: tNonNgramFeatures
 			},
 			tDocuments);
 		if (!tOneHot) return
