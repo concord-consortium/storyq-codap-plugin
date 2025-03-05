@@ -11,7 +11,6 @@ import { domainStore } from "../stores/domain_store";
 import { featureStore } from "../stores/feature_store";
 import { targetDatasetStore } from "../stores/target_dataset_store";
 import { targetStore } from "../stores/target_store";
-import { textStore } from "../stores/text_store";
 import { ChoicesMenu } from "./choices-menu";
 import { TargetTextArea } from "./target_text_area";
 import { CreateComponentResponse, CreateDataContextResponse } from "../types/codap-api-types";
@@ -83,10 +82,10 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 						targetDatasetStore.setTargetDatasetInfo(newInfo);
 						await targetStore.updateFromCODAP()
 						targetStore.setTargetPanelMode('chosen');
-					} else if(iChoice === tNewDatasetChoice) {
+					} else if (iChoice === tNewDatasetChoice) {
 						let tContextName = 'Training Data',
 							n = 1
-						while(tDatasetChoices.includes(tContextName)) {
+						while (tDatasetChoices.includes(tContextName)) {
 							tContextName = 'Training Data ' + n
 							n++
 						}
@@ -217,7 +216,6 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
 							onValueChange={async (iChoice) => {
 								targetStore.setTargetAttributeName(iChoice);
 								await targetStore.updateFromCODAP();
-								textStore.addTextComponent();
 							}}
 							placeHolder="Choose from"
 							prompt={tPrompt}

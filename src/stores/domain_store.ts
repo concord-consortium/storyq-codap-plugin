@@ -53,9 +53,6 @@ export class DomainStore {
 		testingStore.fromJSON(json.testingStore);
 		textStore.fromJSON(json.textStore);
 
-		if (textStore.textComponentID !== -1) {
-			await textStore.addTextComponent();	//Make sure it is in the document
-		}
 		await this.guaranteeFeaturesDataset();
 		await testingStore.updateCodapInfoForTestingPanel();
 	}

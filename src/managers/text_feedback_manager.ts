@@ -1,10 +1,9 @@
 /**
- * The TextFeedbackManager displays phrases in a text component based on user selection of target phrases
+ * The TextFeedbackManager displays phrases in the text pane based on user selection of target/test phrases
  * or features of the model. Instantiating the class sets up a codap notification handler, after which point
  * there is no need to reference the instance.
  */
 
-import { Descendant } from "@concord-consortium/slate-editor";
 import { datasetExists, getCaseValues, getSelectedCasesFrom } from "../lib/codap-helper";
 import codapInterface, { CODAP_Notification } from "../lib/CodapInterface";
 import { featureStore } from "../stores/feature_store";
@@ -13,9 +12,8 @@ import { targetStore } from "../stores/target_store";
 import { testingStore } from "../stores/testing_store";
 import { textStore } from "../stores/text_store";
 import { trainingStore } from "../stores/training_store";
-import { uiStore } from "../stores/ui_store";
 import { APIRequest, GetCaseByIDResponse, GetSelectionListResponse } from "../types/codap-api-types";
-import { highlightFeatures, HighlightFunction, phraseToFeatures, textToObject } from "../utilities/utilities";
+import { highlightFeatures } from "../utilities/utilities";
 import { ClassLabel, HeadingsManager, PhraseQuadruple } from "./headings_manager";
 
 export let textFeedbackManager: TextFeedbackManager | undefined;
@@ -118,8 +116,6 @@ export class TextFeedbackManager {
 		const { collectionName, datasetName } = featureStore.featureDatasetInfo;
 		return {
 			tPredictedLabelAttributeName: targetStore.targetPredictedLabelAttributeName,
-			tColumnFeatureNames: featureStore.targetColumnFeatureNames,
-			tConstructedFeatureNames: featureStore.features.map(iFeature => iFeature.name),
 			collectionName, datasetName,
 			...conditionalInfo
 		};
@@ -135,7 +131,7 @@ export class TextFeedbackManager {
 		const { useTestingDataset } = testingStore,
 			{
 				tDatasetName, tCollectionName, tAttributeName, tClassAttributeName, tPredictedLabelAttributeName,
-				tColumnFeatureNames, tConstructedFeatureNames, collectionName, datasetName
+				collectionName, datasetName
 			} = this.getBasicInfo(),
 			tFeaturesMap: Record<number, string> = {},
 			tSelectedFeaturesSet: Set<number> = new Set(),
@@ -244,7 +240,8 @@ export class TextFeedbackManager {
 		});
 		const tQuadruples: PhraseQuadruple[] = [];
 		// Here is where we put the contents of the text component together
-		tUsedCaseIDs.forEach(async caseId => {
+		for (const index in tUsedCaseIDs) {
+			const caseId = tUsedCaseIDs[index];
 			const tGetCaseResult = await codapInterface.sendRequest({
 				action: 'get',
 				resource: `dataContext[${tDatasetName}].collection[${tCollectionName}].caseByID[${caseId}]`
@@ -277,10 +274,9 @@ export class TextFeedbackManager {
 				};
 				tQuadruples.push(tQuadruple);
 			}
-		});
+		}
 		textStore.setTitleDataset(useTestingDataset ? "testing" : "target");
-		await this.retitleTextComponent();
-		await this.composeText(tQuadruples, textToObject, tColumnFeatureNames.concat(tConstructedFeatureNames));
+		await this.composeText(tQuadruples);
 	}
 
 	/**
@@ -293,7 +289,7 @@ export class TextFeedbackManager {
 		const { useTestingDataset } = testingStore,
 			{
 				tDatasetName, tCollectionName, tAttributeName, tClassAttributeName, tPredictedLabelAttributeName,
-				tColumnFeatureNames, tConstructedFeatureNames, collectionName, datasetName
+				collectionName, datasetName
 			} = this.getBasicInfo(),
 			tFeaturesMap: Record<number, string> = {},
 			// Get all the selected cases in the target dataset. Some will be results and some will be texts
@@ -437,91 +433,62 @@ export class TextFeedbackManager {
 		});
 
 		textStore.setTitleDataset(useTestingDataset ? "testing" : "target");
-		await this.retitleTextComponent();
-		await this.composeText(tQuadruples, phraseToFeatures, tColumnFeatureNames.concat(tConstructedFeatureNames));
+		await this.composeText(tQuadruples);
 	}
 
 	/**
-	 * Cause the text component to display phrases with the feature highlighting determined by
-	 * 	given function
+	 * Update the text pane's displayed phrases
 	 * @param iPhraseQuadruples  Specifications for the phrases to be displayed
-	 * @param iHighlightFunc {Function}	Function called to do the highlighting
-	 * @param iSpecialFeatures {string[]} Typically "column features" true of the phrase, but the strings
-	 * 					themselves do not appear in the phrase
-	 * @param iEndPhrase {string} The text to display at the bottom of the list of phrases
 	 * @public
 	 */
-	public async composeText(
-		iPhraseQuadruples: PhraseQuadruple[], iHighlightFunc: HighlightFunction, iSpecialFeatures: string[]
-	) {
+	public async composeText(iPhraseQuadruples: PhraseQuadruple[]) {
 		const kHeadingsManager = this.getHeadingsManager();
 		const kProps =
 			['negNeg', 'negPos', 'negBlank', 'posNeg', 'posPos', 'posBlank', 'blankNeg', 'blankPos', 'blankBlank'];
-		const tClassItems: Record<string, Descendant[]> = {};
 		const texts: Record<string, ITextSectionText[]> = {};
-		kProps.forEach(iProp => tClassItems[iProp] = []);
-		let tItems: Descendant[] = [];
 
 
 		async function addOnePhrase(iQuadruple: PhraseQuadruple) {
 			const kLabels: ClassLabel = kHeadingsManager.classLabels;
 
-			let tGroup: string,
-				tColor: string;
+			let tGroup: string;
 			switch (iQuadruple.actual) {
 				case kLabels.negLabel:
 					switch (iQuadruple.predicted) {
 						case kLabels.negLabel:
 							tGroup = 'negNeg';
-							tColor = kHeadingsManager.colors.green;
 							break;
 						case kLabels.posLabel:
 							tGroup = 'negPos';
-							tColor = kHeadingsManager.colors.red;
 							break;
 						default:
 							tGroup = 'negBlank';
-							tColor = kHeadingsManager.colors.red;
 					}
 					break;
 				case kLabels.posLabel:
 					switch (iQuadruple.predicted) {
 						case kLabels.negLabel:
 							tGroup = 'posNeg';
-							tColor = kHeadingsManager.colors.red;
 							break;
 						case kLabels.posLabel:
 							tGroup = 'posPos';
-							tColor = kHeadingsManager.colors.green;
 							break;
 						default:
 							tGroup = 'posBlank';
-							tColor = kHeadingsManager.colors.green;
 					}
 					break;
 				default:
 					switch (iQuadruple.predicted) {
 						case kLabels.negLabel:
 							tGroup = 'blankNeg';
-							tColor = kHeadingsManager.colors.orange;
 							break;
 						case kLabels.posLabel:
 							tGroup = 'blankPos';
-							tColor = kHeadingsManager.colors.blue;
 							break;
 						default:
 							tGroup = 'blankBlank';
-							tColor = '#FFFF00';
 					}
 			}
-			const tSquare: Descendant[] = [{
-				text: tGroup !== kProps[kProps.length - 1] ? '■ ' : '', // Don't add the square if we're in 'blankBlank'
-				color: tColor
-			}];
-			tClassItems[tGroup].push({
-				type: 'list-item',
-				children: tSquare.concat(iHighlightFunc(iQuadruple.phrase, iQuadruple.nonNtigramFeatures, iSpecialFeatures))
-			});
 			if (!texts[tGroup]) texts[tGroup] = [];
 			texts[tGroup].push({
 				textParts: await highlightFeatures(iQuadruple.phrase, iQuadruple.nonNtigramFeatures),
@@ -536,52 +503,12 @@ export class TextFeedbackManager {
 		// The phrases are all in their groups. Create the array of group objects
 		textStore.setTextSections([]);
 		kProps.forEach(iProp => {
-			const tPhrases = tClassItems[iProp];
-			if (tPhrases.length !== 0) {
+			const tPhrases = texts[iProp];
+			if (tPhrases && tPhrases.length !== 0) {
 				textStore.textSections.push({
 					title: kHeadingsManager.niceHeadings[iProp],
 					text: texts[iProp]
 				});
-				const tHeadingItems = [
-					kHeadingsManager.getHeading(iProp),
-					{
-						type: 'bulleted-list',
-						children: tPhrases
-					}
-				];
-				tItems = tItems.concat(tHeadingItems);
-			}
-		});
-		if (tItems.length === 0) {
-			textStore.clearText();
-		} else {
-			// Send it all off to the text object
-			await codapInterface.sendRequest({
-				action: 'update',
-				resource: `component[${textStore.textComponentID}]`,
-				values: {
-					text: {
-						"object": "value",
-						document: {
-							children: tItems,
-							objTypes: {
-								'list-item': 'block',
-								'bulleted-list': 'block',
-								'paragraph': 'block'
-							}
-						}
-					}
-				}
-			});
-		}
-	}
-
-	async retitleTextComponent() {
-		await codapInterface.sendRequest({
-			action: 'update',
-			resource: `component[${textStore.textComponentID}]`,
-			values: {
-				title: textStore.textComponentTitle
 			}
 		});
 	}
