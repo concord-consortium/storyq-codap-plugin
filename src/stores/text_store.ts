@@ -61,7 +61,11 @@ export class TextStore {
 	}
 
 	updateTitle(datasetName: string, attributeName: string) {
-		this.textComponentTitle = `Selected ${pluralize(attributeName)} in ${datasetName}`;
+		if (datasetName && attributeName) {
+			this.textComponentTitle = `Selected ${pluralize(attributeName)} in ${datasetName}`;
+		} else {
+			this.textComponentTitle = `Choose Data And Text To Begin`;
+		}
 	}
 
 	/**
