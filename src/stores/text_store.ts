@@ -5,14 +5,14 @@
 
 import { makeAutoObservable } from 'mobx'
 import pluralize from "pluralize";
-import { ITextSection, TitleDataset } from './store_types_and_constants';
+import { ITextPart, ITextSection, TitleDataset } from './store_types_and_constants';
 
 export interface ITextStoreJSON {
   textComponentTitle: string;
 }
 
 export class TextStore {
-  textComponentTitle: string = '';
+  textComponentTitle: ITextPart[] = [];
   textSections: ITextSection[] = [];
   titleDataset: TitleDataset = "target";
 
@@ -22,17 +22,23 @@ export class TextStore {
 
   asJSON() {
     return {
-      textComponentTitle: this.textComponentTitle
+      textComponentTitle: JSON.stringify(this.textComponentTitle)
     };
   }
 
   fromJSON(json: ITextStoreJSON) {
     if (json) {
-      this.textComponentTitle = json.textComponentTitle || '';
+			try {
+				const title = JSON.parse(json.textComponentTitle);
+				this.textComponentTitle = title || [];
+			} catch (e) {
+				// The title used to be a simple string, so we have to accommodate that.
+				this.textComponentTitle = [{ text: json.textComponentTitle || "" }];
+			}
     }
   }
 
-  setTextComponentTitle(title: string) {
+  setTextComponentTitle(title: ITextPart[]) {
     this.textComponentTitle = title;
   }
 
@@ -54,9 +60,14 @@ export class TextStore {
 
   updateTitle(datasetName: string, attributeName: string) {
     if (datasetName && attributeName) {
-      this.textComponentTitle = `Selected ${pluralize(attributeName)} in ${datasetName}`;
+      this.textComponentTitle = [
+				{ text: `Selected ` },
+				{ text: pluralize(attributeName), classNames: ["highlighted"] },
+				{ text: " in " },
+				{ text: datasetName, classNames: ["highlighted"] }
+			];
     } else {
-      this.textComponentTitle = `Choose Data And Text To Begin`;
+      this.textComponentTitle = [{ text: `Choose Data And Text To Begin` }];
     }
   }
 

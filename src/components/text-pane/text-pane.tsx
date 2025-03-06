@@ -7,6 +7,7 @@ import { targetDatasetStore } from "../../stores/target_dataset_store";
 import { targetStore } from "../../stores/target_store";
 import { testingStore } from "../../stores/testing_store";
 import { textStore } from "../../stores/text_store";
+import { TextParts } from "./text-parts";
 import { TextSection, textSectionTitleHeight } from "./text-section";
 
 import "./text-pane.scss";
@@ -51,7 +52,7 @@ export const TextPane = observer(function TextPane() {
   return (
     <div className="text-pane" style={{ height: paneHeight }}>
       <div className="text-title" style={{ height: titleHeight }}>
-        {textStore.textComponentTitle}
+        <TextParts textParts={textStore.textComponentTitle} />
       </div>
       <div className="text-container" style={{ height: containerHeight }}>
         {textStore.textSections.map(textSection => (
