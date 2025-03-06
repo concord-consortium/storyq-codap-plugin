@@ -5,7 +5,9 @@
 
 import { makeAutoObservable } from 'mobx'
 import pluralize from "pluralize";
-import { ITextPart, ITextSection, TitleDataset } from './store_types_and_constants';
+import { ITextPart, ITextSection } from './store_types_and_constants';
+
+type TitleDataset = "target" | "testing";
 
 export interface ITextStoreJSON {
   textComponentTitle: string;
