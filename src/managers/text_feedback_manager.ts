@@ -79,11 +79,6 @@ export class TextFeedbackManager {
 		if (!this.headingsManager) {
 			this.headingsManager = new HeadingsManager();
 		}
-		this.headingsManager.setupHeadings(
-			targetStore.getClassName('negative'),
-			targetStore.getClassName('positive'),
-			''
-		);
 		return this.headingsManager;
 	}
 
@@ -523,7 +518,7 @@ export class TextFeedbackManager {
 			const tPhrases = texts[iProp];
 			if (tPhrases && tPhrases.length !== 0) {
 				textStore.textSections.push({
-					title: kHeadingsManager.niceHeadings[iProp],
+					title: kHeadingsManager.headings[iProp],
 					text: texts[iProp]
 				});
 			}

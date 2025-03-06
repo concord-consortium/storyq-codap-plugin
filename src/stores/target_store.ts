@@ -164,11 +164,15 @@ export class TargetStore {
 		return key ? this.targetClassNames[key] : "";
 	}
 
-	getClassName(iClass: 'positive' | 'negative') {
-		const tChosenClassKey = iClass === 'positive'
-			? this.targetChosenClassColumnKey
-			: otherClassColumn(this.targetChosenClassColumnKey);
-		return this.getTargetClassName(tChosenClassKey);
+	get positiveClassName() {
+		if (this.targetChosenClassColumnKey) return this.targetClassNames[this.targetChosenClassColumnKey];
+		return "";
+	}
+
+	get negativeClassName() {
+		const otherKey = otherClassColumn(this.targetChosenClassColumnKey);
+		if (otherKey) return this.targetClassNames[otherKey];
+		return "";
 	}
 
 	get targetDatasetInfo() {

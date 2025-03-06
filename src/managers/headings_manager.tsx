@@ -2,7 +2,9 @@
  * Utility for use in constructing headings to show in text component for each kind of statement.
  */
 
+import { makeAutoObservable } from "mobx";
 import { FeatureOrToken, ITextSectionTitle } from "../stores/store_types_and_constants";
+import { targetStore } from "../stores/target_store";
 
 export interface NonNtigramFeature {
 	word: (string | number),
@@ -17,10 +19,7 @@ export interface PhraseQuadruple {
 }
 export interface ClassLabel { negLabel: string, posLabel: string, blankLabel: string}
 
-// TODO Make this a mobx class that doesn't need to be setup
 export class HeadingsManager {
-	public classLabels: ClassLabel = { negLabel: '', posLabel: '', blankLabel: '' };
-	public niceHeadings: Record<string, ITextSectionTitle> = {};
 	public colors = {
 		green: '#1aff1a',
 		red: '#4b0092',
@@ -30,21 +29,29 @@ export class HeadingsManager {
 		negativeBlue: '#0066ff'
 	};
 
-	public setupHeadings(iNegLabel: string, iPosLabel: string, iBlankLabel: string) {
-		this.classLabels = {
-			negLabel: iNegLabel,
-			posLabel: iPosLabel,
-			blankLabel: iBlankLabel
+	constructor() {
+		makeAutoObservable(this);
+	}
+
+	get classLabels(): ClassLabel {
+		return {
+			negLabel: targetStore.negativeClassName,
+			posLabel: targetStore.positiveClassName,
+			blankLabel: ""
 		};
-		this.niceHeadings = {
-			negNeg: { actual: iNegLabel, predicted: iNegLabel, color: this.colors.green },
-			negPos: { actual: iNegLabel, predicted: iPosLabel, color: this.colors.red },
-			negBlank: { actual: iNegLabel, color: this.colors.negativeBlue },
-			posNeg: { actual: iPosLabel, predicted: iNegLabel, color: this.colors.red },
-			posPos: { actual: iPosLabel, predicted: iPosLabel, color: this.colors.green },
-			posBlank: { actual: iPosLabel, color: this.colors.positiveOrange },
-			blankNeg: { predicted: iNegLabel, color: this.colors.orange },
-			blankPos: { predicted: iPosLabel, color: this.colors.blue }
-		}
+	}
+
+	get headings(): Record<string, ITextSectionTitle> {
+		const { positiveClassName, negativeClassName } = targetStore;
+		return {
+			negNeg: { actual: negativeClassName, predicted: positiveClassName, color: this.colors.green },
+			negPos: { actual: negativeClassName, predicted: positiveClassName, color: this.colors.red },
+			negBlank: { actual: negativeClassName, color: this.colors.negativeBlue },
+			posNeg: { actual: positiveClassName, predicted: negativeClassName, color: this.colors.red },
+			posPos: { actual: positiveClassName, predicted: positiveClassName, color: this.colors.green },
+			posBlank: { actual: positiveClassName, color: this.colors.positiveOrange },
+			blankNeg: { predicted: negativeClassName, color: this.colors.orange },
+			blankPos: { predicted: positiveClassName, color: this.colors.blue }
+		};
 	}
 }

@@ -339,8 +339,8 @@ export class DomainStore {
 				ignoreStopWords: tIgnore,
 				ignorePunctuation: true,
 				includeUnigrams: true,
-				positiveClass: targetStore.getClassName('positive'),
-				negativeClass: targetStore.getClassName('negative'),
+				positiveClass: targetStore.positiveClassName,
+				negativeClass: targetStore.negativeClassName,
 				features: [],
 				newTokenMap: true
 			}, tDocuments);
