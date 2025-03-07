@@ -44,7 +44,7 @@ export class HeadingsManager {
 	get headings(): Record<string, ITextSectionTitle> {
 		const { positiveClassName, negativeClassName } = targetStore;
 		return {
-			negNeg: { actual: negativeClassName, predicted: positiveClassName, color: this.colors.green },
+			negNeg: { actual: negativeClassName, predicted: negativeClassName, color: this.colors.green },
 			negPos: { actual: negativeClassName, predicted: positiveClassName, color: this.colors.red },
 			negBlank: { actual: negativeClassName, color: this.colors.negativeBlue },
 			posNeg: { actual: positiveClassName, predicted: negativeClassName, color: this.colors.red },
