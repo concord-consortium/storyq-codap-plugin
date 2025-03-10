@@ -205,6 +205,7 @@ export interface FeatureDetails {
 export interface Feature extends FeatureOrToken {
 	attrID: string // ID of the attribute in the target dataset corresponding to this feature
 	caseID: string // ID of the feature as a case in the feature table
+	childCaseID?: string // ID of the feature in the weights collection in the feature table
 	chosen: boolean
 	description: string
 	featureItemID: string // ID of the item in the feature table corresponding to this feature
@@ -225,6 +226,7 @@ export function getStarterFeature(): Feature {
 	return {
 		attrID: '',
 		caseID: '',
+		childCaseID: '',
 		chosen: false,
 		color: kNoColor,
 		description: '',

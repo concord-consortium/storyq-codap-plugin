@@ -169,7 +169,8 @@ export class FeatureStore {
 	}
 
 	getFeatureByCaseId(caseId: string | number) {
-		return this.features.find(feature => feature.caseID === `${caseId}`);
+		return this.features.find(feature => feature.caseID === `${caseId}`) ??
+			this.features.find(feature => feature.childCaseID === `${caseId}`);
 	}
 
 	addToken(name: string, token: Token) {

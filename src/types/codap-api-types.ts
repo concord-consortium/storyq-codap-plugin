@@ -93,6 +93,7 @@ export interface GetAttributeListResponse {
 
 export interface BasicCaseInfo {
   id: number
+  itemID: number
 }
 export interface CreateCaseResponse {
   success: boolean

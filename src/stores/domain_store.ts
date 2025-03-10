@@ -254,23 +254,24 @@ export class DomainStore {
 					tValuesObject.values[tNegativeAttrName] = iFeature.numberInNegative;
 					return tValuesObject;
 				})
+				const { collectionName } = featureStore.featureDatasetInfo;
+				const featureCollectionResource = `${featureDatasetResourceString}.collection[${collectionName}]`;
 				const tCreateResult = await codapInterface.sendRequest(
 					{
 						action: 'create',
-						resource: `${featureDatasetResourceString}.collection[${featureStore.featureDatasetInfo.collectionName}].case`,
+						resource: `${featureCollectionResource}].case`,
 						values: tValues
 					}
 				) as CreateCaseResponse;
 				if (tCreateResult.success && tCreateResult.values) {
 					tCreateResult.values.forEach(async (iValue: BasicCaseInfo, iIndex: number) => {
 						tFeaturesToAdd[iIndex].caseID = String(iValue.id);
-						const tGetItemResult = await codapInterface.sendRequest({
-							action: 'get',
-							resource: `${featureDatasetResourceString}.itemByCaseID[${iValue.id}]`
-						}) as GetItemByCaseIDResponse;
-						if (tGetItemResult.success && tGetItemResult.values) {
-							tFeaturesToAdd[iIndex].featureItemID = tGetItemResult.values.id;
-						}
+						tFeaturesToAdd[iIndex].featureItemID = String(iValue.itemID);
+						// There's some ambiguity about which is the case for the feature, the one in the features collection or
+						// the first child case (in the weights collection). We're actually looking at the first child case here.
+						// It would be much better to always use the case in the features collection, but that would require a
+						// major refactor, unfortunately.
+						tFeaturesToAdd[iIndex].childCaseID = String(iValue.id);
 					});
 				}
 			}
@@ -535,14 +536,14 @@ export class DomainStore {
 	 * 	 	* The featureStore's tokenMap's tokens get updated array of case IDs and featureIDs
 	 */
 	async recreateUsagesAndFeatureIDs(iIgnoreStopwords: boolean) {
-		const tTargetDatasetName = targetStore.targetDatasetInfo.name,
-			{ targetAttributeName, targetCollectionName } = targetStore,
-			tTargetCases = await getCaseValues(tTargetDatasetName, targetCollectionName),
-			{ collectionName, datasetName } = featureStore.featureDatasetInfo,
-			tFeatureCases = await getCaseValues(datasetName, collectionName),
-			tUsageResults: Record<number, number[]> = {}, // Contains IDs of target texts that contain a given feature
-			tTextResults: Record<number, number[]> = {},	// Contains IDs of features found in a given text
-			tFeatureItemRequests: APIRequest[] = [];
+		const tTargetDatasetName = targetStore.targetDatasetInfo.name;
+		const { targetAttributeName, targetCollectionName } = targetStore;
+		const tTargetCases = await getCaseValues(tTargetDatasetName, targetCollectionName);
+		const { collectionName, datasetName } = featureStore.featureDatasetInfo;
+		const tFeatureCases = await getCaseValues(datasetName, collectionName);
+		const tUsageResults: Record<number, number[]> = {}; // Contains IDs of target texts that contain a given feature
+		const tTextResults: Record<number, number[]> = {};	// Contains IDs of features found in a given text
+		const tFeatureItemRequests: APIRequest[] = [];
 
 		function targetTextHasUnigram(iText: string, iUnigram: string) {
 			return wordTokenizer(iText, iIgnoreStopwords, true).indexOf(iUnigram) >= 0;
@@ -552,12 +553,13 @@ export class DomainStore {
 			tFeatureItemRequests.push({
 				action:'get', resource:`dataContext[${datasetName}].itemByCaseID[${iFeatureCase.id}]`
 			});
-			const tFeatureName = iFeatureCase.values.name,
-				tFeatureType = iFeatureCase.values.type;
+			const tFeatureName = iFeatureCase.values.name;
+			const tFeatureType = iFeatureCase.values.type;
 
 			tTargetCases.forEach(iTargetCase => {
 				const tTargetHasFeature = ['constructed', 'column'].includes(tFeatureType)
-					? iTargetCase.values[tFeatureName]
+					// Codap v3 returns strings, even for booleans, so we have to compare strings for now.
+					? iTargetCase.values[tFeatureName] === "true" ? true : false
 					: tFeatureType === 'unigram'
 					? targetTextHasUnigram(iTargetCase.values[targetAttributeName], tFeatureName)
 					: false;
@@ -565,7 +567,9 @@ export class DomainStore {
 					if (!tUsageResults[iFeatureCase.id]) tUsageResults[iFeatureCase.id] = [];
 					tUsageResults[iFeatureCase.id].push(iTargetCase.id);
 					if (!tTextResults[iTargetCase.id]) tTextResults[iTargetCase.id] = [];
-					tTextResults[iTargetCase.id].push(iFeatureCase.id);
+					// Features will only highlight with a child case id
+					const childCaseId = iFeatureCase.children?.[0];
+					if (childCaseId) tTextResults[iTargetCase.id].push(childCaseId);
 				}
 			})
 			// We need to store the featureCaseID in the token map while we've got it
@@ -578,26 +582,20 @@ export class DomainStore {
 			{
 				action: 'update',
 				resource: `dataContext[${tTargetDatasetName}].collection[${targetCollectionName}].case`,
-				values: []
+				values: Object.keys(tTextResults).map(key => ({
+					id: key,
+					values: { featureIDs: JSON.stringify(tTextResults[Number(key)]) }
+				}))
 			},
 			{
 				action: 'update',
 				resource: `dataContext[${datasetName}].collection[${collectionName}].case`,
-				values: []
+				values: Object.keys(tUsageResults).map(key => ({
+					id: key,
+					values: { usages: JSON.stringify(tUsageResults[Number(key)]) }
+				}))
 			}
 		];
-		for (let tTextResultsKey in tTextResults) {
-			tMsgs[0].values?.push({
-				id: tTextResultsKey,
-				values: { featureIDs: JSON.stringify(tTextResults[tTextResultsKey]) }
-			});
-		}
-		for (let tUsageResultsKey in tUsageResults) {
-			tMsgs[1].values?.push({
-				id: tUsageResultsKey,
-				values: { usages: JSON.stringify(tUsageResults[tUsageResultsKey]) }
-			});
-		}
 		await codapInterface.sendRequest(tMsgs);
 
 		// Now we update the case and item ids of the stored features
@@ -610,6 +608,8 @@ export class DomainStore {
 			if (tStoredFeature && result.success && result.values) {
 				tStoredFeature.featureItemID = result.values.id;
 				tStoredFeature.caseID = String(iFeature.id);
+				const childCaseID = iFeature.children?.[0];
+				if (childCaseID) tStoredFeature.childCaseID = String(childCaseID);
 			}
 		})
 
