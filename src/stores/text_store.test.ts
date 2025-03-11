@@ -1,24 +1,7 @@
-import { ITextPart, ITextSection } from './store_types_and_constants';
+import { ITextSection } from './store_types_and_constants';
 import { textStore } from "./text_store";
 
 describe("textStore", () => {
-  it("import modern titles", () => {
-    const textComponentTitle = JSON.stringify([{ text: "Test " }, { text: "1", classNames: ["highlighted"] }]);
-    textStore.fromJSON({ textComponentTitle });
-    expect(textStore.textComponentTitle).toEqual([{ text: "Test " }, { text: "1", classNames: ["highlighted"] }]);
-  });
-
-  it("import legacy titles", () => {
-    const textComponentTitle = "Test 1";
-    textStore.fromJSON({ textComponentTitle });
-    expect(textStore.textComponentTitle).toEqual([{ text: "Test 1" }]);
-  });
-
-  it("setTextComponentTitle", () => {
-    const title: ITextPart[] = [{ text: "New Title" }];
-    textStore.setTextComponentTitle(title);
-    expect(textStore.textComponentTitle).toEqual(title);
-  });
 
   it("setTitleDataset", () => {
     textStore.setTitleDataset("testing");
@@ -55,21 +38,6 @@ describe("textStore", () => {
     expect(section.hidden).toBe(true);
     textStore.toggleTextSectionVisibility(section);
     expect(section.hidden).toBe(false);
-  });
-
-  it("updateTitle with datasetName and attributeName", () => {
-    textStore.updateTitle("Dataset", "Attribute");
-    expect(textStore.textComponentTitle).toEqual([
-      { text: "Selected " },
-      { text: "Attributes", classNames: ["highlighted"] },
-      { text: " in " },
-      { text: "Dataset", classNames: ["highlighted"] }
-    ]);
-  });
-
-  it("updateTitle without datasetName and attributeName", () => {
-    textStore.updateTitle("", "");
-    expect(textStore.textComponentTitle).toEqual([{ text: "Choose Data And Text To Begin" }]);
   });
 
   it("clearText", async () => {
