@@ -226,7 +226,7 @@ export const TrainingPane = observer(function TrainingPane() {
           <div>
             <p>Once trained,
               <strong>{tModel.name === '' ? 'your model ' : ' ' + (tModel.name + ' ')}</strong>
-              will contain {tFeatureString}:</p>
+              will have {tFeatureString}:</p>
             <FeatureList allowDelete={false} />
           </div>
           {getButtons()}

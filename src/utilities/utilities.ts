@@ -1,63 +1,8 @@
-import { Descendant } from "@concord-consortium/slate-editor";
 import { allTokenizer } from "../lib/one_hot";
 import { SQ } from "../lists/lists";
 import { NonNtigramFeature } from "../managers/headings_manager";
 import { FeatureOrToken, ITextPart, kAnyNumberKeyword, kNumberRegExp } from "../stores/store_types_and_constants";
 import { featureStore } from "../stores/feature_store";
-
-export type HighlightFunction =
-	(iText: string, iSelectedWords: (string | number)[], iSpecialFeatures: string[]) => Descendant[];
-
-/**
- *
- * @param {string} iText - the string to be converted to an RTE object with highlighted words
- * @param iSelectedWords - an array of the words to be highlighted
- * @param iSpecialFeatures - an array of features that don't appear in the text but may appear in iSelectedWords
- */
-export function textToObject(iText: string, iSelectedWords: (string | number)[], iSpecialFeatures: string[]) {
-	let segment = '';
-	let tResultArray: Descendant[] = [];
-	iSpecialFeatures.forEach(iFeature => {
-		if (iSelectedWords.indexOf(iFeature) >= 0)
-			tResultArray.push({
-				text: `<${iFeature}> `, bold: true, underlined: true, color: "#0432ff"
-			});
-	});
-
-	// NOTE: this code isn't perfect and doesn't match phrases or match lists like personal pronoun lists
-	const words = allTokenizer(iText);
-	words.forEach((iWord) => {
-		let tRawWord = iWord.toLowerCase();
-		const containedWords = iSelectedWords.map(selectedWord => {
-			// Strip out the word from strings like 'contain: "word"' and 'count: "word"'
-			const _containedWord = typeof selectedWord === "string" && selectedWord.match(/^contain: "([^"]+)"/);
-			const _countWord = typeof selectedWord === "string" && selectedWord.match(/^count: "([^"]+)"/);
-			const containedWord = _containedWord ? _containedWord[1]
-				: _countWord ? _countWord[1]
-				: selectedWord;
-			return typeof containedWord === "string" ? containedWord.toLowerCase() : containedWord;
-		})
-
-		if (containedWords.indexOf(tRawWord) >= 0) {
-			if (segment !== '') {
-				tResultArray.push({
-					text: segment
-				});
-				segment = '';
-			}
-			tResultArray.push({
-				text: iWord, bold: true, underlined: true, color: "#000000"
-			});
-		}
-		else {
-			segment += iWord;
-		}
-	});
-
-	if (segment !== '') tResultArray.push({ text: segment });
-
-	return tResultArray;
-}
 
 // Highlighting for the modern internal text pane
 export async function highlightFeatures(text: string, selectedFeatures: NonNtigramFeature[]) {
@@ -188,43 +133,6 @@ export async function highlightFeatures(text: string, selectedFeatures: NonNtigr
 	addSegment();
 
 	return textParts;
-}
-
-/**
- *
- * @param {string} iPhrase - the string to be converted to an RTE object with highlighted words
- * @param iFeatures {Set} of feature words to be hilighted
- * @param iSpecialFeatures {string[]} These are typically attribute names for column features
- */
-export function phraseToFeatures(iPhrase:string, iFeatures: (string | number)[], iSpecialFeatures: string[]) {
-	let tResultArray: Descendant[] = [];
-	if (iPhrase) {
-		// First prepend any special features that are given as regular features
-		iSpecialFeatures.forEach(iFeature => {
-			if (iFeatures.indexOf(iFeature) >= 0)
-				tResultArray.push({
-					text: `<${iFeature}> `, bold: true, underlined: true
-				});
-		});
-		let words: RegExpMatchArray | [] = iPhrase.match(/[^ ]+/g) || [];
-		words.forEach((iWord) => {
-			let tRawWordArray = iWord.match(/\w+/),
-				tRawWord = (tRawWordArray && tRawWordArray.length > 0 ? tRawWordArray[0] : '').toLowerCase();
-			if (iFeatures.indexOf(tRawWord) >= 0) {
-				tResultArray.push({
-					text: iWord, bold: true, underlined: true
-				});
-			} else {
-				tResultArray.push({
-					text: iWord, color: "#888888"
-				});
-			}
-			tResultArray.push({
-				text: ' '
-			})
-		})
-	}
-	return tResultArray;
 }
 
 /**

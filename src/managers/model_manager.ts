@@ -168,7 +168,7 @@ export class ModelManager {
 		 * probabilities for each target text for each model
 		 */
 		async function guaranteeResultsCollection() {
-			const tPositiveClassName = targetStore.getClassName('positive'),
+			const tPositiveClassName = targetStore.positiveClassName,
 				tResultsCollectionName = targetStore.targetResultsCollectionName;
 			if (targetStore.targetClassAttributeName !== '' && tPositiveClassName !== '') {
 				const collectionListResult  = await codapInterface.sendRequest({
@@ -279,7 +279,7 @@ export class ModelManager {
 		async function wipeResultsInTarget() {
 			const tTargetDatasetName = targetStore.targetDatasetInfo.name,
 				tPredictedLabelAttributeName = targetStore.targetPredictedLabelAttributeName,
-				tProbName = `probability of ${targetStore.getClassName('positive')}`,
+				tProbName = `probability of ${targetStore.positiveClassName}`,
 				tUpdateRequests = trainingStore.resultCaseIDs.map(iID => {
 					const tRequest: UpdateCaseValue = {
 						id: iID,
@@ -316,7 +316,7 @@ export class ModelManager {
 			tNonNgramFeatures = featureStore.chosenFeatures.filter(iFeature => iFeature.info.kind !== kFeatureKindNgram),
 			tNgramFeatures = featureStore.chosenFeatures.filter(iFeature => iFeature.info.kind === kFeatureKindNgram),
 			tUnigramFeature = tNgramFeatures.find(iFeature => (iFeature.info.details as NgramDetails).n === 'uni'),
-			tPositiveClassName = targetStore.getClassName('positive'),
+			tPositiveClassName = targetStore.positiveClassName,
 			tDocuments: Document[] = [],
 			tLogisticModel = trainingStore.model.logisticModel
 
@@ -379,7 +379,7 @@ export class ModelManager {
 				ignorePunctuation: true,
 				includeUnigrams: Boolean(tUnigramFeature),
 				positiveClass: tPositiveClassName,
-				negativeClass: targetStore.getClassName('negative'),
+				negativeClass: targetStore.negativeClassName,
 				features: tNonNgramFeatures
 			},
 			tDocuments);
@@ -478,8 +478,8 @@ export class ModelManager {
 					weight: tWeights[iIndex]
 				}
 			}),
-			positiveClassName: targetStore.getClassName('positive'),
-			negativeClassName: targetStore.getClassName('negative')
+			positiveClassName: targetStore.positiveClassName,
+			negativeClassName: targetStore.negativeClassName
 		}
 	}
 
@@ -488,8 +488,8 @@ export class ModelManager {
 			tLogisticModel = tModel.logisticModel,
 			tData = tLogisticModel._data,
 			tOneHot = tLogisticModel._oneHot,
-			tPositiveClassName = targetStore.getClassName('positive'),
-			tNegativeClassName = targetStore.getClassName('negative'),
+			tPositiveClassName = targetStore.positiveClassName,
+			tNegativeClassName = targetStore.negativeClassName,
 			tDocuments = tLogisticModel._documents;
 		await this.updateWeights(tModel.name, tOneHot.tokenArray, iWeights);
 

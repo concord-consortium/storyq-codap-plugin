@@ -13,6 +13,7 @@ import { SQ } from "../lists/lists";
 import { CreateAttributeResponse } from '../types/codap-api-types';
 import { featureStore } from './feature_store';
 import { targetDatasetStore } from './target_dataset_store';
+import { testingStore } from './testing_store';
 import {
 	Feature, getContainFormula, getTargetCaseFormula,  kCodapNumberPattern,  kEmptyEntityInfo, kFeatureKindColumn,
 	kFeatureKindNgram, kSearchWhereEndWith, kSearchWhereStartWith, kWhatOptionList, kWhatOptionNumber,
@@ -163,11 +164,15 @@ export class TargetStore {
 		return key ? this.targetClassNames[key] : "";
 	}
 
-	getClassName(iClass: 'positive' | 'negative') {
-		const tChosenClassKey = iClass === 'positive'
-			? this.targetChosenClassColumnKey
-			: otherClassColumn(this.targetChosenClassColumnKey);
-		return this.getTargetClassName(tChosenClassKey);
+	get positiveClassName() {
+		if (this.targetChosenClassColumnKey) return this.targetClassNames[this.targetChosenClassColumnKey];
+		return "";
+	}
+
+	get negativeClassName() {
+		const otherKey = otherClassColumn(this.targetChosenClassColumnKey);
+		if (otherKey) return this.targetClassNames[otherKey];
+		return "";
 	}
 
 	get targetDatasetInfo() {
@@ -177,9 +182,23 @@ export class TargetStore {
 	async updateFromCODAP(args: { targetClassAttributeName?: string } = {}) {
 		const { targetClassAttributeName } = args;
 
-		const tDatasetNames = await getDatasetInfoWithFilter((anInfo: entityInfo) => {
+		const tDatasetInfo = await getDatasetInfoWithFilter((anInfo: entityInfo) => {
 			return anInfo && anInfo.numAttributes ? anInfo.numAttributes > 1 : false
 		});
+
+		// Update the target and testing datasets if they have changed
+		const datasetChanged = (info1: entityInfo, info2: entityInfo) => {
+			return info1.name !== info2.name || info1.title !== info2.title || info1.numAttributes !== info2.numAttributes;
+		}
+		const targetDatasetInfo = tDatasetInfo.find(info => info.id === targetDatasetStore.targetDatasetInfo.id);
+		if (targetDatasetInfo && datasetChanged(targetDatasetInfo, targetDatasetStore.targetDatasetInfo)) {
+			targetDatasetStore.setTargetDatasetInfo(targetDatasetInfo);
+		}
+		const testingDatasetInfo = tDatasetInfo.find(info => info.id === testingStore.testingDatasetInfo.id);
+		if (testingDatasetInfo && datasetChanged(testingDatasetInfo, testingStore.testingDatasetInfo)) {
+			testingStore.setTestingDatasetInfo(testingDatasetInfo);
+		}
+
 		let tCollectionNames: string[] = [];
 		let tCollectionName = '';
 		let tAttrNames: string[] = [];
@@ -226,7 +245,7 @@ export class TargetStore {
 			});
 		}
 
-		this.setDatasetInfoArray(tDatasetNames);
+		this.setDatasetInfoArray(tDatasetInfo);
 		this.setTargetCollectionName(tCollectionName);
 		this.setTargetAttributeNames(tAttrNames);
 		this.setTargetCases(tCaseValues);

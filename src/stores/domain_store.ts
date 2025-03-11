@@ -17,7 +17,7 @@ import { featureStore, IFeatureStoreJSON } from "./feature_store";
 import { defaultTargetCaseFormula, Feature, kFeatureKindNgram, kPosNegConstants } from "./store_types_and_constants";
 import { ITargetStoreJSON, otherClassColumn, targetStore } from "./target_store";
 import { ITestingStore, testingStore } from "./testing_store";
-import { ITextStoreJSON, textStore } from "./text_store";
+import { ITextStoreJSON } from "./text_store";
 import { ITrainingStoreSnapshot as ITrainingStoreJSON, trainingStore } from "./training_store";
 import { uiStore } from "./ui_store";
 
@@ -39,8 +39,7 @@ export class DomainStore {
 			targetStore: targetStore.asJSON(),
 			featureStore: featureStore.asJSON(),
 			trainingStore: trainingStore.asJSON(),
-			testingStore: testingStore.asJSON(),
-			textStore: textStore.asJSON()
+			testingStore: testingStore.asJSON()
 		};
 	}
 
@@ -52,11 +51,7 @@ export class DomainStore {
 		featureStore.fromJSON(json.featureStore);
 		trainingStore.fromJSON(json.trainingStore);
 		testingStore.fromJSON(json.testingStore);
-		textStore.fromJSON(json.textStore);
 
-		if (textStore.textComponentID !== -1) {
-			await textStore.addTextComponent();	//Make sure it is in the document
-		}
 		await this.guaranteeFeaturesDataset();
 		await testingStore.updateCodapInfoForTestingPanel();
 	}
@@ -342,8 +337,8 @@ export class DomainStore {
 				ignoreStopWords: tIgnore,
 				ignorePunctuation: true,
 				includeUnigrams: true,
-				positiveClass: targetStore.getClassName('positive'),
-				negativeClass: targetStore.getClassName('negative'),
+				positiveClass: targetStore.positiveClassName,
+				negativeClass: targetStore.negativeClassName,
 				features: [],
 				newTokenMap: true
 			}, tDocuments);

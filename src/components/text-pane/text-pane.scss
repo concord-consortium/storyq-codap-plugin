@@ -11,7 +11,13 @@
     display: flex;
     font-size: 14px;
     justify-content: center;
+    white-space: pre-wrap;
     width: 100%;
+
+    .highlighted {
+      color: #177991;
+      font-weight: bold;
+    }
   }
 
   .text-container {
