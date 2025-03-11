@@ -44,14 +44,26 @@ export class HeadingsManager {
 	get headings(): Record<string, ITextSectionTitle> {
 		const { positiveClassName, negativeClassName } = targetStore;
 		return {
-			negNeg: { actual: negativeClassName, predicted: negativeClassName, color: this.colors.green },
-			negPos: { actual: negativeClassName, predicted: positiveClassName, color: this.colors.red },
-			negBlank: { actual: negativeClassName, color: this.colors.negativeBlue },
-			posNeg: { actual: positiveClassName, predicted: negativeClassName, color: this.colors.red },
-			posPos: { actual: positiveClassName, predicted: positiveClassName, color: this.colors.green },
-			posBlank: { actual: positiveClassName, color: this.colors.positiveOrange },
-			blankNeg: { predicted: negativeClassName, color: this.colors.orange },
-			blankPos: { predicted: positiveClassName, color: this.colors.blue }
+			negNeg: {
+				actual: negativeClassName, actualColor: this.colors.negativeBlue,
+				predicted: negativeClassName, predictedColor: this.colors.negativeBlue
+			},
+			negPos: {
+				actual: negativeClassName, actualColor: this.colors.negativeBlue,
+				predicted: positiveClassName, predictedColor: this.colors.positiveOrange
+			},
+			negBlank: { actual: negativeClassName, actualColor: this.colors.negativeBlue },
+			posNeg: {
+				actual: positiveClassName, actualColor: this.colors.positiveOrange,
+				predicted: negativeClassName, predictedColor: this.colors.negativeBlue
+			},
+			posPos: {
+				actual: positiveClassName, actualColor: this.colors.positiveOrange,
+				predicted: positiveClassName, predictedColor: this.colors.positiveOrange
+			},
+			posBlank: { actual: positiveClassName, actualColor: this.colors.positiveOrange },
+			blankNeg: { predicted: negativeClassName, predictedColor: this.colors.negativeBlue },
+			blankPos: { predicted: positiveClassName, predictedColor: this.colors.positiveOrange }
 		};
 	}
 }

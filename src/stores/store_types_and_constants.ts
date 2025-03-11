@@ -340,8 +340,9 @@ export interface WordListSpec {
 
 export interface ITextSectionTitle {
 	actual?: string;
-	color: string;
+	actualColor?: string;
 	predicted?: string;
+	predictedColor?: string;
 }
 export interface ITextPart {
 	classNames?: string[];

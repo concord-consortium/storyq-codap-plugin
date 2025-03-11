@@ -16,18 +16,18 @@ interface ITextSectionTitleProps {
 function TextSectionTitle({ count, title }: ITextSectionTitleProps) {
   if (!title) return null;
 
-  const { actual, predicted, color } = title;
+  const { actual, actualColor, predicted, predictedColor } = title;
   return (
     <span className="actual-title">
       {actual && (
         <>
-          <span>True label: </span><span className="label" style={{ color }}>{actual}</span>
+          <span>True label: </span><span className="label" style={{ color: actualColor }}>{actual}</span>
           {predicted && <span>,&nbsp;</span>}
         </>
       )}
       {predicted && (
         <>
-          <span>Predicted label: </span><span className="label" style={{ color }}>{predicted}</span>
+          <span>Predicted label: </span><span className="label" style={{ color: predictedColor }}>{predicted}</span>
         </>
       )}
       <span>&nbsp;</span>
