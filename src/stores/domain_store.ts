@@ -4,7 +4,6 @@
  */
 
 import { makeAutoObservable } from "mobx";
-import pluralize from "pluralize";
 import { getCaseValues, openTable } from "../lib/codap-helper";
 import codapInterface from "../lib/CodapInterface";
 import { oneHot, wordTokenizer } from "../lib/one_hot";
@@ -16,10 +15,9 @@ import {
 import { getFeatureColor, kNoColor } from "../utilities/color-utils";
 import { featureStore, IFeatureStoreJSON } from "./feature_store";
 import { defaultTargetCaseFormula, Feature, kFeatureKindNgram, kPosNegConstants } from "./store_types_and_constants";
-import { targetDatasetStore } from "./target_dataset_store";
 import { ITargetStoreJSON, otherClassColumn, targetStore } from "./target_store";
 import { ITestingStore, testingStore } from "./testing_store";
-import { ITextStoreJSON, textStore } from "./text_store";
+import { ITextStoreJSON } from "./text_store";
 import { ITrainingStoreSnapshot as ITrainingStoreJSON, trainingStore } from "./training_store";
 import { uiStore } from "./ui_store";
 
@@ -56,23 +54,6 @@ export class DomainStore {
 
 		await this.guaranteeFeaturesDataset();
 		await testingStore.updateCodapInfoForTestingPanel();
-	}
-
-	get textPaneTitle() {
-		const dataset = textStore.titleDataset === "target"
-			? targetDatasetStore.targetDatasetInfo.title : testingStore.testingDatasetInfo.title;
-		const attribute = textStore.titleDataset === "target"
-			? targetStore.targetAttributeName : testingStore.testingAttributeName;
-		if (dataset && attribute) {
-			return [
-				{ text: `Selected ` },
-				{ text: pluralize(attribute), classNames: ["highlighted"] },
-				{ text: " in " },
-				{ text: dataset, classNames: ["highlighted"] }
-			];
-		} else {
-			return [{ text: `Choose Data And Text To Begin` }];
-		}
 	}
 
 	async guaranteeFeaturesDataset(): Promise<boolean> {
