@@ -177,9 +177,9 @@ export class TextFeedbackManager {
 			})
 		) as GetCaseByIDResponse[];
 
-		function addToFeatureMap(value: string, id: number, childID?: number) {
+		function addToFeatureMap(value: string, id: number, childIDs?: number[]) {
 			tFeaturesMap[id] = value;
-			if (childID) tFeaturesMap[childID] = value;
+			if (childIDs) childIDs.forEach(childID => tFeaturesMap[childID] = value);
 		}
 		const tUsedIDsSet: Set<number> = new Set();
 		// If we're using the testing dataset, we go through each of the target phrases and pull out the case IDs
@@ -216,7 +216,7 @@ export class TextFeedbackManager {
 							});
 						}
 						const aCase = iResult.values.case;
-						addToFeatureMap(String(aCase.values.name), aCase.id, aCase.children[0]);
+						addToFeatureMap(String(aCase.values.name), aCase.id, aCase.children);
 					}
 				}
 			});
@@ -311,10 +311,12 @@ export class TextFeedbackManager {
 				// Get the features and stash them in a set
 				const tSelectedFeatureCases = await getSelectedCasesFrom(datasetName, collectionName);
 				tSelectedFeatureCases.forEach(iCase => {
-					// This used to use the caseId, but the featureIDs saved in the training cases are ids for the children.
-					// I'm using child case ids here now, but it's possible they should both use case ids instead.
-					const childCaseId = iCase.children[0];
-					if (childCaseId) tFeaturesMap[Number(childCaseId)] = String(iCase.values.name);
+					// It would be better if this were just the caseId, but child ids are used throughout the StoryQ codebase,
+					// so it's better to just include all ids in this dictionary.
+					tFeaturesMap[iCase.id] = String(iCase.values.name);
+					iCase.children.forEach(childCaseId => {
+						if (childCaseId) tFeaturesMap[Number(childCaseId)] = String(iCase.values.name);
+					});
 				});
 			}
 		}
