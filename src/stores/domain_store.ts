@@ -569,11 +569,13 @@ export class DomainStore {
 					if (!tUsageResults[iFeatureCase.id]) tUsageResults[iFeatureCase.id] = [];
 					tUsageResults[iFeatureCase.id].push(iTargetCase.id);
 					if (!tTextResults[iTargetCase.id]) tTextResults[iTargetCase.id] = [];
+					// Would it be better to include all child case ids here?
 					if (childCaseId) tTextResults[iTargetCase.id].push(childCaseId);
 				}
 			})
 			// We need to store the featureCaseID in the token map while we've got it
 			if (featureStore.tokenMap[tFeatureName] && childCaseId) {
+				// Would it be better to include all child case ids here?
 				featureStore.updateTokenCaseId(featureStore.tokenMap[tFeatureName], childCaseId);
 			}
 		});
