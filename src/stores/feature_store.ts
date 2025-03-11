@@ -203,6 +203,10 @@ export class FeatureStore {
 			Object.values(this.tokenMap).find(iToken => iToken.featureCaseID === numberId);
 	}
 
+	getFeatureOrTokenByCaseId(caseId: string | number) {
+		return this.getFeatureByCaseId(caseId) ?? this.getTokenByCaseId(caseId);
+	}
+
 	getFormulaFor(iFeatureName: string) {
 		const tFoundObject = this.features.find(iFeature => {
 			return iFeature.name === iFeatureName && iFeature.formula !== '';

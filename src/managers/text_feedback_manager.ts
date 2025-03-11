@@ -195,9 +195,10 @@ export class TextFeedbackManager {
 						featureIDsJSON.forEach(anID => {
 							if (typeof anID === "number" && (tIDsOfFeaturesToSelect.includes(anID) || weightParents[anID])) {
 								tUsedIDsSet.add(iCase.id);
+								const feature = featureStore.getFeatureOrTokenByCaseId(anID);
+								const token = "name" in feature ? feature.name : "token" in feature ? feature.token : undefined;
+								if (token) addToFeatureMap(String(token), anID);
 							}
-							const feature = featureStore.getFeatureByCaseId(anID);
-							if (feature) addToFeatureMap(String(feature.name), anID);
 						});
 					}
 				}
