@@ -186,6 +186,12 @@ export class FeatureStore {
 		}
 	}
 
+	updateTokenCaseId(token: Token, id: number) {
+		if (token.featureCaseID) delete this.caseIdTokenMap[token.featureCaseID];
+		this.caseIdTokenMap[id] = token;
+		token.featureCaseID = id;
+	}
+
 	clearTokens() {
 		this.setTokenMap({});
 		this.setCaseIdTokenMap({});

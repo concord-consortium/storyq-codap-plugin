@@ -380,7 +380,7 @@ export class DomainStore {
 			if (tCreateResult.success && tCreateResult.values) {
 				tCreateResult.values.forEach((iValue, iIndex) => {
 					// tUnigramCreateMsgs[iIndex].featureCaseID = iValue.id
-					tTokenArray[iIndex].featureCaseID = iValue.id;
+					featureStore.updateTokenCaseId(tTokenArray[iIndex], iValue.id);
 				});
 				// Put together update messages for the target cases
 				const tUpdateMsgs: UpdateCaseValue[] = [];
@@ -555,6 +555,8 @@ export class DomainStore {
 			});
 			const tFeatureName = iFeatureCase.values.name;
 			const tFeatureType = iFeatureCase.values.type;
+			// Features will only highlight with a child case id
+			const childCaseId = iFeatureCase.children?.[0];
 
 			tTargetCases.forEach(iTargetCase => {
 				const tTargetHasFeature = ['constructed', 'column'].includes(tFeatureType)
@@ -567,14 +569,12 @@ export class DomainStore {
 					if (!tUsageResults[iFeatureCase.id]) tUsageResults[iFeatureCase.id] = [];
 					tUsageResults[iFeatureCase.id].push(iTargetCase.id);
 					if (!tTextResults[iTargetCase.id]) tTextResults[iTargetCase.id] = [];
-					// Features will only highlight with a child case id
-					const childCaseId = iFeatureCase.children?.[0];
 					if (childCaseId) tTextResults[iTargetCase.id].push(childCaseId);
 				}
 			})
 			// We need to store the featureCaseID in the token map while we've got it
-			if (featureStore.tokenMap[tFeatureName]) {
-				featureStore.tokenMap[tFeatureName].featureCaseID = iFeatureCase.id;
+			if (featureStore.tokenMap[tFeatureName] && childCaseId) {
+				featureStore.updateTokenCaseId(featureStore.tokenMap[tFeatureName], childCaseId);
 			}
 		});
 		// Now we can update the target and feature cases
@@ -621,8 +621,8 @@ export class DomainStore {
 					return iStoredFeature.name === tTokenMapKey;
 				});
 			if (tToken && tStoredFeature) {
-				tToken.featureCaseID = Number(tStoredFeature.caseID);
-				tToken.caseIDs = tUsageResults[tToken.featureCaseID];
+				featureStore.updateTokenCaseId(tToken, Number(tStoredFeature.caseID));
+				tToken.caseIDs = tUsageResults[Number(tStoredFeature.caseID)];
 			}
 		}
 	}
