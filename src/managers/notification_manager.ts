@@ -78,8 +78,8 @@ export class NotificationManager {
 			if (tUpdatedCases.length > 0) {
 				action(() => {
 					tUpdatedCases.forEach(iCase => {
-						const tChosen = iCase.values.chosen === 'true';
-						const highlight = iCase.values.highlight === "true";
+						const tChosen = iCase.values.chosen === 'true' || iCase.values.chosen === true;
+						const highlight = iCase.values.highlight === "true" || iCase.values.highlight === true;
 						const tType = iCase.values.type;
 						const tName = String(iCase.values.name);
 						const tFoundFeature = tType !== kTokenTypeUnigram && features.find(iFeature => iFeature.name === tName);

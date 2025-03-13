@@ -322,8 +322,8 @@ export class DomainStore {
 				tTargetAttributeName = targetStore.targetAttributeName,
 				tDocuments = targetStore.targetCases.map(iCase => {
 					return {
-						example: iCase.values[tTargetAttributeName],
-						class: iCase.values[targetStore.targetClassAttributeName],
+						example: String(iCase.values[tTargetAttributeName]),
+						class: String(iCase.values[targetStore.targetClassAttributeName]),
 						caseID: Number(iCase.id),
 						columnFeatures: {}
 					}
@@ -384,7 +384,7 @@ export class DomainStore {
 				const tUpdateMsgs: UpdateCaseValue[] = [];
 				targetStore.targetCases.forEach(iCase => {
 					const tTheseFeatureIDs = iCase.values.featureIDs;
-					const featureIDs: number[] = tTheseFeatureIDs ? JSON.parse(tTheseFeatureIDs) : [];
+					const featureIDs: number[] = tTheseFeatureIDs ? JSON.parse(String(tTheseFeatureIDs)) : [];
 					tTokenArray.forEach(iFeature => {
 						if (iFeature.caseIDs.indexOf(iCase.id) >= 0 && iFeature.featureCaseID != null) {
 							featureIDs.push(iFeature.featureCaseID);
@@ -551,17 +551,17 @@ export class DomainStore {
 			tFeatureItemRequests.push({
 				action:'get', resource:`dataContext[${datasetName}].itemByCaseID[${iFeatureCase.id}]`
 			});
-			const tFeatureName = iFeatureCase.values.name;
-			const tFeatureType = iFeatureCase.values.type;
+			const tFeatureName = String(iFeatureCase.values.name);
+			const tFeatureType = String(iFeatureCase.values.type);
 			// Features will only highlight with a child case id
 			const childCaseId = iFeatureCase.children?.[0];
 
 			tTargetCases.forEach(iTargetCase => {
 				const tTargetHasFeature = ['constructed', 'column'].includes(tFeatureType)
 					// Codap v3 returns strings, even for booleans, so we have to compare strings for now.
-					? iTargetCase.values[tFeatureName] === "true" ? true : false
+					? iTargetCase.values[tFeatureName] === "true" || iTargetCase.values[tFeatureName] === true ? true : false
 					: tFeatureType === 'unigram'
-					? targetTextHasUnigram(iTargetCase.values[targetAttributeName], tFeatureName)
+					? targetTextHasUnigram(String(iTargetCase.values[targetAttributeName]), tFeatureName)
 					: false;
 				if (tTargetHasFeature) {
 					if (!tUsageResults[iFeatureCase.id]) tUsageResults[iFeatureCase.id] = [];

@@ -5,12 +5,12 @@
 
 import { makeAutoObservable, toJS } from 'mobx'
 import {
-	Case, entityInfo, getAttributeNames, getCaseValues, getCollectionNames, getDatasetInfoWithFilter, guaranteeAttribute,
+	entityInfo, getAttributeNames, getCaseValues, getCollectionNames, getDatasetInfoWithFilter, guaranteeAttribute,
 	scrollCaseTableToRight
 } from "../lib/codap-helper";
 import codapInterface from "../lib/CodapInterface";
 import { SQ } from "../lists/lists";
-import { CreateAttributeResponse } from '../types/codap-api-types';
+import { CaseInfo, CreateAttributeResponse } from '../types/codap-api-types';
 import { featureStore } from './feature_store';
 import { targetDatasetStore } from './target_dataset_store';
 import { testingStore } from './testing_store';
@@ -37,7 +37,7 @@ interface ITargetStore {
 	targetPredictedLabelAttributeName: string;
 	targetResultsCollectionName: string;
 	targetFeatureIDsAttributeName: string;
-	targetCases: Case[];
+	targetCases: CaseInfo[];
 	targetClassAttributeName: string;
 	targetClassAttributeValues: string[];
 	targetClassNames: Record<classColumns, string>;
@@ -58,7 +58,7 @@ export class TargetStore {
 	targetPredictedLabelAttributeName = ''
 	targetResultsCollectionName = 'results'
 	targetFeatureIDsAttributeName = 'featureIDs'
-	targetCases: Case[] = []
+	targetCases: CaseInfo[] = []
 	targetClassAttributeName: string = ''
 	targetClassAttributeValues: string[] = []
 	targetClassNames: Record<classColumns, string> = { left: "", right: "" }
@@ -102,7 +102,7 @@ export class TargetStore {
 		this.targetFeatureIDsAttributeName = name;
 	}
 
-	setTargetCases(cases: Case[]) {
+	setTargetCases(cases: CaseInfo[]) {
 		this.targetCases = cases;
 	}
 
@@ -202,7 +202,7 @@ export class TargetStore {
 		let tCollectionNames: string[] = [];
 		let tCollectionName = '';
 		let tAttrNames: string[] = [];
-		let tCaseValues: Case[] = [];
+		let tCaseValues: CaseInfo[] = [];
 		let tPositiveClassName = '';
 		let tNegativeClassName = '';
 		let tClassNames = { left: '', right: '' };
@@ -220,16 +220,16 @@ export class TargetStore {
 			// choose class names
 			const tTargetClassAttributeName = targetClassAttributeName ?? this.targetClassAttributeName;
 			if (tTargetClassAttributeName !== '' && tCaseValues.length > 0) {
-				tPositiveClassName = tCaseValues[0].values[tTargetClassAttributeName];
+				tPositiveClassName = String(tCaseValues[0].values[tTargetClassAttributeName]);
 				const tNegativeClassCase =
 					tCaseValues.find(iCase => iCase.values[tTargetClassAttributeName] !== tPositiveClassName);
-				tNegativeClassName = tNegativeClassCase ? tNegativeClassCase.values[tTargetClassAttributeName] : '';
+				tNegativeClassName = tNegativeClassCase ? String(tNegativeClassCase.values[tTargetClassAttributeName]) : '';
 				tClassNames = { left: tPositiveClassName, right: tNegativeClassName };
 
 				// Also make a set of the unique values of the class attribute
 				const tClassAttributeValuesSet: Set<string> = new Set();
 				tCaseValues.forEach(iCase => {
-					tClassAttributeValuesSet.add(iCase.values[tTargetClassAttributeName]);
+					tClassAttributeValuesSet.add(String(iCase.values[tTargetClassAttributeName]));
 				})
 				tClassAttributeValues = Array.from(tClassAttributeValuesSet);
 			}

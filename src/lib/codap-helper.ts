@@ -9,18 +9,6 @@ export interface entityInfo {
 	numAttributes?: number
 }
 
-/**
- * Cases retrieved from dataset have this form
- */
-export interface Case {
-	id: number,
-	parent?: number,
-	children?: number[],
-	values: {
-		[index: string]: string
-	}
-}
-
 export function initializePlugin(pluginName: string, version: string, dimensions: { width: number, height: number },
 																 iRestoreStateHandler: (arg0: any) => void) {
 	const interfaceConfig = {
@@ -202,7 +190,7 @@ export async function getAttributeNames(iDatasetName: string, iCollectionName: s
  */
 export async function getCaseValues(
 	iDatasetName: string, iCollectionName: string, searchFormula?: string
-): Promise<Case[]> {
+): Promise<CaseInfo[]> {
 	const formula = searchFormula ?? `true`;
 	const tResult: any = await codapInterface.sendRequest({
 		action: 'get',

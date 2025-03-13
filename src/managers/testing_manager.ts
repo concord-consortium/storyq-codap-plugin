@@ -106,7 +106,7 @@ export class TestingManager {
 			tPhraseCount = tTestCases.length;
 			tTestCases.forEach(iCase => {
 				let tPhraseID = iCase.id,
-					tPhrase = iCase.values[testingStore.testingAttributeName],
+					tPhrase = String(iCase.values[testingStore.testingAttributeName]),
 					tActual = tClassAttributeName === this_.kNonePresent ? '' :
 						iCase.values[tClassAttributeName],
 					tGiven = Array(tTokens.length).fill(0),
@@ -128,7 +128,7 @@ export class TestingManager {
 				tTokens.forEach((iToken, iIndex) => {
 					if (iToken.formula !== '') {
 						// Codap v3 currently returns strings, even for booleans, so we have to compare the string for now
-						if (iCase.values[iToken.name] === "true") {
+						if (iCase.values[iToken.name] === "true" || iCase.values[iToken.name] === true) {
 							// Mark it in the array
 							tGiven[iIndex] = 1;
 							// Add the case ID to the list of featureIDs for this phrase
