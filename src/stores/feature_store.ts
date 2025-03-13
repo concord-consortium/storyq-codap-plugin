@@ -169,7 +169,8 @@ export class FeatureStore {
 	}
 
 	getFeatureByCaseId(caseId: string | number) {
-		return this.features.find(feature => feature.caseID === `${caseId}`);
+		return this.features.find(feature => feature.caseID === `${caseId}`) ??
+			this.features.find(feature => feature.childCaseID === `${caseId}`);
 	}
 
 	addToken(name: string, token: Token) {
@@ -185,6 +186,12 @@ export class FeatureStore {
 		}
 	}
 
+	updateTokenCaseId(token: Token, id: number) {
+		if (token.featureCaseID) delete this.caseIdTokenMap[token.featureCaseID];
+		this.caseIdTokenMap[id] = token;
+		token.featureCaseID = id;
+	}
+
 	clearTokens() {
 		this.setTokenMap({});
 		this.setCaseIdTokenMap({});
@@ -194,6 +201,10 @@ export class FeatureStore {
 		const numberId = Number(caseId);
 		return this.caseIdTokenMap[numberId] ??
 			Object.values(this.tokenMap).find(iToken => iToken.featureCaseID === numberId);
+	}
+
+	getFeatureOrTokenByCaseId(caseId: string | number) {
+		return this.getFeatureByCaseId(caseId) ?? this.getTokenByCaseId(caseId);
 	}
 
 	getFormulaFor(iFeatureName: string) {

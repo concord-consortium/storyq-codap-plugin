@@ -361,7 +361,9 @@ export class ModelManager {
 					}
 					if (tValue) tColumnFeatures[aName] = tValue;
 				});
-				tDocuments.push({ example: tText, class: tClass, caseID: tCaseID, columnFeatures: tColumnFeatures });
+				tDocuments.push({
+					example: String(tText), class: String(tClass), caseID: tCaseID, columnFeatures: tColumnFeatures
+				});
 			});
 		}
 

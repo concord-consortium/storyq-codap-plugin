@@ -129,32 +129,20 @@ export class TextFeedbackManager {
 				collectionName, datasetName
 			} = this.getBasicInfo(),
 			tFeaturesMap: Record<number, string> = {},
-			tSelectedFeaturesSet: Set<number> = new Set(),
-			tUsedIDsSet: Set<number> = new Set(),
-			// Get all the selected cases in the Features dataset. Some will be features and some will be weights
-			tSelectionListResult = await codapInterface.sendRequest({
-				action: 'get',
-				resource: `dataContext[${datasetName}].selectionList`
-			}) as GetSelectionListResponse,
 			tCaseRequests: APIRequest[] = [];
 
-		async function handleSelectionInFeaturesDataset() {
-			if (tIDsOfFeaturesToSelect.length > 0) {
-				// Select the features
-				await codapInterface.sendRequest({
-					action: 'create',
-					resource: `dataContext[${datasetName}].selectionList`,
-					values: tIDsOfFeaturesToSelect
-				});
-			}
-		}
 
 		// If we have a testing dataset but no test has been run, we're done
-		if (useTestingDataset && testingStore.testingResultsArray.length === 0) {
-			return;
-		}
+		if (useTestingDataset && testingStore.testingResultsArray.length === 0) return;
 
+		// Get all the selected cases in the Features dataset. Some will be features and some will be weights
 		// For the features, we just need to record their caseIDs. For the weights, we record a request to get parents
+		const tSelectedFeaturesSet: Set<number> = new Set();
+		const weightParents: Record<number, number> = {};
+		const tSelectionListResult = await codapInterface.sendRequest({
+			action: 'get',
+			resource: `dataContext[${datasetName}].selectionList`
+		}) as GetSelectionListResponse;
 		if (tSelectionListResult.success && tSelectionListResult.values) {
 			tSelectionListResult.values.forEach(iValue => {
 				if (iValue.collectionName === collectionName) {
@@ -165,7 +153,7 @@ export class TextFeedbackManager {
 						resource: `dataContext[${datasetName}].collection[${iValue.collectionName}].caseByID[${iValue.caseID}]`
 					});
 				}
-			})
+			});
 		}
 		// Get the parents
 		if (tCaseRequests.length > 0) {
@@ -173,10 +161,12 @@ export class TextFeedbackManager {
 			tCaseResults.forEach(iResult => {
 				if (iResult.success && iResult.values?.case.parent) {
 					tSelectedFeaturesSet.add(iResult.values.case.parent);
+					weightParents[iResult.values.case.id] = iResult.values.case.parent;
 				}
 			})
 		}
-		const tIDsOfFeaturesToSelect = Array.from(tSelectedFeaturesSet)
+		const tIDsOfFeaturesToSelect = Array.from(tSelectedFeaturesSet);
+
 		// We need all the features as cases so we can get their used caseIDs from the target dataset
 		const tFeatureCasesResult = await codapInterface.sendRequest(
 			tIDsOfFeaturesToSelect.map(iID => {
@@ -186,19 +176,28 @@ export class TextFeedbackManager {
 				};
 			})
 		) as GetCaseByIDResponse[];
+
+		function addToFeatureMap(value: string, id: number, childIDs?: number[]) {
+			tFeaturesMap[id] = value;
+			if (childIDs) childIDs.forEach(childID => tFeaturesMap[childID] = value);
+		}
+		const tUsedIDsSet: Set<number> = new Set();
 		// If we're using the testing dataset, we go through each of the target phrases and pull out the case IDs
 		// of the cases that use the selected features. We determine this by looking at the featureIDs attribute
 		// of each target phrase case and checking whether that array contains any of the selected feature IDs.
 		if (useTestingDataset) {
 			const tTestCases = await getCaseValues(tDatasetName, tCollectionName);
 			tTestCases.forEach(iCase => {
-				const tFeatureIDs = iCase.values.featureIDs
+				const tFeatureIDs = iCase.values.featureIDs;
 				if (typeof tFeatureIDs === 'string' && tFeatureIDs.length > 0) {
 					const featureIDsJSON = JSON.parse(tFeatureIDs);
 					if (Array.isArray(featureIDsJSON)) {
 						featureIDsJSON.forEach(anID => {
-							if (typeof anID === "number" && tIDsOfFeaturesToSelect.includes(anID)) {
+							if (typeof anID === "number" && (tIDsOfFeaturesToSelect.includes(anID) || weightParents[anID])) {
 								tUsedIDsSet.add(iCase.id);
+								const feature = featureStore.getFeatureOrTokenByCaseId(anID);
+								const token = "name" in feature ? feature.name : "token" in feature ? feature.token : undefined;
+								if (token) addToFeatureMap(String(token), anID);
 							}
 						});
 					}
@@ -216,15 +215,12 @@ export class TextFeedbackManager {
 								if (typeof anID === "number") tUsedIDsSet.add(anID);
 							});
 						}
-						tFeaturesMap[iResult.values.case.id] = String(iResult.values.case.values.name);
-						const childID = iResult.values.case.children[0];
-						if (childID) tFeaturesMap[childID] = String(iResult.values.case.values.name);
+						const aCase = iResult.values.case;
+						addToFeatureMap(String(aCase.values.name), aCase.id, aCase.children);
 					}
 				}
 			});
 		}
-
-		await handleSelectionInFeaturesDataset();
 
 		// Select the target texts that make use of the selected features
 		const tUsedCaseIDs = Array.from(tUsedIDsSet);
@@ -233,8 +229,9 @@ export class TextFeedbackManager {
 			resource: `dataContext[${tDatasetName}].selectionList`,
 			values: tUsedCaseIDs
 		});
-		const tQuadruples: PhraseQuadruple[] = [];
+		
 		// Here is where we put the contents of the text component together
+		const tQuadruples: PhraseQuadruple[] = [];
 		for (const index in tUsedCaseIDs) {
 			const caseId = tUsedCaseIDs[index];
 			const tGetCaseResult = await codapInterface.sendRequest({
@@ -314,10 +311,12 @@ export class TextFeedbackManager {
 				// Get the features and stash them in a set
 				const tSelectedFeatureCases = await getSelectedCasesFrom(datasetName, collectionName);
 				tSelectedFeatureCases.forEach(iCase => {
-					// This used to use the caseId, but the featureIDs saved in the training cases are item ids.
-					// I'm using item ids here now, but it's possible they should both use case ids instead.
-					const itemId = iCase.children[0];
-					if (itemId) tFeaturesMap[Number(itemId)] = String(iCase.values.name);
+					// It would be better if this were just the caseId, but child ids are used throughout the StoryQ codebase,
+					// so it's better to just include all ids in this dictionary.
+					tFeaturesMap[iCase.id] = String(iCase.values.name);
+					iCase.children.forEach(childCaseId => {
+						if (childCaseId) tFeaturesMap[Number(childCaseId)] = String(iCase.values.name);
+					});
 				});
 			}
 		}

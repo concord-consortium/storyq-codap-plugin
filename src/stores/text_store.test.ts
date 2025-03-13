@@ -10,7 +10,7 @@ describe("textStore", () => {
 
   it("setTextSections", () => {
     const sections: ITextSection[] = [{
-      title: { actual: "Section 1", predicted: "Section 1", color: "#000" },
+      title: { actual: "Section 1", predicted: "Section 1" },
       text: [{ textParts: [{ text: "Test" }], index: 0 }],
       hidden: false
     }];
@@ -20,7 +20,7 @@ describe("textStore", () => {
 
   it("getTextSectionId", () => {
     const section: ITextSection = {
-      title: { actual: "Section 1", predicted: "Section 1", color: "#000" },
+      title: { actual: "Section 1", predicted: "Section 1" },
       text: [{ textParts: [{ text: "Test" }], index: 0 }],
       hidden: false
     };
@@ -30,7 +30,7 @@ describe("textStore", () => {
 
   it("toggleTextSectionVisibility", () => {
     const section: ITextSection = {
-      title: { actual: "Section 1", predicted: "Section 1", color: "#000" },
+      title: { actual: "Section 1", predicted: "Section 1" },
       text: [{ textParts: [{ text: "Test" }], index: 0 }],
       hidden: false
     };
@@ -42,7 +42,7 @@ describe("textStore", () => {
 
   it("clearText", async () => {
     const sections: ITextSection[] = [{
-      title: { actual: "Section 1", predicted: "Section 1", color: "#000" },
+      title: { actual: "Section 1", predicted: "Section 1" },
       text: [{ textParts: [{ text: "Test" }], index: 0 }],
       hidden: false
     }];

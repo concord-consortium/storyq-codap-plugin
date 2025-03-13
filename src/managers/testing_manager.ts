@@ -71,33 +71,31 @@ export class TestingManager {
 				const tLabelExists =
 					await attributeExists(tTestingDatasetName, tTestingCollectionName, tTargetPredictedLabelAttributeName);
 				if (!tLabelExists) {
-					tAttributeRequests.push(
-						{
-							name: tTargetPredictedLabelAttributeName,
-							description: 'The label predicted by the model'
-						})
-					tAttributeRequests.push(
-						{
-							name: tTargetPredictedProbabilityName,
-							description: 'The probability predicted by the model that the classification is positive',
-							unit: '%',
-							precision: 3
-						})
+					tAttributeRequests.push({
+						name: tTargetPredictedLabelAttributeName,
+						description: 'The label predicted by the model'
+					});
+					tAttributeRequests.push({
+						name: tTargetPredictedProbabilityName,
+						description: 'The probability predicted by the model that the classification is positive',
+						unit: '%',
+						precision: 3
+					});
 				}
 				const tFeatureIDsAttributeExists =
 					await attributeExists(tTestingDatasetName, tTestingCollectionName, targetStore.targetFeatureIDsAttributeName);
-				if (!tFeatureIDsAttributeExists)
-					tAttributeRequests.push(
-						{
-							name: targetStore.targetFeatureIDsAttributeName,
-							hidden: true
-						})
+				if (!tFeatureIDsAttributeExists) {
+					tAttributeRequests.push({
+						name: targetStore.targetFeatureIDsAttributeName,
+						hidden: true
+					});
+				}
 
 				await codapInterface.sendRequest({
 					action: 'create',
 					resource: `dataContext[${tTestingDatasetName}].collection[${tTestingCollectionName}].attribute`,
 					values: tAttributeRequests
-				})
+				});
 			}
 		}
 
@@ -105,10 +103,10 @@ export class TestingManager {
 			if (!tStoredModel || !tPredictor) return;
 
 			const tTestCases = await getCaseValues(tTestingDatasetName, tTestingCollectionName);
-			tPhraseCount = tTestCases.length
+			tPhraseCount = tTestCases.length;
 			tTestCases.forEach(iCase => {
 				let tPhraseID = iCase.id,
-					tPhrase = iCase.values[testingStore.testingAttributeName],
+					tPhrase = String(iCase.values[testingStore.testingAttributeName]),
 					tActual = tClassAttributeName === this_.kNonePresent ? '' :
 						iCase.values[tClassAttributeName],
 					tGiven = Array(tTokens.length).fill(0),
@@ -129,7 +127,8 @@ export class TestingManager {
 				// The column features are names of attributes we expect to find having values true or false
 				tTokens.forEach((iToken, iIndex) => {
 					if (iToken.formula !== '') {
-						if (iCase.values[iToken.name]) {
+						// Codap v3 currently returns strings, even for booleans, so we have to compare the string for now
+						if (iCase.values[iToken.name] === "true" || iCase.values[iToken.name] === true) {
 							// Mark it in the array
 							tGiven[iIndex] = 1;
 							// Add the case ID to the list of featureIDs for this phrase

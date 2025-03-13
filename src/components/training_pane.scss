@@ -6,3 +6,10 @@
   font-size: smaller;
   text-align: left;
 }
+
+.ui-button-disabled {
+  .ui-button-content {
+    color: #999;
+    cursor: default;
+  }
+}
