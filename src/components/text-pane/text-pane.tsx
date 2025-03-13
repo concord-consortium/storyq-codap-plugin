@@ -18,21 +18,20 @@ const containerVerticalPadding = 4;
 const containerHeight = paneHeight - titleHeight - containerVerticalPadding * 2;
 
 const TextPaneTitle = observer(function TextPaneTitle() {
-  const dataset = textStore.titleDataset === "target"
+  const _dataset = textStore.titleDataset === "target"
     ? targetDatasetStore.targetDatasetInfo.title : testingStore.testingDatasetInfo.title;
-  const attribute = textStore.titleDataset === "target"
+  const dataset = _dataset ? _dataset : "[data]";
+  const _attribute = textStore.titleDataset === "target"
     ? targetStore.targetAttributeName : testingStore.testingAttributeName;
-  if (dataset && attribute) {
-    return (
-      <>
-        <span>Selected </span>
-        <span className="highlighted">{pluralize(attribute)}</span>
-        <span> in </span>
-        <span className="highlighted">{dataset}</span>
-      </>
-    );
-  }
-  return <span>Choose Data And Text To Begin</span>;
+  const attribute = _attribute ? pluralize(_attribute) : "[text]";
+  return (
+    <>
+      <span>Selected </span>
+      <span className="highlighted">{attribute}</span>
+      <span> in </span>
+      <span className="highlighted">{dataset}</span>
+    </>
+  );
 });
 
 export const TextPane = observer(function TextPane() {
