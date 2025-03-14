@@ -3,11 +3,11 @@
  * be accessed in more than one file or needs to be saved and restored.
  */
 
-import { makeAutoObservable, toJS } from 'mobx'
+import { makeAutoObservable, toJS } from 'mobx';
+import { getAttributes } from '../lib/codap-helper';
 import codapInterface from "../lib/CodapInterface";
 import {
-	GetAttributeListResponse, GetCaseFormulaSearchResponse, GetCollectionListResponse, GetDataContextListResponse,
-	GetItemSearchResponse
+	GetCaseFormulaSearchResponse, GetCollectionListResponse, GetDataContextListResponse, GetItemSearchResponse
 } from '../types/codap-api-types';
 import {
 	Feature, FeatureType, getStarterFeature, kAnyNumberKeyword, kFeatureKindColumn, kFeatureKindNgram, kFeatureKindSearch,
@@ -381,16 +381,11 @@ export class FeatureStore {
 				}) as GetCollectionListResponse;
 				if (tCollectionsResult.success && tCollectionsResult.values?.length) {
 					const collectionId = tCollectionsResult.values[tCollectionsResult.values.length - 1].id
-					const tAttributesResult = await codapInterface.sendRequest({
-						action: 'get',
-						resource: `dataContext[${aValue.id}].collection[${collectionId}].attributeList`
-					}).catch((reason) => {
-						console.log('unable to get attribute list because ' + reason);
-					}) as GetAttributeListResponse;
-					if (tAttributesResult.success && tAttributesResult.values?.length) {
+					const attributes = await getAttributes(aValue.id, collectionId);
+					if (attributes?.length) {
 						this.wordListSpecs.push({
 							datasetName: aValue.title,
-							firstAttributeName: tAttributesResult.values[0].name
+							firstAttributeName: attributes[0].name
 						});
 					}
 				}

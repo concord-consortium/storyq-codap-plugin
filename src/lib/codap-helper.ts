@@ -1,5 +1,5 @@
 import { setupTextFeedbackManager } from "../managers/text_feedback_manager";
-import { APIRequest, CaseInfo, GetCaseByIDResponse, GetSelectionListResponse } from "../types/codap-api-types";
+import { APIRequest, CaseInfo, GetAttributeListResponse, GetCaseByIDResponse, GetSelectionListResponse } from "../types/codap-api-types";
 import codapInterface from "./CodapInterface";
 
 export interface entityInfo {
@@ -173,14 +173,19 @@ export async function guaranteeAttribute(iAttributeInfo: { name: string, hidden:
 	}
 }
 
-export async function getAttributeNames(iDatasetName: string, iCollectionName: string): Promise<string[]> {
-	// console.log(`Begin getAttributeNames with ${iDatasetName}(${iCollectionName})`)
-	const tNamesResult: any = await codapInterface.sendRequest({
+export async function getAttributes(iDatasetName: string | number, iCollectionName: string | number) {
+	const attributes = await codapInterface.sendRequest({
 		action: 'get',
 		resource: `dataContext[${iDatasetName}].collection[${iCollectionName}].attributeList`
-	}).catch(reason => console.log(`Unable to get attribute names because ${reason}`))
-	// console.log('About to return from getAttributeNames')
-	return tNamesResult.success ? tNamesResult.values.map((iValue: any) => iValue.name) : []
+	}) as GetAttributeListResponse;
+	if (attributes.success) {
+		return attributes.values;
+	}
+}
+
+export async function getAttributeNames(iDatasetName: string | number, iCollectionName: string | number) {
+	const attributes = await getAttributes(iDatasetName, iCollectionName);
+	return attributes?.map(attribute => attribute.name) ?? [];
 }
 
 /**
