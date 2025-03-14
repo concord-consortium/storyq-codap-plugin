@@ -367,7 +367,7 @@ export class DomainStore {
         tCaseValues.values[tPositiveAttrName] = iFeature.numPositive;
         tCaseValues.values[tNegativeAttrName] = iFeature.numNegative;
         tUnigramCreateMsgs.push(tCaseValues);
-      })
+      });
       const tCreateResult = await codapInterface.sendRequest({
         action: 'create',
         resource: `dataContext[${datasetName}].collection[${collectionName}].case`,

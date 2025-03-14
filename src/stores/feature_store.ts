@@ -48,7 +48,9 @@ export class FeatureStore {
   featureWeightCaseIDs: Record<string, number> = {}
 
   constructor() {
-    makeAutoObservable(this, { tokenMap: false, featureWeightCaseIDs: false }, { autoBind: true });
+    makeAutoObservable(
+      this, { caseIdTokenMap: false, tokenMap: false, featureWeightCaseIDs: false }, { autoBind: true }
+    );
   }
 
   setCaseIdTokenMap(map: Record<number, Token>) {
@@ -199,8 +201,12 @@ export class FeatureStore {
 
   getTokenByCaseId(caseId: string | number) {
     const numberId = Number(caseId);
-    return this.caseIdTokenMap[numberId] ??
-      Object.values(this.tokenMap).find(iToken => iToken.featureCaseID === numberId);
+    const caseIdToken = this.caseIdTokenMap[numberId];
+    if (caseIdToken) return caseIdToken;
+    
+    const token = Object.values(this.tokenMap).find(iToken => iToken.featureCaseID === numberId);
+    if (token) this.caseIdTokenMap[numberId] = token;
+    return token;
   }
 
   getFeatureOrTokenByCaseId(caseId: string | number) {
