@@ -8,14 +8,14 @@ import { TargetInfoPane } from "./target_info_pane";
 import { TrainingPane } from "./training_pane";
 
 export const TrainingPanel = function TrainingPanel() {
-	useEffect(() => {
-		domainStore.updateNonNtigramFeaturesDataset();
-	}, []);
+  useEffect(() => {
+    domainStore.updateNonNtigramFeaturesDataset();
+  }, []);
 
-	return (
-		<div className="sq-feature-panel">
-			<TargetInfoPane />
-			<TrainingPane />
-		</div>
-	);
+  return (
+    <div className="sq-feature-panel">
+      <TargetInfoPane />
+      <TrainingPane />
+    </div>
+  );
 }

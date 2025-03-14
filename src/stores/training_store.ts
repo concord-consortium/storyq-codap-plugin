@@ -8,51 +8,51 @@ import { AIModel } from '../models/ai-model';
 import { TrainingResult } from "./store_types_and_constants";
 
 export interface ITrainingStoreSnapshot {
-	model: AIModel;
-	trainingResults: TrainingResult[];
+  model: AIModel;
+  trainingResults: TrainingResult[];
 }
 
 export class TrainingStore {
-	model: AIModel;
-	trainingResults: TrainingResult[] = [];
-	resultCaseIDs: number[] = [];
+  model: AIModel;
+  trainingResults: TrainingResult[] = [];
+  resultCaseIDs: number[] = [];
 
-	constructor() {
-		makeAutoObservable(this, { resultCaseIDs: false }, { autoBind: true });
-		this.model = new AIModel();
-	}
+  constructor() {
+    makeAutoObservable(this, { resultCaseIDs: false }, { autoBind: true });
+    this.model = new AIModel();
+  }
 
-	asJSON() {
-		return {
-			model: this.model.asJSON(),
-			trainingResults: toJS(this.trainingResults)
-		};
-	}
+  asJSON() {
+    return {
+      model: this.model.asJSON(),
+      trainingResults: toJS(this.trainingResults)
+    };
+  }
 
-	fromJSON(json: ITrainingStoreSnapshot) {
-		if (json) {
-			this.model.fromJSON(json.model);
-			this.trainingResults = json.trainingResults || [];
-		}
-		this.checkForActiveModel();
-	}
+  fromJSON(json: ITrainingStoreSnapshot) {
+    if (json) {
+      this.model.fromJSON(json.model);
+      this.trainingResults = json.trainingResults || [];
+    }
+    this.checkForActiveModel();
+  }
 
-	inactivateAll() {
-		this.trainingResults.forEach(iResult => iResult.isActive = false);
-	}
+  inactivateAll() {
+    this.trainingResults.forEach(iResult => iResult.isActive = false);
+  }
 
-	getTrainingResultByName(iModelName: string) {
-		return this.trainingResults.find(iResult => iResult.name === iModelName);
-	}
+  getTrainingResultByName(iModelName: string) {
+    return this.trainingResults.find(iResult => iResult.name === iModelName);
+  }
 
-	get firstActiveModelName() {
-		return this.trainingResults.find(iResult => iResult.isActive)?.name ?? '';
-	}
+  get firstActiveModelName() {
+    return this.trainingResults.find(iResult => iResult.isActive)?.name ?? '';
+  }
 
-	checkForActiveModel() {
-		if (this.firstActiveModelName === '' && this.trainingResults.length > 0)
-			this.trainingResults[0].isActive = true;
-	}
+  checkForActiveModel() {
+    if (this.firstActiveModelName === '' && this.trainingResults.length > 0)
+      this.trainingResults[0].isActive = true;
+  }
 }
 
 export const trainingStore = new TrainingStore();
