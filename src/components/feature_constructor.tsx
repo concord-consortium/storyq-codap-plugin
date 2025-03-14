@@ -8,11 +8,11 @@ import { featureStore } from "../stores/feature_store";
 import { FeatureComponent } from "./feature_component";
 
 export const FeatureConstructor = observer(function FeatureConstructor() {
-	if (!featureStore.featureUnderConstruction.inProgress) return null;
+  if (!featureStore.featureUnderConstruction.inProgress) return null;
 
-	return (
-		<div>
-			<FeatureComponent feature={featureStore.featureUnderConstruction} />
-		</div>
-	);
+  return (
+    <div>
+      <FeatureComponent feature={featureStore.featureUnderConstruction} />
+    </div>
+  );
 });

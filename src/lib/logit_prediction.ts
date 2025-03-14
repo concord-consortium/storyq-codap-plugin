@@ -1,12 +1,12 @@
 export class LogitPrediction {
-	weights: number[] = [];
-	thresholdProbability = 0;
+  weights: number[] = [];
+  thresholdProbability = 0;
 
-	constructor(constantWeight: number, weights: number[], thresholdProbability: number) {
+  constructor(constantWeight: number, weights: number[], thresholdProbability: number) {
     this.weights = weights.slice();
     this.weights.unshift(constantWeight);  // The zeroth term must be the constant's weight
     this.thresholdProbability = thresholdProbability;
-	}
+  }
 
   prob(givensPlusConstant: number[], weights: number[]) {
     let gx = 0.0;

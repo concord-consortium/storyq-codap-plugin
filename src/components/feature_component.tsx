@@ -10,8 +10,8 @@ import { SQ } from "../lists/lists";
 import { domainStore } from "../stores/domain_store";
 import { featureStore } from "../stores/feature_store";
 import {
-	Feature, featureDescriptors, isWhatOption, kFeatureKindColumn, kFeatureKindCount, kFeatureKindNgram,
-	kFeatureKindSearch, kFeatureTypeColumn, kWhatOptionList, kWhatOptionPunctuation, kWhatOptionText, SearchDetails
+  Feature, featureDescriptors, isWhatOption, kFeatureKindColumn, kFeatureKindCount, kFeatureKindNgram,
+  kFeatureKindSearch, kFeatureTypeColumn, kWhatOptionList, kWhatOptionPunctuation, kWhatOptionText, SearchDetails
 } from "../stores/store_types_and_constants";
 import { targetStore } from "../stores/target_store";
 import { CheckBox } from "./ui/check-box";
@@ -22,174 +22,174 @@ import { TextBox } from "./ui/text-box";
 import "./feature_component.scss";
 
 export interface FeatureComponentProps {
-	feature: Feature
+  feature: Feature
 }
 
 export const FeatureComponent = observer(function FeatureComponent({ feature }: FeatureComponentProps) {
-	const featureDetails = feature.info.details as SearchDetails;
+  const featureDetails = feature.info.details as SearchDetails;
 
-	const updateFeaturesDataset = async (iFeature: Feature) => {
-		if (!iFeature.inProgress) {
-			await targetStore.addOrUpdateFeatureToTarget(iFeature, true)
-			switch (iFeature.info.kind) {
-				case kFeatureKindSearch:
-				case kFeatureKindCount:
-				case kFeatureKindColumn:
-					await domainStore.updateNonNtigramFeaturesDataset()
-					break
-				case kFeatureKindNgram:
-					await domainStore.updateNgramFeatures()
-					break
-			}
-		}
-	};
+  const updateFeaturesDataset = async (iFeature: Feature) => {
+    if (!iFeature.inProgress) {
+      await targetStore.addOrUpdateFeatureToTarget(iFeature, true)
+      switch (iFeature.info.kind) {
+        case kFeatureKindSearch:
+        case kFeatureKindCount:
+        case kFeatureKindColumn:
+          await domainStore.updateNonNtigramFeaturesDataset()
+          break
+        case kFeatureKindNgram:
+          await domainStore.updateNgramFeatures()
+          break
+      }
+    }
+  };
 
-	function kindOfContainsChoice() {
-		featureDescriptors.featureKinds[2].items = targetStore.targetColumnFeatureNames.map(iColumnName => {
-			return {
-				name: iColumnName,
-				value: { kind: "column", details: { columnName: `${iColumnName}`} },
-				key: 'Choose other columns as features'
-			}
-		})
-		// @ts-ignore
-		featureDescriptors.featureKinds[1].items[0].disabled = featureStore.hasNgram
-		return (
-			<SelectBox
-				className='sq-new-feature-item sq-fc-part'
-				dataSource={featureDescriptors.featureKinds}
-				placeholder={'choose a method'}
-				value={feature.infoChoice ?? ""}
-				style={{display: 'inline-block'}}
-				onValueChanged={action(value => {
-					feature.infoChoice = value;
-					feature.info.kind = JSON.parse(value).kind;
-					feature.info.details = Object.assign(feature.info.details || {}, JSON.parse(value).details);
-					if (feature.info.kind === kFeatureKindNgram) {
-						feature.info.frequencyThreshold = 4;
-						feature.info.ignoreStopWords = true;
-					} else if (feature.info.kind === kFeatureKindColumn) {
-						feature.name = JSON.parse(value).details['columnName'];
-						feature.type = kFeatureTypeColumn;
-					}
-				})}
-			/>
-		)
-	}
+  function kindOfContainsChoice() {
+    featureDescriptors.featureKinds[2].items = targetStore.targetColumnFeatureNames.map(iColumnName => {
+      return {
+        name: iColumnName,
+        value: { kind: "column", details: { columnName: `${iColumnName}`} },
+        key: 'Choose other columns as features'
+      }
+    })
+    // @ts-ignore
+    featureDescriptors.featureKinds[1].items[0].disabled = featureStore.hasNgram
+    return (
+      <SelectBox
+        className='sq-new-feature-item sq-fc-part'
+        dataSource={featureDescriptors.featureKinds}
+        placeholder={'choose a method'}
+        value={feature.infoChoice ?? ""}
+        style={{display: 'inline-block'}}
+        onValueChanged={action(value => {
+          feature.infoChoice = value;
+          feature.info.kind = JSON.parse(value).kind;
+          feature.info.details = Object.assign(feature.info.details || {}, JSON.parse(value).details);
+          if (feature.info.kind === kFeatureKindNgram) {
+            feature.info.frequencyThreshold = 4;
+            feature.info.ignoreStopWords = true;
+          } else if (feature.info.kind === kFeatureKindColumn) {
+            feature.name = JSON.parse(value).details['columnName'];
+            feature.type = kFeatureTypeColumn;
+          }
+        })}
+      />
+    )
+  }
 
-	function kindOfThingContainedChoice() {
-		if (feature.info.kind === kFeatureKindSearch) {
-			return (
-				<SelectBox
-					className='sq-new-feature-item sq-fc-part'
-					dataSource={featureDescriptors.kindOfThingContainedOptions}
-					placeholder={'choose from'}
-					value={featureDetails?.what ?? ""}
-					style={{display: 'inline-block'}}
-					onValueChanged={action(async value => {
-						if (isWhatOption(value)) (feature.info.details as SearchDetails).what = value;
-						await updateFeaturesDataset(feature);
-					})}
-				/>
-			)
-		}
-	}
+  function kindOfThingContainedChoice() {
+    if (feature.info.kind === kFeatureKindSearch) {
+      return (
+        <SelectBox
+          className='sq-new-feature-item sq-fc-part'
+          dataSource={featureDescriptors.kindOfThingContainedOptions}
+          placeholder={'choose from'}
+          value={featureDetails?.what ?? ""}
+          style={{display: 'inline-block'}}
+          onValueChanged={action(async value => {
+            if (isWhatOption(value)) (feature.info.details as SearchDetails).what = value;
+            await updateFeaturesDataset(feature);
+          })}
+        />
+      )
+    }
+  }
 
-	function freeFormTextBox() {
-		if (featureDetails && featureDetails.what === kWhatOptionText) {
-			return (
-				<TextBox
-					className='sq-fc-part'
-					placeholder="type something here"
-					onValueChanged={action(async value => {
-						featureDetails.freeFormText = value;
-						await updateFeaturesDataset(feature);
-					})}
-					value={featureDetails.freeFormText}
-					maxLength={100}
-				/>
-			)
-		}
-	}
+  function freeFormTextBox() {
+    if (featureDetails && featureDetails.what === kWhatOptionText) {
+      return (
+        <TextBox
+          className='sq-fc-part'
+          placeholder="type something here"
+          onValueChanged={action(async value => {
+            featureDetails.freeFormText = value;
+            await updateFeaturesDataset(feature);
+          })}
+          value={featureDetails.freeFormText}
+          maxLength={100}
+        />
+      )
+    }
+  }
 
-	function punctuationChoice() {
-		if (featureDetails && featureDetails.what === kWhatOptionPunctuation) {
-			return (
-				<TextBox
-					className='sq-fc-part'
-					placeholder="punctuation mark"
-					onValueChanged={action(async value => {
-						featureDetails.punctuation = value;
-						await updateFeaturesDataset(feature);
-					})}
-					value={featureDetails.punctuation}
-					maxLength={1}
-				/>
-			)
-		}
-	}
+  function punctuationChoice() {
+    if (featureDetails && featureDetails.what === kWhatOptionPunctuation) {
+      return (
+        <TextBox
+          className='sq-fc-part'
+          placeholder="punctuation mark"
+          onValueChanged={action(async value => {
+            featureDetails.punctuation = value;
+            await updateFeaturesDataset(feature);
+          })}
+          value={featureDetails.punctuation}
+          maxLength={1}
+        />
+      )
+    }
+  }
 
-	function wordListChoice() {
-		if (featureDetails && featureDetails.what === kWhatOptionList) {
-			const tWordListDatasetNames = featureStore.wordListSpecs.map(iDataset => iDataset.datasetName);
-			const tLists = Object.keys(SQ.lists).concat(tWordListDatasetNames);
+  function wordListChoice() {
+    if (featureDetails && featureDetails.what === kWhatOptionList) {
+      const tWordListDatasetNames = featureStore.wordListSpecs.map(iDataset => iDataset.datasetName);
+      const tLists = Object.keys(SQ.lists).concat(tWordListDatasetNames);
 
-			const handleValueChange = action((option: string) => {
-				const tWordListSpec = featureStore.wordListSpecs.find((iSpec) => {
-					return iSpec.datasetName === option
-				})
-				const tAttributeName = tWordListSpec?.firstAttributeName ?? '';
-				(feature.info.details as SearchDetails).wordList = {
-					datasetName: option,
-					firstAttributeName: tAttributeName
-				};
-			})
+      const handleValueChange = action((option: string) => {
+        const tWordListSpec = featureStore.wordListSpecs.find((iSpec) => {
+          return iSpec.datasetName === option
+        })
+        const tAttributeName = tWordListSpec?.firstAttributeName ?? '';
+        (feature.info.details as SearchDetails).wordList = {
+          datasetName: option,
+          firstAttributeName: tAttributeName
+        };
+      })
 
-			return (
-				<SelectBox
-					className='word-list-select'
-					dataSource={tLists}
-					defaultValue={featureDetails.wordList.datasetName}
-					placeholder={'choose list'}
-					style={{display: 'inline-block'}}
-					onValueChange={handleValueChange}
-					value={featureDetails?.wordList.datasetName}
-				/>
-			)
-		}
-	}
+      return (
+        <SelectBox
+          className='word-list-select'
+          dataSource={tLists}
+          defaultValue={featureDetails.wordList.datasetName}
+          placeholder={'choose list'}
+          style={{display: 'inline-block'}}
+          onValueChange={handleValueChange}
+          value={featureDetails?.wordList.datasetName}
+        />
+      )
+    }
+  }
 
-	function ngramSettings() {
-		if (feature.info.kind === kFeatureKindNgram)
-			return (<div className='sq-feature-ngram-settings'>
-				<CheckBox
-					text=' Ignore stopwords'
-					value={!!feature.info.ignoreStopWords}
-					hint={Object.keys(stopWords).join(', ')}
-					onValueChanged={action(() => feature.info.ignoreStopWords = !feature.info.ignoreStopWords)}
-				/>
-				<div className='sq-feature-ngram-ignore-settings'>
-					<span>Ignore words that appear fewer than </span>
-					<NumberBox
-						width={40}
-						min={1}
-						max={100}
-						value={feature.info.frequencyThreshold}
-						onValueChanged={action(value => feature.info.frequencyThreshold = value)}
-					/>
-					<span> times</span>
-				</div>
-			</div>)
-	}
+  function ngramSettings() {
+    if (feature.info.kind === kFeatureKindNgram)
+      return (<div className='sq-feature-ngram-settings'>
+        <CheckBox
+          text=' Ignore stopwords'
+          value={!!feature.info.ignoreStopWords}
+          hint={Object.keys(stopWords).join(', ')}
+          onValueChanged={action(() => feature.info.ignoreStopWords = !feature.info.ignoreStopWords)}
+        />
+        <div className='sq-feature-ngram-ignore-settings'>
+          <span>Ignore words that appear fewer than </span>
+          <NumberBox
+            width={40}
+            min={1}
+            max={100}
+            value={feature.info.frequencyThreshold}
+            onValueChanged={action(value => feature.info.frequencyThreshold = value)}
+          />
+          <span> times</span>
+        </div>
+      </div>)
+  }
 
-	return (
-		<div className='sq-component'>
-			{kindOfContainsChoice()}
-			{kindOfThingContainedChoice()}
-			{freeFormTextBox()}
-			{punctuationChoice()}
-			{wordListChoice()}
-			{ngramSettings()}
-		</div>
-	)
+  return (
+    <div className='sq-component'>
+      {kindOfContainsChoice()}
+      {kindOfThingContainedChoice()}
+      {freeFormTextBox()}
+      {punctuationChoice()}
+      {wordListChoice()}
+      {ngramSettings()}
+    </div>
+  )
 });

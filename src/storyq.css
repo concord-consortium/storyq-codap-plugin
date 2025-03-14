@@ -58,12 +58,12 @@ table {
 }
 
 .ui-tabpanel-tabs {
-	flex: 0 0 content;
+  flex: 0 0 content;
 }
 
 .ui-tab-panel-container {
-	flex-grow: 1;
-	flex-shrink: 1;
+  flex-grow: 1;
+  flex-shrink: 1;
 }
 
 .title {

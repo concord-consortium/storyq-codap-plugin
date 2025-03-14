@@ -9,14 +9,14 @@ import { featureStore } from "../stores/feature_store";
 import { FeaturePane } from "./feature_pane";
 
 export const FeaturePanel = observer(function FeaturePanel() {
-	useEffect(() => {
-		domainStore.updateNonNtigramFeaturesDataset();
-		featureStore.updateWordListSpecs();
-	}, []);
+  useEffect(() => {
+    domainStore.updateNonNtigramFeaturesDataset();
+    featureStore.updateWordListSpecs();
+  }, []);
 
-	return (
-		<div className='sq-feature-panel'>
-			<FeaturePane />
-		</div>
-	);
+  return (
+    <div className='sq-feature-panel'>
+      <FeaturePane />
+    </div>
+  );
 });
