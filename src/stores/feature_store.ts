@@ -48,7 +48,11 @@ export class FeatureStore {
   featureWeightCaseIDs: Record<string, number> = {}
 
   constructor() {
-    makeAutoObservable(this, { tokenMap: false, featureWeightCaseIDs: false }, { autoBind: true });
+    // It would be better if caseIdTokenMap and tokenMap were observable. However, making tokenMap observable
+    // causes serious problems that don't seem like they'd be easy to fix.
+    makeAutoObservable(
+      this, { caseIdTokenMap: false, tokenMap: false, featureWeightCaseIDs: false }, { autoBind: true }
+    );
   }
 
   setCaseIdTokenMap(map: Record<number, Token>) {
@@ -199,8 +203,12 @@ export class FeatureStore {
 
   getTokenByCaseId(caseId: string | number) {
     const numberId = Number(caseId);
-    return this.caseIdTokenMap[numberId] ??
-      Object.values(this.tokenMap).find(iToken => iToken.featureCaseID === numberId);
+    const caseIdToken = this.caseIdTokenMap[numberId];
+    if (caseIdToken) return caseIdToken;
+    
+    const token = Object.values(this.tokenMap).find(iToken => iToken.featureCaseID === numberId);
+    if (token) this.caseIdTokenMap[numberId] = token;
+    return token;
   }
 
   getFeatureOrTokenByCaseId(caseId: string | number) {
