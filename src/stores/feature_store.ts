@@ -48,6 +48,8 @@ export class FeatureStore {
   featureWeightCaseIDs: Record<string, number> = {}
 
   constructor() {
+    // It would be better if caseIdTokenMap and tokenMap were observable. However, making tokenMap observable
+    // causes serious problems that don't seem like they'd be easy to fix.
     makeAutoObservable(
       this, { caseIdTokenMap: false, tokenMap: false, featureWeightCaseIDs: false }, { autoBind: true }
     );
