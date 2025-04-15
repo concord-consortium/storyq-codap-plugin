@@ -27,6 +27,9 @@ export class TextFeedbackManager {
   isSelectingTargetPhrases = false;
   lastSelectionType: "features" | "targetDataset" = "features";
 
+  private debounceTimeoutId: number | null = null;
+  private lastNotification: CODAP_Notification | null = null;
+
   constructor() {
     this.handleNotification = this.handleNotification.bind(this);
     this.headingsManager = new HeadingsManager();
@@ -36,26 +39,38 @@ export class TextFeedbackManager {
   async handleNotification(iNotification: CODAP_Notification) {
     if (this.isSelectingFeatures || this.isSelectingTargetPhrases) return;
 
-    const tTargetDatasetName = targetStore.targetDatasetInfo.name,
-      tTestingDatasetName = testingStore.testingDatasetInfo.name,
-      tFeatureDatasetName = featureStore.featureDatasetInfo.datasetName;
+    this.lastNotification = iNotification;
 
-    const { values } = iNotification;
-    const operation = Array.isArray(values) ? values[0].operation : values.operation;
-    if (iNotification.action === 'notify' && operation === 'selectCases') {
-      const tDataContextName = iNotification.resource && iNotification.resource.match(/\[(.+)]/)?.[1];
-      if (tDataContextName) {
-        let updatePane = false;
-        if (tDataContextName === tFeatureDatasetName) {
-          this.lastSelectionType = "features";
-          updatePane = true;
-        } else if ([tTestingDatasetName, tTargetDatasetName].includes(tDataContextName)) {
-          this.lastSelectionType = "targetDataset";
-          updatePane = true;
-        }
-        if (updatePane) await this.updateTextPane();
-      }
+    if (this.debounceTimeoutId !== null) {
+      window.clearTimeout(this.debounceTimeoutId);
     }
+
+    this.debounceTimeoutId = window.setTimeout(async () => {
+      // Only process if this is still the most recent notification
+      if (this.lastNotification === iNotification) {
+
+        const tTargetDatasetName = targetStore.targetDatasetInfo.name,
+          tTestingDatasetName = testingStore.testingDatasetInfo.name,
+          tFeatureDatasetName = featureStore.featureDatasetInfo.datasetName;
+
+        const { values } = iNotification;
+        const operation = Array.isArray(values) ? values[0].operation : values.operation;
+        if (iNotification.action === 'notify' && operation === 'selectCases') {
+          const tDataContextName = iNotification.resource && iNotification.resource.match(/\[(.+)]/)?.[1];
+          if (tDataContextName) {
+            let updatePane = false;
+            if (tDataContextName === tFeatureDatasetName) {
+              this.lastSelectionType = "features";
+              updatePane = true;
+            } else if ([tTestingDatasetName, tTargetDatasetName].includes(tDataContextName)) {
+              this.lastSelectionType = "targetDataset";
+              updatePane = true;
+            }
+            if (updatePane) await this.updateTextPane();
+          }
+        }
+      }
+    }, 250);
   }
 
   async updateTextPane() {
@@ -130,7 +145,6 @@ export class TextFeedbackManager {
       } = this.getBasicInfo(),
       tFeaturesMap: Record<number, string> = {},
       tCaseRequests: APIRequest[] = [];
-
 
     // If we have a testing dataset but no test has been run, we're done
     if (useTestingDataset && testingStore.testingResultsArray.length === 0) return;
@@ -226,8 +240,9 @@ export class TextFeedbackManager {
 
     // Select the target texts that make use of the selected features
     const tUsedCaseIDs = Array.from(tUsedIDsSet);
+
     await codapInterface.sendRequest({
-      action: 'create',
+      action: "create",
       resource: `dataContext[${tDatasetName}].selectionList`,
       values: tUsedCaseIDs
     });
@@ -304,7 +319,7 @@ export class TextFeedbackManager {
     async function handleSelectionInFeaturesDataset() {
       // Select the features or, possibly, deselect all features
       await codapInterface.sendRequest({
-        action: 'create',
+        action: "create",
         resource: `dataContext[${datasetName}].selectionList`,
         values: tIDsOfFeaturesToSelect
       });
@@ -324,13 +339,11 @@ export class TextFeedbackManager {
     }
 
     async function handleSelectionInTargetDataset() {
-      if (tIDsOfParentCasesToSelect.length > 0) {
-        await codapInterface.sendRequest({
-          action: 'create',
-          resource: `dataContext[${tDatasetName}].selectionList`,
-          values: tIDsOfParentCasesToSelect
-        });
-      }
+      await codapInterface.sendRequest({
+        action: "create",
+        resource: `dataContext[${tDatasetName}].selectionList`,
+        values: tIDsOfParentCasesToSelect
+      });
     }
 
     // For the texts, we just need to record their caseIDs. For the results, we record a request to get parents
@@ -436,6 +449,7 @@ export class TextFeedbackManager {
     const tIDsOfFeaturesToSelect: number[] = Array.from(tFeatureIDsSet),
       tIDsOfParentCasesToSelect: number[] = Array.from(tSelectedTextsSet);
     await handleSelectionInTargetDataset();
+
     if (await datasetExists(datasetName))
       await handleSelectionInFeaturesDataset();
 
