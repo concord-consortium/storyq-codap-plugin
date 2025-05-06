@@ -66,9 +66,6 @@ jobs:
       - build_test
       - cypress
     runs-on: ubuntu-latest
-    environment:
-      name: ${{ github.ref_type == 'branch' && 'branches' || 'versions' }}
-      url: https://models-resources.concord.org/storyq/${{ steps.s3-deploy.outputs.deployPath }}/index.html
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -85,6 +82,8 @@ jobs:
           prefix: storyq
           awsAccessKeyId: ${{ secrets.AWS_ACCESS_KEY_ID }}
           awsSecretAccessKey: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+          deployRunUrl: https://models-resources.concord.org/storyq/__deployPath__/index.html
           folderToDeploy: build
           # Parameters to GHActions have to be strings, so a regular yaml array cannot
           # be used. Instead the `|` turns the following lines into a string
