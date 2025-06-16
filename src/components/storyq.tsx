@@ -75,12 +75,15 @@ const Storyq = observer(class Storyq extends Component<IStoryqProps, {}> {
     }
 
     getPluginStore() {
+      // We stringify and then parse the JSON to remove functions.
+      // When present, these cause attempts to transfer the stores to CODAP to fail.
+      const values = JSON.parse(JSON.stringify({
+        domainStore: domainStore.asJSON(),
+        uiStore: uiStore.asJSON()
+      }))
       return {
         success: true,
-        values: {
-          domainStore: domainStore.asJSON(),
-          uiStore: uiStore.asJSON()
-        }
+        values
       };
     }
 
