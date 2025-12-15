@@ -115,7 +115,7 @@ export const featureDescriptors: FeatureDescriptors = {
     kContainOptionCount
   ],
   kindOfThingContainedOptions: [
-    kWhatOptionText, kWhatOptionPunctuation, kWhatOptionNumber, kWhatOptionList
+    kWhatOptionText, kWhatOptionNumber, kWhatOptionList
   ],
   caseOptions: ['sensitive', 'insensitive']
 }
