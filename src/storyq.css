@@ -33,7 +33,7 @@ table {
     flex-direction: column;
     justify-content: space-between;
     gap: 0;
-    width: 429px;
+    width: 100%;
 }
 
 .sq-welcome {
