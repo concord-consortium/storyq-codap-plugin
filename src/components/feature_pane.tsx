@@ -80,7 +80,7 @@ const FeatureInstructions = observer(function FeatureInstructions() {
   return (
     <div className="sq-info-prompt">
       {featureStore.features.length === 0
-        ? <p>What features of the training data should StoryQ use to train the model?</p>
+        ? <p>What features would you like to extract from the data?</p>
         : (
           <p>
             Add more features or go to <span

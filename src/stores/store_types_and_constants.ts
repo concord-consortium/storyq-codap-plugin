@@ -92,11 +92,11 @@ export const featureDescriptors: FeatureDescriptors = {
     {
       key: "Extract one feature at a time",
       items: [
+        { name: kContainOptionCount, value: { kind: "search", details: { where: kContainOptionCount } } },
         { name: kContainOptionContain, value: { kind: "search", details: { where: kContainOptionContain } } },
         { name: kContainOptionNotContain, value: { kind: "search", details: { where: kContainOptionNotContain } } },
         { name: kContainOptionStartWith, value: { kind: "search", details: { where: kContainOptionStartWith } } },
         { name: kContainOptionEndWith, value: { kind: "search", details: { where: kContainOptionEndWith } } },
-        { name: kContainOptionCount, value: { kind: "search", details: { where: kContainOptionCount } } }
       ]
     },
     {
