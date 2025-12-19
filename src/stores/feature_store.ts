@@ -300,10 +300,13 @@ export class FeatureStore {
   }
 
   async deleteFeature(iFeature: Feature) {
-    // before deleting the feature, get the index of all features with the same name to help with deletion
-    const matchingFeatureNameIndexes = this.features.map((feat, index) => feat.name === iFeature.name ? index : -1);
-
     const tFoundIndex = this.features.indexOf(iFeature);
+
+    // before deleting the feature, get the count of features with the same name before this feature - this
+    // will serve as the index when deleting cases from CODAP when the featureItemID is missing and we need
+    // to search by name
+    const featureIndexToDelete = this.features.filter((feat, index) => feat.name === iFeature.name && index < tFoundIndex).length;
+
     if (tFoundIndex >= 0) {
       this.features.splice(tFoundIndex, 1);
     }
@@ -316,11 +319,11 @@ export class FeatureStore {
         });
       } else {
         // featureItemID is missing for saved documents so instead we search for the cases by name,
-        // there may be multiple features with the same name so use the index of the feature to delete
-        const featureIndexToDelete = matchingFeatureNameIndexes.indexOf(tFoundIndex);
+        // using the featureIndexToDelete to get the correct one if there are multiple with the same name
+        const escapedFeatureName = iFeature.name.replace(/\\/g, '\\\\').replace(/'/g, '\\\'');
         const tCasesSearchResult = await codapInterface.sendRequest({
           action: 'get',
-          resource: `dataContext[${this.featureDatasetID}].collection[${this.featureDatasetInfo.collectionName}].caseFormulaSearch[name=='${iFeature.name}']`
+          resource: `dataContext[${this.featureDatasetID}].collection[${this.featureDatasetInfo.collectionName}].caseFormulaSearch[name=='${escapedFeatureName}']`
         }) as GetCaseFormulaSearchResponse;
         if (tCasesSearchResult.success && tCasesSearchResult.values?.[featureIndexToDelete]) {
           const caseIDToDelete = tCasesSearchResult.values[featureIndexToDelete].id;
