@@ -205,7 +205,7 @@ export class FeatureStore {
     const numberId = Number(caseId);
     const caseIdToken = this.caseIdTokenMap[numberId];
     if (caseIdToken) return caseIdToken;
-    
+
     const token = Object.values(this.tokenMap).find(iToken => iToken.featureCaseID === numberId);
     if (token) this.caseIdTokenMap[numberId] = token;
     return token;
@@ -300,16 +300,36 @@ export class FeatureStore {
   }
 
   async deleteFeature(iFeature: Feature) {
+    // before deleting the feature, get the index of all features with the same name to help with deletion
+    const matchingFeatureNameIndexes = this.features.map((feat, index) => feat.name === iFeature.name ? index : -1);
+
     const tFoundIndex = this.features.indexOf(iFeature);
     if (tFoundIndex >= 0) {
       this.features.splice(tFoundIndex, 1);
     }
     if (iFeature.type !== kFeatureTypeUnigram) {
       const { targetDatasetInfo } = targetDatasetStore;
-      await codapInterface.sendRequest({
-        action: 'delete',
-        resource: `dataContext[${this.featureDatasetID}].itemByID[${iFeature.featureItemID}]`
-      });
+      if (iFeature.featureItemID && iFeature.featureItemID !== "undefined") {
+        await codapInterface.sendRequest({
+          action: 'delete',
+          resource: `dataContext[${this.featureDatasetID}].itemByID[${iFeature.featureItemID}]`
+        });
+      } else {
+        // featureItemID is missing for saved documents so instead we search for the cases by name,
+        // there may be multiple features with the same name so use the index of the feature to delete
+        const featureIndexToDelete = matchingFeatureNameIndexes.indexOf(tFoundIndex);
+        const tCasesSearchResult = await codapInterface.sendRequest({
+          action: 'get',
+          resource: `dataContext[${this.featureDatasetID}].collection[${this.featureDatasetInfo.collectionName}].caseFormulaSearch[name=='${iFeature.name}']`
+        }) as GetCaseFormulaSearchResponse;
+        if (tCasesSearchResult.success && tCasesSearchResult.values?.[featureIndexToDelete]) {
+          const caseIDToDelete = tCasesSearchResult.values[featureIndexToDelete].id;
+          await codapInterface.sendRequest({
+            action: 'delete',
+            resource: `dataContext[${this.featureDatasetID}].collection[${this.featureDatasetInfo.collectionName}].caseByID[${caseIDToDelete}]`
+          });
+        }
+      }
       const tCollectionListResult = await codapInterface.sendRequest({
         action: 'get',
         resource: `dataContext[${targetDatasetInfo.id}].collectionList`
