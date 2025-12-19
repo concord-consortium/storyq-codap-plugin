@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import { reaction } from "mobx";
 import { observer } from "mobx-react";
 import pluralize from "pluralize";
@@ -48,15 +48,20 @@ export const TextPane = observer(function TextPane() {
   const sectionHeight = textHeight / visibleTextSectionCount;
 
   // sort the text sections so the target label section comes first
-  const textSections = [...textStore.textSections];
   const chosenTargetClassName = targetStore.chosenTargetClassName;
-  if (chosenTargetClassName) {
-    textSections.sort((a, b) => {
-      if (a.title?.actual === chosenTargetClassName) return -1;
-      if (b.title?.actual === chosenTargetClassName) return 1;
-      return 0;
-    });
-  }
+  const textSections = textStore.textSections;
+  const sortedTextSections = useMemo(() => {
+    const result = [...textSections];
+    if (chosenTargetClassName) {
+      result.sort((a, b) => {
+        const aIsTarget = !!(a.title && a.title.actual === chosenTargetClassName);
+        const bIsTarget = !!(b.title && b.title.actual === chosenTargetClassName);
+        if (aIsTarget === bIsTarget) return 0;
+        return aIsTarget ? -1 : 1;
+      });
+    }
+    return result;
+  }, [chosenTargetClassName, textSections]);
 
   return (
     <div className="text-pane" style={{ height: paneHeight }}>
@@ -64,7 +69,7 @@ export const TextPane = observer(function TextPane() {
         <TextPaneTitle />
       </div>
       <div className="text-container" style={{ height: containerHeight }}>
-        {textSections.map(textSection => (
+        {sortedTextSections.map(textSection => (
           <TextSection
             key={textStore.getTextSectionId(textSection)}
             textHeight={sectionHeight}
