@@ -69,7 +69,7 @@ export class TargetStore {
   constructor() {
     makeAutoObservable(this, { targetLeftColumnKey: false }, { autoBind: true });
   }
-  
+
   setTargetPanelMode(mode: panelModes) {
     this.targetPanelMode = mode;
   }
@@ -164,6 +164,10 @@ export class TargetStore {
     return key ? this.targetClassNames[key] : "";
   }
 
+  get chosenTargetClassName() {
+    return this.getTargetClassName(this.targetChosenClassColumnKey);
+  }
+
   get positiveClassName() {
     if (this.targetChosenClassColumnKey) return this.targetClassNames[this.targetChosenClassColumnKey];
     return "";
@@ -254,7 +258,7 @@ export class TargetStore {
     this.setTargetClassAttributeValues(tClassAttributeValues);
     this.setTargetPredictedLabelAttributeName('predicted ' + this.targetClassAttributeName);
     this.setTargetColumnFeatureNames(tColumnFeatureNames);
-      
+
     if (tTargetDatasetName !== '' && this.targetCollectionName !== '') {
       await guaranteeAttribute({ name: this.targetFeatureIDsAttributeName, hidden: true },
         tTargetDatasetName, this.targetCollectionName);
@@ -387,7 +391,7 @@ export class TargetStore {
         await scrollCaseTableToRight(targetDatasetName);
       }
     } else {
-      const tResource = 
+      const tResource =
         `dataContext[${targetDatasetName}].collection[${this_.targetCollectionName}].attribute[${iNewFeature.attrID}]`;
       await codapInterface.sendRequest({
         action: 'update',

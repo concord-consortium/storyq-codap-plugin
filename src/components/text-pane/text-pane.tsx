@@ -47,13 +47,24 @@ export const TextPane = observer(function TextPane() {
   const textHeight = containerHeight - textStore.textSections.length * textSectionTitleHeight;
   const sectionHeight = textHeight / visibleTextSectionCount;
 
+  // sort the text sections so the target label section comes first
+  const textSections = [...textStore.textSections];
+  const chosenTargetClassName = targetStore.chosenTargetClassName;
+  if (chosenTargetClassName) {
+    textSections.sort((a, b) => {
+      if (a.title?.actual === chosenTargetClassName) return -1;
+      if (b.title?.actual === chosenTargetClassName) return 1;
+      return 0;
+    });
+  }
+
   return (
     <div className="text-pane" style={{ height: paneHeight }}>
       <div className="text-title" style={{ height: titleHeight }}>
         <TextPaneTitle />
       </div>
       <div className="text-container" style={{ height: containerHeight }}>
-        {textStore.textSections.map(textSection => (
+        {textSections.map(textSection => (
           <TextSection
             key={textStore.getTextSectionId(textSection)}
             textHeight={sectionHeight}
