@@ -61,7 +61,7 @@ export const TextPane = observer(function TextPane() {
     };
 
     // delay initial height calculation to allow DOM to fully render
-    const timer = setTimeout(updateHeight, 0);
+    requestAnimationFrame(updateHeight);
 
     // update height on window resize
     window.addEventListener('resize', updateHeight);
@@ -74,7 +74,6 @@ export const TextPane = observer(function TextPane() {
     }
 
     return () => {
-      clearTimeout(timer);
       window.removeEventListener('resize', updateHeight);
       if (resizeObserver) {
         resizeObserver.disconnect();
