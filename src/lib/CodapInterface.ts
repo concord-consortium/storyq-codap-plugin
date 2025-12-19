@@ -215,10 +215,18 @@ const codapInterface = {
   init: function (iConfig: IConfig, iCallback?: (arg0: any) => void) {
     let this_ = this;
     return new Promise(function (resolve: (arg0: any) => void, reject: { (arg0: string): void; (arg0: any): void; }) {
-      function getFrameRespHandler(resp: { values: { error: any; savedState: any }; success: boolean }[]) {
+      async function getFrameRespHandler(resp: { values: { error: any; savedState: any }; success: boolean }[]) {
         let success = resp && resp[1] && resp[1].success;
         let receivedFrame = success && resp[1].values;
         let savedState = receivedFrame && receivedFrame.savedState;
+
+        if (!savedState) {
+          // this is a new instance of the plugin so use the initial dimensions passed - existing instances
+          // will have their saved dimensions set by CODAP when the plugin is added to the document
+          const values = {dimensions: iConfig.dimensions};
+          await codapInterface.sendRequest({ action: "update", resource: "interactiveFrame", values});
+        }
+
         this_.updateInteractiveState(savedState);
         if (success) {
           // deprecated way of conveying state
@@ -241,11 +249,13 @@ const codapInterface = {
       }
 
       let getFrameReq = {action: 'get', resource: 'interactiveFrame'};
+      // NOTE: dimensions are not being set here as this plugin may be restoring from a saved CODAP
+      // document which has saved the plugin window dimensions.  We check in getFrameRespHandler
+      // whether there is saved state and if not we set the initial dimensions there.
       let newFrame = {
         name: iConfig.name,
         title: iConfig.title,
         version: iConfig.version,
-        dimensions: iConfig.dimensions,
         preventBringToFront: iConfig.preventBringToFront,
         preventDataContextReorg: iConfig.preventDataContextReorg,
         cannotClose: iConfig.cannotClose
