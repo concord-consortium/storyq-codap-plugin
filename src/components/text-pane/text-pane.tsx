@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { reaction } from "mobx";
 import { observer } from "mobx-react";
 import pluralize from "pluralize";
@@ -12,10 +12,7 @@ import { TextSection, textSectionTitleHeight } from "./text-section";
 
 import "./text-pane.scss";
 
-const paneHeight = 395;
 const titleHeight = 36;
-const containerVerticalPadding = 4;
-const containerHeight = paneHeight - titleHeight - containerVerticalPadding * 2;
 
 const TextPaneTitle = observer(function TextPaneTitle() {
   const _dataset = textStore.titleDataset === "target"
@@ -35,7 +32,11 @@ const TextPaneTitle = observer(function TextPaneTitle() {
 });
 
 export const TextPane = observer(function TextPane() {
-  // Update the text pane when the highlight state of any feature changes
+  const paneRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerHeight, setContainerHeight] = useState(0);
+
+  // update the text pane when the highlight state of any feature changes
   useEffect(() => {
     return reaction(
       () => featureStore.highlights,
@@ -43,16 +44,56 @@ export const TextPane = observer(function TextPane() {
     );
   }, []);
 
+  // calculate container height based on parent height
+  useEffect(() => {
+    const updateHeight = () => {
+      if (paneRef.current) {
+        const paneHeight = paneRef.current.clientHeight;
+        const calculatedContainerHeight = paneHeight - titleHeight;
+        // Only update if the height actually changed to prevent infinite loops
+        setContainerHeight(prev => {
+          if (prev !== calculatedContainerHeight) {
+            return calculatedContainerHeight;
+          }
+          return prev;
+        });
+      }
+    };
+
+    // delay initial height calculation to allow DOM to fully render
+    const timer = setTimeout(updateHeight, 0);
+
+    // update height on window resize
+    window.addEventListener('resize', updateHeight);
+
+    // observe the parent element of the pane, not the pane itself
+    let resizeObserver: ResizeObserver | null = null;
+    if (paneRef.current?.parentElement) {
+      resizeObserver = new ResizeObserver(updateHeight);
+      resizeObserver.observe(paneRef.current.parentElement);
+    }
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', updateHeight);
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
+    };
+  }, []);
+
   const visibleTextSectionCount = textStore.textSections.filter(textSection => !textSection.hidden).length;
-  const textHeight = containerHeight - textStore.textSections.length * textSectionTitleHeight;
-  const sectionHeight = textHeight / visibleTextSectionCount;
+  const textHeight = containerHeight > 0
+    ? containerHeight - textStore.textSections.length * textSectionTitleHeight
+    : 0;
+  const sectionHeight = visibleTextSectionCount > 0 ? textHeight / visibleTextSectionCount : 0;
 
   return (
-    <div className="text-pane" style={{ height: paneHeight }}>
+    <div className="text-pane" ref={paneRef}>
       <div className="text-title" style={{ height: titleHeight }}>
         <TextPaneTitle />
       </div>
-      <div className="text-container" style={{ height: containerHeight }}>
+      <div className="text-container" ref={containerRef} style={{ height: containerHeight }}>
         {textStore.textSections.map(textSection => (
           <TextSection
             key={textStore.getTextSectionId(textSection)}
