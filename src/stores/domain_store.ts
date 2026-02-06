@@ -553,8 +553,6 @@ export class DomainStore {
       });
       const tFeatureName = String(iFeatureCase.values.name);
       const tFeatureType = String(iFeatureCase.values.type);
-      // Features will only highlight with a child case id
-      const childCaseId = iFeatureCase.children?.[0];
 
       tTargetCases.forEach(iTargetCase => {
         const tTargetHasFeature = ['constructed', 'column'].includes(tFeatureType)
@@ -567,15 +565,9 @@ export class DomainStore {
           if (!tUsageResults[iFeatureCase.id]) tUsageResults[iFeatureCase.id] = [];
           tUsageResults[iFeatureCase.id].push(iTargetCase.id);
           if (!tTextResults[iTargetCase.id]) tTextResults[iTargetCase.id] = [];
-          // Would it be better to include all child case ids here?
-          if (childCaseId) tTextResults[iTargetCase.id].push(childCaseId);
+          tTextResults[iTargetCase.id].push(iFeatureCase.id);
         }
       })
-      // We need to store the featureCaseID in the token map while we've got it
-      if (featureStore.tokenMap[tFeatureName] && childCaseId) {
-        // Would it be better to include all child case ids here?
-        featureStore.updateTokenCaseId(featureStore.tokenMap[tFeatureName], childCaseId);
-      }
     });
     // Now we can update the target and feature cases
     const tMsgs: UpdateCaseRequest[] = [

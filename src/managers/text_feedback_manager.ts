@@ -271,9 +271,24 @@ export class TextFeedbackManager {
           }
         }
 
+        // TODO: Claude says the following three lines contain a bug, and recommended the commented code instead.
+        // I don't fully understand the commented code, so I'm not going to use it, but maybe Claude is right.
+        // let tPredictedClass = '';
+        // if (useTestingDataset) {
+        //   // Testing dataset stores predicted labels directly on the case (no child "results" collection)
+        //   tPredictedClass = String(tGetCaseResult.values.case.values[tPredictedLabelAttributeName] ?? '');
+        // } else {
+        //   const tChildIDs = tGetCaseResult.values.case.children;
+        //   if (tChildIDs && tChildIDs.length > 0) {
+        //     const tChildren = await this.getChildCases(tChildIDs, tDatasetName, 'results');
+        //     const tFoundChild = tChildren.find(iChild => iChild['model name'] === trainingStore.firstActiveModelName);
+        //     tPredictedClass = String(tFoundChild?.[tPredictedLabelAttributeName] ?? '');
+        //   }
+        // }
         const tChildren = await this.getChildCases(tGetCaseResult.values.case.children, tDatasetName, 'results');
         const tFoundChild = tChildren.find(iChild => iChild['model name'] === trainingStore.firstActiveModelName);
         const tPredictedClass = tFoundChild ? tFoundChild[tPredictedLabelAttributeName] : '';
+
         const tActualClass = tGetCaseResult.values.case.values[tClassAttributeName];
         const tPhrase = tGetCaseResult.values.case.values[tAttributeName];
         const tQuadruple = {
@@ -380,7 +395,7 @@ export class TextFeedbackManager {
     ) as GetCaseByIDResponse[];
     // For each selected text stash its list of features, and stash the phrase, actual and predicted
     // labels in tQuadruples
-    tTextCasesResult.forEach(async iResult => {
+    for (const iResult of tTextCasesResult) {
       if (iResult.success && iResult.values) {
         const tCaseValues = iResult.values.case.values,
           tChildIDs = iResult.values.case.children,
@@ -444,7 +459,7 @@ export class TextFeedbackManager {
           index: iResult.values.caseIndex
         });
       }
-    });
+    }
 
     const tIDsOfFeaturesToSelect: number[] = Array.from(tFeatureIDsSet),
       tIDsOfParentCasesToSelect: number[] = Array.from(tSelectedTextsSet);
