@@ -18,13 +18,13 @@ function TextSectionTitle({ count, title }: ITextSectionTitleProps) {
     <span className="actual-title">
       {actual && (
         <>
-          <span>True label: </span><span className="label" style={{ color: actualColor }}>{actual}</span>
+          <span>True: </span><span className="label" style={{ color: actualColor }}>{actual}</span>
           {predicted && <span>,&nbsp;</span>}
         </>
       )}
       {predicted && (
         <>
-          <span>Predicted label: </span><span className="label" style={{ color: predictedColor }}>{predicted}</span>
+          <span>Predicted: </span><span className="label" style={{ color: predictedColor }}>{predicted}</span>
         </>
       )}
       <span>&nbsp;</span>
