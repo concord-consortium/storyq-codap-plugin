@@ -81,11 +81,9 @@ export const TextPane = observer(function TextPane() {
     };
   }, []);
 
-  const visibleTextSectionCount = textStore.textSections.filter(textSection => !textSection.hidden).length;
-  const textHeight = containerHeight > 0
-    ? containerHeight - textStore.textSections.length * textSectionTitleHeight
-    : 0;
-  const sectionHeight = visibleTextSectionCount > 0 ? textHeight / visibleTextSectionCount : 0;
+  const sectionCount = textStore.textSections.length;
+  const textHeight = containerHeight > 0 ? containerHeight - sectionCount * textSectionTitleHeight : 0;
+  const sectionHeight = sectionCount > 0 ? textHeight / sectionCount : 0;
 
   // sort the text sections so the target label section comes first
   const chosenTargetClassName = targetStore.chosenTargetClassName;

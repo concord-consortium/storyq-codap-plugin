@@ -1,8 +1,5 @@
 import React from "react";
-import { clsx } from "clsx";
-import { ReactComponent as CollapseExpandIcon } from "../../assets/collapse-expand-icon.svg";
 import { ITextSection, ITextSectionTitle } from "../../stores/store_types_and_constants";
-import { textStore } from "../../stores/text_store";
 import { TextParts } from "./text-parts";
 
 import "./text-section.scss";
@@ -41,38 +38,32 @@ interface ITextSectionProps {
   textSection: ITextSection;
 }
 export function TextSection({ textHeight, textSection }: ITextSectionProps) {
-  const { hidden, text, title } = textSection;
-  const height = textSectionTitleHeight + (!hidden ? textHeight : 0);
+  const { text, title } = textSection;
+  const height = textSectionTitleHeight + textHeight;
   return (
     <div className="text-section" style={{ height }}>
-      <button
+      <div
         className="text-section-title"
-        onClick={() => textStore.toggleTextSectionVisibility(textSection)}
         style={{ height: textSectionTitleHeight }}
       >
         <TextSectionTitle count={text.length} title={title} />
-        <div className={clsx("hide-icon", { hidden })}>
-          <CollapseExpandIcon />
-        </div>
-      </button>
-      {!hidden && (
-        <div className="text-section-text" style={{ height: textHeight }}>
-          {text.map((textSectionText, index) => {
-            const indexString = textSectionText.index != null ? `${textSectionText.index + 1}:` : "";
-            return (
-              <div key={indexString}>
-                <div className="phrase-row">
-                  <div className="phrase-index">{indexString}</div>
-                  <div className="phrase">
-                    <TextParts textParts={textSectionText.textParts} />
-                  </div>
+      </div>
+      <div className="text-section-text" style={{ height: textHeight }}>
+        {text.map((textSectionText, index) => {
+          const indexString = textSectionText.index != null ? `${textSectionText.index + 1}:` : "";
+          return (
+            <div key={indexString}>
+              <div className="phrase-row">
+                <div className="phrase-index">{indexString}</div>
+                <div className="phrase">
+                  <TextParts textParts={textSectionText.textParts} />
                 </div>
-                {index < text.length - 1 && <div className="divider" />}
               </div>
-            );
-          })}
-        </div>
-      )}
+              {index < text.length - 1 && <div className="divider" />}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

@@ -2,13 +2,10 @@
   .text-section-title {
     align-items: center;
     background-color: #dceff2;
-    border: none;
     color: #222222;
-    cursor: pointer;
     display: flex;
     font-size: 14px;
     font-weight: 600;
-    justify-content: space-between;
     padding: 0;
     width: 100%;
 
@@ -23,31 +20,6 @@
         font-style: italic;
         font-weight: 500;
       }
-    }
-
-    .hide-icon {
-      align-items: center;
-      display: flex;
-      justify-content: center;
-      margin-right: 10px;
-
-      svg {
-        rotate: 90deg;
-      }
-
-      &.hidden {
-        svg {
-          rotate: -90deg;
-        }
-      }
-    }
-
-    &:hover {
-      background-color: #b9dfe5;
-    }
-
-    &:active {
-      background-color: #95cfd7;
     }
   }
 

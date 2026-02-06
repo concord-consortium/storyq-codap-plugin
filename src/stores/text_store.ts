@@ -32,10 +32,6 @@ export class TextStore {
     return `section-${textSection.title?.actual}-${textSection.title?.predicted}`;
   }
 
-  toggleTextSectionVisibility(textSection: ITextSection) {
-    textSection.hidden = !textSection.hidden;
-  }
-
   async clearText() {
     this.setTextSections([]);
   }

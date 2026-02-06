@@ -354,7 +354,6 @@ export interface ITextSectionText {
   textParts: ITextPart[];
 }
 export interface ITextSection {
-  hidden?: boolean;
   text: ITextSectionText[];
   title?: ITextSectionTitle;
 }
