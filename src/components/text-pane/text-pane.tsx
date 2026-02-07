@@ -81,13 +81,13 @@ export const TextPane = observer(function TextPane() {
     };
   }, []);
 
-  const sectionCount = textStore.textSections.length;
+  const textSections = textStore.textSections;
+  const sectionCount = textSections.length;
   const textHeight = containerHeight > 0 ? containerHeight - sectionCount * textSectionTitleHeight : 0;
   const sectionHeight = sectionCount > 0 ? textHeight / sectionCount : 0;
 
   // sort the text sections so the target label section comes first
   const chosenTargetClassName = targetStore.chosenTargetClassName;
-  const textSections = textStore.textSections;
   const sortedTextSections = useMemo(() => {
     const result = [...textSections];
     if (chosenTargetClassName) {
@@ -109,6 +109,7 @@ export const TextPane = observer(function TextPane() {
       <div className="text-container" ref={containerRef} style={{ height: containerHeight }}>
         {sortedTextSections.map(textSection => (
           <TextSection
+            caseCount={textStore.caseCount}
             key={textStore.getTextSectionId(textSection)}
             textHeight={sectionHeight}
             textSection={textSection}

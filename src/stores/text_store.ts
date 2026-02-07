@@ -20,6 +20,10 @@ export class TextStore {
     makeAutoObservable(this, {}, { autoBind: true });
   }
 
+  get caseCount() {
+    return this.textSections.reduce((count, section) => count + section.text.length, 0);
+  }
+
   setTitleDataset(titleDataset: TitleDataset) {
     this.titleDataset = titleDataset;
   }
