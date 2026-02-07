@@ -34,31 +34,18 @@
     flex: 1;
     overflow-y: scroll;
 
-    .phrase-row {
-      display: flex;
-      flex-direction: row;
+    .phrase {
+      box-sizing: border-box;
+      color: #595959;
       font-size: 14px;
+      line-height: 1.36;
       padding: 8px 15px;
+      width: 100%;
 
-      .phrase-index {
-        align-items: flex-start;
+      .highlighted {
+        background-color: #fdf2d0;
         color: #222222;
-        display: flex;
-        justify-content: flex-end;
-        margin-right: 8px;
-        text-align: right;
-        width: 30px;
-      }
-
-      .phrase {
-        color: #595959;
-        width: 100%;
-
-        .highlighted {
-          background-color: #fdf2d0;
-          color: #222222;
-          font-weight: bold;
-        }
+        font-weight: bold;
       }
     }
 

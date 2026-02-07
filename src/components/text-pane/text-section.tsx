@@ -59,14 +59,11 @@ export function TextSection({ caseCount, height, textSection }: ITextSectionProp
       </div>
       <div className="text-section-text">
         {text.map((textSectionText, index) => {
-          const indexString = textSectionText.index != null ? `${textSectionText.index + 1}:` : "";
+          const indexString = textSectionText.index != null ? `(${textSectionText.index + 1}) ` : "";
           return (
             <div key={indexString}>
-              <div className="phrase-row">
-                <div className="phrase-index">{indexString}</div>
-                <div className="phrase">
-                  <TextParts textParts={textSectionText.textParts} />
-                </div>
+              <div className="phrase">
+                <TextParts textParts={[{text: indexString}, ...textSectionText.textParts]} />
               </div>
               {index < text.length - 1 && <div className="divider" />}
             </div>
