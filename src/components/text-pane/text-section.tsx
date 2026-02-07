@@ -2,6 +2,9 @@ import React from "react";
 import { ITextSection, ITextSectionTitle } from "../../stores/store_types_and_constants";
 import { TextParts } from "./text-parts";
 
+import { ReactComponent as CorrectIcon } from "../../assets/correct-icon.svg";
+import { ReactComponent as IncorrectIcon } from "../../assets/incorrect-icon.svg";
+
 import "./text-section.scss";
 
 interface ITextSectionTitleProps {
@@ -15,21 +18,30 @@ function TextSectionTitle({ caseCount, count, title }: ITextSectionTitleProps) {
   const { actual, actualColor, predicted, predictedColor } = title;
   const countPart = `${count} case${count === 1 ? "" : "s"}`;
   const percentPart = `${Math.round(count / caseCount * 100)}% of all`;
+
+  let AccuracyIcon: React.FC | null = null;
+  if (predicted) {
+    AccuracyIcon = actual === predicted ? CorrectIcon : IncorrectIcon;
+  } 
+
   return (
-    <span className="actual-title">
-      {actual && (
-        <div>
-          <span>True: </span><span className="label" style={{ color: actualColor }}>{actual}</span>
-          {predicted && <span>,</span>}
-        </div>
-      )}
-      {predicted && (
-        <div>
-          <span>Predicted: </span><span className="label" style={{ color: predictedColor }}>{predicted}</span>
-        </div>
-      )}
-      <div className="case-count">{`(${countPart}, ${percentPart})`}</div>
-    </span>
+    <>
+      <span className="actual-title">
+        {actual && (
+          <div>
+            <span>True: </span><span className="label" style={{ color: actualColor }}>{actual}</span>
+            {predicted && <span>,</span>}
+          </div>
+        )}
+        {predicted && (
+          <div>
+            <span>Predicted: </span><span className="label" style={{ color: predictedColor }}>{predicted}</span>
+          </div>
+        )}
+        <div className="case-count">{`(${countPart}, ${percentPart})`}</div>
+      </span>
+      {AccuracyIcon && <div className="accuracy-icon"><AccuracyIcon /></div>}
+    </>
   );
 }
 
