@@ -25,8 +25,8 @@ export class HeadingsManager {
     red: '#4b0092',
     blue: '#0000ff',
     orange: '#ff7700',
-    positiveOrange: '#e45b00',
-    negativeBlue: '#0066ff'
+    positiveOrange: '#B34700',
+    negativeBlue: '#005EEB'
   };
 
   constructor() {

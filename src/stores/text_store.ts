@@ -32,6 +32,10 @@ export class TextStore {
     this.textSections = sections;
   }
 
+  addTextSection(section: ITextSection) {
+    this.textSections.push(section);
+  }
+
   getTextSectionId(textSection: ITextSection) {
     return `section-${textSection.title?.actual}-${textSection.title?.predicted}`;
   }
