@@ -4,8 +4,6 @@ import { TextParts } from "./text-parts";
 
 import "./text-section.scss";
 
-export const textSectionTitleHeight = 28;
-
 interface ITextSectionTitleProps {
   caseCount: number;
   count: number;
@@ -37,21 +35,17 @@ function TextSectionTitle({ caseCount, count, title }: ITextSectionTitleProps) {
 
 interface ITextSectionProps {
   caseCount: number;
-  textHeight: number;
+  height: number;
   textSection: ITextSection;
 }
-export function TextSection({ caseCount, textHeight, textSection }: ITextSectionProps) {
+export function TextSection({ caseCount, height, textSection }: ITextSectionProps) {
   const { text, title } = textSection;
-  const height = textSectionTitleHeight + textHeight;
   return (
     <div className="text-section" style={{ height }}>
-      <div
-        className="text-section-title"
-        style={{ height: textSectionTitleHeight }}
-      >
+      <div className="text-section-title">
         <TextSectionTitle caseCount={caseCount} count={text.length} title={title} />
       </div>
-      <div className="text-section-text" style={{ height: textHeight }}>
+      <div className="text-section-text">
         {text.map((textSectionText, index) => {
           const indexString = textSectionText.index != null ? `${textSectionText.index + 1}:` : "";
           return (

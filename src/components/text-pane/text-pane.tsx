@@ -8,7 +8,7 @@ import { targetDatasetStore } from "../../stores/target_dataset_store";
 import { targetStore } from "../../stores/target_store";
 import { testingStore } from "../../stores/testing_store";
 import { textStore } from "../../stores/text_store";
-import { TextSection, textSectionTitleHeight } from "./text-section";
+import { TextSection } from "./text-section";
 
 import "./text-pane.scss";
 
@@ -83,8 +83,7 @@ export const TextPane = observer(function TextPane() {
 
   const textSections = textStore.textSections;
   const sectionCount = textSections.length;
-  const textHeight = containerHeight > 0 ? containerHeight - sectionCount * textSectionTitleHeight : 0;
-  const sectionHeight = sectionCount > 0 ? textHeight / sectionCount : 0;
+  const sectionHeight = containerHeight > 0 ? containerHeight / sectionCount : 0;
 
   // sort the text sections so the target label section comes first
   const chosenTargetClassName = targetStore.chosenTargetClassName;
@@ -111,7 +110,7 @@ export const TextPane = observer(function TextPane() {
           <TextSection
             caseCount={textStore.caseCount}
             key={textStore.getTextSectionId(textSection)}
-            textHeight={sectionHeight}
+            height={sectionHeight}
             textSection={textSection}
           />
         ))}

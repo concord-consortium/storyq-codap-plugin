@@ -1,4 +1,7 @@
 .text-section {
+  display: flex;
+  flex-direction: column;
+
   .text-section-title {
     align-items: center;
     background-color: #dceff2;
@@ -6,7 +9,7 @@
     display: flex;
     font-size: 14px;
     font-weight: 600;
-    padding: 0;
+    padding: 5px 15px 6px;
     width: 100%;
 
     .actual-title {
@@ -24,6 +27,7 @@
   }
 
   .text-section-text {
+    flex: 1;
     overflow-y: scroll;
 
     .phrase-row {
