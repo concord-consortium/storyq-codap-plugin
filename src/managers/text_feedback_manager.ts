@@ -262,8 +262,7 @@ export class TextFeedbackManager {
           const caseFeatureIDs = JSON.parse(tFeatureValue);
           if (Array.isArray(caseFeatureIDs)) {
             caseFeatureIDs.forEach(iValue => {
-              const featureOrToken: FeatureOrToken | undefined =
-                featureStore.getFeatureByCaseId(iValue) ?? featureStore.getTokenByCaseId(iValue);
+              const featureOrToken: FeatureOrToken | undefined = featureStore.getFeatureOrTokenByCaseId(iValue);
               if ((typeof iValue === 'number' || typeof iValue === 'string') && featureOrToken?.highlight) {
                 features.push({ word: Number(iValue), feature: featureOrToken });
               }
@@ -271,23 +270,15 @@ export class TextFeedbackManager {
           }
         }
 
-        // TODO: Claude says the following three lines contain a bug, and recommended the commented code instead.
-        // I don't fully understand the commented code, so I'm not going to use it, but maybe Claude is right.
-        // let tPredictedClass = '';
-        // if (useTestingDataset) {
-        //   // Testing dataset stores predicted labels directly on the case (no child "results" collection)
-        //   tPredictedClass = String(tGetCaseResult.values.case.values[tPredictedLabelAttributeName] ?? '');
-        // } else {
-        //   const tChildIDs = tGetCaseResult.values.case.children;
-        //   if (tChildIDs && tChildIDs.length > 0) {
-        //     const tChildren = await this.getChildCases(tChildIDs, tDatasetName, 'results');
-        //     const tFoundChild = tChildren.find(iChild => iChild['model name'] === trainingStore.firstActiveModelName);
-        //     tPredictedClass = String(tFoundChild?.[tPredictedLabelAttributeName] ?? '');
-        //   }
-        // }
-        const tChildren = await this.getChildCases(tGetCaseResult.values.case.children, tDatasetName, 'results');
-        const tFoundChild = tChildren.find(iChild => iChild['model name'] === trainingStore.firstActiveModelName);
-        const tPredictedClass = tFoundChild ? tFoundChild[tPredictedLabelAttributeName] : '';
+        let tPredictedClass = '';
+        if (useTestingDataset) {
+          // Testing dataset stores predicted labels directly on the case (no child "results" collection)
+          tPredictedClass = String(tGetCaseResult.values.case.values[tPredictedLabelAttributeName] ?? '');
+        } else {
+          const tChildren = await this.getChildCases(tGetCaseResult.values.case.children, tDatasetName, 'results');
+          const tFoundChild = tChildren.find(iChild => iChild['model name'] === trainingStore.firstActiveModelName);
+          tPredictedClass = String(tFoundChild?.[tPredictedLabelAttributeName] ?? '');
+        }
 
         const tActualClass = tGetCaseResult.values.case.values[tClassAttributeName];
         const tPhrase = tGetCaseResult.values.case.values[tAttributeName];
@@ -339,7 +330,7 @@ export class TextFeedbackManager {
         values: tIDsOfFeaturesToSelect
       });
 
-      if (featureStore.features.length > 0) {
+      if (featureStore.hasFeatures) {
         // Get the features and stash them in a set
         const tSelectedFeatureCases = await getSelectedCasesFrom(datasetName, collectionName);
         tSelectedFeatureCases.forEach(iCase => {

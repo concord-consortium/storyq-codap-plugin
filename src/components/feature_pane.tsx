@@ -79,7 +79,7 @@ const FeatureInstructions = observer(function FeatureInstructions() {
 
   return (
     <div className="sq-info-prompt">
-      {featureStore.features.length === 0
+      {!featureStore.hasFeatures
         ? <p>What features would you like to extract from the data?</p>
         : (
           <p>

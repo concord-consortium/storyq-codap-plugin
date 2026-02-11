@@ -52,25 +52,23 @@ export class NotificationManager {
   }
 
   handleDeleteFeatureCase(iNotification: CODAP_Notification) {
-    const { features } = featureStore,
-      tDataContextName = iNotification.resource && iNotification.resource.match(/\[(.+)]/)?.[1],
-      { values } = iNotification,
-      tCases = Array.isArray(values) ? values[0].result.cases : values.result.cases,
-      tDeletedFeatureNames = tCases && Array.isArray(tCases) ? tCases.map(iCase => String(iCase.values.name)) : [];
+    const tDataContextName = iNotification.resource && iNotification.resource.match(/\[(.+)]/)?.[1];
+    const { values } = iNotification;
+    const tCases = Array.isArray(values) ? values[0].result.cases : values.result.cases;
+    const tDeletedFeatureNames = tCases && Array.isArray(tCases) ? tCases.map(iCase => String(iCase.values.name)) : [];
     if (tDeletedFeatureNames.length > 0 && tDataContextName === featureStore.featureDatasetInfo.datasetName) {
       action(() => {
         tDeletedFeatureNames.forEach((iName: string) => {
-          const tIndex =
-            features.findIndex(iFeature => iFeature.name === iName && iFeature.type !== kFeatureTypeUnigram);
-          if (tIndex >= 0) featureStore.deleteFeature(features[tIndex]);
+          const features = featureStore.getFeaturesByName(iName);
+          const feature = features.find(iFeature => iFeature.type !== kFeatureTypeUnigram);
+          if (feature) featureStore.deleteFeature(feature);
         });
       })();
     }
   }
 
   handleUpdateFeatureCase(iNotification: CODAP_Notification) {
-    const { features } = featureStore,
-      tDataContextName = iNotification.resource && iNotification.resource.match(/\[(.+)]/)?.[1];
+    const tDataContextName = iNotification.resource && iNotification.resource.match(/\[(.+)]/)?.[1];
     if (tDataContextName === featureStore.featureDatasetInfo.datasetName) {
       const { values } = iNotification;
       const tCases = Array.isArray(values) ? values[0].result.cases : values.result.cases,
@@ -82,7 +80,7 @@ export class NotificationManager {
             const highlight = iCase.values.highlight === "true" || iCase.values.highlight === true;
             const tType = iCase.values.type;
             const tName = String(iCase.values.name);
-            const tFoundFeature = tType !== kTokenTypeUnigram && features.find(iFeature => iFeature.name === tName);
+            const tFoundFeature = tType !== kTokenTypeUnigram && featureStore.getFeatureByName(tName);
             if (tFoundFeature) {
               tFoundFeature.chosen = tChosen;
               tFoundFeature.highlight = highlight;
