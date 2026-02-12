@@ -8,6 +8,8 @@ import { targetDatasetStore } from "../../stores/target_dataset_store";
 import { targetStore } from "../../stores/target_store";
 import { testingStore } from "../../stores/testing_store";
 import { textStore } from "../../stores/text_store";
+import { PaneDivider } from "./pane-divider";
+import { kDividerSize } from "./text-pane-constants";
 import { TextSection } from "./text-section";
 
 import "./text-pane.scss";
@@ -35,6 +37,9 @@ export const TextPane = observer(function TextPane() {
   const paneRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerHeight, setContainerHeight] = useState(0);
+  const [containerWidth, setContainerWidth] = useState(0);
+  const [horizontalSplitRatio, setHorizontalSplitRatio] = useState(0.5);
+  const [verticalSplitRatio, setVerticalSplitRatio] = useState(0.5);
 
   // update the text pane when the highlight state of any feature changes
   useEffect(() => {
@@ -44,37 +49,32 @@ export const TextPane = observer(function TextPane() {
     );
   }, []);
 
-  // calculate container height based on parent height
+  // calculate container dimensions based on parent size
   useEffect(() => {
-    const updateHeight = () => {
+    const updateDimensions = () => {
       if (paneRef.current) {
         const paneHeight = paneRef.current.clientHeight;
-        const calculatedContainerHeight = paneHeight - titleHeight;
-        // Only update if the height actually changed to prevent infinite loops
-        setContainerHeight(prev => {
-          if (prev !== calculatedContainerHeight) {
-            return calculatedContainerHeight;
-          }
-          return prev;
-        });
+        const calculatedHeight = paneHeight - titleHeight;
+        setContainerHeight(calculatedHeight);
+        setContainerWidth(paneRef.current.clientWidth);
       }
     };
 
-    // delay initial height calculation to allow DOM to fully render
-    requestAnimationFrame(updateHeight);
+    // delay initial calculation to allow DOM to fully render
+    requestAnimationFrame(updateDimensions);
 
-    // update height on window resize
-    window.addEventListener('resize', updateHeight);
+    // update on window resize
+    window.addEventListener('resize', updateDimensions);
 
-    // observe the parent element of the pane, not the pane itself
+    // observe the parent element of the pane
     let resizeObserver: ResizeObserver | null = null;
     if (paneRef.current?.parentElement) {
-      resizeObserver = new ResizeObserver(updateHeight);
+      resizeObserver = new ResizeObserver(updateDimensions);
       resizeObserver.observe(paneRef.current.parentElement);
     }
 
     return () => {
-      window.removeEventListener('resize', updateHeight);
+      window.removeEventListener('resize', updateDimensions);
       if (resizeObserver) {
         resizeObserver.disconnect();
       }
@@ -82,8 +82,6 @@ export const TextPane = observer(function TextPane() {
   }, []);
 
   const textSections = textStore.textSections;
-  const sectionCount = textSections.length;
-  const sectionHeight = containerHeight > 0 ? containerHeight / sectionCount : 0;
 
   // sort the text sections so the target label section comes first
   const chosenTargetClassName = targetStore.chosenTargetClassName;
@@ -100,20 +98,56 @@ export const TextPane = observer(function TextPane() {
     return result;
   }, [chosenTargetClassName, textSections]);
 
+  const displaySections = sortedTextSections.slice(0, 4); // Cap at 4 sections
+  const sectionCount = displaySections.length;
+  const splitHorizontally = sectionCount > 1;
+  const splitVertically = sectionCount > 2;
+
+  const splitWidth = containerWidth - kDividerSize;
+  const leftWidth = horizontalSplitRatio * splitWidth;
+  const rightWidth = (1 - horizontalSplitRatio) * splitWidth;
+  const splitHeight = containerHeight - kDividerSize;
+  const topHeight = verticalSplitRatio * splitHeight;
+  const bottomHeight = (1 - verticalSplitRatio) * splitHeight;
+
   return (
     <div className="text-pane" ref={paneRef}>
       <div className="text-title" style={{ height: titleHeight }}>
         <TextPaneTitle />
       </div>
       <div className="text-container" ref={containerRef} style={{ height: containerHeight }}>
-        {sortedTextSections.map(textSection => (
-          <TextSection
-            caseCount={textStore.caseCount}
-            key={textStore.getTextSectionId(textSection)}
-            height={sectionHeight}
-            textSection={textSection}
+        {displaySections.map((section, index) => {
+          const isLeft = index % 2 === 0;
+          const splitWidth = isLeft ? leftWidth : rightWidth;
+          const isTop = index < 2;
+          const splitHeight = isTop ? topHeight : bottomHeight;
+          const style = {
+            height: splitVertically ? splitHeight : containerHeight,
+            left: splitHorizontally && !isLeft ? leftWidth + kDividerSize : undefined,
+            top: splitVertically && !isTop ? topHeight + kDividerSize : undefined,
+            width: splitHorizontally ? splitWidth : containerWidth
+          }
+
+          return (
+            <TextSection
+              caseCount={textStore.caseCount}
+              key={textStore.getTextSectionId(section)}
+              textSection={section}
+              style={style}
+            />
+          );
+        })}
+        {splitHorizontally && (
+          <PaneDivider
+            orientation={splitVertically ? "cross" : "vertical"}
+            containerWidth={containerWidth}
+            containerHeight={containerHeight}
+            horizontalSplitRatio={horizontalSplitRatio}
+            verticalSplitRatio={verticalSplitRatio}
+            onHorizontalRatioChange={setHorizontalSplitRatio}
+            onVerticalRatioChange={setVerticalSplitRatio}
           />
-        ))}
+        )}
       </div>
     </div>
   );

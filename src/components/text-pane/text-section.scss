@@ -1,14 +1,20 @@
 .text-section {
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  position: absolute;
 
   .text-section-title {
     align-items: center;
     background-color: #dceff2;
+    box-sizing: border-box;
     color: #222222;
     display: flex;
+    flex-shrink: 0;
     font-size: 14px;
     font-weight: 600;
+    overflow: hidden;
     padding: 5px 15px 6px;
     width: 100%;
 

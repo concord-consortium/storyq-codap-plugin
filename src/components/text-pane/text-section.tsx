@@ -47,13 +47,13 @@ function TextSectionTitle({ caseCount, count, title }: ITextSectionTitleProps) {
 
 interface ITextSectionProps {
   caseCount: number;
-  height: number;
   textSection: ITextSection;
+  style?: React.CSSProperties;
 }
-export function TextSection({ caseCount, height, textSection }: ITextSectionProps) {
+export function TextSection({ caseCount, textSection, style }: ITextSectionProps) {
   const { text, title } = textSection;
   return (
-    <div className="text-section" style={{ height }}>
+    <div className="text-section" style={style}>
       <div className="text-section-title">
         <TextSectionTitle caseCount={caseCount} count={text.length} title={title} />
       </div>
