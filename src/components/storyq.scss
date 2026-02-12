@@ -1,0 +1,19 @@
+.storyq-button {
+  background-color: white;
+  border: solid 1px #177991;
+  border-radius: 3px;
+  color: black;
+  cursor: pointer;
+  font-size: 14.5px;
+  padding: 5px 8px 6px;
+
+  &:hover {
+    background-color: #f0f0f0;
+  }
+
+  &:disabled {
+    background-color: white;
+    cursor: default;
+    opacity: 0.35;
+  }
+}

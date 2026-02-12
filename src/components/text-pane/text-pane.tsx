@@ -15,6 +15,7 @@ import { TextSection } from "./text-section";
 import "./text-pane.scss";
 
 const titleHeight = 36;
+const defaultSplitRatio = 0.5;
 
 const TextPaneTitle = observer(function TextPaneTitle() {
   const _dataset = textStore.titleDataset === "target"
@@ -38,8 +39,8 @@ export const TextPane = observer(function TextPane() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerHeight, setContainerHeight] = useState(0);
   const [containerWidth, setContainerWidth] = useState(0);
-  const [horizontalSplitRatio, setHorizontalSplitRatio] = useState(0.5);
-  const [verticalSplitRatio, setVerticalSplitRatio] = useState(0.5);
+  const [horizontalSplitRatio, setHorizontalSplitRatio] = useState(defaultSplitRatio);
+  const [verticalSplitRatio, setVerticalSplitRatio] = useState(defaultSplitRatio);
 
   // update the text pane when the highlight state of any feature changes
   useEffect(() => {
@@ -110,10 +111,18 @@ export const TextPane = observer(function TextPane() {
   const topHeight = verticalSplitRatio * splitHeight;
   const bottomHeight = (1 - verticalSplitRatio) * splitHeight;
 
+  const handleResetClick = () => {
+    setHorizontalSplitRatio(defaultSplitRatio);
+    setVerticalSplitRatio(defaultSplitRatio);
+  };
+  const resetDisabled = horizontalSplitRatio === defaultSplitRatio && verticalSplitRatio === defaultSplitRatio;
+  const resetClasses = "storyq-button reset-button";
+
   return (
     <div className="text-pane" ref={paneRef}>
       <div className="text-title" style={{ height: titleHeight }}>
         <TextPaneTitle />
+        <button className={resetClasses} disabled={resetDisabled} onClick={handleResetClick}>Reset</button>
       </div>
       <div className="text-container" ref={containerRef} style={{ height: containerHeight }}>
         {displaySections.map((section, index) => {
