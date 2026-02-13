@@ -182,7 +182,7 @@ export class FeatureStore {
   }
 
   getFeatureByName(name: string) {
-    return this.getFeaturesByName(name)[0];
+    return this.features.find(feature => feature.name === name);
   }
 
   getFeaturesOfKind(kind: string) {
@@ -288,8 +288,8 @@ export class FeatureStore {
   }
 
   get shouldIgnoreStopwords() {
-    const tNtigramFeature = this.getFeaturesOfKind(kFeatureKindNgram)[0];
-    return tNtigramFeature ? tNtigramFeature.info.ignoreStopWords : true;
+    const tNgramFeature = this.getFeaturesOfKind(kFeatureKindNgram)[0];
+    return tNgramFeature ? tNgramFeature.info.ignoreStopWords : true;
   }
 
   get hasNgram() {

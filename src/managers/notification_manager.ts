@@ -54,7 +54,7 @@ export class NotificationManager {
   handleDeleteFeatureCase(iNotification: CODAP_Notification) {
     const tDataContextName = iNotification.resource && iNotification.resource.match(/\[(.+)]/)?.[1];
     const { values } = iNotification;
-    const tCases = Array.isArray(values) ? values[0].result.cases : values.result.cases;
+    const tCases = Array.isArray(values) ? values[0]?.result.cases : values.result.cases;
     const tDeletedFeatureNames = tCases && Array.isArray(tCases) ? tCases.map(iCase => String(iCase.values.name)) : [];
     if (tDeletedFeatureNames.length > 0 && tDataContextName === featureStore.featureDatasetInfo.datasetName) {
       action(() => {
