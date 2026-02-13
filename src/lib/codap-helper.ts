@@ -271,10 +271,9 @@ export async function getCollectionNames(iDatasetName: string | null): Promise<s
       action: 'get',
       resource: `dataContext[${iDatasetName}].collectionList`
     }
-  )
-    .catch(() => {
-      console.log('Error getting collection list')
-    });
+  ).catch(() => {
+    console.log('Error getting collection list')
+  });
   return tListResult.values.map((aCollection: any) => {
     return aCollection.name;
   });

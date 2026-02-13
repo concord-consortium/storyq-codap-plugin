@@ -232,7 +232,7 @@ dragging a 'csv' data file with your data into CODAP or choosing <em>Create a ne
             SQ.hints.targetClassAttributeChoices : SQ.hints.targetClassAttributeChosen
         if (targetStore.targetAttributeName !== '') {
           const tCandidateAttributeNames = targetStore.targetAttributeNames.filter((iName) => {
-            return featureStore.features.findIndex(aFeature => aFeature.name === iName) < 0
+            return !featureStore.getFeatureByName(iName);
           })
           return (
             <ChoicesMenu
