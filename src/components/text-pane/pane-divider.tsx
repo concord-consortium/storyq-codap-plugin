@@ -74,7 +74,6 @@ export function PaneDivider({
     e.preventDefault();
     setDragZone(zone);
     dragStartRef.current = { x: e.clientX, y: e.clientY, hRatio: horizontalSplitRatio, vRatio: verticalSplitRatio };
-    document.body.style.userSelect = "none";
   }, [horizontalSplitRatio, verticalSplitRatio]);
 
   useEffect(() => {
@@ -99,7 +98,6 @@ export function PaneDivider({
     const handleMouseUp = () => {
       setDragZone(null);
       dragStartRef.current = null;
-      document.body.style.userSelect = "";
     };
 
     document.addEventListener("mousemove", handleMouseMove);
@@ -107,7 +105,6 @@ export function PaneDivider({
     return () => {
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
-      document.body.style.userSelect = "";
     };
   }, [availableHeight, availableWidth, dragZone, onHorizontalRatioChange, onVerticalRatioChange]);
 
