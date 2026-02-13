@@ -54,9 +54,7 @@ export const TextPane = observer(function TextPane() {
   useEffect(() => {
     const updateDimensions = () => {
       if (paneRef.current) {
-        const paneHeight = paneRef.current.clientHeight;
-        const calculatedHeight = paneHeight - titleHeight;
-        setContainerHeight(calculatedHeight);
+        setContainerHeight(paneRef.current.clientHeight - titleHeight);
         setContainerWidth(paneRef.current.clientWidth);
       }
     };
@@ -82,10 +80,9 @@ export const TextPane = observer(function TextPane() {
     };
   }, []);
 
-  const textSections = textStore.textSections;
-
   // sort the text sections so the target label section comes first
   const chosenTargetClassName = targetStore.chosenTargetClassName;
+  const textSections = textStore.textSections;
   const sortedTextSections = useMemo(() => {
     const result = [...textSections];
     if (chosenTargetClassName) {
@@ -100,9 +97,8 @@ export const TextPane = observer(function TextPane() {
   }, [chosenTargetClassName, textSections]);
 
   const displaySections = sortedTextSections.slice(0, 4); // Cap at 4 sections
-  const sectionCount = displaySections.length;
-  const splitHorizontally = sectionCount > 1;
-  const splitVertically = sectionCount > 2;
+  const splitHorizontally = displaySections.length > 1;
+  const splitVertically = displaySections.length > 2;
 
   const splitWidth = containerWidth - kDividerSize;
   const leftWidth = horizontalSplitRatio * splitWidth;
@@ -125,7 +121,7 @@ export const TextPane = observer(function TextPane() {
         <button className={resetClasses} disabled={resetDisabled} onClick={handleResetClick}>Reset</button>
       </div>
       <div className="text-container" ref={containerRef} style={{ height: containerHeight }}>
-        {displaySections.map((section, index) => {
+        {displaySections.map((textSection, index) => {
           const isLeft = index % 2 === 0;
           const splitWidth = isLeft ? leftWidth : rightWidth;
           const isTop = index < 2;
@@ -140,13 +136,13 @@ export const TextPane = observer(function TextPane() {
           return (
             <TextSection
               caseCount={textStore.caseCount}
-              key={textStore.getTextSectionId(section)}
-              textSection={section}
+              key={textStore.getTextSectionId(textSection)}
+              textSection={textSection}
               style={style}
             />
           );
         })}
-        {splitHorizontally && (
+        {splitHorizontally && ( // If we're split vertically, we're also split horizontally
           <PaneDivider
             orientation={splitVertically ? "cross" : "vertical"}
             containerWidth={containerWidth}

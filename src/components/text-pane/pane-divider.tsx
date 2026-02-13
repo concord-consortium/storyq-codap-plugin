@@ -24,16 +24,15 @@ interface IPaneDividerBarProps {
 function PaneDividerBar({
   className, dragZone, gripIcon, onMouseDown, place, setHoverZone, style
 }: IPaneDividerBarProps) {
-  const barClass = clsx("pane-divider-bar", place, className);
   return (
     <div
-      className={barClass}
+      className={clsx("pane-divider-bar", place, className)}
       style={style}
       onMouseDown={e => onMouseDown(place, e)}
       onMouseEnter={() => !dragZone && setHoverZone(place)}
       onMouseLeave={() => !dragZone && setHoverZone(null)}
     >
-      {place !== "center" && <div className={`accent-line ${place}-line`}/>}
+      {place !== "center" && <div className="accent-line"/>}
       {gripIcon && (
         <div className="grip-icon">
           {["vertical", "center"].includes(gripIcon) && <DragThumbIcon />}
@@ -42,16 +41,16 @@ function PaneDividerBar({
       )}
     </div>
   );
-}
+} 
 
 interface IPaneDividerProps {
-  orientation: "vertical" | "cross";
-  containerWidth: number;
   containerHeight: number;
+  containerWidth: number;
   horizontalSplitRatio: number;
-  verticalSplitRatio: number;
+  orientation: "vertical" | "cross";
   onHorizontalRatioChange: (ratio: number) => void;
   onVerticalRatioChange: (ratio: number) => void;
+  verticalSplitRatio: number;
 }
 
 function clampRatio(ratio: number): number {
@@ -59,13 +58,12 @@ function clampRatio(ratio: number): number {
 }
 
 export function PaneDivider({
-  orientation, containerWidth, containerHeight,
-  horizontalSplitRatio, verticalSplitRatio,
-  onHorizontalRatioChange, onVerticalRatioChange
+  containerHeight, containerWidth, horizontalSplitRatio, onHorizontalRatioChange, onVerticalRatioChange, orientation,
+  verticalSplitRatio
 }: IPaneDividerProps) {
   const [hoverZone, setHoverZone] = useState<DragZone>(null);
   const [dragZone, setDragZone] = useState<DragZone>(null);
-  const dragStartRef = useRef<{ x: number; y: number; hRatio: number; vRatio: number } | null>(null);
+  const dragStartRef = useRef<{ x: number, y: number, hRatio: number, vRatio: number } | null>(null);
 
   const availableWidth = containerWidth - kDividerSize;
   const verticalBarLeft = horizontalSplitRatio * availableWidth;
