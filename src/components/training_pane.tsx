@@ -63,7 +63,7 @@ export const TrainingPane = observer(function TrainingPane() {
   }
 
   function modelTrainer() {
-    const tFeatureString = featureStore.features.length < 2 ? 'this feature' : 'these features';
+    const tFeatureString = featureStore.featureCount < 2 ? 'this feature' : 'these features';
 
     function getButtons() {
       const tDisabled = trainingStore.model.name === '';

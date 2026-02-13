@@ -177,6 +177,30 @@ export class FeatureStore {
       this.features.find(feature => feature.childCaseID === `${caseId}`);
   }
 
+  getFeaturesByName(name: string) {
+    return this.features.filter(feature => feature.name === name);
+  }
+
+  getFeatureByName(name: string) {
+    return this.features.find(feature => feature.name === name);
+  }
+
+  getFeaturesOfKind(kind: string) {
+    return this.features.filter(feature => feature.info.kind === kind);
+  }
+
+  getFeaturesNotOfKind(kind: string) {
+    return this.features.filter(feature => feature.info.kind !== kind);
+  }
+
+  get featureCount() {
+    return this.features.length;
+  }
+
+  get hasFeatures() {
+    return this.featureCount > 0;
+  }
+
   addToken(name: string, token: Token) {
     this.tokenMap[name] = token;
     if (token.featureCaseID) this.caseIdTokenMap[token.featureCaseID] = token;
@@ -207,7 +231,7 @@ export class FeatureStore {
     if (caseIdToken) return caseIdToken;
 
     const token = Object.values(this.tokenMap).find(iToken => iToken.featureCaseID === numberId);
-    if (token) this.caseIdTokenMap[numberId] = token;
+    if (token) this.updateTokenCaseId(token, numberId);
     return token;
   }
 
@@ -248,7 +272,7 @@ export class FeatureStore {
   }
 
   guaranteeUniqueFeatureName(iCandidate: string) {
-    const isNotUnique = (iName: string) => !!this.features.find(iFeature => iFeature.name === iName);
+    const isNotUnique = (iName: string) => !!this.getFeatureByName(iName);
 
     let counter = 1,
       tTest = iCandidate;
@@ -260,16 +284,16 @@ export class FeatureStore {
   }
 
   get constructedFeatureNames() {
-    return this.features.filter(iFeature => iFeature.info.kind !== kFeatureKindNgram).map(iFeature => iFeature.name);
+    return this.getFeaturesNotOfKind(kFeatureKindNgram).map(iFeature => iFeature.name);
   }
 
   get shouldIgnoreStopwords() {
-    const tNtigramFeature = this.features.find(iFeature => iFeature.info.kind === kFeatureKindNgram);
-    return tNtigramFeature ? tNtigramFeature.info.ignoreStopWords : true;
+    const tNgramFeature = this.getFeaturesOfKind(kFeatureKindNgram)[0];
+    return tNgramFeature ? tNgramFeature.info.ignoreStopWords : true;
   }
 
   get hasNgram() {
-    return Boolean(this.features.find(iFeature => iFeature.info.kind === kFeatureKindNgram));
+    return this.getFeaturesOfKind(kFeatureKindNgram).length > 0;
   }
 
   addFeatureUnderConstruction(tFeature: Feature) {
@@ -310,7 +334,15 @@ export class FeatureStore {
     if (tFoundIndex >= 0) {
       this.features.splice(tFoundIndex, 1);
     }
-    if (iFeature.type !== kFeatureTypeUnigram) {
+
+    if (iFeature.type === kFeatureTypeUnigram) {
+      this.deleteUnigramTokens();
+      // Delete all the items in the Features dataset that have type equal to 'unigram'
+      await codapInterface.sendRequest({
+        action: 'delete',
+        resource: `dataContext[${this.featureDatasetInfo.datasetName}].itemSearch[type==unigram]`
+      });
+    } else {
       const { targetDatasetInfo } = targetDatasetStore;
       if (iFeature.featureItemID && iFeature.featureItemID !== "undefined") {
         await codapInterface.sendRequest({
@@ -344,14 +376,6 @@ export class FeatureStore {
           resource: `dataContext[${targetDatasetInfo.id}].collection[${tCollectionID}].attribute[${iFeature.attrID}]`
         });
       }
-    }
-    if (iFeature.type === kFeatureTypeUnigram) {
-      this.deleteUnigramTokens();
-      // Delete all the items in the Features dataset that have type equal to 'unigram'
-      await codapInterface.sendRequest({
-        action: 'delete',
-        resource: `dataContext[${this.featureDatasetInfo.datasetName}].itemSearch[type==unigram]`
-      });
     }
   }
 

@@ -73,7 +73,7 @@ export class DomainStore {
       await codapInterface.sendRequest(tShowRequests);
     }
 
-    if (featureStore.features.length > 0) {
+    if (featureStore.hasFeatures) {
       if (featureStore.featureDatasetID === -1) {
         const tChosenClassKey = targetStore.targetChosenClassColumnKey,
           tUnchosenClassKey = otherClassColumn(tChosenClassKey),
@@ -135,10 +135,10 @@ export class DomainStore {
         features: Feature[]
       }
     }
-    const tNonNgramFeatures = featureStore.features.filter(iFeature => iFeature.info.kind !== kFeatureKindNgram),
-      caseUpdateRequests: Record<string, UpdateRequest> = {},
-      tTargetDatasetName = targetStore.targetDatasetInfo.name,
-      tTargetCollectionName = targetStore.targetCollectionName;
+    const tNonNgramFeatures = featureStore.getFeaturesNotOfKind(kFeatureKindNgram);
+    const caseUpdateRequests: Record<string, UpdateRequest> = {};
+    const tTargetDatasetName = targetStore.targetDatasetInfo.name;
+    const tTargetCollectionName = targetStore.targetCollectionName;
     let featureDatasetResourceString: string = '';
 
     async function getExistingFeatureItems(): Promise<ItemInfo[]> {
@@ -313,7 +313,7 @@ export class DomainStore {
     if (featureStore.tokenMapAlreadyHasUnigrams) return;
 
     await targetStore.updateTargetCases();
-    const tNgramFeatures = featureStore.features.filter(iFeature => iFeature.info.kind === kFeatureKindNgram);
+    const tNgramFeatures = featureStore.getFeaturesOfKind(kFeatureKindNgram);
     await this.guaranteeFeaturesDataset();
     for (const iNtgramFeature of tNgramFeatures) {
       const { collectionName, datasetName } = featureStore.featureDatasetInfo,
@@ -408,7 +408,7 @@ export class DomainStore {
   }
 
   trainingPanelCanBeEnabled() {
-    return this.featuresPanelCanBeEnabled() && featureStore.features.length > 0;
+    return this.featuresPanelCanBeEnabled() && featureStore.hasFeatures;
   }
 
   testingPanelCanBeEnabled() {
@@ -553,8 +553,6 @@ export class DomainStore {
       });
       const tFeatureName = String(iFeatureCase.values.name);
       const tFeatureType = String(iFeatureCase.values.type);
-      // Features will only highlight with a child case id
-      const childCaseId = iFeatureCase.children?.[0];
 
       tTargetCases.forEach(iTargetCase => {
         const tTargetHasFeature = ['constructed', 'column'].includes(tFeatureType)
@@ -567,15 +565,9 @@ export class DomainStore {
           if (!tUsageResults[iFeatureCase.id]) tUsageResults[iFeatureCase.id] = [];
           tUsageResults[iFeatureCase.id].push(iTargetCase.id);
           if (!tTextResults[iTargetCase.id]) tTextResults[iTargetCase.id] = [];
-          // Would it be better to include all child case ids here?
-          if (childCaseId) tTextResults[iTargetCase.id].push(childCaseId);
+          tTextResults[iTargetCase.id].push(iFeatureCase.id);
         }
       })
-      // We need to store the featureCaseID in the token map while we've got it
-      if (featureStore.tokenMap[tFeatureName] && childCaseId) {
-        // Would it be better to include all child case ids here?
-        featureStore.updateTokenCaseId(featureStore.tokenMap[tFeatureName], childCaseId);
-      }
     });
     // Now we can update the target and feature cases
     const tMsgs: UpdateCaseRequest[] = [
@@ -601,9 +593,8 @@ export class DomainStore {
     // Now we update the case and item ids of the stored features
     const tItemResults = await codapInterface.sendRequest(tFeatureItemRequests) as GetItemByCaseIDResponse[];
     tFeatureCases.forEach((iFeature, iIndex) => {
-      const tStoredFeature = featureStore.features.find(iStoredFeature => {
-        return iStoredFeature.name === iFeature.values.name;
-      })
+      const featureName = typeof iFeature.values.name === 'string' ? iFeature.values.name : '';
+      const tStoredFeature = featureName ? featureStore.getFeatureByName(featureName) : undefined;
       const result = tItemResults[iIndex];
       if (tStoredFeature && result.success && result.values) {
         tStoredFeature.featureItemID = result.values.id;
@@ -616,10 +607,8 @@ export class DomainStore {
     // Finally, we update featureStore.tokenMap. Each token has caseIDs corresponding to usages and a featureID
     //  that is the ID of the feature in the features collection.
     for (let tTokenMapKey in featureStore.tokenMap) {
-      const tToken = featureStore.tokenMap[tTokenMapKey],
-        tStoredFeature = featureStore.features.find(iStoredFeature => {
-          return iStoredFeature.name === tTokenMapKey;
-        });
+      const tToken = featureStore.tokenMap[tTokenMapKey];
+      const tStoredFeature = featureStore.getFeatureByName(tTokenMapKey);
       if (tToken && tStoredFeature) {
         featureStore.updateTokenCaseId(tToken, Number(tStoredFeature.caseID));
         tToken.caseIDs = tUsageResults[Number(tStoredFeature.caseID)];

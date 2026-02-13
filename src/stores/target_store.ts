@@ -245,7 +245,7 @@ export class TargetStore {
     ) {
       tColumnFeatureNames = tAttrNames.filter(iName => {
         return iName !== this.targetAttributeName && iName !== this.targetClassAttributeName &&
-          featureStore.features.map(iFeature => iFeature.name).indexOf(iName) < 0;
+          !featureStore.getFeatureByName(iName);
       });
     }
 
