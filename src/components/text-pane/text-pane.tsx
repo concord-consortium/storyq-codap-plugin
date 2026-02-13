@@ -8,8 +8,8 @@ import { targetDatasetStore } from "../../stores/target_dataset_store";
 import { targetStore } from "../../stores/target_store";
 import { testingStore } from "../../stores/testing_store";
 import { textStore } from "../../stores/text_store";
+import { kPaneDividerSize } from "../constants";
 import { PaneDivider } from "./pane-divider";
-import { kDividerSize } from "./text-pane-constants";
 import { TextSection } from "./text-section";
 
 import "./text-pane.scss";
@@ -100,10 +100,10 @@ export const TextPane = observer(function TextPane() {
   const splitHorizontally = displaySections.length > 1;
   const splitVertically = displaySections.length > 2;
 
-  const splitWidth = Math.max(containerWidth - kDividerSize, 0);
+  const splitWidth = Math.max(containerWidth - kPaneDividerSize, 0);
   const leftWidth = horizontalSplitRatio * splitWidth;
   const rightWidth = (1 - horizontalSplitRatio) * splitWidth;
-  const splitHeight = Math.max(containerHeight - kDividerSize, 0);
+  const splitHeight = Math.max(containerHeight - kPaneDividerSize, 0);
   const topHeight = verticalSplitRatio * splitHeight;
   const bottomHeight = (1 - verticalSplitRatio) * splitHeight;
 
@@ -128,8 +128,8 @@ export const TextPane = observer(function TextPane() {
           const splitHeight = isTop ? topHeight : bottomHeight;
           const style = {
             height: splitVertically ? splitHeight : containerHeight,
-            left: splitHorizontally && !isLeft ? leftWidth + kDividerSize : undefined,
-            top: splitVertically && !isTop ? topHeight + kDividerSize : undefined,
+            left: splitHorizontally && !isLeft ? leftWidth + kPaneDividerSize : undefined,
+            top: splitVertically && !isTop ? topHeight + kPaneDividerSize : undefined,
             width: splitHorizontally ? splitWidth : containerWidth
           }
 

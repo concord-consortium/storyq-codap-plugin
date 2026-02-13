@@ -1,7 +1,7 @@
 import { clsx } from "clsx";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ReactComponent as DragThumbIcon } from "../../assets/drag-thumb-icon.svg";
-import { kDividerSize } from "./text-pane-constants";
+import { kPaneDividerSize } from "../constants";
 
 import "./pane-divider.scss";
 
@@ -65,9 +65,9 @@ export function PaneDivider({
   const [dragZone, setDragZone] = useState<DragZone>(null);
   const dragStartRef = useRef<{ x: number, y: number, hRatio: number, vRatio: number } | null>(null);
 
-  const availableWidth = containerWidth - kDividerSize;
+  const availableWidth = containerWidth - kPaneDividerSize;
   const verticalBarLeft = horizontalSplitRatio * availableWidth;
-  const availableHeight = containerHeight - kDividerSize;
+  const availableHeight = containerHeight - kPaneDividerSize;
   const horizontalBarTop = verticalSplitRatio * availableHeight;
 
   const handleMouseDown = useCallback((zone: Place, e: React.MouseEvent) => {

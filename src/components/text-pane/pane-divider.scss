@@ -1,5 +1,6 @@
+@import "../constants.module.scss";
+
 $accent-padding: 10px;
-$bar-width: 24px;
 
 .pane-divider-cross {
   position: absolute;
@@ -21,7 +22,7 @@ $bar-width: 24px;
   &.vertical {
     cursor: col-resize;
     height: 100%;
-    width: $bar-width;
+    width: $pane-divider-size;
 
     .accent-line {
       height: calc(100% - 2 * $accent-padding);
@@ -31,7 +32,7 @@ $bar-width: 24px;
 
   &.horizontal {
     cursor: row-resize;
-    height: $bar-width;
+    height: $pane-divider-size;
     width: 100%;
 
     .accent-line {
@@ -43,8 +44,8 @@ $bar-width: 24px;
   &.center {
     border: none;
     cursor: move;
-    height: $bar-width;
-    width: $bar-width;
+    height: $pane-divider-size;
+    width: $pane-divider-size;
   }
 
   &.hover {
