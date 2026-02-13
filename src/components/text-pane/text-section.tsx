@@ -17,7 +17,7 @@ function TextSectionTitle({ caseCount, count, title }: ITextSectionTitleProps) {
 
   const { actual, actualColor, predicted, predictedColor } = title;
   const countPart = `${count} case${count === 1 ? "" : "s"}`;
-  const percentPart = `${Math.round(count / caseCount * 100)}% of all`;
+  const percent = caseCount > 0 ? Math.floor(count / caseCount * 100) : 0;
 
   let AccuracyIcon: React.FC | null = null;
   if (predicted) {
@@ -26,7 +26,7 @@ function TextSectionTitle({ caseCount, count, title }: ITextSectionTitleProps) {
 
   return (
     <>
-      <span className="actual-title">
+      <div className="actual-title">
         {actual && (
           <div>
             <span>True: </span><span className="label" style={{ color: actualColor }}>{actual}</span>
@@ -38,8 +38,8 @@ function TextSectionTitle({ caseCount, count, title }: ITextSectionTitleProps) {
             <span>Predicted: </span><span className="label" style={{ color: predictedColor }}>{predicted}</span>
           </div>
         )}
-        <div className="case-count">{`(${countPart}, ${percentPart})`}</div>
-      </span>
+        <div className="case-count">{`(${countPart}, ${percent}% of all)`}</div>
+      </div>
       {AccuracyIcon && <div className="accuracy-icon"><AccuracyIcon /></div>}
     </>
   );
@@ -61,9 +61,9 @@ export function TextSection({ caseCount, textSection, style }: ITextSectionProps
         {text.map((textSectionText, index) => {
           const indexString = textSectionText.index != null ? `(${textSectionText.index + 1}) ` : "";
           return (
-            <div key={indexString}>
+            <div key={`text-section-${index}`}>
               <div className="phrase">
-                <TextParts textParts={[{text: indexString}, ...textSectionText.textParts]} />
+                <TextParts textParts={[{ text: indexString }, ...textSectionText.textParts]} />
               </div>
               {index < text.length - 1 && <div className="divider" />}
             </div>

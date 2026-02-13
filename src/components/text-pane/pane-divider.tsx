@@ -107,6 +107,7 @@ export function PaneDivider({
     return () => {
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
+      document.body.style.userSelect = "";
     };
   }, [availableHeight, availableWidth, dragZone, onHorizontalRatioChange, onVerticalRatioChange]);
 

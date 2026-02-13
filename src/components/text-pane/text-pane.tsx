@@ -100,10 +100,10 @@ export const TextPane = observer(function TextPane() {
   const splitHorizontally = displaySections.length > 1;
   const splitVertically = displaySections.length > 2;
 
-  const splitWidth = containerWidth - kDividerSize;
+  const splitWidth = Math.max(containerWidth - kDividerSize, 0);
   const leftWidth = horizontalSplitRatio * splitWidth;
   const rightWidth = (1 - horizontalSplitRatio) * splitWidth;
-  const splitHeight = containerHeight - kDividerSize;
+  const splitHeight = Math.max(containerHeight - kDividerSize, 0);
   const topHeight = verticalSplitRatio * splitHeight;
   const bottomHeight = (1 - verticalSplitRatio) * splitHeight;
 
