@@ -20,6 +20,10 @@ export class TextStore {
     makeAutoObservable(this, {}, { autoBind: true });
   }
 
+  get caseCount() {
+    return this.textSections.reduce((count, section) => count + section.text.length, 0);
+  }
+
   setTitleDataset(titleDataset: TitleDataset) {
     this.titleDataset = titleDataset;
   }
@@ -28,12 +32,12 @@ export class TextStore {
     this.textSections = sections;
   }
 
-  getTextSectionId(textSection: ITextSection) {
-    return `section-${textSection.title?.actual}-${textSection.title?.predicted}`;
+  addTextSection(section: ITextSection) {
+    this.textSections.push(section);
   }
 
-  toggleTextSectionVisibility(textSection: ITextSection) {
-    textSection.hidden = !textSection.hidden;
+  getTextSectionId(textSection: ITextSection) {
+    return `section-${textSection.title?.actual}-${textSection.title?.predicted}`;
   }
 
   async clearText() {

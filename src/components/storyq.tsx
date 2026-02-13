@@ -19,8 +19,8 @@ import { TrainingPanel } from "./training_panel";
 import { Item } from './ui/item';
 import { TabPanel } from './ui/tab-panel';
 
-import '../storyq.css';
 import '../styles/light.compact.css';
+import './storyq.scss';
 
 const paneWidth = 430;
 function getPluginWidth() {

@@ -8,11 +8,14 @@ import { targetDatasetStore } from "../../stores/target_dataset_store";
 import { targetStore } from "../../stores/target_store";
 import { testingStore } from "../../stores/testing_store";
 import { textStore } from "../../stores/text_store";
-import { TextSection, textSectionTitleHeight } from "./text-section";
+import { kPaneDividerSize } from "../constants";
+import { PaneDivider } from "./pane-divider";
+import { TextSection } from "./text-section";
 
 import "./text-pane.scss";
 
 const titleHeight = 36;
+const defaultSplitRatio = 0.5;
 
 const TextPaneTitle = observer(function TextPaneTitle() {
   const _dataset = textStore.titleDataset === "target"
@@ -35,6 +38,9 @@ export const TextPane = observer(function TextPane() {
   const paneRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerHeight, setContainerHeight] = useState(0);
+  const [containerWidth, setContainerWidth] = useState(0);
+  const [horizontalSplitRatio, setHorizontalSplitRatio] = useState(defaultSplitRatio);
+  const [verticalSplitRatio, setVerticalSplitRatio] = useState(defaultSplitRatio);
 
   // update the text pane when the highlight state of any feature changes
   useEffect(() => {
@@ -44,48 +50,35 @@ export const TextPane = observer(function TextPane() {
     );
   }, []);
 
-  // calculate container height based on parent height
+  // calculate container dimensions based on parent size
   useEffect(() => {
-    const updateHeight = () => {
+    const updateDimensions = () => {
       if (paneRef.current) {
-        const paneHeight = paneRef.current.clientHeight;
-        const calculatedContainerHeight = paneHeight - titleHeight;
-        // Only update if the height actually changed to prevent infinite loops
-        setContainerHeight(prev => {
-          if (prev !== calculatedContainerHeight) {
-            return calculatedContainerHeight;
-          }
-          return prev;
-        });
+        setContainerHeight(paneRef.current.clientHeight - titleHeight);
+        setContainerWidth(paneRef.current.clientWidth);
       }
     };
 
-    // delay initial height calculation to allow DOM to fully render
-    requestAnimationFrame(updateHeight);
+    // delay initial calculation to allow DOM to fully render
+    requestAnimationFrame(updateDimensions);
 
-    // update height on window resize
-    window.addEventListener('resize', updateHeight);
+    // update on window resize
+    window.addEventListener('resize', updateDimensions);
 
-    // observe the parent element of the pane, not the pane itself
+    // observe the parent element of the pane
     let resizeObserver: ResizeObserver | null = null;
     if (paneRef.current?.parentElement) {
-      resizeObserver = new ResizeObserver(updateHeight);
+      resizeObserver = new ResizeObserver(updateDimensions);
       resizeObserver.observe(paneRef.current.parentElement);
     }
 
     return () => {
-      window.removeEventListener('resize', updateHeight);
+      window.removeEventListener('resize', updateDimensions);
       if (resizeObserver) {
         resizeObserver.disconnect();
       }
     };
   }, []);
-
-  const visibleTextSectionCount = textStore.textSections.filter(textSection => !textSection.hidden).length;
-  const textHeight = containerHeight > 0
-    ? containerHeight - textStore.textSections.length * textSectionTitleHeight
-    : 0;
-  const sectionHeight = visibleTextSectionCount > 0 ? textHeight / visibleTextSectionCount : 0;
 
   // sort the text sections so the target label section comes first
   const chosenTargetClassName = targetStore.chosenTargetClassName;
@@ -103,19 +96,63 @@ export const TextPane = observer(function TextPane() {
     return result;
   }, [chosenTargetClassName, textSections]);
 
+  const displaySections = sortedTextSections.slice(0, 4); // Cap at 4 sections
+  const splitHorizontally = displaySections.length > 1;
+  const splitVertically = displaySections.length > 2;
+
+  const splitWidth = Math.max(containerWidth - kPaneDividerSize, 0);
+  const leftWidth = horizontalSplitRatio * splitWidth;
+  const rightWidth = (1 - horizontalSplitRatio) * splitWidth;
+  const splitHeight = Math.max(containerHeight - kPaneDividerSize, 0);
+  const topHeight = verticalSplitRatio * splitHeight;
+  const bottomHeight = (1 - verticalSplitRatio) * splitHeight;
+
+  const handleResetClick = () => {
+    setHorizontalSplitRatio(defaultSplitRatio);
+    setVerticalSplitRatio(defaultSplitRatio);
+  };
+  const resetDisabled = horizontalSplitRatio === defaultSplitRatio && verticalSplitRatio === defaultSplitRatio;
+  const resetClasses = "storyq-button reset-button";
+
   return (
     <div className="text-pane" ref={paneRef}>
       <div className="text-title" style={{ height: titleHeight }}>
         <TextPaneTitle />
+        <button className={resetClasses} disabled={resetDisabled} onClick={handleResetClick}>Reset</button>
       </div>
       <div className="text-container" ref={containerRef} style={{ height: containerHeight }}>
-        {sortedTextSections.map(textSection => (
-          <TextSection
-            key={textStore.getTextSectionId(textSection)}
-            textHeight={sectionHeight}
-            textSection={textSection}
+        {displaySections.map((textSection, index) => {
+          const isLeft = index % 2 === 0;
+          const splitWidth = isLeft ? leftWidth : rightWidth;
+          const isTop = index < 2;
+          const splitHeight = isTop ? topHeight : bottomHeight;
+          const style = {
+            height: splitVertically ? splitHeight : containerHeight,
+            left: splitHorizontally && !isLeft ? leftWidth + kPaneDividerSize : undefined,
+            top: splitVertically && !isTop ? topHeight + kPaneDividerSize : undefined,
+            width: splitHorizontally ? splitWidth : containerWidth
+          }
+
+          return (
+            <TextSection
+              caseCount={textStore.caseCount}
+              key={textStore.getTextSectionId(textSection)}
+              textSection={textSection}
+              style={style}
+            />
+          );
+        })}
+        {splitHorizontally && ( // If we're split vertically, we're also split horizontally
+          <PaneDivider
+            orientation={splitVertically ? "cross" : "vertical"}
+            containerWidth={containerWidth}
+            containerHeight={containerHeight}
+            horizontalSplitRatio={horizontalSplitRatio}
+            verticalSplitRatio={verticalSplitRatio}
+            onHorizontalRatioChange={setHorizontalSplitRatio}
+            onVerticalRatioChange={setVerticalSplitRatio}
           />
-        ))}
+        )}
       </div>
     </div>
   );

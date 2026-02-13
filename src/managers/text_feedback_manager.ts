@@ -532,7 +532,7 @@ export class TextFeedbackManager {
     kProps.forEach(iProp => {
       const tPhrases = texts[iProp];
       if (tPhrases && tPhrases.length !== 0) {
-        textStore.textSections.push({
+        textStore.addTextSection({
           title: kHeadingsManager.headings[iProp],
           text: texts[iProp]
         });

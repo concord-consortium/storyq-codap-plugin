@@ -14,6 +14,7 @@
     display: flex;
     font-size: 14px;
     justify-content: center;
+    position: relative;
     white-space: pre-wrap;
     width: 100%;
 
@@ -21,10 +22,15 @@
       color: #177991;
       font-weight: bold;
     }
+
+    .reset-button {
+      position: absolute;
+      right: 4px;
+    }
   }
 
   .text-container {
-    display: block;
+    position: relative;
     overflow: hidden;
   }
 }

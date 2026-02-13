@@ -1,0 +1,77 @@
+@import "../constants.module.scss";
+
+$accent-padding: 10px;
+
+.pane-divider-cross {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.pane-divider-bar {
+  align-items: center;
+  background: #eee;
+  border: solid 1px #cacaca;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+  pointer-events: auto;
+  position: absolute;
+
+  &.vertical {
+    cursor: col-resize;
+    height: 100%;
+    width: $pane-divider-size;
+
+    .accent-line {
+      height: calc(100% - 2 * $accent-padding);
+      width: 1px;
+    }
+  }
+
+  &.horizontal {
+    cursor: row-resize;
+    height: $pane-divider-size;
+    width: 100%;
+
+    .accent-line {
+      height: 1px;
+      width: calc(100% - 2 * $accent-padding);
+    }
+  }
+
+  &.center {
+    border: none;
+    cursor: move;
+    height: $pane-divider-size;
+    width: $pane-divider-size;
+  }
+
+  &.hover {
+    background: #e8e8e8;
+  }
+
+  &.dragging {
+    background: #cfcfcf;
+  }
+}
+
+.accent-line {
+  background-color: #177991;
+  box-sizing: border-box;
+  position: absolute;
+}
+
+.grip-icon {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+
+  .rotated {
+    position: absolute;
+    transform: rotate(90deg);
+  }
+}

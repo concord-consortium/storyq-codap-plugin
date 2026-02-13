@@ -1,78 +1,75 @@
 import React from "react";
-import { clsx } from "clsx";
-import { ReactComponent as CollapseExpandIcon } from "../../assets/collapse-expand-icon.svg";
 import { ITextSection, ITextSectionTitle } from "../../stores/store_types_and_constants";
-import { textStore } from "../../stores/text_store";
 import { TextParts } from "./text-parts";
+
+import { ReactComponent as CorrectIcon } from "../../assets/correct-icon.svg";
+import { ReactComponent as IncorrectIcon } from "../../assets/incorrect-icon.svg";
 
 import "./text-section.scss";
 
-export const textSectionTitleHeight = 28;
-
 interface ITextSectionTitleProps {
+  caseCount: number;
   count: number;
   title?: ITextSectionTitle;
 }
-function TextSectionTitle({ count, title }: ITextSectionTitleProps) {
+function TextSectionTitle({ caseCount, count, title }: ITextSectionTitleProps) {
   if (!title) return null;
 
   const { actual, actualColor, predicted, predictedColor } = title;
+  const countPart = `${count} case${count === 1 ? "" : "s"}`;
+  const percent = caseCount > 0 ? Math.floor(count / caseCount * 100) : 0;
+
+  let AccuracyIcon: React.FC | null = null;
+  if (predicted) {
+    AccuracyIcon = actual === predicted ? CorrectIcon : IncorrectIcon;
+  } 
+
   return (
-    <span className="actual-title">
-      {actual && (
-        <>
-          <span>True label: </span><span className="label" style={{ color: actualColor }}>{actual}</span>
-          {predicted && <span>,&nbsp;</span>}
-        </>
-      )}
-      {predicted && (
-        <>
-          <span>Predicted label: </span><span className="label" style={{ color: predictedColor }}>{predicted}</span>
-        </>
-      )}
-      <span>&nbsp;</span>
-      <span className="case-count">{`(${count} case${count === 1 ? "" : "s"})`}</span>
-    </span>
+    <>
+      <div className="actual-title">
+        {actual && (
+          <div>
+            <span>True: </span><span className="label" style={{ color: actualColor }}>{actual}</span>
+            {predicted && <span>,</span>}
+          </div>
+        )}
+        {predicted && (
+          <div>
+            <span>Predicted: </span><span className="label" style={{ color: predictedColor }}>{predicted}</span>
+          </div>
+        )}
+        <div className="case-count">{`(${countPart}, ${percent}% of all)`}</div>
+      </div>
+      {AccuracyIcon && <div className="accuracy-icon"><AccuracyIcon /></div>}
+    </>
   );
 }
 
 interface ITextSectionProps {
-  textHeight: number;
+  caseCount: number;
   textSection: ITextSection;
+  style?: React.CSSProperties;
 }
-export function TextSection({ textHeight, textSection }: ITextSectionProps) {
-  const { hidden, text, title } = textSection;
-  const height = textSectionTitleHeight + (!hidden ? textHeight : 0);
+export function TextSection({ caseCount, textSection, style }: ITextSectionProps) {
+  const { text, title } = textSection;
   return (
-    <div className="text-section" style={{ height }}>
-      <button
-        className="text-section-title"
-        onClick={() => textStore.toggleTextSectionVisibility(textSection)}
-        style={{ height: textSectionTitleHeight }}
-      >
-        <TextSectionTitle count={text.length} title={title} />
-        <div className={clsx("hide-icon", { hidden })}>
-          <CollapseExpandIcon />
-        </div>
-      </button>
-      {!hidden && (
-        <div className="text-section-text" style={{ height: textHeight }}>
-          {text.map((textSectionText, index) => {
-            const indexString = textSectionText.index != null ? `${textSectionText.index + 1}:` : "";
-            return (
-              <div key={indexString}>
-                <div className="phrase-row">
-                  <div className="phrase-index">{indexString}</div>
-                  <div className="phrase">
-                    <TextParts textParts={textSectionText.textParts} />
-                  </div>
-                </div>
-                {index < text.length - 1 && <div className="divider" />}
+    <div className="text-section" style={style}>
+      <div className="text-section-title">
+        <TextSectionTitle caseCount={caseCount} count={text.length} title={title} />
+      </div>
+      <div className="text-section-text">
+        {text.map((textSectionText, index) => {
+          const indexString = textSectionText.index != null ? `(${textSectionText.index + 1}) ` : "";
+          return (
+            <div key={`text-section-${index}`}>
+              <div className="phrase">
+                <TextParts textParts={[{ text: indexString }, ...textSectionText.textParts]} />
               </div>
-            );
-          })}
-        </div>
-      )}
+              {index < text.length - 1 && <div className="divider" />}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
