@@ -108,12 +108,12 @@ const Storyq = observer(class Storyq extends Component<IStoryqProps, {}> {
     }
 
     public render() {
-      const onLeftButtonClick = () => uiStore.showStoryQPanel
+      const onStoryQButtonClick = () => uiStore.showStoryQPanel
         ? uiStore.setShowStoryQPanel(false) : uiStore.setShowStoryQPanel(true);
-      const leftDirection = uiStore.showStoryQPanel ? "left" : "right";
-      const onRightButtonClick = () => uiStore.showTextPanel
+      const storyQButtonDirection = uiStore.showStoryQPanel ? "left" : "right";
+      const onTextButtonClick = () => uiStore.showTextPanel
         ? uiStore.setShowTextPanel(false) : uiStore.setShowTextPanel(true);
-      const rightDirection = uiStore.showTextPanel ? "right" : "left";
+      const textButtonDirection = uiStore.showTextPanel ? "right" : "left";
 
       return (
         <div className="storyq-container">
@@ -139,8 +139,8 @@ const Storyq = observer(class Storyq extends Component<IStoryqProps, {}> {
               </TabPanel>
             </div>
           )}
-          {uiStore.showTextPanel && <CollapseButton direction={leftDirection} onClick={onLeftButtonClick} />}
-          {uiStore.showStoryQPanel && <CollapseButton direction={rightDirection} onClick={onRightButtonClick} />}
+          {uiStore.showTextPanel && <CollapseButton direction={storyQButtonDirection} onClick={onStoryQButtonClick} />}
+          {uiStore.showStoryQPanel && <CollapseButton direction={textButtonDirection} onClick={onTextButtonClick} />}
           {uiStore.showTextPanel && <TextPane />}
         </div>
       );
