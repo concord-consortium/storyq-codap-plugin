@@ -110,10 +110,10 @@ const Storyq = observer(class Storyq extends Component<IStoryqProps, {}> {
     public render() {
       const onLeftButtonClick = () => uiStore.showStoryQPanel
         ? uiStore.setShowStoryQPanel(false) : uiStore.setShowStoryQPanel(true);
-      const leftDirection = !uiStore.showStoryQPanel ? "right" : "left";
+      const leftDirection = uiStore.showStoryQPanel ? "left" : "right";
       const onRightButtonClick = () => uiStore.showTextPanel
         ? uiStore.setShowTextPanel(false) : uiStore.setShowTextPanel(true);
-      const rightDirection = !uiStore.showTextPanel ? "left" : "right";
+      const rightDirection = uiStore.showTextPanel ? "right" : "left";
 
       return (
         <div className="storyq-container">
