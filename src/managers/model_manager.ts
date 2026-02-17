@@ -459,12 +459,16 @@ export class ModelManager {
   }
 
   nextStep() {
-    const tLogisticModel = trainingStore.model.logisticModel
-    tLogisticModel.trace = trainingStore.model.trainingInStepMode
-    tLogisticModel.stepModeCallback = trainingStore.model.trainingInStepMode ?
-      this.stepModeCallback : undefined
+    console.log(`... nextStep`);
+    const tLogisticModel = trainingStore.model.logisticModel;
+    console.log(` .. logistic model`, tLogisticModel);
+    tLogisticModel.trace = trainingStore.model.trainingInStepMode;
+    console.log(` .. trace`, tLogisticModel.trace);
+    tLogisticModel.stepModeCallback = tLogisticModel.trace ? this.stepModeCallback : undefined;
+    console.log(` .. stepModeCallback`, tLogisticModel.stepModeCallback);
 
-    this.stepModeContinueCallback && this.stepModeContinueCallback(this.stepModeIteration + 1)
+    this.stepModeContinueCallback?.(this.stepModeIteration + 1);
+    console.log(`  . finished stepModeContinueCallback`);
   }
 
   fillOutCurrentStoredModel(iLogisticModel: LogisticRegression): StoredAIModel {
