@@ -87,10 +87,20 @@ export const TextPane = observer(function TextPane() {
     const result = [...textSections];
     if (chosenTargetClassName) {
       result.sort((a, b) => {
-        const aIsTarget = !!(a.title && a.title.actual === chosenTargetClassName);
-        const bIsTarget = !!(b.title && b.title.actual === chosenTargetClassName);
+        if (!a.title || !b.title) return 0;
+
+        // If predicted labels are included, sort positive predictions first
+        if (a.title.predicted != null && b.title.predicted != null) {
+          const aIsPredictedTarget = a.title.predicted === chosenTargetClassName;
+          const bIsPredictedTarget = b.title.predicted === chosenTargetClassName;
+          if (aIsPredictedTarget !== bIsPredictedTarget) return aIsPredictedTarget ? -1 : 1;
+        }
+
+        // Sort negative actual labels first
+        const aIsTarget = a.title.actual === chosenTargetClassName;
+        const bIsTarget = b.title.actual === chosenTargetClassName;
         if (aIsTarget === bIsTarget) return 0;
-        return aIsTarget ? -1 : 1;
+        return aIsTarget ? 1 : -1;
       });
     }
     return result;
