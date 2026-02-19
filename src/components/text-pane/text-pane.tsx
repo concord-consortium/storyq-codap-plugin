@@ -99,8 +99,9 @@ export const TextPane = observer(function TextPane() {
         // Sort negative actual labels first
         const aIsTarget = a.title.actual === chosenTargetClassName;
         const bIsTarget = b.title.actual === chosenTargetClassName;
-        if (aIsTarget === bIsTarget) return 0;
-        return aIsTarget ? 1 : -1;
+        if (aIsTarget !== bIsTarget) return aIsTarget ? 1 : -1;
+
+        return 0;
       });
     }
     return result;
