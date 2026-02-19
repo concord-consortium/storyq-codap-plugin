@@ -80,17 +80,29 @@ export const TextPane = observer(function TextPane() {
     };
   }, []);
 
-  // sort the text sections so the target label section comes first
+  // Sort the text sections
+  // Target predicted labels come first, followed by target labels coming last
   const chosenTargetClassName = targetStore.chosenTargetClassName;
   const textSections = textStore.textSections;
   const sortedTextSections = useMemo(() => {
     const result = [...textSections];
     if (chosenTargetClassName) {
       result.sort((a, b) => {
-        const aIsTarget = !!(a.title && a.title.actual === chosenTargetClassName);
-        const bIsTarget = !!(b.title && b.title.actual === chosenTargetClassName);
-        if (aIsTarget === bIsTarget) return 0;
-        return aIsTarget ? -1 : 1;
+        if (!a.title || !b.title) return 0;
+
+        // If predicted labels are included, sort positive predictions first
+        if (a.title.predicted != null && b.title.predicted != null) {
+          const aIsPredictedTarget = a.title.predicted === chosenTargetClassName;
+          const bIsPredictedTarget = b.title.predicted === chosenTargetClassName;
+          if (aIsPredictedTarget !== bIsPredictedTarget) return aIsPredictedTarget ? -1 : 1;
+        }
+
+        // Sort negative actual labels first
+        const aIsTarget = a.title.actual === chosenTargetClassName;
+        const bIsTarget = b.title.actual === chosenTargetClassName;
+        if (aIsTarget !== bIsTarget) return aIsTarget ? 1 : -1;
+
+        return 0;
       });
     }
     return result;
