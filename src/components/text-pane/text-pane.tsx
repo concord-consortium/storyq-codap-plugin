@@ -80,7 +80,8 @@ export const TextPane = observer(function TextPane() {
     };
   }, []);
 
-  // sort the text sections so the target label section comes first
+  // Sort the text sections
+  // Target predicted labels come first, followed by target labels coming last
   const chosenTargetClassName = targetStore.chosenTargetClassName;
   const textSections = textStore.textSections;
   const sortedTextSections = useMemo(() => {
