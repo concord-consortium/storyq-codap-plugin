@@ -30,23 +30,21 @@ function TextSectionTitle({ caseCount, count, title }: ITextSectionTitleProps) {
   );
 
   return (
-    <>
-      <div className="actual-title">
-        {actual && (
-          <div>
-            <span>True: </span><span className="label" style={{ color: actualColor }}>{actual}</span>
-            {predicted && <span>,</span>}
-          </div>
-        )}
-        {predicted && (
-          <div className="predicted-title">
-            <div>Predicted:&nbsp;</div><div className="label" style={{ color: predictedColor }}>{predicted}</div>
-            {AccuracyIcon && <div className={accuracyIconClasses}><AccuracyIcon /></div>}
-          </div>
-        )}
-        <div className="case-count">{`(${countPart}, ${percent}% of all)`}</div>
-      </div>
-    </>
+    <div className="actual-title">
+      {actual && (
+        <div>
+          <span>True: </span><span className="label" style={{ color: actualColor }}>{actual}</span>
+          {predicted && <span>,</span>}
+        </div>
+      )}
+      {predicted && (
+        <div className="predicted-title">
+          <div>Predicted:&nbsp;</div><div className="label" style={{ color: predictedColor }}>{predicted}</div>
+          {AccuracyIcon && <div className={accuracyIconClasses}><AccuracyIcon /></div>}
+        </div>
+      )}
+      <div className="case-count">{`(${countPart}, ${percent}% of all)`}</div>
+    </div>
   );
 }
 
