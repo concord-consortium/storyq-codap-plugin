@@ -1,5 +1,7 @@
+import clsx from "clsx";
 import React from "react";
 import { ITextSection, ITextSectionTitle } from "../../stores/store_types_and_constants";
+import { targetStore } from "../../stores/target_store";
 import { TextParts } from "./text-parts";
 
 import { ReactComponent as CorrectIcon } from "../../assets/correct-icon.svg";
@@ -22,7 +24,10 @@ function TextSectionTitle({ caseCount, count, title }: ITextSectionTitleProps) {
   let AccuracyIcon: React.FC | null = null;
   if (predicted) {
     AccuracyIcon = actual === predicted ? CorrectIcon : IncorrectIcon;
-  } 
+  }
+  const accuracyIconClasses = clsx(
+    "accuracy-icon", { "positive-prediction": predicted === targetStore.positiveClassName }
+  );
 
   return (
     <>
@@ -34,13 +39,13 @@ function TextSectionTitle({ caseCount, count, title }: ITextSectionTitleProps) {
           </div>
         )}
         {predicted && (
-          <div>
-            <span>Predicted: </span><span className="label" style={{ color: predictedColor }}>{predicted}</span>
+          <div className="predicted-title">
+            <div>Predicted:&nbsp;</div><div className="label" style={{ color: predictedColor }}>{predicted}</div>
+            {AccuracyIcon && <div className={accuracyIconClasses}><AccuracyIcon /></div>}
           </div>
         )}
         <div className="case-count">{`(${countPart}, ${percent}% of all)`}</div>
       </div>
-      {AccuracyIcon && <div className="accuracy-icon"><AccuracyIcon /></div>}
     </>
   );
 }
