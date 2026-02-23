@@ -1,4 +1,5 @@
 import clsx from "clsx";
+import { observer } from "mobx-react-lite";
 import React from "react";
 import { ITextSection, ITextSectionTitle } from "../../stores/store_types_and_constants";
 import { targetStore } from "../../stores/target_store";
@@ -14,7 +15,9 @@ interface ITextSectionTitleProps {
   count: number;
   title?: ITextSectionTitle;
 }
-function TextSectionTitle({ caseCount, count, title }: ITextSectionTitleProps) {
+export const TextSectionTitle = observer(function TextSectionTitle({
+  caseCount, count, title
+}: ITextSectionTitleProps) {
   if (!title) return null;
 
   const { actual, actualColor, predicted, predictedColor } = title;
@@ -46,7 +49,7 @@ function TextSectionTitle({ caseCount, count, title }: ITextSectionTitleProps) {
       <div className="case-count">{`(${countPart}, ${percent}% of all)`}</div>
     </div>
   );
-}
+});
 
 interface ITextSectionProps {
   caseCount: number;
