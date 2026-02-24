@@ -1,5 +1,8 @@
+import clsx from "clsx";
+import { observer } from "mobx-react-lite";
 import React from "react";
 import { ITextSection, ITextSectionTitle } from "../../stores/store_types_and_constants";
+import { targetStore } from "../../stores/target_store";
 import { TextParts } from "./text-parts";
 
 import { ReactComponent as CorrectIcon } from "../../assets/correct-icon.svg";
@@ -12,7 +15,9 @@ interface ITextSectionTitleProps {
   count: number;
   title?: ITextSectionTitle;
 }
-function TextSectionTitle({ caseCount, count, title }: ITextSectionTitleProps) {
+export const TextSectionTitle = observer(function TextSectionTitle({
+  caseCount, count, title
+}: ITextSectionTitleProps) {
   if (!title) return null;
 
   const { actual, actualColor, predicted, predictedColor } = title;
@@ -22,28 +27,29 @@ function TextSectionTitle({ caseCount, count, title }: ITextSectionTitleProps) {
   let AccuracyIcon: React.FC | null = null;
   if (predicted) {
     AccuracyIcon = actual === predicted ? CorrectIcon : IncorrectIcon;
-  } 
+  }
+  const accuracyIconClasses = clsx(
+    "accuracy-icon", { "positive-prediction": predicted === targetStore.positiveClassName }
+  );
 
   return (
-    <>
-      <div className="actual-title">
-        {actual && (
-          <div>
-            <span>True: </span><span className="label" style={{ color: actualColor }}>{actual}</span>
-            {predicted && <span>,</span>}
-          </div>
-        )}
-        {predicted && (
-          <div>
-            <span>Predicted: </span><span className="label" style={{ color: predictedColor }}>{predicted}</span>
-          </div>
-        )}
-        <div className="case-count">{`(${countPart}, ${percent}% of all)`}</div>
-      </div>
-      {AccuracyIcon && <div className="accuracy-icon"><AccuracyIcon /></div>}
-    </>
+    <div className="actual-title">
+      {actual && (
+        <div>
+          <span>True: </span><span className="label" style={{ color: actualColor }}>{actual}</span>
+          {predicted && <span>,</span>}
+        </div>
+      )}
+      {predicted && (
+        <div className="predicted-title">
+          <div>Predicted:&nbsp;</div><div className="label" style={{ color: predictedColor }}>{predicted}</div>
+          {AccuracyIcon && <div className={accuracyIconClasses}><AccuracyIcon /></div>}
+        </div>
+      )}
+      <div className="case-count">{`(${countPart}, ${percent}% of all)`}</div>
+    </div>
   );
-}
+});
 
 interface ITextSectionProps {
   caseCount: number;
