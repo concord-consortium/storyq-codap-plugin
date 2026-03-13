@@ -36,7 +36,7 @@ interface IStorage {
 interface IStoryqProps {}
 const Storyq = observer(class Storyq extends Component<IStoryqProps, {}> {
     private kPluginName = kStoryQPluginName;
-    private kVersion = "2.19.0";
+    private kVersion = "2.20.0";
     private kInitialDimensions = {
       width: getPluginWidth(),
       height: pluginHeight
