@@ -1,5 +1,7 @@
+$collapse-button-width: 24px;
 $pane-divider-size: 24px;
 
 :export {
+  collapseButtonWidth: $collapse-button-width;
   paneDividerSize: $pane-divider-size
 }

@@ -4,8 +4,6 @@ import { ReactComponent as ArrowIcon } from "../assets/arrow-icon.svg";
 
 import "./collapse-button.scss";
 
-export const collapseButtonWidth = 16;
-
 interface ICollapseButtonProps {
   direction: "left" | "right";
   onClick: () => void;
