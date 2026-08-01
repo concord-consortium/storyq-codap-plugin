@@ -12,8 +12,14 @@ class MockResizeObserver {
 }
 
 describe("TextPane", () => {
+  const originalResizeObserver = global.ResizeObserver;
+
   beforeAll(() => {
     global.ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserver;
+  });
+
+  afterAll(() => {
+    global.ResizeObserver = originalResizeObserver;
   });
 
   beforeEach(() => {
