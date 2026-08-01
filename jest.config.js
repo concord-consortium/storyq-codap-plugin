@@ -10,6 +10,8 @@ module.exports = {
   moduleNameMapper: {
     // Mock CSS imports, suggested by ChatGPT
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
+    // Mock svg imports, which are handled by svgr in the app but not by jest
+    '\\.svg$': '<rootDir>/src/__mocks__/svg-mock.tsx',
   },
   setupFilesAfterEnv: ['@testing-library/jest-dom'],
 };

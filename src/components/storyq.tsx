@@ -10,7 +10,8 @@ import { kStoryQPluginName } from "../stores/store_types_and_constants";
 import { targetStore } from '../stores/target_store';
 import { testingStore } from "../stores/testing_store";
 import { IUiStoreJSON, uiStore } from "../stores/ui_store";
-import { CollapseButton, collapseButtonWidth } from "./collapse-button";
+import { CollapseButton } from "./collapse-button";
+import { kCollapseButtonWidth } from "./constants";
 import { FeaturePanel } from "./feature_panel";
 import { TargetPanel } from "./target_panel";
 import { TestingPanel, kNonePresent } from "./testing_panel";
@@ -24,7 +25,7 @@ import './storyq.scss';
 
 const paneWidth = 430;
 function getPluginWidth() {
-  return (paneWidth + collapseButtonWidth) * (uiStore.showStoryQPanel && uiStore.showTextPanel ? 2 : 1);
+  return (paneWidth + kCollapseButtonWidth) * (uiStore.showStoryQPanel && uiStore.showTextPanel ? 2 : 1);
 }
 const pluginHeight = 420;
 
@@ -99,6 +100,9 @@ const Storyq = observer(class Storyq extends Component<IStoryqProps, {}> {
         uiStore.fromJSON(iStorage.uiStore);
         domainStore.fromJSON(iStorage.domainStore);
         await targetStore.updateFromCODAP()
+        // The restored panel visibility flags may not match the dimensions requested at startup,
+        // so re-assert the width we want now that they have settled.
+        updatePluginDimensions(getPluginWidth(), pluginHeight)
       }
     }
 

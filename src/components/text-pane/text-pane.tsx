@@ -65,11 +65,12 @@ export const TextPane = observer(function TextPane() {
     // update on window resize
     window.addEventListener('resize', updateDimensions);
 
-    // observe the parent element of the pane
+    // Observe the pane, not its parent: the pane can resize while
+    // the parent does not, e.g. when the panel beside it collapses.
     let resizeObserver: ResizeObserver | null = null;
-    if (paneRef.current?.parentElement) {
+    if (paneRef.current) {
       resizeObserver = new ResizeObserver(updateDimensions);
-      resizeObserver.observe(paneRef.current.parentElement);
+      resizeObserver.observe(paneRef.current);
     }
 
     return () => {
