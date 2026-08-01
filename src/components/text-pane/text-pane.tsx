@@ -65,9 +65,8 @@ export const TextPane = observer(function TextPane() {
     // update on window resize
     window.addEventListener('resize', updateDimensions);
 
-    // Observe the pane itself rather than its parent. The pane can be resized without the parent
-    // changing size, for instance when the StoryQ panel beside it is collapsed and flex hands the
-    // freed space to the pane.
+    // Observe the pane, not its parent: the pane can resize while
+    // the parent does not, e.g. when the panel beside it collapses.
     let resizeObserver: ResizeObserver | null = null;
     if (paneRef.current) {
       resizeObserver = new ResizeObserver(updateDimensions);
