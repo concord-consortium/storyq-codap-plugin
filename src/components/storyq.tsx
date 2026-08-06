@@ -1,4 +1,3 @@
-import { IReactionDisposer, reaction } from "mobx";
 import { observer } from "mobx-react";
 import React, { Component } from 'react';
 import { initializePlugin, registerObservers, updatePluginDimensions } from '../lib/codap-helper';
@@ -43,7 +42,6 @@ const Storyq = observer(class Storyq extends Component<IStoryqProps, {}> {
       height: pluginHeight
     };
     private testingManager: TestingManager;
-    private resizeDisposer: IReactionDisposer;
 
     constructor(props: IStoryqProps) {
       super(props);
@@ -65,14 +63,9 @@ const Storyq = observer(class Storyq extends Component<IStoryqProps, {}> {
       initializePlugin(this.kPluginName, this.kVersion, this.kInitialDimensions, this.restorePluginFromStore)
         .then(registerObservers).catch(registerObservers);
 
-      this.resizeDisposer = reaction(
-        () => [uiStore.showStoryQPanel, uiStore.showTextPanel],
-        () => updatePluginDimensions(getPluginWidth(), pluginHeight)
-      );
-    }
-
-    componentWillUnmount() {
-      this.resizeDisposer?.();
+      // Collapsing or expanding a pane deliberately leaves the window size alone. The panes are
+      // flex children, so the remaining one fills the space, and whatever width the user has set
+      // is preserved.
     }
 
     getPluginStore() {
