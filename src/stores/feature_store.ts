@@ -10,9 +10,9 @@ import {
   GetCaseFormulaSearchResponse, GetCollectionListResponse, GetDataContextListResponse, GetItemSearchResponse
 } from '../types/codap-api-types';
 import {
-  Feature, FeatureType, getStarterFeature, kAnyNumberKeyword, kFeatureKindColumn, kFeatureKindNgram, kFeatureKindSearch,
-  kFeatureTypeConstructed, kFeatureTypeUnigram, kTokenTypeUnigram, kWhatOptionNumber, kWhatOptionText, NgramDetails,
-  SearchDetails, Token, TokenMap, WordListSpec
+  Feature, FeatureType, getStarterFeature, getTargetCaseFormula, kAnyNumberKeyword, kFeatureKindColumn,
+  kFeatureKindNgram, kFeatureKindSearch, kFeatureTypeConstructed, kFeatureTypeUnigram, kTokenTypeUnigram,
+  kWhatOptionNumber, kWhatOptionText, NgramDetails, SearchDetails, Token, TokenMap, WordListSpec
 } from "./store_types_and_constants";
 import { targetDatasetStore } from './target_dataset_store';
 
@@ -101,6 +101,11 @@ export class FeatureStore {
     if (json) {
       this.setFeatureDatasetInfo({ ...this.featureDatasetInfo, datasetID: json.featureDatasetID || -1 });
       this.setFeatures(json.features || []);
+      // targetCaseFormula is a function, so it is stripped when the document is saved. Rebuild it from the
+      // `where` value, which does survive, so a restored feature searches the way a created one does.
+      this.features.forEach(feature => {
+        feature.targetCaseFormula = getTargetCaseFormula((feature.info.details as SearchDetails)?.where ?? "");
+      });
       this.setFeatureUnderConstruction(json.featureUnderConstruction || getStarterFeature());
       this.setTokenMap(json.tokenMap || {});
       this.setTargetColumnFeatureNames(json.targetColumnFeatureNames || []);
