@@ -30,6 +30,8 @@ export interface IDomainStoreJSON {
 }
 
 export class DomainStore {
+  private migration?: Promise<void>;
+
   constructor() {
     makeAutoObservable(this);
   }
@@ -47,6 +49,9 @@ export class DomainStore {
     targetStore: ITargetStoreJSON, featureStore: IFeatureStoreJSON, trainingStore: ITrainingStoreJSON,
     testingStore: ITestingStore, textStore: ITextStoreJSON
   }) {
+    // The guard below is per plugin instance rather than per document, and CODAP can push restored state
+    // into a running instance.
+    this.migration = undefined;
     targetStore.fromJSON(json.targetStore);
     featureStore.fromJSON(json.featureStore);
     trainingStore.fromJSON(json.trainingStore);
@@ -91,8 +96,8 @@ export class DomainStore {
                 attrs: [
                   { name: 'name' },
                   { name: 'chosen', type: 'checkbox', hidden: true },
-                  { name: 'color', type: 'color' },
-                  { name: 'highlight', type: 'checkbox' },
+                  { name: 'color', type: 'color', hidden: true },
+                  { name: 'highlight', type: 'checkbox', hidden: true },
                   { name: tPositiveAttrName },
                   { name: tNegativeAttrName },
                   { name: 'type', hidden: true },
@@ -122,11 +127,43 @@ export class DomainStore {
           // The 'model name' and 'weight' attributes were created as visible as a workaround to a bug.
           // Now we can hide them
           await hideWeightsAttributes();
+          // A dataset created here is already up to date, so the migration below never has to run for it.
+          this.migration = Promise.resolve();
         }
+      } else {
+        await this.migrateExistingFeaturesDataset();
       }
       return true;
     }
     return false;
+  }
+
+  /**
+   * Brings a Features dataset created before this version up to date. Every step is safe to repeat, but
+   * the dataset is re-entered on every feature added and on every collapse and expand of the StoryQ panel,
+   * so the work is done once. We hold the in-flight promise rather than a flag because two callers can be
+   * inside guaranteeFeaturesDataset() at once, and a flag set after the awaits would let the second one
+   * through. A failure costs the repairs rather than the document, so it is logged and swallowed.
+   */
+  private migrateExistingFeaturesDataset() {
+    this.migration ??= this.runFeaturesDatasetMigration().catch(error => {
+      console.log(`Could not bring the Features dataset up to date: ${error}`);
+      this.migration = undefined; // a transient failure retries on the next entry
+    });
+    return this.migration;
+  }
+
+  private async runFeaturesDatasetMigration() {
+    const { collectionName, datasetName } = featureStore.featureDatasetInfo;
+    const resource = `dataContext[${datasetName}].collection[${collectionName}]`;
+
+    // Repeating a hide succeeds, and the flag can only be read back with another request, so this is
+    // issued unconditionally rather than guarded.
+    await codapInterface.sendRequest(["color", "highlight"].map(attr => ({
+      action: "update",
+      resource: `${resource}.attribute[${attr}]`,
+      values: { hidden: true }
+    })));
   }
 
   async updateNonNtigramFeaturesDataset() {

@@ -1,10 +1,10 @@
 import { getCaseValues } from "../lib/codap-helper";
 import codapInterface from "../lib/CodapInterface";
-import { UpdateCaseRequest } from "../types/codap-api-types";
-import { domainStore } from "./domain_store";
+import { APIRequest, UpdateCaseRequest } from "../types/codap-api-types";
+import { DomainStore, domainStore } from "./domain_store";
 import { featureStore } from "./feature_store";
 import {
-  Feature, getStarterFeature, kFeatureKindNgram, kFeatureTypeUnigram, NgramDetails
+  Feature, getStarterFeature, kFeatureKindNgram, kFeatureTypeConstructed, kFeatureTypeUnigram, NgramDetails
 } from "./store_types_and_constants";
 import { targetStore } from "./target_store";
 
@@ -53,6 +53,19 @@ function targetCaseUpdates() {
 function featureIDsFor(targetCaseId: number) {
   const update = targetCaseUpdates().find(value => Number(value.id) === targetCaseId);
   return update ? JSON.parse(String(update.values.featureIDs)) : undefined;
+}
+
+function sentRequests() {
+  return mockSendRequest.mock.calls.flatMap(call => call[0]) as APIRequest[];
+}
+
+function makeConstructedFeature(name: string): Feature {
+  const feature = getStarterFeature();
+  feature.name = name;
+  feature.caseID = "900";
+  feature.chosen = true;
+  feature.type = kFeatureTypeConstructed;
+  return feature;
 }
 
 describe("DomainStore.recreateUsagesAndFeatureIDs", () => {
@@ -151,5 +164,67 @@ describe("DomainStore.updateNgramFeatures", () => {
     expect(createRequest.values.length).toBeGreaterThan(0);
     expect(createRequest.values.every((value: any) => value.values.color === featureColor)).toBe(true);
     expect(createRequest.values.every((value: any) => value.values.highlight === false)).toBe(true);
+  });
+});
+
+describe("DomainStore.guaranteeFeaturesDataset, for a dataset created before this version", () => {
+  let store: DomainStore;
+
+  function hideRequests() {
+    return sentRequests().filter(request =>
+      request.action === "update" && String(request.resource).includes(".attribute[")
+    );
+  }
+
+  function migrationAttempts() {
+    return mockSendRequest.mock.calls.filter(
+      call => Array.isArray(call[0]) && String(call[0][0]?.resource).includes(".attribute[color]")
+    ).length;
+  }
+
+  beforeEach(() => {
+    mockSendRequest.mockReset();
+    mockSendRequest.mockResolvedValue({ success: true, values: [] });
+    featureStore.setFeatures([makeConstructedFeature('contain: "good"')]);
+    featureStore.setFeatureDatasetInfo({
+      datasetName: "Features", datasetTitle: "Features", collectionName: "features",
+      weightsCollectionName: "weights", datasetID: 42
+    });
+    store = new DomainStore();
+  });
+
+  it("hides the color and highlight attributes", async () => {
+    await store.guaranteeFeaturesDataset();
+
+    expect(hideRequests()).toEqual([
+      {
+        action: "update",
+        resource: "dataContext[Features].collection[features].attribute[color]",
+        values: { hidden: true }
+      },
+      {
+        action: "update",
+        resource: "dataContext[Features].collection[features].attribute[highlight]",
+        values: { hidden: true }
+      }
+    ]);
+  });
+
+  it("migrates once however often it is re-entered, including from concurrent callers", async () => {
+    await Promise.all([store.guaranteeFeaturesDataset(), store.guaranteeFeaturesDataset()]);
+    await store.guaranteeFeaturesDataset();
+
+    expect(migrationAttempts()).toBe(1);
+  });
+
+  it("swallows a failed migration and retries it on the next entry", async () => {
+    mockSendRequest.mockRejectedValueOnce(new Error("timed out"));
+    jest.spyOn(console, "log").mockImplementation(() => null);
+
+    await expect(store.guaranteeFeaturesDataset()).resolves.toBe(true);
+    expect(migrationAttempts()).toBe(1);
+
+    await store.guaranteeFeaturesDataset();
+    expect(migrationAttempts()).toBe(2);
   });
 });
