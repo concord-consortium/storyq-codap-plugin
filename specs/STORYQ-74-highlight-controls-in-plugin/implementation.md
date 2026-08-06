@@ -2,7 +2,7 @@
 
 **Jira**: https://concord-consortium.atlassian.net/browse/STORYQ-74
 **Requirements**: [requirements.md](./requirements.md)
-**Status**: **Ready to build**
+**Status**: **Built**, 2026-08-06. Four places where the code had to depart from this plan are marked in place, each with the reason: the picker's props in section 7b, the `targetCaseFormula` expression in section 9, and two notes in the Tests section about the mocking the harness needs.
 
 This document says how to build what `requirements.md` specifies. It does not restate the requirements, and where the two disagree the requirements win, except for the two places below that deliberately depart from them and say so.
 
@@ -343,15 +343,18 @@ New `src/components/color_picker.tsx` and `.scss`. Nothing in the dependency tre
 
 ```tsx
 interface IColorPickerProps {
-  anchor: DOMRect          // the colour button's bounding rect
+  button: HTMLElement      // the colour button itself, not just its rect
   color: string            // the feature's current colour
   featureName: string      // for the accessible names of requirement 41
+  id: string               // the popover's id, for the button's aria-controls
   onChoose: (color: string) => void
-  onClose: () => void
+  onClose: (returnFocus?: boolean) => void
 }
 ```
 
-**Placement.** Render the picker through `ReactDOM.createPortal(…, document.body)`, and give the portalled element `position: fixed` with coordinates from `anchor`. Open below by default; if `anchor.bottom + 75 > window.innerHeight`, open above. Recompute on scroll and resize while open, or close on scroll, which is simpler and acceptable here.
+**Two of those signatures were `anchor: DOMRect` and `onClose: () => void` when this was written, and both had to widen while building.** The picker needs the button **element**, not only its rect: the outside-click and focus-out routes below both have to recognise events that landed on the button, and the rect is one `getBoundingClientRect()` away from the element while the element cannot be recovered from the rect. And `onClose` has to say which route fired, because the Closing list below splits five routes into three that return focus and two that must not; a bare `onClose()` cannot express that, and the row would have to guess. `id` is the popover's own id, which the button's `aria-controls` needs and which the row therefore owns.
+
+**Placement.** Render the picker through `ReactDOM.createPortal(…, document.body)`, and give the portalled element `position: fixed` with coordinates from `button.getBoundingClientRect()`. Open below by default; if `anchor.bottom + 75 > window.innerHeight`, open above. Recompute on scroll and resize while open, or close on scroll, which is simpler and acceptable here.
 
 **The portal is required, not a matter of taste, and `position: fixed` inside the row does not work.** Absolute positioning inside the row is clipped by the feature list's own scroll containers, `.sq-container` (`storyq.scss:238-241`) and `.sq-feature-panel` (`:146-151`), which is the failure requirement 14 warns about. The obvious escape, `position: fixed` left in place, fails for a different and much less visible reason: `tab-panel.tsx:55` and `tab-panel-tab-content.tsx:22` each set an inline `transform: translate(0px, 0px)`, and a `transform` of anything other than `none` makes an element the containing block for its `position: fixed` descendants. `translate(0px, 0px)` counts; it computes to a matrix, not to `none`. So `top` and `left` would be measured from `.ui-multiview-item`'s padding box while `getBoundingClientRect()` reports viewport coordinates, and the flip rule would compare viewport numbers against a box that is not the viewport.
 
@@ -411,11 +414,11 @@ Requirement 40. Pre-existing defect, in scope because requirements 4 and 12 both
 
 ```ts
 this.features.forEach(feature => {
-  feature.targetCaseFormula = getTargetCaseFormula((feature.info.details as SearchDetails).where);
+  feature.targetCaseFormula = getTargetCaseFormula((feature.info.details as SearchDetails)?.where ?? "");
 });
 ```
 
-The same expression and the same cast as `target_store.ts:378`, which is where a newly created feature gets it. `getTargetCaseFormula` and `SearchDetails` both come from `store_types_and_constants`, which `feature_store.ts` already imports from.
+Nearly the same expression and the same cast as `target_store.ts:378`, which is where a newly created feature gets it. The `?.` and the `?? ""` are the difference: `details` is `SearchDetails | CountDetails | NgramDetails | ColumnDetails | null` (`store_types_and_constants.ts:200`), and the cast asserts the null away for the compiler without doing anything about it at run time, so the literal expression throws on a feature whose details are null. `""` is a `SearchWhereOption` and maps to `defaultTargetCaseFormula`, which is what this section already wants for every non-search feature. `getTargetCaseFormula` and `SearchDetails` both come from `store_types_and_constants`, which `feature_store.ts` already imports from.
 
 Applying it to every feature rather than only to `count` features is deliberate. `getTargetCaseFormula` returns `defaultTargetCaseFormula` for every other `where` value and for a missing one (`store_types_and_constants.ts:163-174`), so the uniform version is a no-op everywhere else and states the rule once: a restored feature searches the way a created one does. Ngram and column features get one too and never use it, since `updateFrequenciesUsagesAndFeatureIDs()` iterates non-ngram features only.
 
@@ -464,6 +467,14 @@ Independent of the other nine, and worth landing beside commit 9 for the reason 
 ## Tests
 
 Jest with React Testing Library is set up and there are five existing test files; `text-pane.test.tsx` is the closest model for component tests. Neither `domain_store.ts` nor `notification_manager.ts` has any coverage today. This story adds two narrowly scoped tests to `domain_store.ts`, because each pins a defect that is otherwise invisible until a student meets it, and attempts no general coverage of either file.
+
+**Mock `../managers/text_feedback_manager` in any test file that mocks `codap-helper` with a factory, or the stores will not see the mock.** `codap-helper.ts:1` imports `text_feedback_manager`, which imports the stores, which import `codap-helper`: a cycle. A factory of the usual shape, `{ ...jest.requireActual("../lib/codap-helper"), getCaseValues: jest.fn() }`, makes `requireActual` load the real module, whose imports re-enter the factory, so the module registry ends up holding a **second** set of mock functions. The test file configures one set and the stores call the other. The symptom is silent and misleading rather than a failure: `targetStore.updateTargetCases()` returns `undefined` with zero calls recorded on the mock the test is holding, and the next line dies on `targetCases.map`. One line fixes it, and it belongs beside the other mocks:
+
+```ts
+jest.mock("../managers/text_feedback_manager", () => ({ setupTextFeedbackManager: jest.fn() }));
+```
+
+`jest.spyOn(codapInterface, "sendRequest")` needs none of this, since it mutates the one module instance rather than registering a second. Prefer it where a whole-module mock is not needed. Note also that `featureStore`'s methods are bound by `autoBind`, so `jest.spyOn(featureStore, "setColorFor")` throws `Cannot assign to read only property`; mock the request layer under it instead, which is the better test anyway.
 
 Worth writing:
 

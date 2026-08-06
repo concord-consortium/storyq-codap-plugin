@@ -51,8 +51,8 @@ export class DomainStore {
     targetStore: ITargetStoreJSON, featureStore: IFeatureStoreJSON, trainingStore: ITrainingStoreJSON,
     testingStore: ITestingStore, textStore: ITextStoreJSON
   }) {
-    // The guard below is per plugin instance rather than per document, and CODAP can push restored state
-    // into a running instance.
+    // The migration guard is per plugin instance rather than per document, and the plugin accepts
+    // restored state into a running instance.
     this.migration = undefined;
     targetStore.fromJSON(json.targetStore);
     featureStore.fromJSON(json.featureStore);
@@ -160,7 +160,7 @@ export class DomainStore {
     const { collectionName, datasetName } = featureStore.featureDatasetInfo;
     const resource = `dataContext[${datasetName}].collection[${collectionName}]`;
 
-    // Repeating a hide succeeds, and the flag can only be read back with another request, so this is
+    // Repeating a hide succeeds, and reading the flag back costs a request per attribute, so this is
     // issued unconditionally rather than guarded.
     await codapInterface.sendRequest(["color", "highlight"].map(attr => ({
       action: "update",
