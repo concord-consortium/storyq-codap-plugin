@@ -4,7 +4,7 @@
  */
 
 import { makeAutoObservable } from "mobx";
-import { getCaseValues, openTable } from "../lib/codap-helper";
+import { getCaseValues, guaranteeAttribute, openTable } from "../lib/codap-helper";
 import codapInterface from "../lib/CodapInterface";
 import { oneHot, wordTokenizer } from "../lib/one_hot";
 import {
@@ -14,7 +14,9 @@ import {
 } from "../types/codap-api-types";
 import { getFeatureColor, ngramTokenColor } from "../utilities/color-utils";
 import { featureStore, IFeatureStoreJSON } from "./feature_store";
-import { defaultTargetCaseFormula, Feature, kFeatureKindNgram, kPosNegConstants } from "./store_types_and_constants";
+import {
+  defaultTargetCaseFormula, Feature, kFeatureKindNgram, kPosNegConstants, kTotalFrequencyAttrName
+} from "./store_types_and_constants";
 import { ITargetStoreJSON, otherClassColumn, targetStore } from "./target_store";
 import { ITestingStore, testingStore } from "./testing_store";
 import { ITextStoreJSON } from "./text_store";
@@ -100,6 +102,7 @@ export class DomainStore {
                   { name: 'highlight', type: 'checkbox', hidden: true },
                   { name: tPositiveAttrName },
                   { name: tNegativeAttrName },
+                  { name: kTotalFrequencyAttrName },
                   { name: 'type', hidden: true },
                   /*
                                     {name: 'description'},
@@ -164,6 +167,35 @@ export class DomainStore {
       resource: `${resource}.attribute[${attr}]`,
       values: { hidden: true }
     })));
+
+    await guaranteeAttribute({ name: kTotalFrequencyAttrName, hidden: false }, datasetName, collectionName);
+    await this.backfillTotalFrequency(datasetName, collectionName);
+  }
+
+  /**
+   * Restored documents do not re-run case creation, so the cases that already exist need their new
+   * `total frequency` filled in. The two frequency values are read back off the cases rather than
+   * recounted, and their attributes are found by their shared prefix so that class labels other than
+   * positive and negative work too.
+   */
+  private async backfillTotalFrequency(datasetName: string, collectionName: string) {
+    const cases = await getCaseValues(datasetName, collectionName);
+    const frequencyAttrs = Object.keys(cases[0]?.values ?? {})
+      .filter(name => name.startsWith(kPosNegConstants.positive.attrKey));
+    if (frequencyAttrs.length === 0) return;
+
+    await codapInterface.sendRequest({
+      action: "update",
+      resource: `dataContext[${datasetName}].collection[${collectionName}].case`,
+      values: cases.map(aCase => ({
+        id: aCase.id,
+        values: {
+          [kTotalFrequencyAttrName]: frequencyAttrs.reduce(
+            (total, name) => total + (Number(aCase.values[name]) || 0), 0
+          )
+        }
+      }))
+    });
   }
 
   async updateNonNtigramFeaturesDataset() {
@@ -287,6 +319,7 @@ export class DomainStore {
           };
           tValuesObject.values[tPositiveAttrName] = iFeature.numberInPositive;
           tValuesObject.values[tNegativeAttrName] = iFeature.numberInNegative;
+          tValuesObject.values[kTotalFrequencyAttrName] = iFeature.numberInPositive + iFeature.numberInNegative;
           return tValuesObject;
         })
         const { collectionName } = featureStore.featureDatasetInfo;
@@ -319,8 +352,11 @@ export class DomainStore {
               values: {
                 chosen: iFeature.chosen,
                 name: iFeature.name,
+                // These two names are hardcoded, so they miss any dataset whose class labels are not
+                // positive and negative. Tracked as STORYQ-85.
                 'frequency in positive': iFeature.numberInPositive,
-                'frequency in negative': iFeature.numberInNegative
+                'frequency in negative': iFeature.numberInNegative,
+                [kTotalFrequencyAttrName]: iFeature.numberInPositive + iFeature.numberInNegative
               }
             }
           })
@@ -404,6 +440,7 @@ export class DomainStore {
         };
         tCaseValues.values[tPositiveAttrName] = iFeature.numPositive;
         tCaseValues.values[tNegativeAttrName] = iFeature.numNegative;
+        tCaseValues.values[kTotalFrequencyAttrName] = iFeature.numPositive + iFeature.numNegative;
         tUnigramCreateMsgs.push(tCaseValues);
       });
       const tCreateResult = await codapInterface.sendRequest({

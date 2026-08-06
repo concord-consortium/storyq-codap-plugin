@@ -19,6 +19,8 @@ export const kEmptyEntityInfo = {name: '', title: '', id: 0},
     }
   }
 
+export const kTotalFrequencyAttrName = 'total frequency';
+
 export const kAnyNumberKeyword = "anyNumber";
 // This matches any number, including negatives, decimals, and fractions, preceded by the start of the string,
 // followed by punctuation or the end of the string, or preceded or followed by currency symbols or quotes.

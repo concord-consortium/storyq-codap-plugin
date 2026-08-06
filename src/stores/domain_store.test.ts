@@ -39,6 +39,12 @@ const featureCases = [
   { id: 100, children: [101], values: { name: 'count: "love"', type: "constructed" } },
   { id: 200, children: [201], values: { name: 'contain: "good"', type: "constructed" } }
 ];
+// A restored document's feature cases already carry their two frequency values, under attribute names
+// built from the document's own class labels.
+const restoredFeatureCases = [
+  { id: 100, values: { name: 'count: "love"', "frequency in yes": "129", "frequency in no": "71" } },
+  { id: 200, values: { name: 'contain: "good"', "frequency in yes": "", "frequency in no": "" } }
+];
 
 function targetCaseUpdates() {
   const requests = mockSendRequest.mock.calls
@@ -185,6 +191,8 @@ describe("DomainStore.guaranteeFeaturesDataset, for a dataset created before thi
   beforeEach(() => {
     mockSendRequest.mockReset();
     mockSendRequest.mockResolvedValue({ success: true, values: [] });
+    mockGetCaseValues.mockReset();
+    mockGetCaseValues.mockResolvedValue(restoredFeatureCases);
     featureStore.setFeatures([makeConstructedFeature('contain: "good"')]);
     featureStore.setFeatureDatasetInfo({
       datasetName: "Features", datasetTitle: "Features", collectionName: "features",
@@ -207,6 +215,23 @@ describe("DomainStore.guaranteeFeaturesDataset, for a dataset created before thi
         resource: "dataContext[Features].collection[features].attribute[highlight]",
         values: { hidden: true }
       }
+    ]);
+  });
+
+  it("creates total frequency and backfills it from the frequency values already on the cases", async () => {
+    await store.guaranteeFeaturesDataset();
+
+    const created = sentRequests().find(
+      request => request.action === "create" && String(request.resource).endsWith(".attribute")
+    );
+    expect(created?.values).toEqual([{ name: "total frequency", hidden: false }]);
+
+    const backfill = sentRequests().find(
+      request => request.action === "update" && request.resource === "dataContext[Features].collection[features].case"
+    );
+    expect(backfill?.values).toEqual([
+      { id: 100, values: { "total frequency": 200 } },
+      { id: 200, values: { "total frequency": 0 } }
     ]);
   });
 
