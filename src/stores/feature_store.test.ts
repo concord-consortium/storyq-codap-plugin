@@ -1,3 +1,4 @@
+import { reaction } from "mobx";
 import codapInterface from "../lib/CodapInterface";
 import { kNoColor } from "../utilities/color-utils";
 import { FeatureStore } from "./feature_store";
@@ -140,5 +141,21 @@ describe("FeatureStore.setColorFor and setHighlightFor", () => {
     expect(feature.highlight).toBe(false);
     expect(store.tokenMap.word0.highlight).toBe(false);
     expect(store.tokenMap['count: "love"'].highlight).toBe(true);
+  });
+
+  it("shows the text pane every new value at once, tokens included", async () => {
+    store.setFeatures([makeNgramFeature()]);
+    const seen: string[][] = [];
+    const dispose = reaction(
+      () => store.highlights,
+      () => seen.push(Object.values(store.tokenMap).map(token => token.color))
+    );
+
+    await store.setColorFor(store.features[0], "#dbb6fb");
+    dispose();
+
+    // A token mutation on its own fires nothing, so the one reaction has to see the new token colors.
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toEqual(["#dbb6fb", "#dbb6fb", "#dbb6fb", kNoColor]);
   });
 });
