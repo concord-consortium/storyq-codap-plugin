@@ -93,8 +93,6 @@ const Storyq = observer(class Storyq extends Component<IStoryqProps, {}> {
         uiStore.fromJSON(iStorage.uiStore);
         domainStore.fromJSON(iStorage.domainStore);
         await targetStore.updateFromCODAP()
-        // The window size is deliberately left alone here. CODAP has already restored the size
-        // saved with the document, and that is the size the user chose.
       }
     }
 
