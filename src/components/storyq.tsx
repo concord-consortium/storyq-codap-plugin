@@ -1,6 +1,6 @@
 import { observer } from "mobx-react";
 import React, { Component } from 'react';
-import { initializePlugin, registerObservers, updatePluginDimensions } from '../lib/codap-helper';
+import { initializePlugin, registerObservers } from '../lib/codap-helper';
 import codapInterface, { CODAP_Notification } from "../lib/CodapInterface";
 import { NotificationManager } from "../managers/notification_manager";
 import { TestingManager } from "../managers/testing_manager";
@@ -93,9 +93,8 @@ const Storyq = observer(class Storyq extends Component<IStoryqProps, {}> {
         uiStore.fromJSON(iStorage.uiStore);
         domainStore.fromJSON(iStorage.domainStore);
         await targetStore.updateFromCODAP()
-        // The restored panel visibility flags may not match the dimensions requested at startup,
-        // so re-assert the width we want now that they have settled.
-        updatePluginDimensions(getPluginWidth(), pluginHeight)
+        // The window size is deliberately left alone here. CODAP has already restored the size
+        // saved with the document, and that is the size the user chose.
       }
     }
 
