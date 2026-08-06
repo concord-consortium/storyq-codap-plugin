@@ -10,9 +10,9 @@ import {
   GetCaseFormulaSearchResponse, GetCollectionListResponse, GetDataContextListResponse, GetItemSearchResponse
 } from '../types/codap-api-types';
 import {
-  Feature, FeatureType, getStarterFeature, getTargetCaseFormula, kAnyNumberKeyword, kFeatureKindColumn,
-  kFeatureKindNgram, kFeatureKindSearch, kFeatureTypeConstructed, kFeatureTypeUnigram, kTokenTypeUnigram,
-  kWhatOptionNumber, kWhatOptionText, NgramDetails, SearchDetails, Token, TokenMap, WordListSpec
+  Feature, FeatureOrToken, FeatureType, getStarterFeature, getTargetCaseFormula, kAnyNumberKeyword,
+  kFeatureKindColumn, kFeatureKindNgram, kFeatureKindSearch, kFeatureTypeConstructed, kFeatureTypeUnigram,
+  kTokenTypeUnigram, kWhatOptionNumber, kWhatOptionText, NgramDetails, SearchDetails, Token, TokenMap, WordListSpec
 } from "./store_types_and_constants";
 import { targetDatasetStore } from './target_dataset_store';
 
@@ -388,42 +388,77 @@ export class FeatureStore {
     }
   }
 
-  async toggleChosenFor(iFeature: Feature) {
-    const dataContextPart = `dataContext[${this.featureDatasetID}]`;
-    const resourcePrefix = `${dataContextPart}.collection[${this.featureDatasetInfo.collectionName}]`;
+  private get featureCollectionResource() {
+    return `dataContext[${this.featureDatasetID}].collection[${this.featureDatasetInfo.collectionName}]`;
+  }
 
-    const syncUnigramsInFeaturesDataset = async (iChosen: boolean) => {
-      if (!iChosen) this.deleteUnigramTokens();
-      // For every case in Features dataset set the 'chosen' attribute to given value
-      const tCasesRequestResult = await codapInterface.sendRequest({
-        action: 'get',
-        resource: `${resourcePrefix}.caseFormulaSearch[type='${kFeatureTypeUnigram}']`
-      }) as GetCaseFormulaSearchResponse;
-      if (tCasesRequestResult.success && tCasesRequestResult.values) {
-        const tUpdateRequests: { id: number, values: { chosen: boolean } }[] = tCasesRequestResult.values.map(
-          (iValue: { id: number }) => ({ id: Number(iValue.id), values: { chosen: iChosen } })
-        );
-        await codapInterface.sendRequest({
-          action: 'update',
-          resource: `${resourcePrefix}.case`,
-          values: tUpdateRequests
-        });
-      }
-    }
-
-    iFeature.chosen = !iFeature.chosen;
-    if (iFeature.type === kFeatureTypeUnigram) {
-      await syncUnigramsInFeaturesDataset(iFeature.chosen);
-    } else {
+  /**
+   * Writes one value to every unigram case in the Features dataset in a single batched request. That
+   * resource takes a flat array of cases, unlike the caseByID writes elsewhere, which need their values
+   * nested.
+   */
+  private async writeToUnigramCases(values: Record<string, unknown>) {
+    const resourcePrefix = this.featureCollectionResource;
+    const tCasesRequestResult = await codapInterface.sendRequest({
+      action: 'get',
+      resource: `${resourcePrefix}.caseFormulaSearch[type='${kFeatureTypeUnigram}']`
+    }) as GetCaseFormulaSearchResponse;
+    if (tCasesRequestResult.success && tCasesRequestResult.values) {
       await codapInterface.sendRequest({
         action: 'update',
-        resource: `${resourcePrefix}.caseByID[${iFeature.caseID}]`,
-        values: {
-          values: {
-            chosen: iFeature.chosen
-          }
-        }
+        resource: `${resourcePrefix}.case`,
+        values: tCasesRequestResult.values.map((iValue: { id: number }) => ({ id: Number(iValue.id), values }))
       });
+    }
+  }
+
+  private async writeToFeatureCase(iFeature: Feature, values: Record<string, unknown>) {
+    await codapInterface.sendRequest({
+      action: 'update',
+      resource: `${this.featureCollectionResource}.caseByID[${iFeature.caseID}]`,
+      values: { values }
+    });
+  }
+
+  // A method rather than a getter, because tokenMap is deliberately not observable and a computed over it
+  // would cache a result nothing can invalidate. tokenMap also holds one constructed token per chosen
+  // feature after training, which is why the filter is needed at all.
+  private getUnigramTokens() {
+    return Object.values(this.tokenMap).filter(token => token.type === kTokenTypeUnigram);
+  }
+
+  async setHighlightFor(feature: Feature, highlight: boolean) {
+    await this.setValuesFor(feature, { highlight });
+  }
+
+  async setColorFor(feature: Feature, color: string) {
+    await this.setValuesFor(feature, { color });
+  }
+
+  /**
+   * The single words feature stands for every word it extracted, so setting a value on it sets the same
+   * value on each of those words. The tokens are mutated before the feature: a token mutation on its own
+   * notifies nothing, and it is touching the feature in the same tick that refreshes the text pane.
+   * The feature itself has no case of its own, so the fan-out covers it by covering its tokens.
+   */
+  private async setValuesFor(feature: Feature, values: Partial<FeatureOrToken>) {
+    if (feature.type === kFeatureTypeUnigram) {
+      this.getUnigramTokens().forEach(token => Object.assign(token, values));
+      Object.assign(feature, values);
+      await this.writeToUnigramCases(values);
+    } else {
+      Object.assign(feature, values);
+      await this.writeToFeatureCase(feature, values);
+    }
+  }
+
+  async toggleChosenFor(iFeature: Feature) {
+    iFeature.chosen = !iFeature.chosen;
+    if (iFeature.type === kFeatureTypeUnigram) {
+      if (!iFeature.chosen) this.deleteUnigramTokens();
+      await this.writeToUnigramCases({ chosen: iFeature.chosen });
+    } else {
+      await this.writeToFeatureCase(iFeature, { chosen: iFeature.chosen });
     }
   }
 
