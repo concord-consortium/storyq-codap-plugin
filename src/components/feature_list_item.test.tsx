@@ -47,6 +47,19 @@ describe("FeatureListItem", () => {
     screen.getByRole("button", { name: 'Show highlighting for count: "love"' });
   });
 
+  it("turns the feature's highlighting off and back on", async () => {
+    jest.spyOn(codapInterface, "sendRequest").mockResolvedValue({ success: true });
+    render(<FeatureListItem allowChoose={false} allowHighlightControls feature={feature} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Hide highlighting/ }));
+    await waitFor(() => expect(feature.highlight).toBe(false));
+
+    fireEvent.click(screen.getByRole("button", { name: /Show highlighting/ }));
+    await waitFor(() => expect(feature.highlight).toBe(true));
+
+    jest.restoreAllMocks();
+  });
+
   it("empties the pill while highlighting is off, and only where the controls explain it", () => {
     feature.highlight = false;
     const { container, rerender } = render(

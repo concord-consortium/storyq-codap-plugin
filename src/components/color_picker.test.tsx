@@ -3,9 +3,14 @@ import React from "react";
 import { featureColors } from "../utilities/color-utils";
 import { ColorPicker } from "./color_picker";
 
-function renderPicker(color: string, handlers: { onChoose?: jest.Mock, onClose?: jest.Mock } = {}) {
+function renderPicker(
+  color: string, handlers: { onChoose?: jest.Mock, onClose?: jest.Mock, buttonRect?: Partial<DOMRect> } = {}
+) {
   const button = document.createElement("button");
   document.body.appendChild(button);
+  if (handlers.buttonRect) {
+    button.getBoundingClientRect = () => ({ left: 0, top: 0, bottom: 0, ...handlers.buttonRect }) as DOMRect;
+  }
   const onChoose = handlers.onChoose ?? jest.fn();
   const onClose = handlers.onClose ?? jest.fn();
   render(
@@ -58,6 +63,20 @@ describe("ColorPicker", () => {
     renderPicker(featureColors[0]);
 
     screen.getByRole("listbox", { name: 'Highlight color for count: "love"' });
+  });
+
+  it("opens below the button when there is room", () => {
+    renderPicker(featureColors[0], { buttonRect: { left: 40, top: 100, bottom: 128 } });
+
+    expect(screen.getByRole("listbox")).toHaveStyle({ left: "40px", top: "130px" });
+  });
+
+  it("opens above the button when the plugin window is too short below it", () => {
+    window.innerHeight = 160;
+    renderPicker(featureColors[0], { buttonRect: { left: 40, top: 100, bottom: 128 } });
+
+    expect(screen.getByRole("listbox")).toHaveStyle({ top: "23px" });
+    window.innerHeight = 768;
   });
 
   it("focuses the selected swatch when it opens", () => {
