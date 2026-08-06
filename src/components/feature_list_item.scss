@@ -71,8 +71,11 @@
   display: flex;
   flex: 1;
   justify-content: space-between;
+  // The pill is the same height as the two controls beside it, so the row reads as one object.
+  // Vertical padding would push it past that, since the close icon is already 22px tall.
+  min-height: 28px;
   min-width: 0;
-  padding: 4px;
+  padding: 0 2px;
 
   .left-item {
     display: flex;
