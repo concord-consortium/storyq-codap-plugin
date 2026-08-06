@@ -4,9 +4,7 @@
 
 **Design**: [Zeplin: StoryQ Updates, section 4A](https://app.zeplin.io/project/5e4baae7fb685faac9bf4a0a/screen/6938b582aef73b81d631eef6)
 
-**Source Spec**: [specs/STORYQ-74-highlight-controls-in-plugin/](specs/STORYQ-74-highlight-controls-in-plugin/)
-
-**Status**: **Closed**
+**Status**: **Closed**. The source spec folder this was built from was deleted on closing; its contents are in git history at commit `2779912`.
 
 ## Overview
 
