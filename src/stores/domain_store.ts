@@ -12,7 +12,7 @@ import {
   GetCaseFormulaSearchResponse, GetItemByCaseIDResponse, GetItemSearchResponse, ItemInfo, ItemValues,
   NotifyDataContextRequest, UpdateCaseRequest, UpdateCaseValue
 } from "../types/codap-api-types";
-import { getFeatureColor, ngramTokenColor } from "../utilities/color-utils";
+import { getFeatureColor, kNoColor, ngramColor, ngramTokenColor } from "../utilities/color-utils";
 import { featureStore, IFeatureStoreJSON } from "./feature_store";
 import {
   defaultTargetCaseFormula, Feature, kFeatureKindNgram, kPosNegConstants, kTotalFrequencyAttrName
@@ -167,6 +167,14 @@ export class DomainStore {
       resource: `${resource}.attribute[${attr}]`,
       values: { hidden: true }
     })));
+
+    // Before this version the single words feature had no color of its own. Repairing it ahead of the
+    // backfill keeps the plugin independent of when CODAP delivers the backfill's echo, which carries
+    // every case's color back.
+    const ngram = featureStore.ngramFeature;
+    if (ngram?.color === kNoColor) {
+      await featureStore.setColorFor(ngram, ngramColor);
+    }
 
     await guaranteeAttribute({ name: kTotalFrequencyAttrName, hidden: false }, datasetName, collectionName);
     await this.backfillTotalFrequency(datasetName, collectionName);

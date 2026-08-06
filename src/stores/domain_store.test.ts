@@ -1,10 +1,12 @@
 import { getCaseValues } from "../lib/codap-helper";
 import codapInterface from "../lib/CodapInterface";
 import { APIRequest, UpdateCaseRequest } from "../types/codap-api-types";
+import { kNoColor, ngramColor } from "../utilities/color-utils";
 import { DomainStore, domainStore } from "./domain_store";
 import { featureStore } from "./feature_store";
 import {
-  Feature, getStarterFeature, kFeatureKindNgram, kFeatureTypeConstructed, kFeatureTypeUnigram, NgramDetails
+  Feature, getNewToken, getStarterFeature, kFeatureKindNgram, kFeatureTypeConstructed, kFeatureTypeUnigram,
+  kTokenTypeUnigram, NgramDetails
 } from "./store_types_and_constants";
 import { targetStore } from "./target_store";
 
@@ -233,6 +235,36 @@ describe("DomainStore.guaranteeFeaturesDataset, for a dataset created before thi
       { id: 100, values: { "total frequency": 200 } },
       { id: 200, values: { "total frequency": 0 } }
     ]);
+  });
+
+  it("repairs the single words feature's color, tokens included", async () => {
+    const ngram = getStarterFeature();
+    ngram.name = "single words";
+    ngram.info.kind = kFeatureKindNgram;
+    ngram.type = kFeatureTypeUnigram;
+    ngram.color = kNoColor;
+    featureStore.setFeatures([ngram]);
+    featureStore.clearTokens();
+    featureStore.addToken("love", getNewToken({ token: "love", type: kTokenTypeUnigram }));
+
+    await store.guaranteeFeaturesDataset();
+
+    expect(featureStore.features[0].color).toBe(ngramColor);
+    expect(featureStore.tokenMap.love.color).toBe(ngramColor);
+  });
+
+  it("leaves a single words feature that already has a color alone", async () => {
+    const ngram = getStarterFeature();
+    ngram.name = "single words";
+    ngram.info.kind = kFeatureKindNgram;
+    ngram.type = kFeatureTypeUnigram;
+    ngram.color = "#dbb6fb";
+    featureStore.setFeatures([ngram]);
+
+    await store.guaranteeFeaturesDataset();
+
+    expect(featureStore.features[0].color).toBe("#dbb6fb");
+    expect(sentRequests().some(request => String(request.resource).includes("caseFormulaSearch"))).toBe(false);
   });
 
   it("migrates once however often it is re-entered, including from concurrent callers", async () => {
