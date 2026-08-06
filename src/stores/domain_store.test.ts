@@ -3,12 +3,19 @@ import codapInterface from "../lib/CodapInterface";
 import { UpdateCaseRequest } from "../types/codap-api-types";
 import { domainStore } from "./domain_store";
 import { featureStore } from "./feature_store";
+import {
+  Feature, getStarterFeature, kFeatureKindNgram, kFeatureTypeUnigram, NgramDetails
+} from "./store_types_and_constants";
 import { targetStore } from "./target_store";
 
 jest.mock("../lib/CodapInterface", () => ({
   __esModule: true,
   default: { sendRequest: jest.fn(), on: jest.fn(), updateInteractiveState: jest.fn() }
 }));
+// codap-helper imports text_feedback_manager, which imports the stores, which import codap-helper.
+// Left in place, that cycle re-enters the mock factory below and hands the stores a second, separate
+// set of mock functions from the ones this file configures.
+jest.mock("../managers/text_feedback_manager", () => ({ setupTextFeedbackManager: jest.fn() }));
 jest.mock("../lib/codap-helper", () => ({
   ...jest.requireActual("../lib/codap-helper"),
   getCaseValues: jest.fn(),
@@ -81,5 +88,68 @@ describe("DomainStore.recreateUsagesAndFeatureIDs", () => {
 
   it("treats a count of zero as a non-match", () => {
     expect(featureIDsFor(2)).toEqual([200]);
+  });
+});
+
+describe("DomainStore.updateNgramFeatures", () => {
+  const featureColor = "#dbb6fb";
+
+  function makeNgramFeature(): Feature {
+    const feature = getStarterFeature();
+    feature.name = "single words";
+    feature.chosen = true;
+    feature.color = featureColor;
+    feature.highlight = false;
+    feature.info.kind = kFeatureKindNgram;
+    feature.info.details = { n: "uni" } as NgramDetails;
+    feature.info.frequencyThreshold = 1;
+    feature.info.ignoreStopWords = false;
+    feature.type = kFeatureTypeUnigram;
+    return feature;
+  }
+
+  beforeEach(async () => {
+    mockSendRequest.mockReset();
+    mockSendRequest.mockImplementation(async (request: any) => {
+      if (request?.action === "create") {
+        return { success: true, values: request.values.map((_: unknown, index: number) => ({ id: 500 + index })) };
+      }
+      return { success: true, values: [] };
+    });
+    mockGetCaseValues.mockReset();
+    mockGetCaseValues.mockResolvedValue(targetCases);
+
+    targetStore.fromJSON({
+      targetDatasetInfo: { name: kTargetDataset, title: kTargetDataset, id: 7 },
+      targetAttributeName: "text",
+      targetClassAttributeName: "rating",
+      targetClassNames: { left: "positive", right: "negative" },
+      targetChosenClassColumnKey: "left"
+    } as any);
+    targetStore.setTargetCollectionName(kTargetCollection);
+    featureStore.setFeatures([makeNgramFeature()]);
+    featureStore.clearTokens();
+    featureStore.setFeatureDatasetInfo({
+      datasetName: "Features", datasetTitle: "Features", collectionName: "features",
+      weightsCollectionName: "weights", datasetID: 42
+    });
+
+    await domainStore.updateNgramFeatures();
+  });
+
+  it("gives every extracted word the feature's color and highlight state", () => {
+    const tokens = Object.values(featureStore.tokenMap);
+    expect(tokens.length).toBeGreaterThan(0);
+    expect(tokens.every(token => token.color === featureColor)).toBe(true);
+    expect(tokens.every(token => token.highlight === false)).toBe(true);
+  });
+
+  it("writes the same color and highlight state into the Features dataset", () => {
+    const createRequest = mockSendRequest.mock.calls
+      .map(call => call[0])
+      .find(request => request?.action === "create");
+    expect(createRequest.values.length).toBeGreaterThan(0);
+    expect(createRequest.values.every((value: any) => value.values.color === featureColor)).toBe(true);
+    expect(createRequest.values.every((value: any) => value.values.highlight === false)).toBe(true);
   });
 });

@@ -12,7 +12,7 @@ import {
   GetCaseFormulaSearchResponse, GetItemByCaseIDResponse, GetItemSearchResponse, ItemInfo, ItemValues,
   NotifyDataContextRequest, UpdateCaseRequest, UpdateCaseValue
 } from "../types/codap-api-types";
-import { getFeatureColor, kNoColor } from "../utilities/color-utils";
+import { getFeatureColor, ngramTokenColor } from "../utilities/color-utils";
 import { featureStore, IFeatureStoreJSON } from "./feature_store";
 import { defaultTargetCaseFormula, Feature, kFeatureKindNgram, kPosNegConstants } from "./store_types_and_constants";
 import { ITargetStoreJSON, otherClassColumn, targetStore } from "./target_store";
@@ -350,12 +350,13 @@ export class DomainStore {
       // if (await this.guaranteeFeaturesDataset()) {
       const tUnigramCreateMsgs: CreateCaseValue[] = [];
       tTokenArray.forEach(iFeature => {
-        iFeature.color = iFeature.color !== kNoColor ? iFeature.color : getFeatureColor();
+        iFeature.color = ngramTokenColor(iNtgramFeature.color);
+        iFeature.highlight = iNtgramFeature.highlight;
         const tCaseValues: CreateCaseValue = {
           values: {
             chosen: true,
             color: iFeature.color,
-            highlight: true,
+            highlight: !!iFeature.highlight,
             name: iFeature.token,
             type: 'unigram',
             /*

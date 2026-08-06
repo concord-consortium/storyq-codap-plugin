@@ -301,6 +301,10 @@ export class FeatureStore {
     return this.getFeaturesOfKind(kFeatureKindNgram).length > 0;
   }
 
+  get ngramFeature(): Feature | undefined {
+    return this.getFeaturesOfKind(kFeatureKindNgram)[0];
+  }
+
   addFeatureUnderConstruction(tFeature: Feature) {
     const typeMap: Record<string, FeatureType> = {
       [kFeatureKindNgram]: kFeatureTypeUnigram,

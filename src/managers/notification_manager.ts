@@ -9,7 +9,7 @@ import codapInterface, {CODAP_Notification} from "../lib/CodapInterface";
 import { featureStore } from "../stores/feature_store";
 import { kFeatureTypeUnigram, kTokenTypeUnigram } from "../stores/store_types_and_constants";
 import { targetStore } from "../stores/target_store";
-import { getFeatureColor } from "../utilities/color-utils";
+import { ngramTokenColor } from "../utilities/color-utils";
 
 export class NotificationManager {
   updatingStores = false
@@ -99,8 +99,8 @@ export class NotificationManager {
                   type: kTokenTypeUnigram,
                   count: Number(iCase.values['frequency in positive']) + Number(iCase.values['frequency in negative']),
                   index: 0,
-                  color: getFeatureColor(),
-                  highlight: true,
+                  color: ngramTokenColor(featureStore.ngramFeature?.color),
+                  highlight: featureStore.ngramFeature?.highlight ?? true,
                   numPositive: Number(iCase.values['frequency in positive']),
                   numNegative: Number(iCase.values['frequency in negative']),
                   caseIDs: JSON.parse(String(iCase.values.usages)),
