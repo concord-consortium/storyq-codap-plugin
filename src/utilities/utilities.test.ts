@@ -1,5 +1,6 @@
 import { NonNtigramFeature } from "../managers/headings_manager";
 import { kAnyNumberKeyword } from "../stores/store_types_and_constants";
+import { kNoColor } from "./color-utils";
 import { highlightFeatures } from "./utilities";
 
 describe("highlightFeatures", () => {
@@ -109,6 +110,18 @@ describe("highlightFeatures", () => {
       { text: "I", classNames: ["highlighted"], style: { backgroundColor: "#000" } },
       { text: " love " },
       { text: "you", classNames: ["highlighted"], style: { backgroundColor: "#000" } }
+    ]);
+  });
+});
+
+describe("highlightFeatures and kNoColor", () => {
+  it("emits no inline background for a feature that has no color yet", async () => {
+    const selectedFeatures = [{ word: "text", feature: { color: kNoColor, highlight: true } }];
+    const result = await highlightFeatures("Test text.", selectedFeatures);
+    expect(result).toEqual([
+      { text: "Test " },
+      { text: "text", classNames: ["highlighted"], style: undefined },
+      { text: "." }
     ]);
   });
 });

@@ -3,6 +3,7 @@ import { SQ } from "../lists/lists";
 import { NonNtigramFeature } from "../managers/headings_manager";
 import { FeatureOrToken, ITextPart, kAnyNumberKeyword, kNumberRegExp } from "../stores/store_types_and_constants";
 import { featureStore } from "../stores/feature_store";
+import { kNoColor } from "./color-utils";
 
 // Highlighting for the modern internal text pane
 export async function highlightFeatures(text: string, selectedFeatures: NonNtigramFeature[]) {
@@ -18,7 +19,9 @@ export async function highlightFeatures(text: string, selectedFeatures: NonNtigr
   };
   const highlightWord = (word: string, feature?: FeatureOrToken) => {
     addSegment();
-    const style = feature?.color ? { backgroundColor: feature.color } : undefined;
+    // kNoColor is a truthy string, so it has to be tested for by name or it reaches the DOM as an
+    // invalid inline background.
+    const style = feature?.color && feature.color !== kNoColor ? { backgroundColor: feature.color } : undefined;
     textParts.push({ text: word, classNames: ["highlighted"], style });
   };
 
