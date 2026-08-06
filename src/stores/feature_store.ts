@@ -151,7 +151,7 @@ export class FeatureStore {
           tDetails.what === kWhatOptionNumber ? kAnyNumberKeyword : '';
       return `${tFirstPart}: ${tSecondPart}`;
     } else if (iFeature.info.kind === kFeatureKindNgram) {
-      const ignoringPart = iFeature.info.ignoreStopWords ? 'ignoring stopwords' : '';
+      const ignoringPart = iFeature.info.ignoreStopWords ? ' ignoring stopwords' : '';
       return `single words with frequency ≥ ${iFeature.info.frequencyThreshold}${ignoringPart}`;
     } else if (iFeature.info.kind === kFeatureKindColumn) {
       return iFeature.name; // already has column name stashed here
