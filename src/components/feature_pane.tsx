@@ -105,7 +105,7 @@ export function FeaturePane() {
         <AddButton />
         <DoneButton />
       </div>
-      <FeatureList allowChoose={false} />
+      <FeatureList allowChoose={false} allowHighlightControls />
     </div>
   );
 }

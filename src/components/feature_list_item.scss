@@ -1,16 +1,82 @@
+// The row is a wrapper holding the two highlight controls and the name pill. It carries no color or
+// border of its own, and collapses onto the pill where the controls are not shown.
+.feature-list-item-wrapper {
+  align-items: center;
+  box-sizing: border-box;
+  display: flex;
+  gap: 5px;
+  margin: 4px;
+  width: 400px;
+
+  .highlight-control {
+    align-items: center;
+    border: solid 1px #177991;
+    border-radius: 3px;
+    box-sizing: border-box;
+    cursor: pointer;
+    display: flex;
+    flex: none;
+    height: 28px;
+    justify-content: center;
+    padding: 0;
+    position: relative;
+    width: 28px;
+
+    svg {
+      position: relative;
+      z-index: 1;
+    }
+
+    // The focus indicator swaps the border rather than adding an outline, so the box stays 28x28.
+    &:focus-visible {
+      border: solid 2px #0957d0;
+      outline: none;
+    }
+  }
+
+  .visibility-button {
+    background-color: #ffffff;
+
+    &:hover, &:focus-visible {
+      background-color: #d3f4ff;
+    }
+
+    &:active {
+      background-color: #bfefff;
+    }
+  }
+
+  // The color button is filled with the feature's color, so its hover and focus states wash that fill
+  // out to 50% rather than replacing it.
+  .color-button {
+    &:hover::after, &:focus-visible::after {
+      background-color: rgba(255, 255, 255, .5);
+      border-radius: 2px;
+      bottom: 0;
+      content: "";
+      left: 0;
+      position: absolute;
+      right: 0;
+      top: 0;
+    }
+  }
+}
+
 .feature-list-item {
   align-items: center;
   background-color: white;
   border: solid 1px #177991;
   border-radius: 3px;
+  box-sizing: border-box;
   display: flex;
+  flex: 1;
   justify-content: space-between;
-  margin: 4px;
+  min-width: 0;
   padding: 4px;
-  width: 400px;
 
   .left-item {
     display: flex;
+    min-width: 0;
 
     .feature-name {
       font-size: 14.5px;

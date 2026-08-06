@@ -10,15 +10,22 @@ import { FeatureListItem } from "./feature_list_item";
 interface IFeatureListProps {
   allowChoose?: boolean
   allowDelete?: boolean
+  allowHighlightControls?: boolean
 }
 export const FeatureList = observer(function FeatureList({
-  allowChoose = true, allowDelete = true
+  allowChoose = true, allowDelete = true, allowHighlightControls = false
 }: IFeatureListProps) {
   return (
     <div className="sq-container">
       <div className="sq-feature-list">
         {featureStore.features.map((feature, index) => (
-          <FeatureListItem allowChoose={allowChoose} allowDelete={allowDelete} key={index} feature={feature} />
+          <FeatureListItem
+            allowChoose={allowChoose}
+            allowDelete={allowDelete}
+            allowHighlightControls={allowHighlightControls}
+            key={index}
+            feature={feature}
+          />
         ))}
       </div>
     </div>
