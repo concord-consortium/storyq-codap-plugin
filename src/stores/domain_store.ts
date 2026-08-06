@@ -555,9 +555,11 @@ export class DomainStore {
       const tFeatureType = String(iFeatureCase.values.type);
 
       tTargetCases.forEach(iTargetCase => {
+        const tFeatureValue = iTargetCase.values[tFeatureName];
         const tTargetHasFeature = ['constructed', 'column'].includes(tFeatureType)
-          // Codap v3 returns strings, even for booleans, so we have to compare strings for now.
-          ? iTargetCase.values[tFeatureName] === "true" || iTargetCase.values[tFeatureName] === true ? true : false
+          // Codap v3 returns strings, even for booleans and numbers, so we have to compare strings for now.
+          // A count feature's value is a number, and it is present when that number is greater than zero.
+          ? tFeatureValue === "true" || tFeatureValue === true || Number(tFeatureValue) > 0
           : tFeatureType === 'unigram'
           ? targetTextHasUnigram(String(iTargetCase.values[targetAttributeName]), tFeatureName)
           : false;
