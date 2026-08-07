@@ -36,7 +36,7 @@ export const TextSectionTitle = observer(function TextSectionTitle({
     <div className="actual-title">
       {actual && (
         <div>
-          <span>True: </span><span className="label" style={{ color: actualColor }}>{actual}</span>
+          <span>Actual: </span><span className="label" style={{ color: actualColor }}>{actual}</span>
           {predicted && <span>,</span>}
         </div>
       )}
