@@ -10,7 +10,7 @@ import { domainStore } from "../stores/domain_store";
 import { featureStore } from "../stores/feature_store";
 import { Feature, kFeatureTypeUnigram } from "../stores/store_types_and_constants";
 import { textStore } from "../stores/text_store";
-import { ngramTokenColor } from "../utilities/color-utils";
+import { ngramColor, ngramTokenColor } from "../utilities/color-utils";
 import { ColorPicker } from "./color_picker";
 import { CheckBox } from "./ui/check-box";
 
@@ -91,6 +91,7 @@ export const FeatureListItem = observer(function FeatureListItem({
             <ColorPicker
               button={colorButtonRef.current}
               color={ngramTokenColor(feature.color)}
+              extraColor={feature.type === kFeatureTypeUnigram ? ngramColor : undefined}
               featureName={feature.name}
               id={pickerId}
               onChoose={handleChoose}

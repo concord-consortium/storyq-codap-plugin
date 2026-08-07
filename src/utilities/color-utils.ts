@@ -8,11 +8,12 @@ export const featureColorNames: Record<string, string> = {
   "#45f1eb": "Turquoise",
   "#a8e620": "Green",
   "#fb93e8": "Pink",
-  "#9ce1ff": "Blue"
+  "#9ce1ff": "Blue",
+  "#fff3b0": "Light yellow"
 };
-// Every word extracted by the single words feature gets this color rather than one from the cycle.
-// It happens to equal featureColors[0] today, but the two are independent constants.
-export const ngramColor = "#ffe671";
+// Every word extracted by the single words feature gets this color rather than one from the cycle. It sits
+// outside the six deliberately, so that a hand-picked feature can never be confused with the extracted words.
+export const ngramColor = "#fff3b0";
 let featureColorIndex = 0;
 
 export function getFeatureColor() {
@@ -34,4 +35,14 @@ export function normalizeHex(color: string) {
 
 export function isPaletteColor(color: string) {
   return featureColors.some(paletteColor => normalizeHex(paletteColor) === normalizeHex(color));
+}
+
+// The swatches a picker offers: the six, then any color the row itself offers beyond them, then the current
+// color when it is none of those. Rows other than single words pass no extraColor and so keep exactly six.
+// The extra swatch is what keeps a row's own color reachable again after the student has picked away from it.
+export function pickerSwatches(color: string, extraColor?: string) {
+  const candidates = extraColor ? [...featureColors, extraColor, color] : [...featureColors, color];
+  return candidates.filter(
+    (candidate, index) => candidates.findIndex(other => normalizeHex(other) === normalizeHex(candidate)) === index
+  );
 }

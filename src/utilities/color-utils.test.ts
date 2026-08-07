@@ -1,4 +1,6 @@
-import { isPaletteColor, kNoColor, ngramColor, ngramTokenColor, normalizeHex } from "./color-utils";
+import {
+  featureColors, isPaletteColor, kNoColor, ngramColor, ngramTokenColor, normalizeHex, pickerSwatches
+} from "./color-utils";
 
 describe("normalizeHex", () => {
   it("expands three digit shorthand", () => {
@@ -26,6 +28,32 @@ describe("isPaletteColor", () => {
     expect(isPaletteColor("#777")).toBe(false);
     expect(isPaletteColor("#777777")).toBe(false);
   });
+
+  // Jie asked for a single words color outside the six, so that an ordinary feature and the extracted
+  // words can always be told apart. Sharing a color with the palette is the bug, not an implementation detail.
+  it("rejects the single words color", () => {
+    expect(isPaletteColor(ngramColor)).toBe(false);
+  });
+});
+
+describe("pickerSwatches", () => {
+  it("offers the six palette colors and nothing else", () => {
+    expect(pickerSwatches(featureColors[1])).toEqual(featureColors);
+  });
+
+  it("appends the current color when it is not one of the six", () => {
+    expect(pickerSwatches("#777")).toEqual([...featureColors, "#777"]);
+  });
+
+  it("offers an extra color whether or not it is the current one", () => {
+    expect(pickerSwatches(ngramColor, ngramColor)).toEqual([...featureColors, ngramColor]);
+    expect(pickerSwatches(featureColors[1], ngramColor)).toEqual([...featureColors, ngramColor]);
+  });
+
+  it("lists each color once, comparing through normalized hex", () => {
+    expect(pickerSwatches("#FFE671")).toEqual(featureColors);
+    expect(pickerSwatches("#777777", "#777")).toEqual([...featureColors, "#777"]);
+  });
 });
 
 describe("ngramTokenColor", () => {
@@ -33,7 +61,7 @@ describe("ngramTokenColor", () => {
     expect(ngramTokenColor("#dbb6fb")).toBe("#dbb6fb");
   });
 
-  it("falls back to yellow for a missing color and for kNoColor", () => {
+  it("falls back to the single words color for a missing color and for kNoColor", () => {
     expect(ngramTokenColor(undefined)).toBe(ngramColor);
     expect(ngramTokenColor(kNoColor)).toBe(ngramColor);
   });

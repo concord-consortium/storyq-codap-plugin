@@ -1,13 +1,13 @@
 /**
- * A popover offering StoryQ's six feature colors, plus the feature's current color when that is not one
- * of the six. It is portalled to the document body because the feature list scrolls inside two clipping
- * containers, and because the tab panel sets an inline transform, which would otherwise make it, rather
- * than the viewport, the containing block for `position: fixed`.
+ * A popover offering StoryQ's six feature colors, plus the single words row's own color and the feature's
+ * current color when those are not among them. It is portalled to the document body because the feature list
+ * scrolls inside two clipping containers, and because the tab panel sets an inline transform, which would
+ * otherwise make it, rather than the viewport, the containing block for `position: fixed`.
  */
 
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom";
-import { featureColorNames, featureColors, isPaletteColor, normalizeHex } from "../utilities/color-utils";
+import { featureColorNames, normalizeHex, pickerSwatches } from "../utilities/color-utils";
 
 import "./color_picker.scss";
 
@@ -18,6 +18,8 @@ const kPopoverGap = 2;
 export interface IColorPickerProps {
   button: HTMLElement
   color: string
+  // A color this row offers in addition to the six, kept selectable whether or not it is the current one.
+  extraColor?: string
   featureName: string
   id: string
   onChoose: (color: string) => void
@@ -27,10 +29,10 @@ export interface IColorPickerProps {
 }
 
 export const ColorPicker = function ColorPicker({
-  button, color, featureName, id, onChoose, onClose
+  button, color, extraColor, featureName, id, onChoose, onClose
 }: IColorPickerProps) {
   const popoverRef = useRef<HTMLDivElement>(null);
-  const swatches = isPaletteColor(color) ? featureColors : [...featureColors, color];
+  const swatches = pickerSwatches(color, extraColor);
   const selectedIndex = Math.max(swatches.findIndex(swatch => normalizeHex(swatch) === normalizeHex(color)), 0);
   const [focusedIndex, setFocusedIndex] = useState(selectedIndex);
 

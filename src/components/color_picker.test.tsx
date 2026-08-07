@@ -1,10 +1,13 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import React from "react";
-import { featureColors } from "../utilities/color-utils";
+import { featureColors, ngramColor } from "../utilities/color-utils";
 import { ColorPicker } from "./color_picker";
 
 function renderPicker(
-  color: string, handlers: { onChoose?: jest.Mock, onClose?: jest.Mock, buttonRect?: Partial<DOMRect> } = {}
+  color: string,
+  handlers: {
+    onChoose?: jest.Mock, onClose?: jest.Mock, buttonRect?: Partial<DOMRect>, extraColor?: string
+  } = {}
 ) {
   const button = document.createElement("button");
   document.body.appendChild(button);
@@ -17,6 +20,7 @@ function renderPicker(
     <ColorPicker
       button={button}
       color={color}
+      extraColor={handlers.extraColor}
       featureName={'count: "love"'}
       id="picker"
       onChoose={onChoose}
@@ -48,6 +52,17 @@ describe("ColorPicker", () => {
     renderPicker("#FFE671");
 
     expect(swatches()).toHaveLength(6);
+  });
+
+  // The single words row's own color is not one of the six, so without this the student could pick away
+  // from it and have no way back.
+  it("offers the row's extra color even once the feature has been recolored away from it", () => {
+    renderPicker(featureColors[1], { extraColor: ngramColor });
+
+    expect(swatches()).toHaveLength(7);
+    expect(swatches()[6]).toHaveStyle({ backgroundColor: ngramColor });
+    expect(swatches()[6]).toHaveAccessibleName("Light yellow");
+    expect(swatches()[1]).toHaveAttribute("aria-selected", "true");
   });
 
   it("names every swatch, and reports exactly one as selected", () => {
