@@ -8,7 +8,7 @@
 
 ## Overview
 
-Move the two per-feature display controls, highlight visibility and highlight color, out of the CODAP Features table and into the StoryQ plugin's Features tab, and hide the corresponding columns from the table. Single-word extraction stops cycling six colors and uses one color (yellow) for every word.
+Move the two per-feature display controls, highlight visibility and highlight color, out of the CODAP Features table and into the StoryQ plugin's Features tab, and hide the corresponding columns from the table. Single-word extraction stops cycling six colors and uses one color, a light yellow outside the six, for every word.
 
 Today a student who wants to turn a feature's highlighting off, or change the color it highlights with, has to leave the plugin, find the Features table CODAP created, and edit a checkbox or a color swatch in a spreadsheet cell. The controls live far from the feature they affect, they are surfaced as raw data columns rather than as actions, and the color picker offers CODAP's full sixteen-color palette even though StoryQ only ever assigns six. This story puts both controls on the feature itself as a show/hide button and a color button on each row, keeps the underlying data but stops showing those two columns, and trims the picker to StoryQ's own six colors.
 
@@ -41,7 +41,8 @@ Today a student who wants to turn a feature's highlighting off, or change the co
 
 ### Color picker
 
-15. The picker offers exactly StoryQ's six feature colors: `#ffe671`, `#dbb6fb`, `#45f1eb`, `#a8e620`, `#fb93e8`, `#9ce1ff`. There is **no `more` button**; these six are the entire palette.
+15. The picker offers exactly StoryQ's six feature colors: `#ffe671`, `#dbb6fb`, `#45f1eb`, `#a8e620`, `#fb93e8`, `#9ce1ff`. There is **no `more` button**; these six are the entire palette. The single-words row is the one exception, and it is an addition rather than a substitution: see requirement 15a.
+15a. **The single-words row offers a seventh swatch, its own light yellow, unconditionally.** Requirement 20's color is outside the six by design, so under requirement 17 alone it would be offered only while it happened to be the current color, and recoloring that row once would put the default permanently out of reach. The extra swatch is a property of the row, not of the current color: it is there whatever the feature is set to, and it is named like any other palette color rather than taking requirement 41's generic "Current color". No other row shows it, so an ordinary feature still gets exactly six.
 16. The picker uses **CODAP's current swatch component**, from the CODAP overhaul design, not the older swatch drawn on the StoryQ board. Per swatch: 24x24 px overall containing a 22x22 px painted square inset 1 px, radius 2 px; unselected 1 px `#757575` inside border; selected 2 px `#006c8e` inside border plus a check mark. Grid four per row at a 27 px pitch with a 12 px inset, giving a **129x75 px** popover, white, 1 px `#d0d0d0` border. *(The container size is derived from Michael's swatch component rather than drawn — see Not Yet Implemented.)*
 17. When the feature's current color is not one of the six, the picker appends a **seventh** swatch showing that color, checked. "Not one of the six" is a normalised comparison: expand three-digit shorthand and lower-case both sides, or a palette color will show up as a spurious seventh swatch beside its own duplicate.
 18. Choosing a color applies it to the feature immediately: the name pill, the color button, and the text pane highlighting all update without a separate confirm step.
@@ -49,17 +50,25 @@ Today a student who wants to turn a feature's highlighting off, or change the co
 
 ### Single-word extraction
 
-20. Extracting single words assigns one color, yellow `#ffe671`, to the ngram feature and to every token it produces, instead of cycling the six colors per word.
+20. Extracting single words assigns one color, light yellow `#fff3b0`, to the ngram feature and to every token it produces, instead of cycling the six colors per word. The color is deliberately **not** one of the six, so that an ordinary feature and the extracted words can never render identically.
 21. The ngram feature row in the Features tab shows that color rather than rendering colorless as it does today.
-22. **Conditional on the ngram feature carrying `kNoColor`**, restoring a document sets that feature's color to `#ffe671` and then sets every **unigram** entry in the restored `tokenMap` to **the feature's repaired color**. If the ngram feature already has a real color, the whole step is skipped, tokens included.
+22. **Conditional on the ngram feature carrying `kNoColor`**, restoring a document sets that feature's color to `#fff3b0` and then sets every **unigram** entry in the restored `tokenMap` to **the feature's repaired color**. If the ngram feature already has a real color, the whole step is skipped, tokens included.
 23. The ngram feature name gains its missing space: `single words with frequency ≥ 4 ignoring stopwords`. New features only; lands as its own commit.
 24. The single-words row carries **both** controls, like every other row. Neither is hidden or disabled there.
 25. The visibility toggle on that row hides and restores highlighting for **all** extracted words at once, by setting `highlight` on every unigram entry in `featureStore.tokenMap` as well as on the ngram `Feature`.
 26. The color button on that row recolors **all** extracted words at once, by setting `color` on every unigram token as well as on the ngram `Feature`.
-27. **Both** a recolor and a visibility change survive re-extraction. Unchecking the single-words feature in the Training tab deletes every token and re-checking it re-creates them; the re-created tokens take the ngram `Feature`'s **current** color and **current** `highlight` rather than `#ffe671` and `true` unconditionally, so the row and the words it stands for never disagree.
+27. **Both** a recolor and a visibility change survive re-extraction. Unchecking the single-words feature in the Training tab deletes every token and re-checking it re-creates them; the re-created tokens take the ngram `Feature`'s **current** color and **current** `highlight` rather than `#fff3b0` and `true` unconditionally, so the row and the words it stands for never disagree.
 28. Neither fan-out relies on CODAP's Undo. The student reverses a color change by choosing the previous color again, and a visibility change by toggling it back. Nothing warns before a fan-out.
 29. Both fan-outs write back to the Features dataset in a single batched request across the unigram cases, rather than one request per case (roughly 680 cases per click). Borrow the `caseFormulaSearch[type='unigram']` lookup plus one batched `update ... .case` from `syncUnigramsInFeaturesDataset()`, but **not** its `if (!iChosen) this.deleteUnigramTokens()` branch.
 30. Both fan-outs write the parent `Feature`'s value in the same tick as the token values, which is what makes the text pane refresh.
+
+### Text pane wording
+
+*(Added 2026-08-07 at Jie's request. Not part of the original story and not drawn in section 4A; folded in here rather than filed separately because all three are one-line changes to two files this story already touches.)*
+
+43. A section headed by the case's own label reads **`Actual:`** rather than `True:`, matching the convention in the AI literature, where a confusion-matrix cell is named by its actual and predicted labels. The `Predicted:` half is already correct and does not change. The class name `.actual-title` already used the right word.
+44. A section's case count names its denominator: **`(N cases, X% of all selected)`**, not `% of all`. The percentage is taken over the selection, not over the dataset, and nothing on screen said so.
+45. The pane title carries that denominator as a number: **`N selected texts in ice cream training`**, where `N` is `textStore.caseCount`, the same total requirement 44's percentages divide by. It is shown whatever its value, including zero, rather than being suppressed when nothing is selected.
 
 ### Robustness
 
@@ -112,7 +121,7 @@ Today a student who wants to turn a feature's highlighting off, or change the co
 
 - **The `positive` / `negative` hardcoding in the update path** — `domain_store.ts` writes to the literal attribute names `'frequency in positive'` and `'frequency in negative'`, but those attributes are named from the student's class labels, so the update path is a silent no-op for any other labels. Filed as [STORYQ-85](https://concord-consortium.atlassian.net/browse/STORYQ-85); this story adds a comment pointing at it and deliberately does not fix it. Two related details recorded there: `featureDoesNotMatchItem()` has the same defect in a more dangerous place, reading the bare prefix so the comparison is always true and every feature is rewritten on every pass; and `notification_manager.ts` reads the same two literals.
 - **The weights-table sliver** — during feature extraction a 50 px empty strip remains where the weights collection sits, because CODAP has no collection-level hide. Filed as [CODAP-1492](https://concord-consortium.atlassian.net/browse/CODAP-1492), against the team that owns the rendering. StoryQ already hides the weights attributes during extraction and reveals them at training, so the substance of the design note is satisfied.
-- **The yellow collision** — `featureColors[0]` and `ngramColor` are both `#ffe671`, so the first ordinary feature in a document matches every extracted word. Deliberately left for Jie to meet in the running build; requirement 20 keeps the yellow in a single exported constant so the fix is a one-line edit if she wants one. The two are kept as independent constants rather than aliased, so changing one does not silently move the other.
+- ~~**The yellow collision**~~ — resolved on 2026-08-07, see Decisions. Keeping the two yellows as independent constants rather than aliasing them is what made the fix a one-line edit.
 - **The color cycle restarts at yellow on every document open** — `featureColorIndex` is module state and is not persisted. Verified; recorded rather than fixed, because persisting it means changing `color-utils.ts` and `FeatureStore.asJSON()`, which is existing code outside this story's surface. Should be filed as its own bug.
 - **The delete button has no accessible name** — verified, and out of scope under the constraint that changes stay inside the new feature. The row ships with two named buttons and one anonymous one, and the anonymous one is the destructive one. Should be filed as its own bug.
 - **Text-color adaptation for out-of-palette colors** — doc 1's `contain: "good"` is `#777`, which is 3.55:1 against `#222222` and fails AA. This story neither creates that condition nor fixes it; the color was typed in before the column was hidden, and hiding the column removes the route by which it got there.
@@ -223,7 +232,20 @@ Today a student who wants to turn a feature's highlighting off, or change the co
 - A) Guarantee every feature in the list has a color by the time it is rendered; treat `kNoColor` as a bug
 - B) Render `kNoColor` as a white pill with an unfilled color button, and let the color button assign one
 
-**Decision**: **A.** The design assigns white a specific meaning, so a second unrelated cause of a white pill is a defect rather than a tidy-up. Two pieces of work follow: a restore migration setting a `kNoColor` ngram feature to `#ffe671`, and tightening the `utilities.ts` guard to test against `kNoColor` explicitly. *(Originally reasoned as "transparent" and corrected to "white" on 2026-08-06 by measuring in a browser with the real stylesheet applied. The conclusion is unaffected and if anything stronger, since the collision with the design's white is exact rather than approximate — and it changed the implementation, because guarding `kNoColor` by emitting no background reproduces the same white.)*
+**Decision**: **A.** The design assigns white a specific meaning, so a second unrelated cause of a white pill is a defect rather than a tidy-up. Two pieces of work follow: a restore migration setting a `kNoColor` ngram feature to the single-words color, and tightening the `utilities.ts` guard to test against `kNoColor` explicitly. *(Originally reasoned as "transparent" and corrected to "white" on 2026-08-06 by measuring in a browser with the real stylesheet applied. The conclusion is unaffected and if anything stronger, since the collision with the design's white is exact rather than approximate — and it changed the implementation, because guarding `kNoColor` by emitting no background reproduces the same white.)*
+
+---
+
+### Which color do single words get, now that it collides with the first palette color?
+
+**Context**: Requirement 20 gave every extracted word `#ffe671`, which is also `featureColors[0]`. So a document with one ordinary feature and an extraction rendered the feature and all 682 words in the same yellow, and the color button on the single-words row, kept precisely so the set can be told apart, had nothing to distinguish. Left unresolved on purpose for Jie to meet in the running build.
+
+**Options considered**:
+- A) Give single words a color outside the six
+- B) Keep `#ffe671` for single words and start the assignment cycle at `featureColors[1]`, reserving yellow
+- C) Leave the collision; the student can recolor either side of it
+
+**Decision**: **A**, answered by Jie Chao 2026-08-07: "I agree that color for single words should be different from the six colors. I prefer to find another color outside of the six, maybe a lighter or slightly different yellow. If it is not easy to find that color, you can also use the current yellow for single words and leave the other five for hand-picked words." B was her own fallback and was not needed. `ngramColor` becomes `#fff3b0`, a lighter, less saturated yellow; contrast against `#222222` rises from 12.73:1 to 14.17:1, so requirement 39's guarantee is unaffected. **A costs one thing B would not have**: a color outside the six is not offered by the picker, so choosing away from it would have stranded the default. Requirement 15a buys it back with a seventh swatch on that row only.
 
 ---
 
