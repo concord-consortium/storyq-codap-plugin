@@ -4,11 +4,11 @@
  */
 
 import { makeAutoObservable, toJS } from 'mobx';
-import { AIModel } from '../models/ai-model';
+import { AIModel, IAIModel } from '../models/ai-model';
 import { TrainingResult } from "./store_types_and_constants";
 
 export interface ITrainingStoreSnapshot {
-  model: AIModel;
+  model: IAIModel;
   trainingResults: TrainingResult[];
 }
 
@@ -27,7 +27,7 @@ export class TrainingStore {
     this.model = new AIModel();
   }
 
-  asJSON() {
+  asJSON(): ITrainingStoreSnapshot {
     return {
       model: this.model.asJSON(),
       trainingResults: toJS(this.trainingResults)

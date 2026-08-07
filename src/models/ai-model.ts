@@ -1,4 +1,4 @@
-import { makeAutoObservable, toJS } from "mobx";
+import { makeAutoObservable } from "mobx";
 import { getDefaultLogisticRegression, LogisticRegression } from "../lib/jsregression";
 
 /**
@@ -116,10 +116,23 @@ export class AIModel {
     this.import(defaultModel);
   }
 
+  // Listing the fields rather than copying the instance and deleting logisticModel is what keeps the
+  // snapshot honest: TypeScript checks every IAIModel field is present and rejects anything extra, so
+  // a live object or a field that only makes sense in this session cannot reach the saved document.
   asJSON(): IAIModel {
-    const tCopy: Partial<AIModel> = Object.assign({}, toJS(this))
-    delete tCopy.logisticModel
-    return tCopy as IAIModel
+    return {
+      beingConstructed: this.beingConstructed,
+      frequencyThreshold: this.frequencyThreshold,
+      ignoreStopWords: this.ignoreStopWords,
+      iteration: this.iteration,
+      iterations: this.iterations,
+      lockInterceptAtZero: this.lockInterceptAtZero,
+      name: this.name,
+      trainingInProgress: this.trainingInProgress,
+      trainingInStepMode: this.trainingInStepMode,
+      trainingIsComplete: this.trainingIsComplete,
+      usePoint5AsProbThreshold: this.usePoint5AsProbThreshold
+    }
   }
 
   fromJSON(json: IAIModel) {
