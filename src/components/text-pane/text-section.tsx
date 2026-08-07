@@ -46,7 +46,7 @@ export const TextSectionTitle = observer(function TextSectionTitle({
           {AccuracyIcon && <div className={accuracyIconClasses}><AccuracyIcon /></div>}
         </div>
       )}
-      <div className="case-count">{`(${countPart}, ${percent}% of all)`}</div>
+      <div className="case-count">{`(${countPart}, ${percent}% of all selected)`}</div>
     </div>
   );
 });
