@@ -45,6 +45,15 @@ describe("ModelManager in a reopened document", () => {
     expect(logisticModel.lockIntercept).toBe(trainingStore.model.lockInterceptAtZero);
   });
 
+  it("clears the interrupted flag as soon as a new run starts", async () => {
+    trainingStore.setTrainingWasInterrupted(true);
+    trainingStore.model.setName("model 1");
+
+    await modelManager.buildModel().catch(() => null);
+
+    expect(trainingStore.trainingWasInterrupted).toBe(false);
+  });
+
   it("can step without throwing", () => {
     trainingStore.model.setTrainingInProgress(true);
     trainingStore.model.setTrainingInStepMode(true);
@@ -56,6 +65,7 @@ describe("ModelManager in a reopened document", () => {
   it("can cancel without throwing, leaving the model reset and usable", async () => {
     trainingStore.model.setName("model 1");
     trainingStore.model.setTrainingInProgress(true);
+    trainingStore.setTrainingWasInterrupted(true);
     const { logisticModel } = trainingStore.model;
     logisticModel.trace = true;
     logisticModel.theta = [1, 2, 3];
@@ -64,6 +74,7 @@ describe("ModelManager in a reopened document", () => {
 
     expect(trainingStore.model.name).toBe("");
     expect(trainingStore.model.trainingInProgress).toBe(false);
+    expect(trainingStore.trainingWasInterrupted).toBe(false);
     expect(trainingStore.model.logisticModel).toBe(logisticModel);
     expect(logisticModel.trace).toBe(false);
     expect(logisticModel.theta).toEqual([]);

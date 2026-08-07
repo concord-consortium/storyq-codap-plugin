@@ -300,12 +300,16 @@ export class ModelManager {
 
     // AIModel.reset() resets the model's logistic model along with the rest of its state
     trainingStore.model.reset();
+    trainingStore.setTrainingWasInterrupted(false);
     await wipeWeights();
     await wipeResultsInTarget();
   }
 
   async buildModel() {
     const this_ = this
+
+    // This run is being started here, so whatever a reopened document restored is no longer in play
+    trainingStore.setTrainingWasInterrupted(false)
 
     const tTargetDatasetName = targetStore.targetDatasetInfo.name,
       tTargetAttributeName = targetStore.targetAttributeName,

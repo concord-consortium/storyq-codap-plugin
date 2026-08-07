@@ -32,6 +32,7 @@ export const Button = (props: IButtonProps) => {
       className={className}
       style={style}
       role="button"
+      aria-disabled={disabled}
       tabIndex={0}
       title={hint}
       onClick={handleClick}
