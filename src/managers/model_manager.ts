@@ -298,11 +298,8 @@ export class ModelManager {
       });
     }
 
-    const tModel = trainingStore.model,
-      tLogisiticModel = tModel.logisticModel;
-
-    tModel.reset();
-    tLogisiticModel.reset();
+    // AIModel.reset() resets the model's logistic model along with the rest of its state
+    trainingStore.model.reset();
     await wipeWeights();
     await wipeResultsInTarget();
   }
