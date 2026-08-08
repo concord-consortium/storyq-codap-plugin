@@ -9,11 +9,11 @@ export const featureColorNames: Record<string, string> = {
   "#a8e620": "Green",
   "#fb93e8": "Pink",
   "#9ce1ff": "Blue",
-  "#fff3b0": "Light yellow"
+  "#fffacd": "Pale yellow"
 };
 // Every word extracted by the single words feature gets this color rather than one from the cycle. It sits
 // outside the six deliberately, so that a hand-picked feature can never be confused with the extracted words.
-export const ngramColor = "#fff3b0";
+export const ngramColor = "#fffacd";
 let featureColorIndex = 0;
 
 export function getFeatureColor() {

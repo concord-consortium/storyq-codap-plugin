@@ -61,7 +61,7 @@ describe("ColorPicker", () => {
 
     expect(swatches()).toHaveLength(7);
     expect(swatches()[6]).toHaveStyle({ backgroundColor: ngramColor });
-    expect(swatches()[6]).toHaveAccessibleName("Light yellow");
+    expect(swatches()[6]).toHaveAccessibleName("Pale yellow");
     expect(swatches()[1]).toHaveAttribute("aria-selected", "true");
   });
 
