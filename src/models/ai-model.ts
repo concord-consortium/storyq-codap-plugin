@@ -116,9 +116,9 @@ export class AIModel {
     this.import(defaultModel);
   }
 
-  // Listing the fields rather than copying the instance and deleting logisticModel is what keeps the
-  // snapshot honest: TypeScript checks every IAIModel field is present and rejects anything extra, so
-  // a live object or a field that only makes sense in this session cannot reach the saved document.
+  // The snapshot is an explicit literal so TypeScript checks every IAIModel field is present and
+  // rejects anything extra: a live object or a field that only makes sense in this session cannot
+  // reach the saved document.
   asJSON(): IAIModel {
     return {
       beingConstructed: this.beingConstructed,

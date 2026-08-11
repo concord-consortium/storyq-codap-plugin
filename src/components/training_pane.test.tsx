@@ -5,8 +5,7 @@ import { TrainingPane } from "./training_pane";
 
 /**
  * A training run lives partly in memory, so a document saved mid-run reopens with a model that
- * claims to be training but has no fit loop left to continue. Step cannot advance it, and before
- * STORYQ-86 it just sat there doing nothing (after throwing, until the underlying crash was fixed).
+ * claims to be training but has no fit loop left to continue and step cannot advance it.
  */
 describe("TrainingPane after a document is reopened mid-training", () => {
 

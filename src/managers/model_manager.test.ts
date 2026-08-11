@@ -3,8 +3,8 @@ import { trainingStore } from "../stores/training_store";
 import { ModelManager } from "./model_manager";
 
 /**
- * Regression coverage for STORYQ-86: reopening a saved CODAP document used to leave
- * trainingStore.model.logisticModel undefined, which killed the Training pane's buttons.
+ * Regression coverage for STORYQ-86: reopening a saved CODAP document must leave
+ * trainingStore.model.logisticModel intact so the Training pane's buttons work.
  */
 describe("ModelManager in a reopened document", () => {
   let modelManager: ModelManager;
@@ -36,8 +36,7 @@ describe("ModelManager in a reopened document", () => {
     trainingStore.model.setTrainingInProgress(true);
 
     // buildModel goes on to ask CODAP for the target cases, which do not exist here, so it still
-    // rejects. All we check is that it gets past setting up the logistic model, which is where both
-    // Train and Step threw before STORYQ-86 was fixed.
+    // rejects. All we check is that it gets past setting up the logistic model.
     await modelManager.buildModel().catch(() => null);
 
     const { logisticModel } = trainingStore.model;

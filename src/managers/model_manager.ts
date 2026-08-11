@@ -298,7 +298,6 @@ export class ModelManager {
       });
     }
 
-    // AIModel.reset() resets the model's logistic model along with the rest of its state
     trainingStore.model.reset();
     trainingStore.setTrainingWasInterrupted(false);
     await wipeWeights();
