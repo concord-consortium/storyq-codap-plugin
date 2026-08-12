@@ -69,6 +69,8 @@ export const SQ: ISQ = {
     trainingOneStep: 'Click to train your model one iteration at a time.',
     trainingSettings: 'Click to change the training settings.',
     trainingCancel: 'Click to cancel the training of this model.',
+    trainingInterrupted: 'This training run was stopped and cannot be continued. ' +
+      'Press Cancel to start over.',
     trainingNewModel: 'Click to begin training a new model with features you created.',
     trainingMakeModelInactive: 'Uncheck this box to hide this model’s results and feature weights.',
     trainingMakeModelActive: 'Check this box to show this model’s results and feature weights.',

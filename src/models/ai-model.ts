@@ -1,6 +1,10 @@
-import { makeAutoObservable, toJS } from "mobx";
+import { makeAutoObservable } from "mobx";
 import { getDefaultLogisticRegression, LogisticRegression } from "../lib/jsregression";
 
+/**
+ * The serializable state of an AIModel. It deliberately excludes logisticModel, which is a live object
+ * carrying callbacks rather than data, and so is neither saved nor restored.
+ */
 export interface IAIModel {
   beingConstructed: boolean
   frequencyThreshold: number
@@ -8,7 +12,6 @@ export interface IAIModel {
   iteration: number
   iterations: number
   lockInterceptAtZero: boolean
-  logisticModel: LogisticRegression
   name: string
   trainingInProgress: boolean
   trainingInStepMode: boolean
@@ -23,7 +26,6 @@ export const defaultModel: IAIModel = {
   iteration: 0,
   iterations: 20,
   lockInterceptAtZero: true,
-  logisticModel: getDefaultLogisticRegression(),
   name: '',
   trainingInProgress: false,
   trainingInStepMode: false,
@@ -73,10 +75,6 @@ export class AIModel {
     this.lockInterceptAtZero = value;
   }
 
-  setLogisticModel(value: LogisticRegression) {
-    this.logisticModel = value;
-  }
-
   setName(value: string) {
     this.name = value;
   }
@@ -104,7 +102,6 @@ export class AIModel {
     this.setIteration(model.iteration);
     this.setIterations(model.iterations);
     this.setLockInterceptAtZero(model.lockInterceptAtZero);
-    this.setLogisticModel(model.logisticModel);
     this.setName(model.name);
     this.setTrainingInProgress(model.trainingInProgress);
     this.setTrainingInStepMode(model.trainingInStepMode);
@@ -113,14 +110,29 @@ export class AIModel {
   }
 
   reset() {
-    defaultModel.logisticModel.reset();
+    // The instance's logistic model is reset in place, never replaced, so that references held
+    // elsewhere (ModelManager grabs one at the start of a training run) stay pointed at the model in use.
+    this.logisticModel.reset();
     this.import(defaultModel);
   }
 
-  asJSON() {
-    const tCopy: Partial<AIModel> = Object.assign({}, toJS(this))
-    delete tCopy.logisticModel
-    return tCopy
+  // The snapshot is an explicit literal so TypeScript checks every IAIModel field is present and
+  // rejects anything extra: a live object or a field that only makes sense in this session cannot
+  // reach the saved document.
+  asJSON(): IAIModel {
+    return {
+      beingConstructed: this.beingConstructed,
+      frequencyThreshold: this.frequencyThreshold,
+      ignoreStopWords: this.ignoreStopWords,
+      iteration: this.iteration,
+      iterations: this.iterations,
+      lockInterceptAtZero: this.lockInterceptAtZero,
+      name: this.name,
+      trainingInProgress: this.trainingInProgress,
+      trainingInStepMode: this.trainingInStepMode,
+      trainingIsComplete: this.trainingIsComplete,
+      usePoint5AsProbThreshold: this.usePoint5AsProbThreshold
+    }
   }
 
   fromJSON(json: IAIModel) {

@@ -4,11 +4,11 @@
  */
 
 import { makeAutoObservable, toJS } from 'mobx';
-import { AIModel } from '../models/ai-model';
+import { AIModel, IAIModel } from '../models/ai-model';
 import { TrainingResult } from "./store_types_and_constants";
 
 export interface ITrainingStoreSnapshot {
-  model: AIModel;
+  model: IAIModel;
   trainingResults: TrainingResult[];
 }
 
@@ -16,13 +16,18 @@ export class TrainingStore {
   model: AIModel;
   trainingResults: TrainingResult[] = [];
   resultCaseIDs: number[] = [];
+  // A training run lives partly in memory: the logistic model's fit loop and the callbacks that drive
+  // it are not saved with the document. Reopening a document that was saved mid-run therefore restores
+  // a model that says it is training but has nothing left to continue, so the run has to be started
+  // over. This is deliberately not part of asJSON(); it describes this session, not the document.
+  trainingWasInterrupted = false;
 
   constructor() {
     makeAutoObservable(this, { resultCaseIDs: false }, { autoBind: true });
     this.model = new AIModel();
   }
 
-  asJSON() {
+  asJSON(): ITrainingStoreSnapshot {
     return {
       model: this.model.asJSON(),
       trainingResults: toJS(this.trainingResults)
@@ -32,9 +37,14 @@ export class TrainingStore {
   fromJSON(json: ITrainingStoreSnapshot) {
     if (json) {
       this.model.fromJSON(json.model);
+      this.setTrainingWasInterrupted(this.model.trainingInProgress);
       this.trainingResults = json.trainingResults || [];
     }
     this.checkForActiveModel();
+  }
+
+  setTrainingWasInterrupted(value: boolean) {
+    this.trainingWasInterrupted = value;
   }
 
   inactivateAll() {

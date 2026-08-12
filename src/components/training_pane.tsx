@@ -24,6 +24,8 @@ export const TrainingPane = observer(function TrainingPane() {
 
   const tModel = trainingStore.model;
   const tNumResults = trainingStore.trainingResults.length;
+  // A run restored from a reopened document has no fit loop left to continue, so Step cannot advance it
+  const trainingWasInterrupted = tModel.trainingInProgress && trainingStore.trainingWasInterrupted;
 
   function modelTrainerInstructions() {
     if (!tModel.beingConstructed) {
@@ -46,6 +48,13 @@ export const TrainingPane = observer(function TrainingPane() {
           </div>
         );
       }
+    } else if (trainingWasInterrupted) {
+      return (
+        <div className='sq-info-prompt sq-info-prompt-alert'>
+          <p>Training {tModel.name === '' ? 'this model' : tModel.name} was stopped, and it cannot be
+          picked up from where it left off. Press Cancel to start over.</p>
+        </div>
+      );
     } else if (tModel.name === '') {
       return (
         <div className='sq-info-prompt'>
@@ -99,7 +108,7 @@ export const TrainingPane = observer(function TrainingPane() {
           return (
             <Button
               className='sq-button'
-              disabled={tDisabled}
+              disabled={tDisabled || trainingWasInterrupted}
               onClick={action(async () => {
                 if (!trainingStore.model.trainingInProgress) {
                   uiStore.setTrainingPanelShowsEditor(false);
@@ -110,7 +119,7 @@ export const TrainingPane = observer(function TrainingPane() {
                   modelManager.nextStep();
                 }
               })}
-              hint={SQ.hints.trainingOneStep}>
+              hint={trainingWasInterrupted ? SQ.hints.trainingInterrupted : SQ.hints.trainingOneStep}>
               Step
             </Button>
           );
