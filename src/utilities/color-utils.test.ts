@@ -14,7 +14,12 @@ describe("normalizeHex", () => {
 
   it("leaves anything else alone", () => {
     expect(normalizeHex("#ffe671")).toBe("#ffe671");
-    expect(normalizeHex(kNoColor)).toBe("no_color");
+  });
+
+  // kNoColor is compared by identity elsewhere, so normalizing it must not case fold it into something
+  // that no longer matches the constant.
+  it("passes kNoColor through unchanged", () => {
+    expect(normalizeHex(kNoColor)).toBe(kNoColor);
   });
 });
 

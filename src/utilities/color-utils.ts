@@ -28,6 +28,8 @@ export function ngramTokenColor(featureColor?: string) {
 }
 
 export function normalizeHex(color: string) {
+  // kNoColor is a sentinel rather than a hex value, and callers compare it by identity, so it passes through.
+  if (color === kNoColor) return color;
   const hex = color.trim().toLowerCase();
   const shorthand = hex.match(/^#([0-9a-f])([0-9a-f])([0-9a-f])$/);
   return shorthand ? `#${shorthand[1]}${shorthand[1]}${shorthand[2]}${shorthand[2]}${shorthand[3]}${shorthand[3]}` : hex;
