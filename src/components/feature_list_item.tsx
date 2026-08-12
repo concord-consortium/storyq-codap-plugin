@@ -91,7 +91,7 @@ export const FeatureListItem = observer(function FeatureListItem({
             <ColorPicker
               button={colorButtonRef.current}
               color={ngramTokenColor(feature.color)}
-              extraColor={feature.type === kFeatureTypeUnigram ? ngramColor : undefined}
+              extraColors={feature.type === kFeatureTypeUnigram ? [ngramColor] : []}
               featureName={feature.name}
               id={pickerId}
               onChoose={handleChoose}

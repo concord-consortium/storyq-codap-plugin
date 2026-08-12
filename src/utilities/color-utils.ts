@@ -39,12 +39,15 @@ export function isPaletteColor(color: string) {
   return featureColors.some(paletteColor => normalizeHex(paletteColor) === normalizeHex(color));
 }
 
-// The swatches a picker offers: the six, then any color the row itself offers beyond them, then the current
-// color when it is none of those. Rows other than single words pass no extraColor and so keep exactly six.
-// The extra swatch is what keeps a row's own color reachable again after the student has picked away from it.
-export function pickerSwatches(color: string, extraColor?: string) {
-  const candidates = extraColor ? [...featureColors, extraColor, color] : [...featureColors, color];
-  return candidates.filter(
-    (candidate, index) => candidates.findIndex(other => normalizeHex(other) === normalizeHex(candidate)) === index
-  );
+// The swatches a picker offers: the six, then any colors the row itself offers beyond them, then the current
+// color when it is none of those. Rows other than single words pass no extraColors and so keep exactly six.
+// The extra swatches are what keep a row's own color reachable again after the student has picked away from it.
+export function pickerSwatches(color: string, extraColors: string[] = []) {
+  const seen = new Set<string>();
+  return [...featureColors, ...extraColors, color].filter(candidate => {
+    const hex = normalizeHex(candidate);
+    if (seen.has(hex)) return false;
+    seen.add(hex);
+    return true;
+  });
 }

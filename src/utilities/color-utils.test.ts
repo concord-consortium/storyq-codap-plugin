@@ -51,13 +51,18 @@ describe("pickerSwatches", () => {
   });
 
   it("offers an extra color whether or not it is the current one", () => {
-    expect(pickerSwatches(ngramColor, ngramColor)).toEqual([...featureColors, ngramColor]);
-    expect(pickerSwatches(featureColors[1], ngramColor)).toEqual([...featureColors, ngramColor]);
+    expect(pickerSwatches(ngramColor, [ngramColor])).toEqual([...featureColors, ngramColor]);
+    expect(pickerSwatches(featureColors[1], [ngramColor])).toEqual([...featureColors, ngramColor]);
+  });
+
+  it("offers every extra color it is given", () => {
+    expect(pickerSwatches(featureColors[1], [ngramColor, "#777"]))
+      .toEqual([...featureColors, ngramColor, "#777"]);
   });
 
   it("lists each color once, comparing through normalized hex", () => {
     expect(pickerSwatches("#FFE671")).toEqual(featureColors);
-    expect(pickerSwatches("#777777", "#777")).toEqual([...featureColors, "#777"]);
+    expect(pickerSwatches("#777777", ["#777"])).toEqual([...featureColors, "#777"]);
   });
 });
 

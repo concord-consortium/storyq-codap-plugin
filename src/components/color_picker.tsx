@@ -18,8 +18,8 @@ const kPopoverGap = 2;
 export interface IColorPickerProps {
   button: HTMLElement
   color: string
-  // A color this row offers in addition to the six, kept selectable whether or not it is the current one.
-  extraColor?: string
+  // Colors this row offers in addition to the six, kept selectable whether or not one is the current color.
+  extraColors?: string[]
   featureName: string
   id: string
   onChoose: (color: string) => void
@@ -29,10 +29,10 @@ export interface IColorPickerProps {
 }
 
 export const ColorPicker = function ColorPicker({
-  button, color, extraColor, featureName, id, onChoose, onClose
+  button, color, extraColors, featureName, id, onChoose, onClose
 }: IColorPickerProps) {
   const popoverRef = useRef<HTMLDivElement>(null);
-  const swatches = pickerSwatches(color, extraColor);
+  const swatches = pickerSwatches(color, extraColors);
   const selectedIndex = Math.max(swatches.findIndex(swatch => normalizeHex(swatch) === normalizeHex(color)), 0);
   const [focusedIndex, setFocusedIndex] = useState(selectedIndex);
 

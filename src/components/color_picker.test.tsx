@@ -6,7 +6,7 @@ import { ColorPicker } from "./color_picker";
 function renderPicker(
   color: string,
   handlers: {
-    onChoose?: jest.Mock, onClose?: jest.Mock, buttonRect?: Partial<DOMRect>, extraColor?: string
+    onChoose?: jest.Mock, onClose?: jest.Mock, buttonRect?: Partial<DOMRect>, extraColors?: string[]
   } = {}
 ) {
   const button = document.createElement("button");
@@ -20,7 +20,7 @@ function renderPicker(
     <ColorPicker
       button={button}
       color={color}
-      extraColor={handlers.extraColor}
+      extraColors={handlers.extraColors}
       featureName={'count: "love"'}
       id="picker"
       onChoose={onChoose}
@@ -57,7 +57,7 @@ describe("ColorPicker", () => {
   // The single words row's own color is not one of the six, so without this the student could pick away
   // from it and have no way back.
   it("offers the row's extra color even once the feature has been recolored away from it", () => {
-    renderPicker(featureColors[1], { extraColor: ngramColor });
+    renderPicker(featureColors[1], { extraColors: [ngramColor] });
 
     expect(swatches()).toHaveLength(7);
     expect(swatches()[6]).toHaveStyle({ backgroundColor: ngramColor });
