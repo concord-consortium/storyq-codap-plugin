@@ -26,7 +26,7 @@ const TextPaneTitle = observer(function TextPaneTitle() {
   const attribute = _attribute ? pluralize(_attribute) : "[text]";
   return (
     <>
-      <span>Selected </span>
+      <span>{textStore.caseCount} selected </span>
       <span className="highlighted">{attribute}</span>
       <span> in </span>
       <span className="highlighted">{dataset}</span>

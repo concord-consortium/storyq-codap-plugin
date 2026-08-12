@@ -1,0 +1,59 @@
+.sq-color-picker {
+  background-color: #ffffff;
+  border: solid 1px #d0d0d0;
+  box-sizing: border-box;
+  display: grid;
+  gap: 3px;
+  grid-template-columns: repeat(4, 24px);
+  // Set inline by the picker, which needs the same height to decide whether it fits below its button.
+  height: var(--sq-color-picker-height);
+  padding: 12px;
+  position: fixed;
+  width: 129px;
+  z-index: 10;
+
+  .swatch {
+    background-clip: content-box;
+    border: none;
+    box-sizing: border-box;
+    cursor: pointer;
+    height: 24px;
+    padding: 1px;
+    position: relative;
+    width: 24px;
+
+    // The painted square is inset 1px inside the 24px target, and carries the borders below.
+    &::before {
+      border: solid 1px #757575;
+      border-radius: 2px;
+      bottom: 1px;
+      content: "";
+      left: 1px;
+      position: absolute;
+      right: 1px;
+      top: 1px;
+    }
+
+    &.selected::before {
+      border: solid 2px #006c8e;
+    }
+
+    // The check mark drawn on the selected swatch, 13x9 at an offset of 5,6 within the painted square.
+    &.selected::after {
+      border-bottom: solid 2px #000000;
+      border-left: solid 2px #000000;
+      content: "";
+      height: 5px;
+      left: 6px;
+      position: absolute;
+      top: 7px;
+      transform: rotate(-45deg);
+      width: 11px;
+    }
+
+    &:focus-visible {
+      outline: solid 2px #0957d0;
+      outline-offset: 1px;
+    }
+  }
+}

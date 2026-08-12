@@ -4,7 +4,7 @@
  */
 
 import { makeAutoObservable } from "mobx";
-import { getCaseValues, openTable } from "../lib/codap-helper";
+import { getCaseValues, guaranteeAttribute, openTable } from "../lib/codap-helper";
 import codapInterface from "../lib/CodapInterface";
 import { oneHot, wordTokenizer } from "../lib/one_hot";
 import {
@@ -12,9 +12,11 @@ import {
   GetCaseFormulaSearchResponse, GetItemByCaseIDResponse, GetItemSearchResponse, ItemInfo, ItemValues,
   NotifyDataContextRequest, UpdateCaseRequest, UpdateCaseValue
 } from "../types/codap-api-types";
-import { getFeatureColor, kNoColor } from "../utilities/color-utils";
+import { getFeatureColor, kNoColor, ngramColor, ngramTokenColor } from "../utilities/color-utils";
 import { featureStore, IFeatureStoreJSON } from "./feature_store";
-import { defaultTargetCaseFormula, Feature, kFeatureKindNgram, kPosNegConstants } from "./store_types_and_constants";
+import {
+  defaultTargetCaseFormula, Feature, kFeatureKindNgram, kPosNegConstants, kTotalFrequencyAttrName
+} from "./store_types_and_constants";
 import { ITargetStoreJSON, otherClassColumn, targetStore } from "./target_store";
 import { ITestingStore, testingStore } from "./testing_store";
 import { ITextStoreJSON } from "./text_store";
@@ -30,6 +32,8 @@ export interface IDomainStoreJSON {
 }
 
 export class DomainStore {
+  private migration?: Promise<void>;
+
   constructor() {
     makeAutoObservable(this);
   }
@@ -47,6 +51,9 @@ export class DomainStore {
     targetStore: ITargetStoreJSON, featureStore: IFeatureStoreJSON, trainingStore: ITrainingStoreJSON,
     testingStore: ITestingStore, textStore: ITextStoreJSON
   }) {
+    // The migration guard is per plugin instance rather than per document, and the plugin accepts
+    // restored state into a running instance.
+    this.migration = undefined;
     targetStore.fromJSON(json.targetStore);
     featureStore.fromJSON(json.featureStore);
     trainingStore.fromJSON(json.trainingStore);
@@ -91,10 +98,11 @@ export class DomainStore {
                 attrs: [
                   { name: 'name' },
                   { name: 'chosen', type: 'checkbox', hidden: true },
-                  { name: 'color', type: 'color' },
-                  { name: 'highlight', type: 'checkbox' },
+                  { name: 'color', type: 'color', hidden: true },
+                  { name: 'highlight', type: 'checkbox', hidden: true },
                   { name: tPositiveAttrName },
                   { name: tNegativeAttrName },
+                  { name: kTotalFrequencyAttrName },
                   { name: 'type', hidden: true },
                   /*
                                     {name: 'description'},
@@ -122,11 +130,80 @@ export class DomainStore {
           // The 'model name' and 'weight' attributes were created as visible as a workaround to a bug.
           // Now we can hide them
           await hideWeightsAttributes();
+          // A dataset created here is already up to date, so the migration below never has to run for it.
+          this.migration = Promise.resolve();
         }
+      } else {
+        await this.migrateExistingFeaturesDataset();
       }
       return true;
     }
     return false;
+  }
+
+  /**
+   * Brings a Features dataset created before this version up to date. Every step is safe to repeat, but
+   * the dataset is re-entered on every feature added and on every collapse and expand of the StoryQ panel,
+   * so the work is done once. We hold the in-flight promise rather than a flag because two callers can be
+   * inside guaranteeFeaturesDataset() at once, and a flag set after the awaits would let the second one
+   * through. A failure costs the repairs rather than the document, so it is logged and swallowed.
+   */
+  private migrateExistingFeaturesDataset() {
+    this.migration ??= this.runFeaturesDatasetMigration().catch(error => {
+      console.log(`Could not bring the Features dataset up to date: ${error}`);
+      this.migration = undefined; // a transient failure retries on the next entry
+    });
+    return this.migration;
+  }
+
+  private async runFeaturesDatasetMigration() {
+    const { collectionName, datasetName } = featureStore.featureDatasetInfo;
+    const resource = `dataContext[${datasetName}].collection[${collectionName}]`;
+
+    // Repeating a hide succeeds, and reading the flag back costs a request per attribute, so this is
+    // issued unconditionally rather than guarded.
+    await codapInterface.sendRequest(["color", "highlight"].map(attr => ({
+      action: "update",
+      resource: `${resource}.attribute[${attr}]`,
+      values: { hidden: true }
+    })));
+
+    // Before this version the single words feature had no color of its own. Repairing it ahead of the
+    // backfill keeps the plugin independent of when CODAP delivers the backfill's echo, which carries
+    // every case's color back.
+    const ngram = featureStore.ngramFeature;
+    if (ngram?.color === kNoColor) {
+      await featureStore.setColorFor(ngram, ngramColor);
+    }
+
+    await guaranteeAttribute({ name: kTotalFrequencyAttrName, hidden: false }, datasetName, collectionName);
+    await this.backfillTotalFrequency(datasetName, collectionName);
+  }
+
+  /**
+   * Restored documents do not re-run case creation, so the cases that already exist need their new
+   * `total frequency` filled in. The two frequency values are read back off the cases rather than
+   * recounted, and their attributes are found by their shared prefix so that class labels other than
+   * positive and negative work too.
+   */
+  private async backfillTotalFrequency(datasetName: string, collectionName: string) {
+    const cases = await getCaseValues(datasetName, collectionName);
+    const frequencyAttrs = Object.keys(cases[0]?.values ?? {})
+      .filter(name => name.startsWith(kPosNegConstants.positive.attrKey));
+    if (frequencyAttrs.length === 0) return;
+
+    await codapInterface.sendRequest({
+      action: "update",
+      resource: `dataContext[${datasetName}].collection[${collectionName}].case`,
+      values: cases.map(aCase => ({
+        id: aCase.id,
+        values: {
+          [kTotalFrequencyAttrName]: frequencyAttrs.reduce(
+            (total, name) => total + (Number(aCase.values[name]) || 0), 0
+          )
+        }
+      }))
+    });
   }
 
   async updateNonNtigramFeaturesDataset() {
@@ -250,6 +327,7 @@ export class DomainStore {
           };
           tValuesObject.values[tPositiveAttrName] = iFeature.numberInPositive;
           tValuesObject.values[tNegativeAttrName] = iFeature.numberInNegative;
+          tValuesObject.values[kTotalFrequencyAttrName] = iFeature.numberInPositive + iFeature.numberInNegative;
           return tValuesObject;
         })
         const { collectionName } = featureStore.featureDatasetInfo;
@@ -282,8 +360,11 @@ export class DomainStore {
               values: {
                 chosen: iFeature.chosen,
                 name: iFeature.name,
+                // These two names are hardcoded, so they miss any dataset whose class labels are not
+                // positive and negative. Tracked as STORYQ-85.
                 'frequency in positive': iFeature.numberInPositive,
-                'frequency in negative': iFeature.numberInNegative
+                'frequency in negative': iFeature.numberInNegative,
+                [kTotalFrequencyAttrName]: iFeature.numberInPositive + iFeature.numberInNegative
               }
             }
           })
@@ -350,12 +431,13 @@ export class DomainStore {
       // if (await this.guaranteeFeaturesDataset()) {
       const tUnigramCreateMsgs: CreateCaseValue[] = [];
       tTokenArray.forEach(iFeature => {
-        iFeature.color = iFeature.color !== kNoColor ? iFeature.color : getFeatureColor();
+        iFeature.color = ngramTokenColor(iNtgramFeature.color);
+        iFeature.highlight = iNtgramFeature.highlight;
         const tCaseValues: CreateCaseValue = {
           values: {
             chosen: true,
             color: iFeature.color,
-            highlight: true,
+            highlight: !!iFeature.highlight,
             name: iFeature.token,
             type: 'unigram',
             /*
@@ -366,6 +448,7 @@ export class DomainStore {
         };
         tCaseValues.values[tPositiveAttrName] = iFeature.numPositive;
         tCaseValues.values[tNegativeAttrName] = iFeature.numNegative;
+        tCaseValues.values[kTotalFrequencyAttrName] = iFeature.numPositive + iFeature.numNegative;
         tUnigramCreateMsgs.push(tCaseValues);
       });
       const tCreateResult = await codapInterface.sendRequest({
@@ -555,9 +638,11 @@ export class DomainStore {
       const tFeatureType = String(iFeatureCase.values.type);
 
       tTargetCases.forEach(iTargetCase => {
+        const tFeatureValue = iTargetCase.values[tFeatureName];
         const tTargetHasFeature = ['constructed', 'column'].includes(tFeatureType)
-          // Codap v3 returns strings, even for booleans, so we have to compare strings for now.
-          ? iTargetCase.values[tFeatureName] === "true" || iTargetCase.values[tFeatureName] === true ? true : false
+          // Codap v3 returns strings, even for booleans and numbers, so we have to compare strings for now.
+          // A count feature's value is a number, and it is present when that number is greater than zero.
+          ? tFeatureValue === "true" || tFeatureValue === true || Number(tFeatureValue) > 0
           : tFeatureType === 'unigram'
           ? targetTextHasUnigram(String(iTargetCase.values[targetAttributeName]), tFeatureName)
           : false;

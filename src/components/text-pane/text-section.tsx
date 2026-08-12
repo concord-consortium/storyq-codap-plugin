@@ -36,7 +36,7 @@ export const TextSectionTitle = observer(function TextSectionTitle({
     <div className="actual-title">
       {actual && (
         <div>
-          <span>True: </span><span className="label" style={{ color: actualColor }}>{actual}</span>
+          <span>Actual: </span><span className="label" style={{ color: actualColor }}>{actual}</span>
           {predicted && <span>,</span>}
         </div>
       )}
@@ -46,7 +46,7 @@ export const TextSectionTitle = observer(function TextSectionTitle({
           {AccuracyIcon && <div className={accuracyIconClasses}><AccuracyIcon /></div>}
         </div>
       )}
-      <div className="case-count">{`(${countPart}, ${percent}% of all)`}</div>
+      <div className="case-count">{`(${countPart}, ${percent}% of all selected)`}</div>
     </div>
   );
 });
