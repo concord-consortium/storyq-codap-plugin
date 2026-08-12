@@ -5,7 +5,8 @@
   display: grid;
   gap: 3px;
   grid-template-columns: repeat(4, 24px);
-  height: 75px;
+  // Set inline by the picker, which needs the same height to decide whether it fits below its button.
+  height: var(--sq-color-picker-height);
   padding: 12px;
   position: fixed;
   width: 129px;

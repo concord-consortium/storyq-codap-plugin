@@ -12,8 +12,12 @@ import { featureColorNames, normalizeHex, pickerSwatches } from "../utilities/co
 import "./color_picker.scss";
 
 const kSwatchesPerRow = 4;
+// The popover's height, needed here to decide whether it fits below the button, and handed to the scss
+// through a custom property so the two cannot drift apart. Not to be confused with the gap between
+// swatches, which is the scss's own.
 const kPopoverHeight = 75;
-const kPopoverGap = 2;
+// The gap between the color button and the popover.
+const kAnchorGap = 2;
 
 export interface IColorPickerProps {
   button: HTMLElement
@@ -37,11 +41,12 @@ export const ColorPicker = function ColorPicker({
   const [focusedIndex, setFocusedIndex] = useState(selectedIndex);
 
   const anchor = button.getBoundingClientRect();
-  const opensBelow = anchor.bottom + kPopoverGap + kPopoverHeight <= window.innerHeight;
-  const style: React.CSSProperties = {
+  const opensBelow = anchor.bottom + kAnchorGap + kPopoverHeight <= window.innerHeight;
+  const style = {
+    "--sq-color-picker-height": `${kPopoverHeight}px`,
     left: anchor.left,
-    top: opensBelow ? anchor.bottom + kPopoverGap : anchor.top - kPopoverGap - kPopoverHeight
-  };
+    top: opensBelow ? anchor.bottom + kAnchorGap : anchor.top - kAnchorGap - kPopoverHeight
+  } as React.CSSProperties;
 
   // Focus follows the roving tabindex, and moves in on the selected swatch when the picker opens.
   useLayoutEffect(() => {
