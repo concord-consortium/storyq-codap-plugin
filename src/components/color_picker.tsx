@@ -5,7 +5,7 @@
  * otherwise make it, rather than the viewport, the containing block for `position: fixed`.
  */
 
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom";
 import { featureColorNames, normalizeHex, pickerSwatches } from "../utilities/color-utils";
 
@@ -43,16 +43,10 @@ export const ColorPicker = function ColorPicker({
     top: opensBelow ? anchor.bottom + kPopoverGap : anchor.top - kPopoverGap - kPopoverHeight
   };
 
-  const focusSwatch = useCallback((index: number) => {
-    setFocusedIndex(index);
-    popoverRef.current?.querySelectorAll<HTMLElement>(".swatch")[index]?.focus();
-  }, []);
-
+  // Focus follows the roving tabindex, and moves in on the selected swatch when the picker opens.
   useLayoutEffect(() => {
-    focusSwatch(selectedIndex);
-    // Focus moves in when the picker opens and is the roving tabindex's afterwards.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    popoverRef.current?.querySelectorAll<HTMLElement>(".swatch")[focusedIndex]?.focus();
+  }, [focusedIndex]);
 
   useEffect(() => {
     // Closing on scroll is simpler than following the button, and the picker is short lived.
@@ -77,17 +71,17 @@ export const ColorPicker = function ColorPicker({
     const lastIndex = swatches.length - 1;
     switch (event.key) {
       case "ArrowLeft":
-        focusSwatch(focusedIndex === 0 ? lastIndex : focusedIndex - 1);
+        setFocusedIndex(focusedIndex === 0 ? lastIndex : focusedIndex - 1);
         break;
       case "ArrowRight":
-        focusSwatch(focusedIndex === lastIndex ? 0 : focusedIndex + 1);
+        setFocusedIndex(focusedIndex === lastIndex ? 0 : focusedIndex + 1);
         break;
       case "ArrowUp":
-        focusSwatch(Math.max(focusedIndex - kSwatchesPerRow, 0));
+        setFocusedIndex(Math.max(focusedIndex - kSwatchesPerRow, 0));
         break;
       case "ArrowDown":
         // The second row is ragged, so a column that does not exist clamps to the last swatch.
-        focusSwatch(Math.min(focusedIndex + kSwatchesPerRow, lastIndex));
+        setFocusedIndex(Math.min(focusedIndex + kSwatchesPerRow, lastIndex));
         break;
       case "Escape":
         onClose(true);
