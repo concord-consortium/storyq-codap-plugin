@@ -34,8 +34,8 @@ describe("isPaletteColor", () => {
     expect(isPaletteColor("#777777")).toBe(false);
   });
 
-  // Jie asked for a single words color outside the six, so that an ordinary feature and the extracted
-  // words can always be told apart. Sharing a color with the palette is the bug, not an implementation detail.
+  // The single words color sits outside the six so that an ordinary feature and the extracted words can
+  // always be told apart. Sharing a color with the palette is the bug, not an implementation detail.
   it("rejects the single words color", () => {
     expect(isPaletteColor(ngramColor)).toBe(false);
   });

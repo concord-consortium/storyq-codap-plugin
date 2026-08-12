@@ -52,7 +52,7 @@ describe("TextPane", () => {
   });
 
   // Every percentage in the pane is taken over the selection, so the title has to state how big that is.
-  // Without it a section reading "30% of all selected" leaves the student with no denominator (STORYQ-74).
+  // Without it a section reading "30% of all selected" leaves the student with no denominator.
   it("titles itself with the number of selected cases", () => {
     textStore.setTextSections([makeSection("good", 3), makeSection("bad", 7)]);
 
