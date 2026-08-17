@@ -299,7 +299,11 @@ export class ModelManager {
     }
 
     trainingStore.model.reset();
-    trainingStore.setTrainingWasInterrupted(false);
+    // All three, not just the message flag: a resume left pending on a model that no longer exists
+    // would divert the first Step of the next fresh run into a catch-up.
+    trainingStore.setTrainingCouldNotBeResumed(false);
+    trainingStore.setResumeIsPending(false);
+    trainingStore.setRestoringRun(false);
     await wipeWeights();
     await wipeResultsInTarget();
   }
@@ -307,8 +311,12 @@ export class ModelManager {
   async buildModel() {
     const this_ = this
 
-    // This run is being started here, so whatever a reopened document restored is no longer in play
-    trainingStore.setTrainingWasInterrupted(false)
+    // This run is being started here, so whatever a reopened document restored is no longer in play.
+    // All three flags: a resume left pending by a student who reopened a step-mode run and pressed
+    // Cancel would otherwise divert this run's first Step into a catch-up.
+    trainingStore.setTrainingCouldNotBeResumed(false)
+    trainingStore.setResumeIsPending(false)
+    trainingStore.setRestoringRun(false)
 
     const tTargetDatasetName = targetStore.targetDatasetInfo.name,
       tTargetAttributeName = targetStore.targetAttributeName,

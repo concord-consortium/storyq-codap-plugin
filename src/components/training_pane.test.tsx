@@ -16,7 +16,7 @@ describe("TrainingPane after a document is reopened mid-training", () => {
     trainingStore.model.setName("model 1");
     trainingStore.model.setTrainingInProgress(true);
     trainingStore.model.setTrainingInStepMode(true);
-    trainingStore.setTrainingWasInterrupted(true);
+    trainingStore.setTrainingCouldNotBeResumed(true);
   });
 
   it("names the model, says the run cannot be continued, and points at Cancel", () => {
@@ -48,7 +48,7 @@ describe("TrainingPane after a document is reopened mid-training", () => {
   });
 
   it("says nothing of the sort for a run started in this session", () => {
-    trainingStore.setTrainingWasInterrupted(false);
+    trainingStore.setTrainingCouldNotBeResumed(false);
 
     render(<TrainingPane />);
 

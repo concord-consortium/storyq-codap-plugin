@@ -24,8 +24,9 @@ export const TrainingPane = observer(function TrainingPane() {
 
   const tModel = trainingStore.model;
   const tNumResults = trainingStore.trainingResults.length;
-  // A run restored from a reopened document has no fit loop left to continue, so Step cannot advance it
-  const trainingWasInterrupted = tModel.trainingInProgress && trainingStore.trainingWasInterrupted;
+  // A restored run is normally rebuilt and replayed. This is the case where it could not be, so Step
+  // has nothing to advance and the student is told to start over instead.
+  const couldNotBeResumed = tModel.trainingInProgress && trainingStore.trainingCouldNotBeResumed;
 
   function modelTrainerInstructions() {
     if (!tModel.beingConstructed) {
@@ -48,7 +49,7 @@ export const TrainingPane = observer(function TrainingPane() {
           </div>
         );
       }
-    } else if (trainingWasInterrupted) {
+    } else if (couldNotBeResumed) {
       return (
         <div className='sq-info-prompt sq-info-prompt-alert'>
           <p>Training {tModel.name === '' ? 'this model' : tModel.name} was stopped, and it cannot be
@@ -108,7 +109,7 @@ export const TrainingPane = observer(function TrainingPane() {
           return (
             <Button
               className='sq-button'
-              disabled={tDisabled || trainingWasInterrupted}
+              disabled={tDisabled || couldNotBeResumed}
               onClick={action(async () => {
                 if (!trainingStore.model.trainingInProgress) {
                   uiStore.setTrainingPanelShowsEditor(false);
@@ -119,7 +120,7 @@ export const TrainingPane = observer(function TrainingPane() {
                   modelManager.nextStep();
                 }
               })}
-              hint={trainingWasInterrupted ? SQ.hints.trainingInterrupted : SQ.hints.trainingOneStep}>
+              hint={couldNotBeResumed ? SQ.hints.trainingInterrupted : SQ.hints.trainingOneStep}>
               Step
             </Button>
           );

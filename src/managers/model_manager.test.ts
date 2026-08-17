@@ -44,13 +44,29 @@ describe("ModelManager in a reopened document", () => {
     expect(logisticModel.lockIntercept).toBe(trainingStore.model.lockInterceptAtZero);
   });
 
-  it("clears the interrupted flag as soon as a new run starts", async () => {
-    trainingStore.setTrainingWasInterrupted(true);
+  it("clears every flag a restored run left as soon as a new run starts", async () => {
+    trainingStore.setTrainingCouldNotBeResumed(true);
+    trainingStore.setResumeIsPending(true);
+    trainingStore.setRestoringRun(true);
     trainingStore.model.setName("model 1");
 
     await modelManager.buildModel().catch(() => null);
 
-    expect(trainingStore.trainingWasInterrupted).toBe(false);
+    expect(trainingStore.trainingCouldNotBeResumed).toBe(false);
+    expect(trainingStore.resumeIsPending).toBe(false);
+    expect(trainingStore.isRestoringRun).toBe(false);
+  });
+
+  it("clears every flag a restored run left when the run is cancelled", async () => {
+    trainingStore.setTrainingCouldNotBeResumed(true);
+    trainingStore.setResumeIsPending(true);
+    trainingStore.setRestoringRun(true);
+
+    await modelManager.cancel();
+
+    expect(trainingStore.trainingCouldNotBeResumed).toBe(false);
+    expect(trainingStore.resumeIsPending).toBe(false);
+    expect(trainingStore.isRestoringRun).toBe(false);
   });
 
   it("can step without throwing", () => {
@@ -64,7 +80,7 @@ describe("ModelManager in a reopened document", () => {
   it("can cancel without throwing, leaving the model reset and usable", async () => {
     trainingStore.model.setName("model 1");
     trainingStore.model.setTrainingInProgress(true);
-    trainingStore.setTrainingWasInterrupted(true);
+    trainingStore.setTrainingCouldNotBeResumed(true);
     const { logisticModel } = trainingStore.model;
     logisticModel.trace = true;
     logisticModel.theta = [1, 2, 3];
@@ -73,7 +89,7 @@ describe("ModelManager in a reopened document", () => {
 
     expect(trainingStore.model.name).toBe("");
     expect(trainingStore.model.trainingInProgress).toBe(false);
-    expect(trainingStore.trainingWasInterrupted).toBe(false);
+    expect(trainingStore.trainingCouldNotBeResumed).toBe(false);
     expect(trainingStore.model.logisticModel).toBe(logisticModel);
     expect(logisticModel.trace).toBe(false);
     expect(logisticModel.theta).toEqual([]);
