@@ -27,19 +27,23 @@ export const TrainingPane = observer(function TrainingPane() {
   // A restored run is normally rebuilt and replayed. This is the case where it could not be, so Step
   // has nothing to advance and the student is told to start over instead.
   const couldNotBeResumed = tModel.trainingInProgress && trainingStore.trainingCouldNotBeResumed;
+  const isRestoringRun = trainingStore.isRestoringRun;
 
+  // Every branch carries role='status' rather than only the restoring one. React reconciles the
+  // branches to a single DOM node, so a role added alongside the text it announces is registered in
+  // the same commit as that text, which is the one arrangement screen readers do not announce.
   function modelTrainerInstructions() {
     if (!tModel.beingConstructed) {
       if (tNumResults === 0) {
         return (
-          <div className='sq-info-prompt'>
+          <div className='sq-info-prompt' role='status'>
             <p>Train your model with the features you have prepared.</p>
           </div>
         );
       }
       else {
         return (
-          <div className='sq-info-prompt'>
+          <div className='sq-info-prompt' role='status'>
             <p>You have trained {tNumResults} model{tNumResults > 1 ? 's' : ''}. Train another or
             proceed to <span
                 onClick={() => domainStore.setPanel(3)}
@@ -49,23 +53,29 @@ export const TrainingPane = observer(function TrainingPane() {
           </div>
         );
       }
+    } else if (isRestoringRun) {
+      return (
+        <div className='sq-info-prompt' role='status'>
+          <p>Restoring {tModel.name === '' ? 'this model' : tModel.name} to where it left off…</p>
+        </div>
+      );
     } else if (couldNotBeResumed) {
       return (
-        <div className='sq-info-prompt sq-info-prompt-alert'>
+        <div className='sq-info-prompt sq-info-prompt-alert' role='status'>
           <p>Training {tModel.name === '' ? 'this model' : tModel.name} was stopped, and it cannot be
           picked up from where it left off. Press Cancel to start over.</p>
         </div>
       );
     } else if (tModel.name === '') {
       return (
-        <div className='sq-info-prompt'>
+        <div className='sq-info-prompt' role='status'>
           <p>Your model must have a name before you can train it.</p>
         </div>
       );
     }
     else {
       return (
-        <div className='sq-info-prompt'>
+        <div className='sq-info-prompt' role='status'>
           <p>You can start training your model.</p>
         </div>
       );
@@ -109,7 +119,7 @@ export const TrainingPane = observer(function TrainingPane() {
           return (
             <Button
               className='sq-button'
-              disabled={tDisabled || couldNotBeResumed}
+              disabled={tDisabled || couldNotBeResumed || isRestoringRun}
               onClick={action(async () => {
                 if (!trainingStore.model.trainingInProgress) {
                   uiStore.setTrainingPanelShowsEditor(false);
@@ -120,7 +130,9 @@ export const TrainingPane = observer(function TrainingPane() {
                   modelManager.nextStep();
                 }
               })}
-              hint={couldNotBeResumed ? SQ.hints.trainingInterrupted : SQ.hints.trainingOneStep}>
+              hint={isRestoringRun
+                ? SQ.hints.trainingCatchingUp
+                : couldNotBeResumed ? SQ.hints.trainingInterrupted : SQ.hints.trainingOneStep}>
               Step
             </Button>
           );
@@ -146,10 +158,11 @@ export const TrainingPane = observer(function TrainingPane() {
         return (
           <Button
             className='sq-button'
+            disabled={isRestoringRun}
             onClick={action(async () => {
               await modelManager.cancel()
             })}
-            hint={SQ.hints.trainingCancel}>
+            hint={isRestoringRun ? SQ.hints.trainingCatchingUp : SQ.hints.trainingCancel}>
             Cancel
           </Button>
         );
