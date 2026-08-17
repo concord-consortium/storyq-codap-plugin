@@ -532,3 +532,157 @@ describe("ModelManager replaying a restored run", () => {
     expect(trainingStore.trainingCouldNotBeResumed).toBe(true);
   });
 });
+
+/**
+ * Rebuilding is not idempotent: a constructed feature's count is inflated again on every rebuild, so
+ * it climbs the sort. Re-imposing the saved ordering on the token array and the data alone is stable
+ * only on the first open; writing it back into tokenMap is what makes every open identical.
+ */
+describe("ModelManager re-imposing a saved ordering across successive opens", () => {
+  // Eight documents, the column feature true on four of them, so it starts at a count of 4 and
+  // rebuilds to 8, past a unigram sitting at 5.
+  const kTexts = [
+    "good movie plot", "good movie plot", "good movie", "good film",
+    "good story", "movie tale", "plot tale", "film story"
+  ];
+  let modelManager: ModelManager;
+  let targetCases: CaseInfo[];
+
+  function driftingCorpus(): CaseInfo[] {
+    return kTexts.map((iText, iIndex) => ({
+      children: [],
+      id: 100 + iIndex,
+      values: {
+        text: iText,
+        sentiment: iIndex % 2 === 0 ? "pos" : "neg",
+        [kColumnFeatureName]: iIndex < 4 ? 1 : 0
+      }
+    }));
+  }
+
+  function encodeAsTheRunDid() {
+    const encoded = modelManager.encodeTrainingData(targetCases);
+    if (!encoded) throw new Error("the corpus did not encode");
+    return encoded;
+  }
+
+  // One open: rebuild, re-impose the saved ordering on the array and the data, optionally write it
+  // back into the map, then save the document as CODAP would.
+  function openRebuildAndCommit(options: { writeTheOrderingBack: boolean }) {
+    const savedOrder = Object.values(featureStore.tokenMap)
+      .slice()
+      .sort((a, b) => a.index - b.index)
+      .map(iToken => iToken.token);
+    const encoded = encodeAsTheRunDid();
+    const positionOf: Record<string, number> = {};
+    encoded.oneHot.tokenArray.forEach((iToken: Token, iIndex: number) => { positionOf[iToken.token] = iIndex; });
+    if (options.writeTheOrderingBack) {
+      savedOrder.forEach((iName, iIndex) => {
+        if (featureStore.tokenMap[iName]) featureStore.tokenMap[iName].index = iIndex;
+      });
+    }
+    const data = encoded.data.map(iRow => {
+      const row = savedOrder.map(iName => iRow[positionOf[iName]]);
+      row.push(iRow[iRow.length - 1]);
+      return row;
+    });
+    featureStore.fromJSON(JSON.parse(JSON.stringify(featureStore.asJSON())));
+    return { order: savedOrder, data };
+  }
+
+  function fourOpens(options: { writeTheOrderingBack: boolean }) {
+    return [1, 2, 3, 4].map(() => openRebuildAndCommit(options));
+  }
+
+  let runOrder: string[];
+  let runData: number[][];
+  let savedDocument: ReturnType<typeof saveDocument>;
+
+  beforeEach(() => {
+    targetCases = driftingCorpus();
+    setUpStores({ targetCases, modelName: "model C", frequencyThreshold: 2 });
+    seedTokenMapWithUnigrams(targetCases, { frequencyThreshold: 1 });
+    modelManager = new ModelManager();
+
+    const encoded = encodeAsTheRunDid();
+    runOrder = encoded.oneHot.tokenArray.map((iToken: Token) => iToken.token);
+    runData = encoded.data;
+    trainingStore.model.setTrainingInProgress(true);
+    savedDocument = saveDocument();
+  });
+
+  it("drifts on this corpus, which is what makes the rest of these assertions worth anything", () => {
+    reopenDocument(savedDocument);
+
+    const rebuilt = encodeAsTheRunDid().oneHot.tokenArray.map((iToken: Token) => iToken.token);
+
+    expect(rebuilt).not.toEqual(runOrder);
+    expect(rebuilt[0]).toBe(kColumnFeatureName);
+    expect(runOrder.indexOf(kColumnFeatureName)).toBe(2);
+  });
+
+  it("encodes identically on every open when the ordering is written back", () => {
+    reopenDocument(savedDocument);
+
+    fourOpens({ writeTheOrderingBack: true }).forEach(({ order, data }) => {
+      expect(order).toEqual(runOrder);
+      expect(data).toEqual(runData);
+    });
+  });
+
+  it("holds for one open and then drifts when the ordering is not written back", () => {
+    reopenDocument(savedDocument);
+
+    const opens = fourOpens({ writeTheOrderingBack: false });
+
+    expect(opens[0].order).toEqual(runOrder);
+    expect(opens[0].data).toEqual(runData);
+    opens.slice(1).forEach(({ order, data }) => {
+      expect(order).not.toEqual(runOrder);
+      expect(data).not.toEqual(runData);
+    });
+  });
+});
+
+/**
+ * The row count is written by a fresh run and re-written by a resumed one, so that a run interrupted
+ * twice is checked as fully the second time as the first.
+ */
+describe("ModelManager recording the row count a run is fitting", () => {
+
+  afterEach(() => {
+    stopAnyRunInFlight();
+    jest.restoreAllMocks();
+  });
+
+  it("carries the count into the document a run is saved into, and re-records it on a resume", async () => {
+    jest.useFakeTimers();
+    mockCodap();
+    const targetCases = buildTargetCases({ seed: 20260817, rows: 40 });
+    setUpStores({ targetCases, modelName: "model C" });
+    seedTokenMapWithUnigrams(targetCases);
+    await new ModelManager().buildModel();
+    trainingStore.model.setTrainingInProgress(true);
+    const snapshot = saveDocument();
+    jest.restoreAllMocks();
+    jest.useRealTimers();
+
+    expect(snapshot.trainingStore.model.trainingRowCount).toBe(40);
+
+    // A document saved before the count existed comes back carrying it, so a second interruption is
+    // checked against a count rather than against the token set alone.
+    setUpStores({ targetCases, modelName: "model C" });
+    reopenDocument(snapshot);
+    trainingStore.model.setTrainingRowCount(undefined);
+    Object.values(featureStore.tokenMap).forEach((iToken, iIndex) => {
+      iToken.featureCaseID = kFirstFeatureCaseID + iIndex;
+    });
+    mockReopenedDocument({
+      tokens: Object.keys(featureStore.tokenMap),
+      targetCaseIDs: targetCases.map(iCase => iCase.id)
+    });
+
+    expect(await new ModelManager().prepareResume(targetCases)).toBe(true);
+    expect(trainingStore.model.trainingRowCount).toBe(40);
+  });
+});
