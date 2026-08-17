@@ -52,24 +52,31 @@ export class ModelManager {
   async prepWeightsCollection(iTokens: Token[]) {
 
     /**
-     * We test to see if the weight case for each token has an empty model name
+     * We test to see if the weight case for each token has an empty model name.
+     *
+     * The searches go out as one batched request rather than one per token in sequence. The verdict
+     * is the same for every input, since it is a fold over the same searches and stopping early only
+     * changed how many were issued, but a first model with a vocabulary at the token cap was making
+     * a thousand round trips before a single gradient step, which measured about 0.8 s.
      */
     async function allFirstWeightCasesAreEmpty() {
       const tAttrName = 'name'
+      if (iTokens.length === 0) return false;
+      const tResults = await codapInterface.sendRequest(
+        iTokens.map(iToken => ({
+          action: 'get',
+          resource: `dataContext[${datasetName}].itemSearch[${tAttrName}==${iToken.token}]`
+        }))
+      ) as GetItemSearchResponse[];
       let tIsEmpty = true,
         tFoundOne = false;
-      for (let tIndex = 0; tIndex < iTokens.length && tIsEmpty; tIndex++) {
-        const tFormula = `${tAttrName}==${iTokens[tIndex].token}`,
-          tFirstChildResult = await codapInterface.sendRequest({
-            action: 'get',
-            resource: `dataContext[${datasetName}].itemSearch[${tFormula}]`
-          }) as GetItemSearchResponse;
-        if (tFirstChildResult.success && tFirstChildResult.values && tFirstChildResult.values.length > 0) {
+      tResults.forEach(iResult => {
+        if (iResult.success && iResult.values && iResult.values.length > 0) {
           tFoundOne = true
-          const tName = tFirstChildResult.values[0].values['model name']
+          const tName = iResult.values[0].values['model name']
           tIsEmpty = tIsEmpty && (!tName || tName === '')
         }
-      }
+      });
       return tFoundOne && tIsEmpty
     }
 

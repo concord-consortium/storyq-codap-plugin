@@ -107,3 +107,81 @@ describe("ModelManager in a reopened document", () => {
     expect(logisticModel.theta).toEqual([]);
   });
 });
+
+/**
+ * prepWeightsCollection asks whether the weight cases are still unnamed, and that answer decides
+ * between updating the existing cases and creating a second set. The searches are batched into one
+ * request, so these cover both that the verdict is unchanged and that it costs one round trip.
+ */
+describe("ModelManager deciding whether to update or create weight cases", () => {
+  const tokens = ["good", "bad", "sweet", "sour"].map(token => ({ token } as any));
+
+  function mockFeatureDataset(options: { namedModel?: string, missingTokens?: string[] } = {}) {
+    const requests: any[] = [];
+    jest.spyOn(codapInterface, "sendRequest").mockImplementation((request: any) => {
+      requests.push(request);
+      const answer = (iRequest: any) => {
+        if (/itemSearch/.test(iRequest.resource)) {
+          const token = iRequest.resource.match(/name==([^\]]+)/)[1];
+          if (options.missingTokens?.includes(token)) return { success: true, values: [] };
+          return { success: true, values: [{ id: "1", values: { "model name": options.namedModel ?? "" } }] };
+        }
+        if (/caseCount/.test(iRequest.resource)) return { success: true, values: tokens.length };
+        if (/caseByIndex\[(\d+)]/.test(iRequest.resource)) {
+          const index = Number(iRequest.resource.match(/caseByIndex\[(\d+)]/)[1]);
+          return { success: true, values: { case: { id: 700 + index, values: { name: tokens[index].token } } } };
+        }
+        return { success: true, values: [] };
+      };
+      return Promise.resolve(Array.isArray(request) ? request.map(answer) : answer(request));
+    });
+    return { requests };
+  }
+
+  function searchRequests(requests: any[]) {
+    return requests.filter(request =>
+      (Array.isArray(request) ? request : [request]).some((iRequest: any) => /itemSearch/.test(iRequest.resource)));
+  }
+
+  afterEach(() => jest.restoreAllMocks());
+
+  it("asks about every token in a single round trip rather than one at a time", async () => {
+    const { requests } = mockFeatureDataset();
+
+    await new ModelManager().prepWeightsCollection(tokens);
+
+    const searches = searchRequests(requests);
+    expect(searches).toHaveLength(1);
+    expect(searches[0]).toHaveLength(tokens.length);
+    expect(searches[0].map((iRequest: any) => iRequest.resource)).toEqual(
+      tokens.map(iToken => `dataContext[Features].itemSearch[name==${iToken.token}]`)
+    );
+  });
+
+  it("updates the existing weight cases when none of them carries a model name", async () => {
+    const { requests } = mockFeatureDataset();
+
+    await new ModelManager().prepWeightsCollection(tokens);
+
+    const writes = requests.filter(request => !Array.isArray(request) && /weights].case$/.test(request.resource));
+    expect(writes.map(request => request.action)).toEqual(["update"]);
+  });
+
+  it("creates a new set when a weight case already carries one", async () => {
+    const { requests } = mockFeatureDataset({ namedModel: "model A" });
+
+    await new ModelManager().prepWeightsCollection(tokens);
+
+    const writes = requests.filter(request => !Array.isArray(request) && /weights].case$/.test(request.resource));
+    expect(writes.map(request => request.action)).toEqual(["create"]);
+  });
+
+  it("creates a new set when no weight case can be found at all, as it did before", async () => {
+    const { requests } = mockFeatureDataset({ missingTokens: tokens.map(iToken => iToken.token) });
+
+    await new ModelManager().prepWeightsCollection(tokens);
+
+    const writes = requests.filter(request => !Array.isArray(request) && /weights].case$/.test(request.resource));
+    expect(writes.map(request => request.action)).toEqual(["create"]);
+  });
+});
