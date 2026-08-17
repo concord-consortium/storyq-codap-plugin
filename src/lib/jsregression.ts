@@ -237,11 +237,19 @@ export class LogisticRegression {
   grad(X: number[][], Y: number[], theta: number[]) {
     const N = X.length;
     const Vx: number[] = [];
+    // h() is a dot product over every dimension and its value does not depend on d, so calling it
+    // inside the column loop recomputes each row's prediction once per column, making a gradient
+    // pass O(dim² · N) where the work is O(dim · N). Each sum still accumulates the same values in
+    // the same order, so the weights are unchanged rather than merely close.
+    const tPredictions: number[] = [];
+    for (let i = 0; i < N; ++i) {
+      tPredictions.push(this.h(X[i], theta));
+    }
     for (let d = 0; d < this.dim; ++d) {
       let sum = 0.0;
       for (let i = 0; i < N; ++i) {
         var x_i = X[i];
-        sum += ((this.h(x_i, theta) - Y[i]) * x_i[d] + this.lambda * theta[d]) / N;
+        sum += ((tPredictions[i] - Y[i]) * x_i[d] + this.lambda * theta[d]) / N;
       }
       Vx.push(sum);
     }
