@@ -40,6 +40,44 @@ describe("AIModel", () => {
     expect(model.logisticModel.theta).toEqual([]);
   });
 
+  it("restores a snapshot saved before the row count existed with no count of its own", () => {
+    const source = new AIModel();
+    source.setName("model 1");
+    const json = source.asJSON();
+    delete json.trainingRowCount;
+
+    const restored = new AIModel();
+    restored.setTrainingRowCount(12);
+    restored.fromJSON(json);
+
+    expect(restored.trainingRowCount).toBeUndefined();
+  });
+
+  it("clears the row count when the model is reset", () => {
+    const model = new AIModel();
+    model.setTrainingRowCount(40);
+
+    model.reset();
+
+    expect(model.trainingRowCount).toBeUndefined();
+  });
+
+  it("round-trips a recorded row count", () => {
+    const source = new AIModel();
+    source.setTrainingRowCount(40);
+
+    const restored = new AIModel();
+    restored.fromJSON(JSON.parse(JSON.stringify(source.asJSON())));
+
+    expect(restored.trainingRowCount).toBe(40);
+  });
+
+  it("leaves the row count out of the stringified snapshot when it has none", () => {
+    const model = new AIModel();
+
+    expect(JSON.parse(JSON.stringify(model.asJSON()))).not.toHaveProperty("trainingRowCount");
+  });
+
   it("does not let resetting one model disturb another", () => {
     const modelA = new AIModel();
     const modelB = new AIModel();

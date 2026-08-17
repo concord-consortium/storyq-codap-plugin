@@ -16,6 +16,10 @@ export interface IAIModel {
   trainingInProgress: boolean
   trainingInStepMode: boolean
   trainingIsComplete: boolean
+  // The number of target rows the run in progress is fitting. Optional because documents saved
+  // before this field existed do not carry it; those fall back to the token-set comparison alone
+  // when a run is restored.
+  trainingRowCount?: number
   usePoint5AsProbThreshold: boolean
 }
 
@@ -30,6 +34,7 @@ export const defaultModel: IAIModel = {
   trainingInProgress: false,
   trainingInStepMode: false,
   trainingIsComplete: false,
+  trainingRowCount: undefined,
   usePoint5AsProbThreshold: true
 }
 
@@ -45,6 +50,7 @@ export class AIModel {
   trainingInProgress = defaultModel.trainingInProgress;
   trainingInStepMode = defaultModel.trainingInStepMode;
   trainingIsComplete = defaultModel.trainingIsComplete;
+  trainingRowCount = defaultModel.trainingRowCount;
   usePoint5AsProbThreshold = defaultModel.usePoint5AsProbThreshold;
 
   constructor() {
@@ -91,6 +97,10 @@ export class AIModel {
     this.trainingIsComplete = value;
   }
 
+  setTrainingRowCount(value: number | undefined) {
+    this.trainingRowCount = value;
+  }
+
   setUsePoint5AsProbThreshold(value: boolean) {
     this.usePoint5AsProbThreshold = value;
   }
@@ -106,6 +116,9 @@ export class AIModel {
     this.setTrainingInProgress(model.trainingInProgress);
     this.setTrainingInStepMode(model.trainingInStepMode);
     this.setTrainingIsComplete(model.trainingIsComplete);
+    // Assigned unconditionally, like every other field, so that reset() clears it and a stale count
+    // from a finished or cancelled run never reaches the next save.
+    this.setTrainingRowCount(model.trainingRowCount);
     this.setUsePoint5AsProbThreshold(model.usePoint5AsProbThreshold);
   }
 
@@ -131,6 +144,7 @@ export class AIModel {
       trainingInProgress: this.trainingInProgress,
       trainingInStepMode: this.trainingInStepMode,
       trainingIsComplete: this.trainingIsComplete,
+      trainingRowCount: this.trainingRowCount,
       usePoint5AsProbThreshold: this.usePoint5AsProbThreshold
     }
   }
