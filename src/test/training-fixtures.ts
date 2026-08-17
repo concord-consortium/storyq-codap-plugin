@@ -7,8 +7,9 @@ import codapInterface from "../lib/CodapInterface";
 import { Document, oneHot } from "../lib/one_hot";
 import { featureStore } from "../stores/feature_store";
 import {
-  ColumnDetails, Feature, getStarterFeature, kFeatureKindColumn, kFeatureKindNgram, kFeatureTypeColumn,
-  kFeatureTypeUnigram, NgramDetails
+  ColumnDetails, Feature, getStarterFeature, kFeatureKindColumn, kFeatureKindNgram, kFeatureKindSearch,
+  kFeatureTypeColumn, kFeatureTypeConstructed, kFeatureTypeUnigram, kSearchWhereContain, kWhatOptionText,
+  NgramDetails, SearchDetails
 } from "../stores/store_types_and_constants";
 import { targetDatasetStore } from "../stores/target_dataset_store";
 import { targetStore } from "../stores/target_store";
@@ -22,6 +23,7 @@ export const kClassAttributeName = "sentiment";
 export const kPositiveClassName = "pos";
 export const kNegativeClassName = "neg";
 export const kColumnFeatureName = "long";
+export const kSearchFeatureName = 'contain: "good"';
 export const kFirstTargetCaseID = 100;
 
 export const kVocabulary = ["good", "bad", "sweet", "sour", "creamy", "icy", "rich", "bland", "fresh", "stale"];
@@ -48,7 +50,9 @@ interface ICorpusOptions {
 
 /**
  * Target cases as CODAP would hand them back: a text of words drawn from the vocabulary, a class,
- * and one column feature that is true for the longer texts.
+ * one column feature that is true for the longer texts and one search feature's column. A feature's
+ * column is read only when the feature is chosen, so carrying both costs a run that uses one
+ * nothing.
  */
 export function buildTargetCases(options: ICorpusOptions): CaseInfo[] {
   const { seed, rows, wordsPerRow = 6, vocabulary = kVocabulary, longerThan = 28 } = options;
@@ -66,7 +70,8 @@ export function buildTargetCases(options: ICorpusOptions): CaseInfo[] {
       values: {
         [kTargetAttributeName]: text,
         [kClassAttributeName]: draw() < 0.5 ? kPositiveClassName : kNegativeClassName,
-        [kColumnFeatureName]: text.length > longerThan ? 1 : 0
+        [kColumnFeatureName]: text.length > longerThan ? 1 : 0,
+        [kSearchFeatureName]: text.includes("good") ? 1 : 0
       }
     });
   }
@@ -95,6 +100,24 @@ function makeColumnFeature(name: string): Feature {
   return feature;
 }
 
+/**
+ * A constructed feature that is not one of the target's own columns. Exported so a test can add one
+ * to a reopened document that did not have it, which is what changes the rebuilt column set.
+ */
+export function makeSearchFeature(name = kSearchFeatureName): Feature {
+  const feature = getStarterFeature();
+  feature.name = name;
+  feature.caseID = "602";
+  feature.chosen = true;
+  feature.type = kFeatureTypeConstructed;
+  const details = feature.info.details as SearchDetails;
+  details.where = kSearchWhereContain;
+  details.what = kWhatOptionText;
+  details.freeFormText = "good";
+  feature.info.kind = kFeatureKindSearch;
+  return feature;
+}
+
 interface IStoreOptions {
   targetCases: CaseInfo[];
   modelName?: string;
@@ -102,6 +125,9 @@ interface IStoreOptions {
   stepMode?: boolean;
   frequencyThreshold?: number;
   ignoreStopWords?: boolean;
+  // A constructed feature that is not one of the target's own columns, which is the only kind whose
+  // token outlives being unchosen.
+  withSearchFeature?: boolean;
 }
 
 /**
@@ -111,7 +137,7 @@ interface IStoreOptions {
 export function setUpStores(options: IStoreOptions) {
   const {
     targetCases, modelName = "baseline model", iterations = 20, stepMode = false, frequencyThreshold = 4,
-    ignoreStopWords = false
+    ignoreStopWords = false, withSearchFeature = false
   } = options;
 
   targetDatasetStore.setTargetDatasetInfo({ name: kTargetDatasetName, title: kTargetDatasetName, id: 1 });
@@ -126,7 +152,9 @@ export function setUpStores(options: IStoreOptions) {
 
   const ngramFeature = makeNgramFeature(frequencyThreshold, ignoreStopWords);
   const columnFeature = makeColumnFeature(kColumnFeatureName);
-  featureStore.setFeatures([ngramFeature, columnFeature]);
+  const searchFeature = makeSearchFeature(kSearchFeatureName);
+  const features = withSearchFeature ? [ngramFeature, columnFeature, searchFeature] : [ngramFeature, columnFeature];
+  featureStore.setFeatures(features);
   featureStore.setTargetColumnFeatureNames([kColumnFeatureName]);
   featureStore.setFeatureDatasetInfo({
     datasetName: "Features",
@@ -149,7 +177,7 @@ export function setUpStores(options: IStoreOptions) {
   trainingStore.model.setIterations(iterations);
   trainingStore.model.setTrainingInStepMode(stepMode);
 
-  return { ngramFeature, columnFeature };
+  return { ngramFeature, columnFeature, searchFeature };
 }
 
 /**
@@ -234,4 +262,102 @@ export function mockCodap(options: ICodapMockOptions = {}) {
   });
 
   return { requests };
+}
+
+/**
+ * The document as CODAP would save it, with the functions stripped the way getPluginStore strips
+ * them.
+ */
+export function saveDocument() {
+  return JSON.parse(JSON.stringify({
+    featureStore: featureStore.asJSON(),
+    trainingStore: trainingStore.asJSON()
+  }));
+}
+
+/**
+ * Reopening drops everything a session held and never saved: the weight and result case IDs, and
+ * the token map's companion id map, which fromJSON never touches.
+ */
+export function reopenDocument(snapshot: ReturnType<typeof saveDocument>) {
+  featureStore.fromJSON(snapshot.featureStore);
+  featureStore.setFeatureWeightCaseIDs({});
+  featureStore.setCaseIdTokenMap({});
+  trainingStore.fromJSON(snapshot.trainingStore);
+  trainingStore.resultCaseIDs = [];
+}
+
+interface IReopenedDocumentOptions {
+  // The tokens the saved run recorded, one weight case each.
+  tokens: string[];
+  targetCaseIDs: number[];
+  // Tokens whose weight case the search does not find, so the set is no longer one per token.
+  missingWeightTokens?: string[];
+  // A token the search finds twice, which is the other way the set stops being one per token.
+  duplicateWeightToken?: string;
+  // Target cases the search finds no result child for, taken from the end of the list.
+  targetCasesWithoutResults?: number;
+}
+
+export const kFirstFeatureCaseID = 700;
+export const kFirstWeightCaseID = 800;
+export const kFirstCompletedResultCaseID = 200;
+export const kFirstInterruptedResultCaseID = 300;
+
+/**
+ * A CODAP holding a document that was saved during a run, with one completed model's result cases
+ * already under each target case. Answers the two re-acquisition searches and accepts every write.
+ */
+export function mockReopenedDocument(options: IReopenedDocumentOptions) {
+  const {
+    tokens, targetCaseIDs, missingWeightTokens = [], duplicateWeightToken, targetCasesWithoutResults = 0
+  } = options;
+  const requests: APIRequest[] = [];
+
+  const featureCases: CaseInfo[] = tokens.map((iToken, iIndex) => ({
+    children: [], id: kFirstFeatureCaseID + iIndex, values: { name: iToken }
+  }));
+  const weightCases: CaseInfo[] = [];
+  tokens.forEach((iToken, iIndex) => {
+    if (missingWeightTokens.includes(iToken)) return;
+    weightCases.push({
+      children: [],
+      id: kFirstWeightCaseID + iIndex,
+      parent: kFirstFeatureCaseID + iIndex,
+      values: { "model name": trainingStore.model.name, weight: "" }
+    });
+  });
+  if (duplicateWeightToken) {
+    const index = tokens.indexOf(duplicateWeightToken);
+    weightCases.push({
+      children: [],
+      id: kFirstWeightCaseID + tokens.length,
+      parent: kFirstFeatureCaseID + index,
+      values: { "model name": trainingStore.model.name, weight: "" }
+    });
+  }
+  const resultCases: CaseInfo[] = [];
+  targetCaseIDs.slice(0, targetCaseIDs.length - targetCasesWithoutResults).forEach((iID, iIndex) => {
+    resultCases.push({
+      children: [], id: kFirstCompletedResultCaseID + iIndex, parent: iID, values: { "model name": "model A" }
+    });
+    resultCases.push({
+      children: [], id: kFirstInterruptedResultCaseID + iIndex, parent: iID, values: { "model name": "" }
+    });
+  });
+
+  jest.spyOn(codapInterface, "sendRequest").mockImplementation((request: APIRequest | APIRequest[]) => {
+    const handle = (iRequest: APIRequest) => {
+      requests.push(iRequest);
+      const { action, resource } = iRequest;
+      if (action !== "get") return { success: true, values: [] };
+      if (/collection\[weights]/.test(resource)) return { success: true, values: weightCases };
+      if (/collection\[features]/.test(resource)) return { success: true, values: featureCases };
+      if (/collection\[results]/.test(resource)) return { success: true, values: resultCases };
+      return { success: true, values: [] };
+    };
+    return Promise.resolve(Array.isArray(request) ? request.map(handle) : handle(request));
+  });
+
+  return { requests, weightCases, resultCases };
 }

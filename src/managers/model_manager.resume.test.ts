@@ -3,7 +3,13 @@ import { featureStore } from "../stores/feature_store";
 import { targetDatasetStore } from "../stores/target_dataset_store";
 import { targetStore } from "../stores/target_store";
 import { trainingStore } from "../stores/training_store";
-import { APIRequest, CaseInfo } from "../types/codap-api-types";
+import { Token } from "../stores/store_types_and_constants";
+import {
+  buildTargetCases, kColumnFeatureName, kFirstFeatureCaseID, kFirstInterruptedResultCaseID, kFirstWeightCaseID,
+  kSearchFeatureName, makeSearchFeature, mockCodap, mockReopenedDocument, reopenDocument, saveDocument,
+  seedTokenMapWithUnigrams, setUpStores
+} from "../test/training-fixtures";
+import { APIRequest, CaseInfo, UpdateCaseValue } from "../types/codap-api-types";
 import { ModelManager } from "./model_manager";
 
 const kInterruptedModelName = "model C";
@@ -165,5 +171,188 @@ describe("ModelManager re-acquiring the case IDs a reopened document does not ca
     expect(await modelManager.reacquireResultCaseIDs(kTargetCaseIDs)).toEqual({ ids: [], complete: false });
     expect(await modelManager.reacquireWeightCaseIDs(kInterruptedModelName, kTokens))
       .toEqual({ ids: {}, complete: false });
+  });
+});
+
+/**
+ * A document saved during a run, reopened. The run is validated against the current features and
+ * target data before anything is replayed, and a refusal has to leave the document as it found it.
+ */
+describe("ModelManager validating a restored run", () => {
+  const kRows = 40;
+  let modelManager: ModelManager;
+  let targetCases: CaseInfo[];
+  let savedTokens: string[];
+
+  // Runs a model to the point where the document is saved, then reopens the document into stores
+  // that hold nothing the session held.
+  async function reopenAfterARun(options: { withSearchFeature?: boolean } = {}) {
+    jest.useFakeTimers();
+    mockCodap();
+    targetCases = buildTargetCases({ seed: 20260817, rows: kRows });
+    setUpStores({ targetCases, modelName: "model C", withSearchFeature: options.withSearchFeature });
+    seedTokenMapWithUnigrams(targetCases);
+    await new ModelManager().buildModel();
+    // Extraction stamps each token with the case it was written to, and the document keeps that
+    Object.values(featureStore.tokenMap).forEach((iToken, iIndex) => {
+      iToken.featureCaseID = kFirstFeatureCaseID + iIndex;
+    });
+    trainingStore.model.setTrainingInProgress(true);
+    trainingStore.model.setIteration(4);
+    const snapshot = saveDocument();
+    jest.restoreAllMocks();
+    jest.useRealTimers();
+
+    setUpStores({ targetCases, modelName: "model C", withSearchFeature: options.withSearchFeature });
+    reopenDocument(snapshot);
+    savedTokens = Object.keys(featureStore.tokenMap);
+    modelManager = new ModelManager();
+    return snapshot;
+  }
+
+  function mockCurrentDocument(options: Partial<Parameters<typeof mockReopenedDocument>[0]> = {}) {
+    return mockReopenedDocument({
+      tokens: savedTokens,
+      targetCaseIDs: targetCases.map(iCase => iCase.id),
+      ...options
+    });
+  }
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+    jest.useRealTimers();
+  });
+
+  it("accepts a document this build saved, committing the rebuild for the replay", async () => {
+    await reopenAfterARun();
+    mockCurrentDocument();
+
+    expect(await modelManager.prepareResume(targetCases)).toBe(true);
+
+    expect(trainingStore.resumeIsPending).toBe(true);
+    expect(trainingStore.model.logisticModel._data).toHaveLength(kRows);
+    expect(trainingStore.model.trainingRowCount).toBe(kRows);
+    expect(featureStore.featureWeightCaseIDs[savedTokens[0]]).toBe(kFirstWeightCaseID);
+    expect(trainingStore.resultCaseIDs).toHaveLength(kRows);
+  });
+
+  it("resumes a document whose column feature has no Feature object of its own", async () => {
+    await reopenAfterARun();
+    // Target column features are constructed tokens with no feature behind them, so a check that
+    // consulted only the chosen features would refuse every document that uses one.
+    featureStore.setFeatures(featureStore.features.filter(iFeature => iFeature.name !== kColumnFeatureName));
+    mockCurrentDocument();
+
+    expect(await modelManager.prepareResume(targetCases)).toBe(true);
+  });
+
+  it("refuses a document whose saved token map is empty", async () => {
+    await reopenAfterARun();
+    featureStore.clearTokens();
+    mockCurrentDocument();
+
+    expect(await modelManager.prepareResume(targetCases)).toBe(false);
+    expect(trainingStore.resumeIsPending).toBe(false);
+  });
+
+  it("refuses a document with no target cases left to fit", async () => {
+    await reopenAfterARun();
+    // The case a run predating the row count falls into: fit reads data[0].length on its first line.
+    trainingStore.model.setTrainingRowCount(undefined);
+    mockReopenedDocument({ tokens: savedTokens, targetCaseIDs: [] });
+
+    expect(await modelManager.prepareResume([])).toBe(false);
+  });
+
+  it("refuses a document whose target row count no longer matches", async () => {
+    await reopenAfterARun();
+    mockCurrentDocument();
+
+    expect(await modelManager.prepareResume(targetCases.slice(0, kRows - 1))).toBe(false);
+  });
+
+  it("refuses a document whose constructed feature was unchosen while it was closed", async () => {
+    await reopenAfterARun({ withSearchFeature: true });
+    const searchFeature = featureStore.getFeatureByName(kSearchFeatureName);
+    if (searchFeature) searchFeature.chosen = false;
+    mockCurrentDocument();
+
+    // The token set is identical here, since unchoosing a constructed feature leaves its token in
+    // the map, so the column it encodes silently goes to zeros while every other check passes.
+    expect(savedTokens).toContain(kSearchFeatureName);
+    expect(await modelManager.prepareResume(targetCases)).toBe(false);
+  });
+
+  it("refuses a document whose weight cases cannot be resolved one per token", async () => {
+    await reopenAfterARun();
+    mockCurrentDocument({ missingWeightTokens: [savedTokens[1]] });
+
+    expect(await modelManager.prepareResume(targetCases)).toBe(false);
+    // Cancel is the way out of a refusal, so it has to be left the cases the search did resolve
+    expect(featureStore.featureWeightCaseIDs[savedTokens[0]]).toBe(kFirstWeightCaseID);
+    expect(trainingStore.resultCaseIDs).toHaveLength(kRows);
+  });
+
+  it("leaves Cancel able to clear what a refused run wrote", async () => {
+    await reopenAfterARun();
+    const { requests } = mockCurrentDocument({ missingWeightTokens: [savedTokens[1]] });
+    await modelManager.prepareResume(targetCases);
+
+    await modelManager.cancel();
+
+    const updates = requests.filter(iRequest => iRequest.action === "update" && /\.case$/.test(iRequest.resource));
+    const weightUpdate = updates.find(iRequest => /collection\[weights]/.test(iRequest.resource));
+    const resultUpdate = updates.find(iRequest => /collection\[results]/.test(iRequest.resource));
+    // Every weight case the search resolved, which is one short of the token count, and every
+    // result case: refusing to clear them would leave the abandoned model's name in the table
+    // beside a message telling the student that Cancel starts them over.
+    const expectedWeightCaseIDs = savedTokens
+      .map((_unused, iIndex) => kFirstWeightCaseID + iIndex)
+      .filter((_unused, iIndex) => iIndex !== 1);
+    expect((weightUpdate?.values as UpdateCaseValue[]).map(iValue => iValue.id)).toEqual(expectedWeightCaseIDs);
+    expect((resultUpdate?.values as UpdateCaseValue[]).map(iValue => iValue.id))
+      .toEqual(targetCases.map((_unused, iIndex) => kFirstInterruptedResultCaseID + iIndex));
+  });
+
+  it("refuses a document whose result cases cannot be paired with its target cases", async () => {
+    await reopenAfterARun();
+    mockCurrentDocument({ targetCasesWithoutResults: 1 });
+
+    expect(await modelManager.prepareResume(targetCases)).toBe(false);
+    expect(trainingStore.resultCaseIDs).toHaveLength(kRows - 1);
+  });
+
+  it("refuses a document whose rebuilt column set differs, and puts the token maps back", async () => {
+    await reopenAfterARun();
+    // A feature chosen while the document was closed adds a column the saved run never had
+    featureStore.setFeatures([...featureStore.features, makeSearchFeature()]);
+    trainingStore.model.setIgnoreStopWords(true);
+    const expectedTokenMap = JSON.parse(JSON.stringify(featureStore.tokenMap));
+    mockCurrentDocument();
+
+    expect(await modelManager.prepareResume(targetCases)).toBe(false);
+
+    expect(featureStore.tokenMap).toEqual(expectedTokenMap);
+    Object.values(featureStore.tokenMap).forEach(iToken => {
+      expect(featureStore.caseIdTokenMap[Number(iToken.featureCaseID)]).toBe(iToken);
+    });
+    // The document says one thing and the unigram feature another, which is the case where a
+    // validation rebuild that assigned would alter the document it is about to refuse.
+    expect(trainingStore.model.ignoreStopWords).toBe(true);
+  });
+
+  it("resumes on the rebuilt order when the saved map carries no usable one", async () => {
+    await reopenAfterARun();
+    Object.values(featureStore.tokenMap).forEach(iToken => { iToken.index = -1; });
+    mockCurrentDocument();
+
+    expect(await modelManager.prepareResume(targetCases)).toBe(true);
+
+    // A map of equal indexes sorts into insertion order, which is not the run's ordering and must
+    // not be re-imposed as though it were.
+    const rebuiltOrder = trainingStore.model.logisticModel._oneHot.tokenArray
+      .map((iToken: Token) => iToken.token);
+    expect(rebuiltOrder).not.toEqual(savedTokens);
+    expect(rebuiltOrder[0]).toBe(kColumnFeatureName);
   });
 });

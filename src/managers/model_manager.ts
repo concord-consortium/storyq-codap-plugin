@@ -8,7 +8,9 @@ import { LogisticRegression } from "../lib/jsregression";
 import { Document, oneHot } from "../lib/one_hot";
 import { domainStore } from "../stores/domain_store";
 import { featureStore } from "../stores/feature_store";
-import { Feature, kFeatureKindNgram, NgramDetails, StoredAIModel, Token } from "../stores/store_types_and_constants";
+import {
+  Feature, kFeatureKindNgram, kTokenTypeConstructed, NgramDetails, StoredAIModel, Token
+} from "../stores/store_types_and_constants";
 import { targetStore } from "../stores/target_store";
 import { trainingStore } from "../stores/training_store";
 import { computeKappa } from "../utilities/utilities";
@@ -478,6 +480,116 @@ export class ModelManager {
     });
 
     return { data: tData, oneHot: tOneHot, documents: tDocuments, ignoreStopWords: tIgnore };
+  }
+
+  /**
+   * The eager half of a restore. It re-acquires the case IDs whether or not the run turns out to be
+   * resumable, then rebuilds the encoded data, checks it against what the document recorded, and
+   * either commits the rebuild or puts the token maps back.
+   *
+   * setTrainingRowCount is the only AIModel write on this path. Nothing else here may assign to the
+   * model, because a refused resume has to leave the document exactly as it found it, and restoring
+   * the token maps restores nothing else.
+   */
+  async prepareResume(iTargetCases: CaseInfo[]) {
+    const tModel = trainingStore.model;
+    const tSnapshot = featureStore.snapshotTokens();
+    const tSavedTokens = Object.values(tSnapshot);
+    const tSavedNames = tSavedTokens.map(iToken => iToken.token);
+    // The saved ordering counts only when every token carries a distinct, non-negative index.
+    // getNewToken defaults index to -1, and a map of all -1s sorts into insertion order, which would
+    // then be re-imposed as though it were the run's own ordering. Names are taken above and are
+    // unaffected: membership and the weight search need the set, not the order.
+    const tIndexes = tSavedTokens.map(iToken => iToken.index);
+    const tOrderIsUsable = tIndexes.every(iIndex => iIndex >= 0) &&
+      new Set(tIndexes).size === tIndexes.length;
+    const tSavedOrder = tOrderIsUsable
+      ? tSavedTokens.slice().sort((a, b) => a.index - b.index).map(iToken => iToken.token)
+      : undefined;
+    const tTargetCaseIDs = iTargetCases.map(iCase => iCase.id);
+
+    // Acquired before the resumable-or-not branch, so Cancel works either way, and the weight ids are
+    // taken as far as they resolved rather than all-or-nothing, so that Cancel on the fallback path
+    // still has something to blank.
+    const tWeightCaseIDs = await this.reacquireWeightCaseIDs(tModel.name, tSavedNames);
+    const tResultCaseIDs = await this.reacquireResultCaseIDs(tTargetCaseIDs);
+    featureStore.setFeatureWeightCaseIDs(tWeightCaseIDs.ids);
+    trainingStore.resultCaseIDs = tResultCaseIDs.ids;
+
+    // An empty saved map is its own rejection condition rather than a special case of the token-set
+    // check below: it records no column set, so there is nothing for that check to compare against.
+    if (tSavedNames.length === 0) return false;
+    // The encoding is one row per target case, so no target cases is exactly an empty matrix, and fit
+    // reads data[0].length on its first line. Checked here rather than on the encoded data so that
+    // the refusal is a clean one, with no rebuild committed and nothing to undo. It is reachable only
+    // for a document that predates the row count, since the row check below refuses a later one
+    // first, and it does not need rows to have been deleted: a target dataset renamed or removed
+    // while the document was closed arrives here on a successful round trip.
+    if (iTargetCases.length === 0) return false;
+    if (tModel.trainingRowCount != null && tModel.trainingRowCount !== iTargetCases.length) return false;
+    // A constructed token stays in tokenMap when its feature is unchosen or deleted, because
+    // toggleChosenFor only sweeps unigram tokens and deleteFeature's non-unigram branch never calls
+    // deleteToken. So the token-set check below sees no change while the column it encodes has gone
+    // to all zeros, and the resume would silently fit a different training set. Target column
+    // features have constructed tokens with no Feature object of their own, which is why that half
+    // of the test is not optional.
+    const tColumnFeatureNames = featureStore.targetColumnFeatureNames;
+    const tEveryConstructedTokenIsLive = tSavedTokens.every(iToken =>
+      iToken.type !== kTokenTypeConstructed ||
+      tColumnFeatureNames.includes(iToken.token) ||
+      Boolean(featureStore.getFeatureByName(iToken.token)?.chosen));
+    if (!tEveryConstructedTokenIsLive) return false;
+    if (!tWeightCaseIDs.complete || !tResultCaseIDs.complete) return false;
+
+    const tEncoded = this.encodeTrainingData(iTargetCases);
+    if (!tEncoded) {
+      featureStore.restoreTokens(tSnapshot);
+      return false;
+    }
+
+    const tRebuiltNames = tEncoded.oneHot.tokenArray.map((iToken: Token) => iToken.token);
+    const tSameTokenSet = tRebuiltNames.length === tSavedNames.length &&
+      tSavedNames.every(iName => tRebuiltNames.includes(iName));
+    if (!tSameTokenSet) {
+      featureStore.restoreTokens(tSnapshot);
+      return false;
+    }
+
+    // Re-impose the saved ordering on the token array, on the columns of the encoded data and on
+    // tokenMap's own indexes. The last of those is what keeps a document that is interrupted a second
+    // time landing in the same place rather than one rounding step away. Skipped entirely when the
+    // saved ordering is not usable: the resume then runs on the rebuilt order and accepts the one-ULP
+    // difference, because ordering is never a reason to refuse a resume.
+    let tOrderedData = tEncoded.data;
+    if (tSavedOrder) {
+      const tPositionOf: Record<string, number> = {};
+      tEncoded.oneHot.tokenArray.forEach((iToken: Token, iIndex: number) => {
+        tPositionOf[iToken.token] = iIndex;
+      });
+      const tOrderedTokens = tSavedOrder.map(iName => tEncoded.oneHot.tokenArray[tPositionOf[iName]]);
+      tOrderedTokens.forEach((iToken: Token, iIndex: number) => {
+        iToken.index = iIndex;
+        // The token objects are the ones tokenMap holds, so the line above has usually written this
+        // already. It is here for a tokenArray that ever holds copies of them.
+        if (featureStore.tokenMap[iToken.token]) featureStore.tokenMap[iToken.token].index = iIndex;
+      });
+      tOrderedData = tEncoded.data.map(iRow => {
+        const tRow = tSavedOrder.map(iName => iRow[tPositionOf[iName]]);
+        tRow.push(iRow[iRow.length - 1]); // the class value stays last
+        return tRow;
+      });
+      tEncoded.oneHot.tokenArray = tOrderedTokens;
+    }
+
+    // The rebuild is kept on the logistic model so the gradient replay can wait for a Step press.
+    const tLogisticModel = tModel.logisticModel;
+    tLogisticModel._data = tOrderedData;
+    tLogisticModel._oneHot = tEncoded.oneHot;
+    tLogisticModel._documents = tEncoded.documents;
+    // Re-recorded so that a run interrupted, resumed and interrupted again is still fully checked.
+    tModel.setTrainingRowCount(iTargetCases.length);
+    trainingStore.setResumeIsPending(true);
+    return true;
   }
 
   async buildModel() {
