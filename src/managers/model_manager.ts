@@ -13,7 +13,7 @@ import { targetStore } from "../stores/target_store";
 import { trainingStore } from "../stores/training_store";
 import { computeKappa } from "../utilities/utilities";
 import {
-  APIRequest, CaseValues, CreateCaseResponse, CreateCaseValue, GetCaseByIDResponse, GetCaseCountResponse,
+  APIRequest, CaseInfo, CaseValues, CreateCaseResponse, CreateCaseValue, GetCaseByIDResponse, GetCaseCountResponse,
   GetCaseFormulaSearchResponse, GetCollectionListResponse, GetItemSearchResponse, UpdateCaseValue
 } from "../types/codap-api-types";
 
@@ -308,82 +308,70 @@ export class ModelManager {
     await wipeResultsInTarget();
   }
 
-  async buildModel() {
-    const this_ = this
-
-    // This run is being started here, so whatever a reopened document restored is no longer in play.
-    // All three flags: a resume left pending by a student who reopened a step-mode run and pressed
-    // Cancel would otherwise divert this run's first Step into a catch-up.
-    trainingStore.setTrainingCouldNotBeResumed(false)
-    trainingStore.setResumeIsPending(false)
-    trainingStore.setRestoringRun(false)
-
-    const tTargetDatasetName = targetStore.targetDatasetInfo.name,
-      tTargetAttributeName = targetStore.targetAttributeName,
+  /**
+   * Turns a list of target cases into the documents and the encoded matrix a fit runs on. A fresh run
+   * and a resume share this so that the two cannot drift apart: a resume that rebuilt the documents
+   * its own way would silently encode a different training set.
+   *
+   * The caller passes the target cases rather than this reading targetStore.targetCases, because that
+   * field is reassigned with a filtered subset by work that fires unawaited on every document open.
+   *
+   * This writes nothing to the AIModel. It reports ignoreStopWords rather than assigning it, because
+   * the resume calls this to validate a restored run, and a validation that assigned would leave a
+   * refused resume having altered the document it was supposed to leave alone.
+   */
+  encodeTrainingData(iTargetCases: CaseInfo[]) {
+    const tTargetAttributeName = targetStore.targetAttributeName,
       tTargetColumnFeatureNames = featureStore.targetColumnFeatureNames,
       tNonNgramFeatures = featureStore.chosenFeatures.filter(iFeature => iFeature.info.kind !== kFeatureKindNgram),
       tNgramFeatures = featureStore.chosenFeatures.filter(iFeature => iFeature.info.kind === kFeatureKindNgram),
       tUnigramFeature = tNgramFeatures.find(iFeature => (iFeature.info.details as NgramDetails).n === 'uni'),
       tPositiveClassName = targetStore.positiveClassName,
-      tDocuments: Document[] = [],
-      tLogisticModel = trainingStore.model.logisticModel
+      tDocuments: Document[] = [];
 
-    async function setup() {
-      await deselectAllCasesIn(tTargetDatasetName);
-      tLogisticModel.reset();
-      tLogisticModel.iterations = trainingStore.model.iterations;
-      tLogisticModel.progressCallback = this_.progressBar;
-      tLogisticModel.trace = trainingStore.model.trainingInStepMode;
-      tLogisticModel.stepModeCallback = trainingStore.model.trainingInStepMode ?
-        this_.stepModeCallback : undefined;
-      tLogisticModel.lockIntercept = trainingStore.model.lockInterceptAtZero;
-      const tColumnNames = tTargetColumnFeatureNames.concat(
-        featureStore.chosenFeatures.map(iFeature => {
-          return iFeature.name;
-        })
-      );
-      // Grab the strings in the target collection that are the values of the target attribute.
-      // Stash these in an array that can be used to produce a oneHot representation
-      targetStore.targetCases.forEach(iCase => {
-        const tCaseID = iCase.id,
-          tText = iCase.values[tTargetAttributeName],
-          tClass = iCase.values[targetStore.targetClassAttributeName],
-          tColumnFeatures: Record<string, number | boolean> = {};
-        // We're going to put column features into each document as well so one-hot can include them in the vector
-        tColumnNames.forEach((aName) => {
-          const featureValue = iCase.values[aName];
-          const numberValue = Number(featureValue);
-          let tValue: number;
-          if (isFinite(numberValue)) {
-            if (numberValue > 0) {
-              tValue = 1;
-            } else {
-              tValue = 0;
-            }
+    const tColumnNames = tTargetColumnFeatureNames.concat(
+      featureStore.chosenFeatures.map(iFeature => {
+        return iFeature.name;
+      })
+    );
+    // Grab the strings in the target collection that are the values of the target attribute.
+    // Stash these in an array that can be used to produce a oneHot representation
+    iTargetCases.forEach(iCase => {
+      const tCaseID = iCase.id,
+        tText = iCase.values[tTargetAttributeName],
+        tClass = iCase.values[targetStore.targetClassAttributeName],
+        tColumnFeatures: Record<string, number | boolean> = {};
+      // We're going to put column features into each document as well so one-hot can include them in the vector
+      tColumnNames.forEach((aName) => {
+        const featureValue = iCase.values[aName];
+        const numberValue = Number(featureValue);
+        let tValue: number;
+        if (isFinite(numberValue)) {
+          if (numberValue > 0) {
+            tValue = 1;
           } else {
-            if (['1', 'true'].indexOf(String(featureValue).toLowerCase()) >= 0) {
-              tValue = 1;
-            } else {
-              tValue = 0;
-            }
+            tValue = 0;
           }
-          if (tValue) tColumnFeatures[aName] = tValue;
-        });
-        tDocuments.push({
-          example: String(tText), class: String(tClass), caseID: tCaseID, columnFeatures: tColumnFeatures
-        });
+        } else {
+          if (['1', 'true'].indexOf(String(featureValue).toLowerCase()) >= 0) {
+            tValue = 1;
+          } else {
+            tValue = 0;
+          }
+        }
+        if (tValue) tColumnFeatures[aName] = tValue;
       });
-    }
-
-    await setup()
+      tDocuments.push({
+        example: String(tText), class: String(tClass), caseID: tCaseID, columnFeatures: tColumnFeatures
+      });
+    });
 
     const tData: number[][] = [];
 
     // Logistic can't happen until we've isolated the features and produced a oneHot representation
     const tIgnore = tUnigramFeature && (tUnigramFeature.info.ignoreStopWords === true ||
       tUnigramFeature.info.ignoreStopWords === false) ? tUnigramFeature.info.ignoreStopWords : true;
-    trainingStore.model.setIgnoreStopWords(tIgnore);
-    let tOneHot = oneHot({
+    const tOneHot = oneHot({
         frequencyThreshold: (tUnigramFeature && (Number(tUnigramFeature.info.frequencyThreshold) - 1)) || 0,
         ignoreStopWords: tIgnore,
         ignorePunctuation: true,
@@ -393,7 +381,7 @@ export class ModelManager {
         features: tNonNgramFeatures
       },
       tDocuments);
-    if (!tOneHot) return
+    if (!tOneHot) return undefined;
 
     // Column feature results get pushed on after unigrams
 
@@ -404,12 +392,47 @@ export class ModelManager {
       tData.push(iResult.oneHotExample);
     });
 
+    return { data: tData, oneHot: tOneHot, documents: tDocuments, ignoreStopWords: tIgnore };
+  }
+
+  async buildModel() {
+    // This run is being started here, so whatever a reopened document restored is no longer in play.
+    // All three flags: a resume left pending by a student who reopened a step-mode run and pressed
+    // Cancel would otherwise divert this run's first Step into a catch-up.
+    trainingStore.setTrainingCouldNotBeResumed(false)
+    trainingStore.setResumeIsPending(false)
+    trainingStore.setRestoringRun(false)
+
+    const tTargetDatasetName = targetStore.targetDatasetInfo.name,
+      tLogisticModel = trainingStore.model.logisticModel
+
+    await deselectAllCasesIn(tTargetDatasetName);
+    tLogisticModel.reset();
+    tLogisticModel.iterations = trainingStore.model.iterations;
+    tLogisticModel.progressCallback = this.progressBar;
+    tLogisticModel.trace = trainingStore.model.trainingInStepMode;
+    tLogisticModel.stepModeCallback = trainingStore.model.trainingInStepMode ?
+      this.stepModeCallback : undefined;
+    tLogisticModel.lockIntercept = trainingStore.model.lockInterceptAtZero;
+
+    const tEncoded = this.encodeTrainingData(targetStore.targetCases);
+    if (!tEncoded) return
+    const { data: tData, oneHot: tOneHot, documents: tDocuments } = tEncoded;
+
+    // Assigned here rather than inside the shared encoding, so that the resume's validation rebuild
+    // cannot write it into a restored model it is about to refuse.
+    trainingStore.model.setIgnoreStopWords(tEncoded.ignoreStopWords);
+
+    // Recorded so that a document saved during this run can have its row count checked on the way
+    // back in. Nothing else ever writes it, because a document only acquires an interrupted run by
+    // being saved during a fresh one.
+    trainingStore.model.setTrainingRowCount(tDocuments.length);
+
     // In step mode we'll be repeatedly updating weights and results. Prep for that before we start fitting
     await this.prepWeightsCollection(tOneHot.tokenArray)
     await this.prepResultsCollection()
 
     // The fitting process is asynchronous so we fire it off here
-    // @ts-ignore
     tLogisticModel.fit(tData);
     tLogisticModel._data = tData;
     tLogisticModel._oneHot = tOneHot;
