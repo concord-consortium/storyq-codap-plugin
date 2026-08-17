@@ -309,6 +309,91 @@ export class ModelManager {
   }
 
   /**
+   * The weight cases the interrupted run wrote, keyed by token name.
+   *
+   * The attribute is called `model name`, with a space, so the formula has to backquote it: without
+   * the backquotes CODAP answers success: false and the resume is refused for no good reason.
+   *
+   * Returns whatever it could resolve and, separately, whether it resolved one case per token. The
+   * two answers are used for different things and must not be collapsed into one: the resume is
+   * refused unless `complete`, while Cancel takes `ids` as it stands, because clearing a case the
+   * interrupted run stamped with its own name is safe even when the set is partial, and the fallback
+   * is the path that tells the student to press Cancel.
+   */
+  async reacquireWeightCaseIDs(iModelName: string, iTokens: string[]) {
+    const { collectionName, datasetName, weightsCollectionName } = featureStore.featureDatasetInfo;
+    const tEscapedName = iModelName.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    const tWeightCases = await codapInterface.sendRequest({
+      action: 'get',
+      resource: `dataContext[${datasetName}].collection[${weightsCollectionName}]` +
+        `.caseFormulaSearch[\`model name\`=='${tEscapedName}']`
+    }) as GetCaseFormulaSearchResponse;
+    const tFeatureCases = await codapInterface.sendRequest({
+      action: 'get',
+      resource: `dataContext[${datasetName}].collection[${collectionName}].caseFormulaSearch[true]`
+    }) as GetCaseFormulaSearchResponse;
+    if (!tWeightCases.success || !tWeightCases.values || !tFeatureCases.success || !tFeatureCases.values) {
+      return { ids: {}, complete: false };
+    }
+
+    const tTokenOfFeatureCase: Record<number, string> = {};
+    tFeatureCases.values.forEach(iCase => { tTokenOfFeatureCase[Number(iCase.id)] = String(iCase.values.name); });
+
+    const tIDs: Record<string, number> = {};
+    let tComplete = true;
+    for (const iCase of tWeightCases.values) {
+      const tToken = tTokenOfFeatureCase[Number(iCase.parent)];
+      // Unresolvable, or a second case for a token already resolved. Either way the set is no longer
+      // one-per-token, so the resume is off; the ids gathered so far still belong to this model's
+      // name and are still the right thing for Cancel to blank.
+      if (!tToken || tIDs[tToken] != null) { tComplete = false; continue; }
+      tIDs[tToken] = Number(iCase.id);
+    }
+    if (Object.keys(tIDs).length !== iTokens.length || iTokens.some(iToken => tIDs[iToken] == null)) {
+      tComplete = false;
+    }
+    return { ids: tIDs, complete: tComplete };
+  }
+
+  /**
+   * The interrupted run's result cases are the newest child of each target case, taken in the order
+   * of the target case list the resume captured, because showPredictedLabels pairs them positionally
+   * against the documents. The results collection accumulates one child per target case per model,
+   * so the unfiltered list is not this run's set, and a plain interrupted run has written no model
+   * name for a name search to find.
+   *
+   * This issues its own search rather than going through getCaseValues, which deletes `parent` from
+   * every case it returns.
+   *
+   * Reports its two answers the way reacquireWeightCaseIDs does, and for the same reason: `complete`
+   * gates the resume, because the positional pairing needs every target case to have paired, while
+   * `ids` is what Cancel blanks and is worth having even when a target case added since the run was
+   * interrupted has no result child of its own.
+   */
+  async reacquireResultCaseIDs(iTargetCaseIDs: number[]) {
+    const tTargetDatasetName = targetStore.targetDatasetInfo.name;
+    const tResultCases = await codapInterface.sendRequest({
+      action: 'get',
+      resource: `dataContext[${tTargetDatasetName}].collection[${targetStore.targetResultsCollectionName}]` +
+        `.caseFormulaSearch[true]`
+    }) as GetCaseFormulaSearchResponse;
+    if (!tResultCases.success || !tResultCases.values) return { ids: [], complete: false };
+
+    const tChildrenOf: Record<number, number[]> = {};
+    tResultCases.values.forEach(iCase => {
+      const tParent = Number(iCase.parent);
+      (tChildrenOf[tParent] ||= []).push(Number(iCase.id));
+    });
+    const tIDs = iTargetCaseIDs.map(iID => {
+      const tChildren = tChildrenOf[iID];
+      return tChildren?.length ? tChildren[tChildren.length - 1] : undefined;
+    });
+    // Compacted when incomplete, which is safe because an incomplete result refuses the resume, so the
+    // only thing that ever reads this array positionally has already been ruled out.
+    return { ids: tIDs.filter(iID => iID != null) as number[], complete: !tIDs.some(iID => iID == null) };
+  }
+
+  /**
    * Turns a list of target cases into the documents and the encoded matrix a fit runs on. A fresh run
    * and a resume share this so that the two cannot drift apart: a resume that rebuilt the documents
    * its own way would silently encode a different training set.
