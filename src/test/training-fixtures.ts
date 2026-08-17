@@ -4,6 +4,7 @@
  * answers the requests a run makes.
  */
 import codapInterface from "../lib/CodapInterface";
+import { AIModel } from "../models/ai-model";
 import { Document, oneHot } from "../lib/one_hot";
 import { featureStore } from "../stores/feature_store";
 import {
@@ -166,7 +167,10 @@ export function setUpStores(options: IStoreOptions) {
   featureStore.setFeatureWeightCaseIDs({});
   featureStore.clearTokens();
 
-  trainingStore.model.reset();
+  // A fresh AIModel, so that a fit still looping from an earlier test cannot reach this one's
+  // logistic model. A pending setTimeout cannot be unscheduled, and stopAnyRunInFlight is what
+  // stops the old loop touching the stores.
+  trainingStore.model = new AIModel();
   trainingStore.trainingResults = [];
   trainingStore.resultCaseIDs = [];
   trainingStore.setTrainingCouldNotBeResumed(false);
@@ -217,19 +221,27 @@ interface ICodapMockOptions {
 }
 
 /**
+ * The action and resource of each request, with case-by-index resources elided to one shape, which
+ * is how the baseline records the traffic a run generates.
+ */
+export function requestShapes(requests: APIRequest[]) {
+  return requests.map(iRequest =>
+    `${iRequest.action} ${iRequest.resource.replace(/caseByIndex\[\d+]/, "caseByIndex[N]")}`);
+}
+
+/**
  * A CODAP that answers what a training run asks, recording every request in the order it arrives.
- * Case-by-index resources are recorded with their index elided, since a run issues one per feature.
  */
 export function mockCodap(options: ICodapMockOptions = {}) {
   const {
     featureCaseCount = 12, weightCasesAreNamed = false, resultCases, resultsCollectionExists = false
   } = options;
-  const requests: string[] = [];
+  const requests: APIRequest[] = [];
   let nextCreatedID = 5000;
 
   function handle(request: APIRequest) {
     const { action, resource } = request;
-    requests.push(`${action} ${resource.replace(/caseByIndex\[\d+]/, "caseByIndex[N]")}`);
+    requests.push(request);
 
     if (action === "create") {
       const count = Array.isArray(request.values) ? request.values.length : 1;
@@ -360,4 +372,49 @@ export function mockReopenedDocument(options: IReopenedDocumentOptions) {
   });
 
   return { requests, weightCases, resultCases };
+}
+
+/**
+ * Nothing in the completion path is awaitable: progressBar's body is an unawaited async function
+ * inside runInAction, so a resumed run finishes without anything to wait on but its end state.
+ */
+export function waitUntil(predicate: () => boolean, description: string, timeoutMs = 5000) {
+  return new Promise<void>((resolve, reject) => {
+    const startedAt = Date.now();
+    const check = () => {
+      if (predicate()) return resolve();
+      if (Date.now() - startedAt > timeoutMs) return reject(new Error(`Timed out waiting until ${description}`));
+      setTimeout(check, 5);
+    };
+    check();
+  });
+}
+
+/**
+ * Stops a fit that is still running, so that a test's run cannot go on writing while the next test
+ * is using the same stores. The trace branch continues the loop only through stepModeCallback, so
+ * this is what a halt looks like from the outside.
+ */
+export function stopAnyRunInFlight() {
+  const logisticModel = trainingStore.model.logisticModel;
+  logisticModel.progressCallback = undefined;
+  logisticModel.stepModeCallback = undefined;
+  logisticModel.trace = true;
+}
+
+/**
+ * Halts a run the way closing the document does, after the callback for the given iteration: the
+ * trace branch continues the loop only through stepModeCallback, so trace true with no such
+ * callback applies the gradient step and stops without a sign.
+ */
+export function haltRunAfterIteration(iIteration: number) {
+  const logisticModel = trainingStore.model.logisticModel;
+  const progressCallback = logisticModel.progressCallback;
+  logisticModel.progressCallback = (iCurrent: number) => {
+    progressCallback?.(iCurrent);
+    if (iCurrent >= iIteration) {
+      logisticModel.trace = true;
+      logisticModel.stepModeCallback = undefined;
+    }
+  };
 }

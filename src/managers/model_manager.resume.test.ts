@@ -6,8 +6,8 @@ import { trainingStore } from "../stores/training_store";
 import { Token } from "../stores/store_types_and_constants";
 import {
   buildTargetCases, kColumnFeatureName, kFirstFeatureCaseID, kFirstInterruptedResultCaseID, kFirstWeightCaseID,
-  kSearchFeatureName, makeSearchFeature, mockCodap, mockReopenedDocument, reopenDocument, saveDocument,
-  seedTokenMapWithUnigrams, setUpStores
+  haltRunAfterIteration, kSearchFeatureName, makeSearchFeature, mockCodap, mockReopenedDocument, reopenDocument,
+  saveDocument, seedTokenMapWithUnigrams, setUpStores, stopAnyRunInFlight, waitUntil
 } from "../test/training-fixtures";
 import { APIRequest, CaseInfo, UpdateCaseValue } from "../types/codap-api-types";
 import { ModelManager } from "./model_manager";
@@ -354,5 +354,181 @@ describe("ModelManager validating a restored run", () => {
       .map((iToken: Token) => iToken.token);
     expect(rebuiltOrder).not.toEqual(savedTokens);
     expect(rebuiltOrder[0]).toBe(kColumnFeatureName);
+  });
+});
+
+/**
+ * The whole round trip: a run interrupted at an iteration, saved, reopened, replayed and finished.
+ * It has to land where the uninterrupted run landed, with nothing duplicated on the way.
+ */
+describe("ModelManager replaying a restored run", () => {
+  const kRows = 40;
+  const kIterations = 8;
+  const kSavedIteration = 4;
+  const kModelName = "model C";
+
+  function startDocument() {
+    const targetCases = buildTargetCases({ seed: 20260817, rows: kRows });
+    setUpStores({ targetCases, modelName: kModelName, iterations: kIterations });
+    seedTokenMapWithUnigrams(targetCases);
+    trainingStore.model.setTrainingInProgress(true);
+    return targetCases;
+  }
+
+  // The completion path is unawaited from end to end, and its last act is to reset the model, so a
+  // test that waits only for the trained-model entry leaves that reset to land in the next test.
+  function hasFinished() {
+    return trainingStore.trainingResults.length === 1 && trainingStore.model.name === "";
+  }
+
+  function weightsWritten(requests: APIRequest[]) {
+    const writes = requests.filter(iRequest =>
+      iRequest.action === "update" && /collection\[features]\.case$/.test(iRequest.resource));
+    return writes[writes.length - 1]?.values as UpdateCaseValue[];
+  }
+
+  function labelsWritten(requests: APIRequest[]) {
+    const writes = requests.filter(iRequest =>
+      iRequest.action === "update" && /collection\[results]\.case$/.test(iRequest.resource));
+    return writes[writes.length - 1]?.values as UpdateCaseValue[];
+  }
+
+  async function runToCompletion() {
+    const { requests } = mockCodap();
+    const targetCases = startDocument();
+    await new ModelManager().buildModel();
+    await waitUntil(() => hasFinished(), "the run has finished");
+    return { requests, targetCases };
+  }
+
+  // Runs the same model, halts it partway the way closing the document does, then reopens it.
+  async function interruptAndReopen() {
+    mockCodap();
+    const targetCases = startDocument();
+    const interruptedManager = new ModelManager();
+    await interruptedManager.buildModel();
+    haltRunAfterIteration(kSavedIteration);
+    await waitUntil(() => trainingStore.model.iteration === kSavedIteration, "the run has been interrupted");
+    Object.values(featureStore.tokenMap).forEach((iToken, iIndex) => {
+      iToken.featureCaseID = kFirstFeatureCaseID + iIndex;
+    });
+    const snapshot = saveDocument();
+    jest.restoreAllMocks();
+
+    setUpStores({ targetCases, modelName: kModelName, iterations: kIterations });
+    reopenDocument(snapshot);
+    const { requests } = mockReopenedDocument({
+      tokens: Object.keys(featureStore.tokenMap),
+      targetCaseIDs: targetCases.map(iCase => iCase.id)
+    });
+    return { requests, targetCases };
+  }
+
+  afterEach(() => {
+    stopAnyRunInFlight();
+    jest.restoreAllMocks();
+  });
+
+  it("finishes where an uninterrupted run finishes, having written the same values", async () => {
+    const uninterrupted = await runToCompletion();
+    const expectedResult = { ...trainingStore.trainingResults[0] };
+    const expectedWeights = weightsWritten(uninterrupted.requests);
+    const expectedLabels = labelsWritten(uninterrupted.requests);
+    jest.restoreAllMocks();
+
+    const { requests, targetCases } = await interruptAndReopen();
+    const modelManager = new ModelManager();
+    expect(await modelManager.prepareResume(targetCases)).toBe(true);
+    const requestsBeforeTheReplay = requests.length;
+    modelManager.resumeRun();
+    await waitUntil(() => hasFinished(), "the resumed run has finished");
+
+    const result = trainingStore.trainingResults[0];
+    expect(result.storedModel.storedTokens.map(iToken => iToken.weight))
+      .toEqual(expectedResult.storedModel.storedTokens.map(iToken => iToken.weight));
+    expect(result.accuracy).toBe(expectedResult.accuracy);
+    expect(result.kappa).toBe(expectedResult.kappa);
+    expect(result.constantWeightTerm).toBe(expectedResult.constantWeightTerm);
+    expect(weightsWritten(requests).map(iValue => iValue.values.weight))
+      .toEqual(expectedWeights.map(iValue => iValue.values.weight));
+    expect(labelsWritten(requests).map(iValue => iValue.values["predicted sentiment"]))
+      .toEqual(expectedLabels.map(iValue => iValue.values["predicted sentiment"]));
+    // The same run, not a new one with the same name
+    expect(trainingStore.trainingResults).toHaveLength(1);
+    expect(requests.slice(requestsBeforeTheReplay).filter(iRequest => iRequest.action === "create")).toEqual([]);
+  });
+
+  it("says nothing and writes nothing while it catches up", async () => {
+    const { requests, targetCases } = await interruptAndReopen();
+    const modelManager = new ModelManager();
+    await modelManager.prepareResume(targetCases);
+    const requestsBeforeTheReplay = requests.length;
+
+    modelManager.resumeRun();
+    const iterationsSeen = new Set<number>();
+    await waitUntil(() => {
+      if (trainingStore.isRestoringRun) iterationsSeen.add(trainingStore.model.iteration);
+      return !trainingStore.isRestoringRun;
+    }, "the run has been handed back");
+
+    expect(iterationsSeen).toEqual(new Set([kSavedIteration]));
+    expect(requests.slice(requestsBeforeTheReplay)).toEqual([]);
+    expect(trainingStore.trainingResults).toHaveLength(0);
+  });
+
+  it("advances the run by one iteration when it hands back, in step mode on the student's press", async () => {
+    const { targetCases } = await interruptAndReopen();
+    trainingStore.model.setTrainingInStepMode(true);
+    const modelManager = new ModelManager();
+    await modelManager.prepareResume(targetCases);
+
+    modelManager.nextStep();
+    expect(trainingStore.isRestoringRun).toBe(true);
+    await waitUntil(() => trainingStore.model.iteration > kSavedIteration, "the run has advanced a step");
+
+    expect(trainingStore.model.iteration).toBe(kSavedIteration + 1);
+    expect(trainingStore.isRestoringRun).toBe(false);
+    expect(modelManager.stepModeContinueCallback).not.toBeNull();
+  });
+
+  it("leaves the training state untouched when a catch-up is itself interrupted", async () => {
+    const { targetCases } = await interruptAndReopen();
+    const modelManager = new ModelManager();
+    await modelManager.prepareResume(targetCases);
+    const savedModel = trainingStore.model.asJSON();
+
+    modelManager.resumeRun();
+    await waitUntil(() => trainingStore.model.logisticModel.theta.some(iWeight => iWeight !== 0),
+      "the catch-up has applied a gradient step");
+    // Abandoned partway, the way closing the document again abandons it
+    stopAnyRunInFlight();
+
+    // A silent replay never advances model.iteration, so the next open replays to the same place
+    expect(trainingStore.model.asJSON()).toEqual(savedModel);
+    expect(trainingStore.isRestoringRun).toBe(true);
+  });
+
+  it("refuses to start a second catch-up on top of the first", async () => {
+    const { targetCases } = await interruptAndReopen();
+    const modelManager = new ModelManager();
+    await modelManager.prepareResume(targetCases);
+
+    modelManager.resumeRun();
+    const thetaOfTheFirstCatchUp = trainingStore.model.logisticModel.theta;
+    modelManager.resumeRun();
+
+    expect(trainingStore.model.logisticModel.theta).toBe(thetaOfTheFirstCatchUp);
+  });
+
+  it("hands the restoring state back rather than freezing the pane when the replay throws", async () => {
+    const { targetCases } = await interruptAndReopen();
+    const modelManager = new ModelManager();
+    await modelManager.prepareResume(targetCases);
+    trainingStore.model.logisticModel._data = [];
+
+    modelManager.resumeRun();
+
+    expect(trainingStore.isRestoringRun).toBe(false);
+    expect(trainingStore.trainingCouldNotBeResumed).toBe(true);
   });
 });

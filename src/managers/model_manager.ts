@@ -636,6 +636,69 @@ export class ModelManager {
     tLogisticModel._documents = tDocuments;
   }
 
+  /**
+   * The gradient half of a restore: replay the run silently from zeroed weights up to the iteration
+   * the document was saved at, then hand it back with the real callbacks attached.
+   */
+  resumeRun() {
+    const tModel = trainingStore.model;
+    const tLogisticModel = tModel.logisticModel;
+    const tData = tLogisticModel._data as number[][];
+    if (!trainingStore.resumeIsPending || !tData) return;
+    // Cleared first, so that a student pressing Step twice cannot start a second catch-up on top of
+    // the first
+    trainingStore.setResumeIsPending(false);
+    trainingStore.setRestoringRun(true);
+
+    const tSavedIteration = tModel.iteration;
+    tLogisticModel.lockIntercept = tModel.lockInterceptAtZero;
+    // `trace` false is not optional: the trace branch continues the loop only through
+    // stepModeCallback, so detaching that callback with trace true applies one gradient step and
+    // stops, silently. With trace false the loop continues through its own 10 ms setTimeout, which
+    // is also what keeps the plugin responsive while it catches up.
+    tLogisticModel.trace = false;
+    tLogisticModel.stepModeCallback = undefined;
+    // Truncated on the logistic model only. Applying it to the AIModel would make the progress bar
+    // read 88% where the run is actually at 35%.
+    tLogisticModel.iterations = tSavedIteration + 1;
+    // Not the real progress bar, so no CODAP write, no progress update and no trained-model entry
+    // while catching up, but not nothing either, or the end of the catch-up would go unnoticed.
+    tLogisticModel.progressCallback = (iIteration: number) => {
+      if (iIteration < tLogisticModel.iterations) return;
+      // The catch-up reaches fit's terminal branch, which builds a completed-run record for a run
+      // that has not completed. fillOutCurrentStoredModel reads it without checking, so clear it.
+      tLogisticModel.fitResult = undefined;
+      this.handBackAfterCatchUp(tData, tSavedIteration, tLogisticModel.theta.slice());
+    };
+
+    try {
+      tLogisticModel.fit(tData);
+    } catch (error) {
+      // The replay owns its own failure because one of its two callers cannot: in step mode it is
+      // called from the pane's Step handler, which nothing awaits, so a throw would become an
+      // unhandled rejection with both of the student's controls already disabled and nothing able
+      // to re-enable them.
+      console.log(`Could not replay the interrupted training run: ${error}`);
+      trainingStore.setRestoringRun(false);
+      trainingStore.setTrainingCouldNotBeResumed(true);
+    }
+  }
+
+  private handBackAfterCatchUp(iData: number[][], iSavedIteration: number, iTheta: number[]) {
+    const tModel = trainingStore.model;
+    const tLogisticModel = tModel.logisticModel;
+
+    tLogisticModel.iterations = tModel.iterations;
+    tLogisticModel.progressCallback = this.progressBar;
+    tLogisticModel.trace = tModel.trainingInStepMode;
+    tLogisticModel.stepModeCallback = tModel.trainingInStepMode ? this.stepModeCallback : undefined;
+    trainingStore.setRestoringRun(false);
+
+    // The handback's own first iteration is the advance from N to N+1, and in step mode it is also
+    // what hands the loop's continuation to stepModeCallback so that later presses are ordinary steps.
+    tLogisticModel.fit(iData, iSavedIteration + 1, iTheta);
+  }
+
   async progressBar(iIteration: number) {
     const tModel = trainingStore.model,
       tIterations = tModel.iterations,
@@ -687,6 +750,12 @@ export class ModelManager {
   }
 
   nextStep() {
+    // The first Step press on a restored run pays for the catch-up before advancing an iteration.
+    if (trainingStore.resumeIsPending) {
+      this.resumeRun();
+      return;
+    }
+
     const tLogisticModel = trainingStore.model.logisticModel;
     tLogisticModel.trace = trainingStore.model.trainingInStepMode;
     tLogisticModel.stepModeCallback = tLogisticModel.trace ? this.stepModeCallback : undefined;

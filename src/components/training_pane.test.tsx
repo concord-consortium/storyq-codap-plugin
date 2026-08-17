@@ -1,7 +1,8 @@
 import React from "react";
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { TrainingResult } from "../stores/store_types_and_constants";
 import { trainingStore } from "../stores/training_store";
+import { stopAnyRunInFlight } from "../test/training-fixtures";
 import { TrainingPane } from "./training_pane";
 
 function restoredStepModeRun() {
@@ -92,6 +93,23 @@ describe("TrainingPane while a run is being restored", () => {
 
     expect(screen.getByRole("button", { name: "Step" })).toHaveAttribute("aria-disabled", "false");
     expect(screen.getByRole("button", { name: "Cancel" })).toHaveAttribute("aria-disabled", "false");
+  });
+
+  it("says so from the Step press that starts the replay, which is what a student waits on", () => {
+    // A validated step-mode run looks exactly like a live one between steps until Step is pressed
+    trainingStore.setRestoringRun(false);
+    trainingStore.setResumeIsPending(true);
+    const { logisticModel } = trainingStore.model;
+    logisticModel._data = [[1, 0, 1], [0, 1, 0], [1, 1, 1]];
+    const { container } = render(<TrainingPane />);
+    const prompt = promptOf(container);
+    expect(prompt).toHaveTextContent(/You can start training your model/);
+
+    fireEvent.click(screen.getByRole("button", { name: "Step" }));
+
+    expect(promptOf(container)).toBe(prompt);
+    expect(prompt).toHaveTextContent("Restoring model 1 to where it left off…");
+    stopAnyRunInFlight();
   });
 
   it("does not tell the student to start over while the run is still being restored", () => {

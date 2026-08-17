@@ -2,8 +2,9 @@ import golden from "../../specs/STORYQ-87-resume-interrupted-training-run/golden
 import { featureStore } from "../stores/feature_store";
 import { Token } from "../stores/store_types_and_constants";
 import { trainingStore } from "../stores/training_store";
+import { APIRequest } from "../types/codap-api-types";
 import {
-  buildTargetCases, kFirstTargetCaseID, mockCodap, seedTokenMapWithUnigrams, setUpStores
+  buildTargetCases, kFirstTargetCaseID, mockCodap, requestShapes, seedTokenMapWithUnigrams, setUpStores
 } from "../test/training-fixtures";
 import { ModelManager } from "./model_manager";
 
@@ -13,7 +14,7 @@ import { ModelManager } from "./model_manager";
  */
 describe("A fresh training run against the pre-change baseline", () => {
   let modelManager: ModelManager;
-  let requests: string[];
+  let requests: APIRequest[];
 
   beforeEach(async () => {
     // The fit loop continues through a 10 ms timeout, so faking timers leaves it at its first
@@ -61,6 +62,6 @@ describe("A fresh training run against the pre-change baseline", () => {
   });
 
   it("makes the same CODAP requests, in the same order", () => {
-    expect(requests).toEqual(golden.expected.requestShape);
+    expect(requestShapes(requests)).toEqual(golden.expected.requestShape);
   });
 });
