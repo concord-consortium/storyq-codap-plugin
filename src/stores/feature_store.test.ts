@@ -159,3 +159,47 @@ describe("FeatureStore.setColorFor and setHighlightFor", () => {
     expect(seen[0]).toEqual(["#dbb6fb", "#dbb6fb", "#dbb6fb", kNoColor]);
   });
 });
+
+describe("FeatureStore.snapshotTokens and restoreTokens", () => {
+  let store: FeatureStore;
+
+  beforeEach(() => {
+    store = new FeatureStore();
+    store.addToken("good",
+      getNewToken({ token: "good", type: kTokenTypeUnigram, count: 12, index: 0, featureCaseID: 900 }));
+    store.addToken("bad",
+      getNewToken({ token: "bad", type: kTokenTypeUnigram, count: 9, index: 1, featureCaseID: 901 }));
+    store.addToken("long",
+      getNewToken({ token: "long", type: kTokenTypeConstructed, count: 4, index: 2, featureCaseID: 902 }));
+  });
+
+  it("puts back the counts and indexes a rebuild changed", () => {
+    // The expectation has to be a deep copy: toJS(tokenMap) and asJSON().tokenMap are both the live
+    // map, so either would pass however restoreTokens behaved.
+    const expected = JSON.parse(JSON.stringify(store.tokenMap));
+    const snapshot = store.snapshotTokens();
+
+    store.tokenMap.long.count = 8;
+    store.tokenMap.long.index = 0;
+    store.tokenMap.good.index = 1;
+    store.restoreTokens(snapshot);
+
+    expect(store.tokenMap).toEqual(expected);
+  });
+
+  it("is not reached into by the rebuild it protects against", () => {
+    const snapshot = store.snapshotTokens();
+
+    store.tokenMap.long.count = 8;
+
+    expect(snapshot.long.count).toBe(4);
+  });
+
+  it("leaves the two maps agreeing on identity, since a reopened document has no id map at all", () => {
+    store.restoreTokens(store.snapshotTokens());
+
+    Object.values(store.tokenMap).forEach(token => {
+      expect(store.caseIdTokenMap[Number(token.featureCaseID)]).toBe(token);
+    });
+  });
+});

@@ -230,6 +230,34 @@ export class FeatureStore {
     this.setCaseIdTokenMap({});
   }
 
+  /**
+   * A copy of the token state that a rebuild cannot reach into, so a resume that turns out to be
+   * refused can put the document back exactly as it found it.
+   *
+   * It has to be a deep copy. oneHot does not mutate the maps, it mutates the token objects inside
+   * them, so toJS() and a spread both hand back something that shares those objects and protects
+   * nothing. toJS is the sharper trap of the two: tokenMap is deliberately excluded from
+   * makeAutoObservable, so it is a plain object and toJS(tokenMap) === tokenMap.
+   */
+  snapshotTokens(): TokenMap {
+    return JSON.parse(JSON.stringify(this.tokenMap));
+  }
+
+  /**
+   * Restores a snapshotTokens() copy. caseIdTokenMap is rebuilt from the copied objects rather than
+   * snapshotted alongside: the two maps share their token objects, so restoring them separately
+   * would leave the id map pointing at the mutated originals and the two maps disagreeing on identity.
+   */
+  restoreTokens(snapshot: TokenMap) {
+    const tokenMap: TokenMap = JSON.parse(JSON.stringify(snapshot));
+    const caseIdTokenMap: Record<number, Token> = {};
+    Object.values(tokenMap).forEach(token => {
+      if (token.featureCaseID) caseIdTokenMap[token.featureCaseID] = token;
+    });
+    this.setTokenMap(tokenMap);
+    this.setCaseIdTokenMap(caseIdTokenMap);
+  }
+
   getTokenByCaseId(caseId: string | number) {
     const numberId = Number(caseId);
     const caseIdToken = this.caseIdTokenMap[numberId];
