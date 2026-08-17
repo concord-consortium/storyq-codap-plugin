@@ -73,6 +73,15 @@ export const TrainingPane = observer(function TrainingPane() {
         </div>
       );
     }
+    else if (tModel.trainingInProgress && tModel.trainingInStepMode) {
+      // A step-mode run between steps, which is where a restored run is handed back to as well.
+      // Telling a student who is part way through to start is wrong in both cases.
+      return (
+        <div className='sq-info-prompt' role='status'>
+          <p>You can continue training your model.</p>
+        </div>
+      );
+    }
     else {
       return (
         <div className='sq-info-prompt' role='status'>

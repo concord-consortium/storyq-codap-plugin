@@ -244,7 +244,7 @@ restored, which is the validation and the replay together.
 
 **Files affected**:
 - `src/components/training_pane.tsx`: one new branch, the role on all six prompt containers, two disabled
-  conditions
+  conditions (a seventh container arrived later, with requirement 11a's between-steps wording)
 - `src/lists/lists.ts`: one hint
 
 **Estimated diff size**: ~35 lines
@@ -1311,6 +1311,13 @@ and a real `prepareResume`, and asserting it twice would be a duplicate rather t
 **Comments carry no ticket or requirement numbers.** The code blocks above cite "(STORYQ-87)" and
 "requirement 9b" to say where a constraint comes from; the code says the same things in terms of its
 own behavior, which is this repo's convention for comments. Nothing else about them changed.
+
+**One message was reworded after the branch was driven on Jie's own document.** The prompt a step-mode
+run shows between steps read "You can start training your model.", which is what a validated resume is
+handed back into, so a run at iteration 1 of 20 was told to start. Requirement 11a records the rewording
+and its scope: it is conditioned on a run being in progress in step mode, so it corrects a live run and a
+restored one alike and leaves a named-but-untrained model reading "start". That makes seven prompt
+branches, all seven carrying `role="status"`, and the live-region test walks all seven.
 
 **One prescribed test needed a sharper document than the plan implies.** The empty-saved-map
 condition is shadowed by the token-set check on any document that still has features: an empty map

@@ -103,7 +103,7 @@ describe("TrainingPane while a run is being restored", () => {
     logisticModel._data = [[1, 0, 1], [0, 1, 0], [1, 1, 1]];
     const { container } = render(<TrainingPane />);
     const prompt = promptOf(container);
-    expect(prompt).toHaveTextContent(/You can start training your model/);
+    expect(prompt).toHaveTextContent(/You can continue training your model/);
 
     fireEvent.click(screen.getByRole("button", { name: "Step" }));
 
@@ -161,8 +161,16 @@ describe("TrainingPane's prompt as a live region", () => {
       text: /must have a name before you can train it/
     },
     {
-      name: "a model ready to train",
+      name: "a step-mode run between steps",
       setUp: () => undefined,
+      text: /You can continue training your model/
+    },
+    {
+      name: "a model ready to train",
+      setUp: () => {
+        trainingStore.model.setTrainingInProgress(false);
+        trainingStore.model.setTrainingInStepMode(false);
+      },
       text: /You can start training your model/
     }
   ];
@@ -186,6 +194,6 @@ describe("TrainingPane's prompt as a live region", () => {
     act(() => trainingStore.setRestoringRun(false));
 
     expect(promptOf(container)).toBe(prompt);
-    expect(prompt).toHaveTextContent(/You can start training your model/);
+    expect(prompt).toHaveTextContent(/You can continue training your model/);
   });
 });
