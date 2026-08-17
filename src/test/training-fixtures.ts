@@ -17,17 +17,20 @@ import { targetStore } from "../stores/target_store";
 import { trainingStore } from "../stores/training_store";
 import { APIRequest, CaseInfo } from "../types/codap-api-types";
 
-export const kTargetDatasetName = "reviews";
-export const kTargetCollectionName = "reviews";
+const kTargetDatasetName = "reviews";
+const kTargetCollectionName = "reviews";
 export const kTargetAttributeName = "text";
 export const kClassAttributeName = "sentiment";
-export const kPositiveClassName = "pos";
-export const kNegativeClassName = "neg";
+const kPositiveClassName = "pos";
+const kNegativeClassName = "neg";
 export const kColumnFeatureName = "long";
 export const kSearchFeatureName = 'contain: "good"';
 export const kFirstTargetCaseID = 100;
+// The cases in the features collection that the update branch of prepWeightsCollection reads its
+// case IDs from
+const kFeatureCaseCount = 12;
 
-export const kVocabulary = ["good", "bad", "sweet", "sour", "creamy", "icy", "rich", "bland", "fresh", "stale"];
+const kVocabulary = ["good", "bad", "sweet", "sour", "creamy", "icy", "rich", "bland", "fresh", "stale"];
 
 /**
  * MINSTD (Lehmer), so that a corpus is reproducible across engines: every intermediate stays under
@@ -207,19 +210,6 @@ export function seedTokenMapWithUnigrams(targetCases: CaseInfo[], options: { fre
   }, documents);
 }
 
-interface ICodapMockOptions {
-  // The number of cases in the features collection, which is what the update branch of
-  // prepWeightsCollection reads its case IDs from.
-  featureCaseCount?: number;
-  // Whether the weight cases already carry a model name, which is what sends prepWeightsCollection
-  // down its create branch.
-  weightCasesAreNamed?: boolean;
-  // The result cases a search of the results collection finds.
-  resultCases?: CaseInfo[];
-  // Whether the target dataset already has a results collection.
-  resultsCollectionExists?: boolean;
-}
-
 /**
  * The action and resource of each request, with case-by-index resources elided to one shape, which
  * is how the baseline records the traffic a run generates.
@@ -230,12 +220,11 @@ export function requestShapes(requests: APIRequest[]) {
 }
 
 /**
- * A CODAP that answers what a training run asks, recording every request in the order it arrives.
+ * A CODAP that answers what a fresh training run asks, recording every request in the order it
+ * arrives: an empty model name on the weight cases, so prepWeightsCollection updates rather than
+ * creates, and a target dataset with no results collection yet, so prepResultsCollection creates one.
  */
-export function mockCodap(options: ICodapMockOptions = {}) {
-  const {
-    featureCaseCount = 12, weightCasesAreNamed = false, resultCases, resultsCollectionExists = false
-  } = options;
+export function mockCodap() {
   const requests: APIRequest[] = [];
   let nextCreatedID = 5000;
 
@@ -249,22 +238,19 @@ export function mockCodap(options: ICodapMockOptions = {}) {
     }
     if (action !== "get") return { success: true, values: [] };
     if (/\.collectionList$/.test(resource)) {
-      const collections = [{ id: 1, name: kTargetCollectionName, title: kTargetCollectionName }];
-      if (resultsCollectionExists) collections.push({ id: 2, name: "results", title: "results" });
-      return { success: true, values: collections };
+      return { success: true, values: [{ id: 1, name: kTargetCollectionName, title: kTargetCollectionName }] };
     }
     if (/itemSearch\[name==/.test(resource)) {
-      return { success: true, values: [{ id: "1", values: { "model name": weightCasesAreNamed ? "model A" : "" } }] };
+      return { success: true, values: [{ id: "1", values: { "model name": "" } }] };
     }
-    if (/\.caseCount$/.test(resource)) return { success: true, values: featureCaseCount };
+    if (/\.caseCount$/.test(resource)) return { success: true, values: kFeatureCaseCount };
     const byIndex = resource.match(/caseByIndex\[(\d+)]/);
     if (byIndex) {
       const index = Number(byIndex[1]);
       return { success: true, values: { case: { children: [], id: 700 + index, values: { name: `tok${index}` } } } };
     }
     if (/caseFormulaSearch/.test(resource)) {
-      const defaultResultCases = [101, 102, 103].map(id => ({ children: [], id, values: {} }));
-      return { success: true, values: resultCases ?? defaultResultCases };
+      return { success: true, values: [101, 102, 103].map(id => ({ children: [], id, values: {} })) };
     }
     return { success: true, values: [] };
   }
@@ -277,8 +263,8 @@ export function mockCodap(options: ICodapMockOptions = {}) {
 }
 
 /**
- * The document as CODAP would save it, with the functions stripped the way getPluginStore strips
- * them.
+ * The two stores a resume reads back, saved the way CODAP saves them: stringified and parsed, which
+ * is what strips the functions.
  */
 export function saveDocument() {
   return JSON.parse(JSON.stringify({
@@ -305,15 +291,13 @@ interface IReopenedDocumentOptions {
   targetCaseIDs: number[];
   // Tokens whose weight case the search does not find, so the set is no longer one per token.
   missingWeightTokens?: string[];
-  // A token the search finds twice, which is the other way the set stops being one per token.
-  duplicateWeightToken?: string;
   // Target cases the search finds no result child for, taken from the end of the list.
   targetCasesWithoutResults?: number;
 }
 
 export const kFirstFeatureCaseID = 700;
 export const kFirstWeightCaseID = 800;
-export const kFirstCompletedResultCaseID = 200;
+const kFirstCompletedResultCaseID = 200;
 export const kFirstInterruptedResultCaseID = 300;
 
 /**
@@ -321,9 +305,7 @@ export const kFirstInterruptedResultCaseID = 300;
  * already under each target case. Answers the two re-acquisition searches and accepts every write.
  */
 export function mockReopenedDocument(options: IReopenedDocumentOptions) {
-  const {
-    tokens, targetCaseIDs, missingWeightTokens = [], duplicateWeightToken, targetCasesWithoutResults = 0
-  } = options;
+  const { tokens, targetCaseIDs, missingWeightTokens = [], targetCasesWithoutResults = 0 } = options;
   const requests: APIRequest[] = [];
 
   const featureCases: CaseInfo[] = tokens.map((iToken, iIndex) => ({
@@ -339,15 +321,6 @@ export function mockReopenedDocument(options: IReopenedDocumentOptions) {
       values: { "model name": trainingStore.model.name, weight: "" }
     });
   });
-  if (duplicateWeightToken) {
-    const index = tokens.indexOf(duplicateWeightToken);
-    weightCases.push({
-      children: [],
-      id: kFirstWeightCaseID + tokens.length,
-      parent: kFirstFeatureCaseID + index,
-      values: { "model name": trainingStore.model.name, weight: "" }
-    });
-  }
   const resultCases: CaseInfo[] = [];
   targetCaseIDs.slice(0, targetCaseIDs.length - targetCasesWithoutResults).forEach((iID, iIndex) => {
     resultCases.push({

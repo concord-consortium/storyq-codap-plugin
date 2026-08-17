@@ -1283,6 +1283,44 @@ passes against documents that never carry the field.
 
 ---
 
+## As built
+
+The eleven steps landed in the order above, one commit each, with the suite green at every commit.
+Four things differ from the plan as written, none of them a change to what the product does.
+
+**The tests are laid out in four files rather than folded into `model_manager.test.ts`.** The golden
+baselines and the resume work would have quadrupled that file, so: `model_manager.fresh_run.test.ts`
+holds the `golden-fresh-run.json` comparison, `model_manager.resume.test.ts` holds the
+re-acquisitions, the validation, the replay round trip, the ordering writeback and the row count,
+`jsregression.test.ts` holds the `golden-weights.json` comparison and the off-by-one, and
+`storyq.test.tsx` holds the restore path. `model_manager.test.ts` keeps its STORYQ-86 coverage and
+gains only the flag-clearing pair. Both baselines reproduced exactly on the first run against the
+amended code.
+
+**One shared fixture module, `src/test/training-fixtures.ts`.** The deterministic corpus, the store
+setup, the token seeding requirement 7e warns about, the two CODAP mocks, and the save-and-reopen
+pair are used by three suites, and a copy per suite is how the encoding and the resume would drift
+apart in the tests the way requirement 7b forbids them to in the product. It also gives each test a
+fresh `AIModel`: a fit loop parked in a `setTimeout` cannot be unscheduled, so without that a run
+from one test goes on driving the singleton logistic model through the next.
+
+**Requirement 15's write half is asserted in the manager suite** rather than in `ai-model.test.ts`,
+which already carries the read half from the first step: the write half needs a real `buildModel`
+and a real `prepareResume`, and asserting it twice would be a duplicate rather than a second guard.
+
+**Comments carry no ticket or requirement numbers.** The code blocks above cite "(STORYQ-87)" and
+"requirement 9b" to say where a constraint comes from; the code says the same things in terms of its
+own behavior, which is this repo's convention for comments. Nothing else about them changed.
+
+**One prescribed test needed a sharper document than the plan implies.** The empty-saved-map
+condition is shadowed by the token-set check on any document that still has features: an empty map
+rebuilds to a non-empty column set, so the resume is refused either way and the test passes with the
+condition removed. It is written against a document with no features at all, where the rebuild is
+empty too and the token-set check compares equal, which is the only shape where that condition is
+the one doing the work. Verified by removing it and watching the test fail. The same removal-and-run
+check was applied to the five other rejection conditions, to both halves of the off-by-one and to the
+row-count rewrite, and each is guarded by its own test.
+
 ## Out of scope for this plan
 
 Everything the requirements spec lists, unchanged. Two things surfaced during drafting that belong to other

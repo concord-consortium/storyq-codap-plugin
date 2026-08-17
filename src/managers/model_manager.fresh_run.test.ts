@@ -13,7 +13,6 @@ import { ModelManager } from "./model_manager";
  * head of master. Sharing that encoding with a resume must leave every one of these unchanged.
  */
 describe("A fresh training run against the pre-change baseline", () => {
-  let modelManager: ModelManager;
   let requests: APIRequest[];
 
   beforeEach(async () => {
@@ -25,8 +24,7 @@ describe("A fresh training run against the pre-change baseline", () => {
     setUpStores({ targetCases, modelName: golden.dataset.settings.modelName });
     seedTokenMapWithUnigrams(targetCases);
 
-    modelManager = new ModelManager();
-    await modelManager.buildModel();
+    await new ModelManager().buildModel();
   });
 
   afterEach(() => {

@@ -248,8 +248,12 @@ describe("ModelManager validating a restored run", () => {
 
   it("refuses a document whose saved token map is empty", async () => {
     await reopenAfterARun();
+    // An empty map records no column set, so a rebuild that produces no columns either compares
+    // equal to it. Without a condition of its own the resume would be approved on nothing at all.
     featureStore.clearTokens();
-    mockCurrentDocument();
+    featureStore.setFeatures([]);
+    featureStore.setTargetColumnFeatureNames([]);
+    mockReopenedDocument({ tokens: [], targetCaseIDs: targetCases.map(iCase => iCase.id) });
 
     expect(await modelManager.prepareResume(targetCases)).toBe(false);
     expect(trainingStore.resumeIsPending).toBe(false);
