@@ -391,3 +391,20 @@ export function haltRunAfterIteration(iIteration: number) {
     }
   };
 }
+
+/**
+ * Halts a run inside the terminal progress callback's own tail. That callback records the final
+ * iteration in its first synchronous statement and then awaits seconds of CODAP work before reset()
+ * clears trainingInProgress, so a document saved anywhere in there says the run reached its last
+ * iteration and says it is still running. This reproduces the earliest point in that window by
+ * doing the callback's first statement and none of what follows it.
+ */
+export function haltRunInsideTheCompletionTail() {
+  const logisticModel = trainingStore.model.logisticModel;
+  const progressCallback = logisticModel.progressCallback;
+  logisticModel.progressCallback = (iCurrent: number) => {
+    if (iCurrent < trainingStore.model.iterations) return progressCallback?.(iCurrent);
+    trainingStore.model.setIteration(iCurrent);
+    logisticModel.progressCallback = undefined;
+  };
+}

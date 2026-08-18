@@ -325,15 +325,18 @@ export class ModelManager {
   async reacquireWeightCaseIDs(iModelName: string, iTokens: string[]) {
     const { collectionName, datasetName, weightsCollectionName } = featureStore.featureDatasetInfo;
     const tEscapedName = iModelName.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    // Caught rather than left to reject: sendRequest rejects on the iframe phone's two second
+    // timeout, and an unhandled rejection here would abandon the restore with the pane's controls
+    // disabled. A timed-out search is an incomplete one, which is a refusal the student can act on.
     const tWeightCases = await codapInterface.sendRequest({
       action: 'get',
       resource: `dataContext[${datasetName}].collection[${weightsCollectionName}]` +
         `.caseFormulaSearch[\`model name\`=='${tEscapedName}']`
-    }) as GetCaseFormulaSearchResponse;
+    }).catch(() => ({ success: false })) as GetCaseFormulaSearchResponse;
     const tFeatureCases = await codapInterface.sendRequest({
       action: 'get',
       resource: `dataContext[${datasetName}].collection[${collectionName}].caseFormulaSearch[true]`
-    }) as GetCaseFormulaSearchResponse;
+    }).catch(() => ({ success: false })) as GetCaseFormulaSearchResponse;
     if (!tWeightCases.success || !tWeightCases.values || !tFeatureCases.success || !tFeatureCases.values) {
       return { ids: {}, complete: false };
     }
@@ -372,17 +375,26 @@ export class ModelManager {
    * `ids` is what Cancel blanks and is worth having even when a target case added since the run was
    * interrupted has no result child of its own.
    */
-  async reacquireResultCaseIDs(iTargetCaseIDs: number[]) {
+  async reacquireResultCaseIDs(iModelName: string, iTargetCaseIDs: number[]) {
     const tTargetDatasetName = targetStore.targetDatasetInfo.name;
+    // Caught for the same reason as the weight search above: a rejected request is an incomplete
+    // answer, not a reason to strand the restore.
     const tResultCases = await codapInterface.sendRequest({
       action: 'get',
       resource: `dataContext[${tTargetDatasetName}].collection[${targetStore.targetResultsCollectionName}]` +
         `.caseFormulaSearch[true]`
-    }) as GetCaseFormulaSearchResponse;
+    }).catch(() => ({ success: false })) as GetCaseFormulaSearchResponse;
     if (!tResultCases.success || !tResultCases.values) return { ids: [], complete: false };
 
+    // Only cases this run could have written are candidates. prepResultsCollection creates them with
+    // no model name and computeResults stamps the run's own name on every write, so an interrupted
+    // run's children carry one of those two and another model's completed children carry neither.
+    // Newest-child-per-parent alone would be right only as long as no later model has added children
+    // of its own, which is an assumption the product relies on rather than one it checks.
     const tChildrenOf: Record<number, number[]> = {};
     tResultCases.values.forEach(iCase => {
+      const tName = iCase.values['model name'];
+      if (tName != null && tName !== '' && tName !== iModelName) return;
       const tParent = Number(iCase.parent);
       (tChildrenOf[tParent] ||= []).push(Number(iCase.id));
     });
@@ -468,7 +480,6 @@ export class ModelManager {
         features: tNonNgramFeatures
       },
       tDocuments);
-    if (!tOneHot) return undefined;
 
     // Column feature results get pushed on after unigrams
 
@@ -512,7 +523,7 @@ export class ModelManager {
     // taken as far as they resolved rather than all-or-nothing, so that Cancel on the fallback path
     // still has something to blank.
     const tWeightCaseIDs = await this.reacquireWeightCaseIDs(tModel.name, tSavedNames);
-    const tResultCaseIDs = await this.reacquireResultCaseIDs(tTargetCaseIDs);
+    const tResultCaseIDs = await this.reacquireResultCaseIDs(tModel.name, tTargetCaseIDs);
     featureStore.setFeatureWeightCaseIDs(tWeightCaseIDs.ids);
     trainingStore.resultCaseIDs = tResultCaseIDs.ids;
 
@@ -542,10 +553,6 @@ export class ModelManager {
     if (!tWeightCaseIDs.complete || !tResultCaseIDs.complete) return false;
 
     const tEncoded = this.encodeTrainingData(iTargetCases);
-    if (!tEncoded) {
-      featureStore.restoreTokens(tSnapshot);
-      return false;
-    }
 
     const tRebuiltNames = tEncoded.oneHot.tokenArray.map((iToken: Token) => iToken.token);
     const tSameTokenSet = tRebuiltNames.length === tSavedNames.length &&
@@ -558,8 +565,11 @@ export class ModelManager {
     // Re-impose the saved ordering on the token array, on the columns of the encoded data and on
     // tokenMap's own indexes. The last of those is what keeps a document that is interrupted a second
     // time landing in the same place rather than one rounding step away. Skipped entirely when the
-    // saved ordering is not usable: the resume then runs on the rebuilt order and accepts the one-ULP
-    // difference, because ordering is never a reason to refuse a resume.
+    // saved ordering is not usable: the resume then runs on whatever order the rebuild produced,
+    // because ordering is never a reason to refuse a resume. That is not always a rounding-level
+    // difference. A constructed token's count is inflated on every rebuild, so it can climb the sort
+    // past a unigram and reorder the columns materially. The replay stays self-consistent either
+    // way, since it fits and hands back the same matrix it validated against the saved token set.
     let tOrderedData = tEncoded.data;
     if (tSavedOrder) {
       const tPositionOf: Record<string, number> = {};
@@ -600,6 +610,11 @@ export class ModelManager {
     trainingStore.setResumeIsPending(false)
     trainingStore.setRestoringRun(false)
 
+    // The TextBox does this on blur, which covers the student who types a name. It does not cover a
+    // hand-edited document, a second plugin instance, or a name arriving from anywhere but that
+    // field, and a duplicate name leaves two rows the results table cannot tell apart.
+    trainingStore.model.setName(this.guaranteeUniqueModelName(trainingStore.model.name))
+
     const tTargetDatasetName = targetStore.targetDatasetInfo.name,
       tLogisticModel = trainingStore.model.logisticModel
 
@@ -613,7 +628,6 @@ export class ModelManager {
     tLogisticModel.lockIntercept = trainingStore.model.lockInterceptAtZero;
 
     const tEncoded = this.encodeTrainingData(targetStore.targetCases);
-    if (!tEncoded) return
     const { data: tData, oneHot: tOneHot, documents: tDocuments } = tEncoded;
 
     // Assigned here rather than inside the shared encoding, so that the resume's validation rebuild
@@ -658,9 +672,17 @@ export class ModelManager {
     // is also what keeps the plugin responsive while it catches up.
     tLogisticModel.trace = false;
     tLogisticModel.stepModeCallback = undefined;
+    // progressCallback(k) normally means k+1 gradient steps have been applied, so a run saved at
+    // iteration N replays N+1 of them. fit's terminal branch is the exception: it reports
+    // `iterations` with only `iterations` steps applied. A document can be saved there, because
+    // progressBar sets the iteration synchronously and then awaits seconds of CODAP writes before
+    // reset() clears trainingInProgress, and CODAP answers `get interactiveState` throughout. Left
+    // unclamped, such a document replays one gradient step more than the run itself ever ran, which
+    // at alpha 1 moves every weight by a few percent rather than by a rounding step.
+    const tReplayThrough = Math.min(tSavedIteration + 1, tModel.iterations);
     // Truncated on the logistic model only. Applying it to the AIModel would make the progress bar
     // read 88% where the run is actually at 35%.
-    tLogisticModel.iterations = tSavedIteration + 1;
+    tLogisticModel.iterations = tReplayThrough;
     // Not the real progress bar, so no CODAP write, no progress update and no trained-model entry
     // while catching up, but not nothing either, or the end of the catch-up would go unnoticed.
     tLogisticModel.progressCallback = (iIteration: number) => {
@@ -668,23 +690,24 @@ export class ModelManager {
       // The catch-up reaches fit's terminal branch, which builds a completed-run record for a run
       // that has not completed. fillOutCurrentStoredModel reads it without checking, so clear it.
       tLogisticModel.fitResult = undefined;
-      this.handBackAfterCatchUp(tData, tSavedIteration, tLogisticModel.theta.slice());
+      this.handBackAfterCatchUp(tData, tReplayThrough, tLogisticModel.theta.slice());
     };
 
     try {
       tLogisticModel.fit(tData);
     } catch (error) {
-      // The replay owns its own failure because one of its two callers cannot: in step mode it is
-      // called from the pane's Step handler, which nothing awaits, so a throw would become an
-      // unhandled rejection with both of the student's controls already disabled and nothing able
-      // to re-enable them.
+      // fit's loop is async, so nothing it does throws to this caller; what can is its synchronous
+      // prologue, on a _data that has no first row to measure. prepareResume rules that out, so the
+      // catch is a backstop rather than a path. It is worth keeping because the one caller that
+      // could report a failure cannot: in step mode this runs from the pane's Step handler, which
+      // nothing awaits, and a throw there would leave both controls disabled with no way back.
       console.log(`Could not replay the interrupted training run: ${error}`);
       trainingStore.setRestoringRun(false);
       trainingStore.setTrainingCouldNotBeResumed(true);
     }
   }
 
-  private handBackAfterCatchUp(iData: number[][], iSavedIteration: number, iTheta: number[]) {
+  private handBackAfterCatchUp(iData: number[][], iResumeFrom: number, iTheta: number[]) {
     const tModel = trainingStore.model;
     const tLogisticModel = tModel.logisticModel;
 
@@ -694,9 +717,12 @@ export class ModelManager {
     tLogisticModel.stepModeCallback = tModel.trainingInStepMode ? this.stepModeCallback : undefined;
     trainingStore.setRestoringRun(false);
 
-    // The handback's own first iteration is the advance from N to N+1, and in step mode it is also
-    // what hands the loop's continuation to stepModeCallback so that later presses are ordinary steps.
-    tLogisticModel.fit(iData, iSavedIteration + 1, iTheta);
+    // Resuming at the iteration the replay stopped short of, which for a run saved partway is the
+    // advance from N to N+1, and in step mode is also what hands the loop's continuation to
+    // stepModeCallback so that later presses are ordinary steps. For a run saved in the completion
+    // tail the replay has already applied every step, so this goes straight to fit's terminal
+    // branch and finishes the run rather than adding one to it.
+    tLogisticModel.fit(iData, iResumeFrom, iTheta);
   }
 
   async progressBar(iIteration: number) {
@@ -715,7 +741,12 @@ export class ModelManager {
 
           trainingStore.inactivateAll();
 
-          trainingStore.trainingResults.push({
+          // Recorded rather than pushed. A document saved after this line but before reset() clears
+          // trainingInProgress carries both the finished entry and a run that still says it is in
+          // progress, so reopening it replays the run and arrives back here with the entry already
+          // present. Two rows under one name would leave getTrainingResultByName finding the stale
+          // one while inactivateAll activated the new one.
+          trainingStore.recordTrainingResult({
             name: tModel.name,
             targetDatasetName: targetStore.targetDatasetInfo.name,
             isActive: true,

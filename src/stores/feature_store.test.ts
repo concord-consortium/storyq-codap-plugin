@@ -202,4 +202,26 @@ describe("FeatureStore.snapshotTokens and restoreTokens", () => {
       expect(store.caseIdTokenMap[Number(token.featureCaseID)]).toBe(token);
     });
   });
+
+  it("copies the one field of a token that is not a primitive", () => {
+    store.tokenMap.good.caseIDs = [100, 101];
+    const snapshot = store.snapshotTokens();
+
+    store.tokenMap.good.caseIDs.push(102);
+
+    expect(snapshot.good.caseIDs).toEqual([100, 101]);
+  });
+
+  it("leaves a snapshot restorable more than once", () => {
+    store.tokenMap.good.caseIDs = [100, 101];
+    const snapshot = store.snapshotTokens();
+
+    store.restoreTokens(snapshot);
+    store.tokenMap.good.count = 99;
+    store.tokenMap.good.caseIDs.push(102);
+    store.restoreTokens(snapshot);
+
+    expect(store.tokenMap.good.count).toBe(12);
+    expect(store.tokenMap.good.caseIDs).toEqual([100, 101]);
+  });
 });

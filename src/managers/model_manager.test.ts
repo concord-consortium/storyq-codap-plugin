@@ -57,6 +57,18 @@ describe("ModelManager in a reopened document", () => {
     expect(trainingStore.isRestoringRun).toBe(false);
   });
 
+  it("makes the model's name unique before starting a run, whatever the name field did", async () => {
+    // The TextBox does this on blur, which covers the student who types a name and nothing else: not
+    // a hand-edited document, not a second plugin instance on the same dataset. A duplicate name
+    // leaves two rows in the results table that nothing downstream can tell apart.
+    trainingStore.trainingResults = [{ name: "model 1" } as any];
+    trainingStore.model.setName("model 1");
+
+    await modelManager.buildModel().catch(() => null);
+
+    expect(trainingStore.model.name).toBe("model 1_1");
+  });
+
   it("clears every flag a restored run left when the run is cancelled", async () => {
     trainingStore.setTrainingCouldNotBeResumed(true);
     trainingStore.setResumeIsPending(true);

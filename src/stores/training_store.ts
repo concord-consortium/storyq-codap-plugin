@@ -48,8 +48,12 @@ export class TrainingStore {
       // Whether an interrupted run can be resumed is not known here: it takes a rebuild against the
       // current features and target data, which happens on the restore path once CODAP has answered.
       // That a run is about to be restored is knowable here and nowhere earlier, and the pane renders
-      // before the restore path has issued its first request. Assigned rather than only set, so that
-      // restoring a document with no run in progress clears a flag an earlier one left.
+      // before the restore path has issued its first request. All three are assigned rather than only
+      // set, so that restoring a document starts from this document's state and never from what an
+      // earlier one left: a refusal carried forward would tell a student whose run did resume to
+      // cancel it, and a pending resume carried forward would divert their first Step.
+      this.setTrainingCouldNotBeResumed(false);
+      this.setResumeIsPending(false);
       this.setRestoringRun(this.model.trainingInProgress);
       this.trainingResults = json.trainingResults || [];
     }
@@ -66,6 +70,18 @@ export class TrainingStore {
 
   setRestoringRun(value: boolean) {
     this.isRestoringRun = value;
+  }
+
+  /**
+   * Adds a completed run's entry, replacing any entry already recorded under the same name so that
+   * a name is never held by two rows. A fresh run cannot collide, because buildModel makes the name
+   * unique before it starts; a run restored from a document saved during the completion tail can,
+   * because that document already holds the entry the replay is about to record again.
+   */
+  recordTrainingResult(result: TrainingResult) {
+    const index = this.trainingResults.findIndex(iResult => iResult.name === result.name);
+    if (index >= 0) this.trainingResults[index] = result;
+    else this.trainingResults.push(result);
   }
 
   inactivateAll() {

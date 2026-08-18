@@ -31,6 +31,31 @@ export interface IFeatureStoreJSON {
   targetColumnFeatureNames: string[]
 }
 
+// caseIDs is the only field of Token that is not a primitive, so copying it is the whole of the deep
+// copy. Written as a full literal rather than a spread or a JSON round trip so that a field added to
+// Token later has to be dealt with here: the literal stops compiling, where the other two keep
+// compiling and get it wrong (a spread would share a new nested field; JSON would turn a NaN into
+// null, drop an undefined and flatten a Date or a Map). See snapshotTokens for why that matters.
+const cloneToken = (token: Token): Token => ({
+  caseIDs: [...token.caseIDs],
+  color: token.color,
+  count: token.count,
+  featureCaseID: token.featureCaseID,
+  highlight: token.highlight,
+  index: token.index,
+  numNegative: token.numNegative,
+  numPositive: token.numPositive,
+  token: token.token,
+  type: token.type,
+  weight: token.weight
+});
+
+function cloneTokenMap(map: TokenMap): TokenMap {
+  const clone: TokenMap = {};
+  Object.keys(map).forEach(key => { clone[key] = cloneToken(map[key]); });
+  return clone;
+}
+
 export class FeatureStore {
   caseIdTokenMap: Record<number, Token> = {}
   features: Feature[] = []
@@ -238,18 +263,25 @@ export class FeatureStore {
    * them, so toJS() and a spread both hand back something that shares those objects and protects
    * nothing. toJS is the sharper trap of the two: tokenMap is deliberately excluded from
    * makeAutoObservable, so it is a plain object and toJS(tokenMap) === tokenMap.
+   *
+   * See cloneToken for why the copy is a written-out literal rather than a JSON round trip: this is
+   * the one path whose whole job is to put the document back exactly as it was found, so a field it
+   * silently mangles is a field the refusal corrupts.
    */
   snapshotTokens(): TokenMap {
-    return JSON.parse(JSON.stringify(this.tokenMap));
+    return cloneTokenMap(this.tokenMap);
   }
 
   /**
-   * Restores a snapshotTokens() copy. caseIdTokenMap is rebuilt from the copied objects rather than
-   * snapshotted alongside: the two maps share their token objects, so restoring them separately
-   * would leave the id map pointing at the mutated originals and the two maps disagreeing on identity.
+   * Restores a snapshotTokens() copy. It clones again rather than adopting the snapshot's objects,
+   * so that one snapshot stays restorable more than once.
+   *
+   * caseIdTokenMap is rebuilt from the copied objects rather than snapshotted alongside: the two
+   * maps share their token objects, so restoring them separately would leave the id map pointing at
+   * the mutated originals and the two maps disagreeing on identity.
    */
   restoreTokens(snapshot: TokenMap) {
-    const tokenMap: TokenMap = JSON.parse(JSON.stringify(snapshot));
+    const tokenMap: TokenMap = cloneTokenMap(snapshot);
     const caseIdTokenMap: Record<number, Token> = {};
     Object.values(tokenMap).forEach(token => {
       if (token.featureCaseID) caseIdTokenMap[token.featureCaseID] = token;
