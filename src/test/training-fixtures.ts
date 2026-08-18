@@ -270,6 +270,42 @@ export function mockCodap() {
 }
 
 /**
+ * Takes over the mock already installed, so that requests can be left unanswered or refused rather
+ * than answered at once. A step's writes are one case per token plus one per row, seconds of them on
+ * a real corpus, and the pane's buttons are live throughout; a refusal is what the iframe phone's
+ * two second timeout does to a write that is too big to answer in time.
+ */
+export function interceptCodapRequests() {
+  const mock = codapInterface.sendRequest as jest.Mock;
+  const answer = mock.getMockImplementation() as (request: APIRequest | APIRequest[]) => unknown;
+  const held: Array<() => void> = [];
+  let toHold = 0;
+  let toFail = 0;
+  let failed = 0;
+
+  mock.mockImplementation((request: APIRequest | APIRequest[]) => {
+    // Answered first either way, so that a held or refused request is still recorded as sent
+    const result = answer(request);
+    if (toFail > 0) {
+      toFail--;
+      failed++;
+      return Promise.reject(`handleResponse: CODAP request timed out: ${JSON.stringify(request)}`);
+    }
+    if (toHold <= 0) return result;
+    toHold--;
+    return new Promise(resolve => { held.push(() => resolve(result)); });
+  });
+
+  return {
+    holdNext: (count: number) => { toHold = count; },
+    failNext: (count: number) => { toFail = count; },
+    heldCount: () => held.length,
+    failedCount: () => failed,
+    release: () => held.splice(0).forEach(iRelease => iRelease())
+  };
+}
+
+/**
  * The two stores a resume reads back, saved the way CODAP saves them: stringified and parsed, which
  * is what strips the functions.
  */
