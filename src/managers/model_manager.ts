@@ -23,6 +23,10 @@ export class ModelManager {
 
   stepModeContinueCallback: ((iIteration: number) => void) | null = null
   stepModeIteration: number = 0
+  // Which run the continuation above would belong to. Bumped wherever a run starts or ends, and
+  // read by stepModeCallback across its CODAP writes, because those take seconds and the pane's
+  // Cancel button is live throughout them.
+  private stepModeRunID: number = 0
 
   constructor() {
     this.progressBar = this.progressBar.bind(this)
@@ -330,6 +334,7 @@ export class ModelManager {
     trainingStore.setTrainingCouldNotBeResumed(false);
     trainingStore.setResumeIsPending(false);
     trainingStore.setRestoringRun(false);
+    this.forgetStepModeContinuation();
     await wipeWeights();
     await wipeResultsInTarget();
   }
@@ -633,6 +638,7 @@ export class ModelManager {
     trainingStore.setTrainingCouldNotBeResumed(false)
     trainingStore.setResumeIsPending(false)
     trainingStore.setRestoringRun(false)
+    this.forgetStepModeContinuation()
 
     // The TextBox does this on blur, which covers the student who types a name. It does not cover a
     // hand-edited document, a second plugin instance, or a name arriving from anywhere but that
@@ -793,13 +799,37 @@ export class ModelManager {
         await domainStore.syncWeightsAndResultsWithActiveModels()
         await domainStore.recreateUsagesAndFeatureIDs(tModel.ignoreStopWords)
 
+        // A finished run is an ended run. fit's terminal branch reports through progressCallback and
+        // never reaches stepModeCallback, so without this the last step's continuation outlives the
+        // run, and a Step press landing in the tail below drives it a second time: another completed
+        // record, and a second reset that wipes a name the student has since typed.
+        this.forgetStepModeContinuation()
         tModel.reset()
       }
     })
   }
 
+  /**
+   * The continuation a step-mode run leaves behind is that fit's own oneIteration, closed over that
+   * fit's rows, and this manager outlives any one run because the pane keeps a single instance for
+   * its lifetime. Left in place it drives the next run: nextStep calls it unconditionally, so a plain
+   * run started after a step-mode one gets a second loop over the same theta. When the feature set
+   * has changed as well, that loop reads the previous run's shorter rows against the current dim and
+   * every weight becomes NaN. So it is dropped wherever a run starts, is cancelled, or finishes.
+   */
+  forgetStepModeContinuation() {
+    this.stepModeContinueCallback = null
+    this.stepModeIteration = 0
+    this.stepModeRunID++
+  }
+
   async stepModeCallback(iIteration: number, iCost: number, iWeights: number[], continueCallback: (iter: number) => void) {
+    const tRunID = this.stepModeRunID
     await this.computeResults(iWeights)
+    // Clearing the field is not enough on its own: a step is between its gradient work and the end
+    // of its writes for as long as those writes take, so a Cancel or a new run pressed in that
+    // window would be undone here by the step it interrupted handing its continuation back.
+    if (tRunID !== this.stepModeRunID) return
     this.stepModeContinueCallback = continueCallback
     this.stepModeIteration = iIteration
   }
