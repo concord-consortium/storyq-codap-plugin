@@ -89,15 +89,28 @@ describe("ModelManager stepping while a step is still writing to CODAP", () => {
     modelManager.stepModeCallback = (...iArgs: Parameters<typeof stepModeCallback>) =>
       stepModeCallback(...iArgs).catch(() => undefined);
 
+    const { logisticModel } = trainingStore.model;
+    const beforeTheRefusedStep = logisticModel.theta.slice();
+
     codap.failNext(1);
     modelManager.nextStep();
     await waitUntil(() => codap.failedCount() === 1, "the step's weight write has been refused");
+    const afterTheRefusedStep = logisticModel.theta.slice();
 
-    // The run never recorded the refused step, so this press repeats it rather than skipping it
+    // The run recorded nothing for the refused step, so this press re-enters at the same index
     modelManager.nextStep();
     await waitUntil(() => modelManager.stepModeIteration === 1, "the repeated step has finished");
 
+    // Step works again, which is what the finally is for
     expect(trainingStore.model.iteration).toBe(1);
+
+    // What that press costs, pinned rather than fixed. oneIteration moves theta before anything can
+    // fail and nothing puts it back, so the refused step trained the model and the press after it
+    // trained the model again from where the first left off: two gradient steps under an iteration
+    // count that says one. Pre-existing, unchanged by this branch, and a fix for it has to change
+    // these expectations.
+    expect(afterTheRefusedStep).not.toEqual(beforeTheRefusedStep);
+    expect(logisticModel.theta).not.toEqual(afterTheRefusedStep);
   });
 
   it("does not let an abandoned run's late write release the guard a newer run is holding", async () => {
