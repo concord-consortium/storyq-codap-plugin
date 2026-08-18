@@ -23,6 +23,14 @@ export class ModelManager {
 
   stepModeContinueCallback: ((iIteration: number) => void) | null = null
   stepModeIteration: number = 0
+  // True from the press that starts a step until that step's CODAP writes have finished or failed.
+  // nextStep advances from stepModeIteration, which stepModeCallback only updates once those writes
+  // are done, so a press inside that window would re-enter the fit loop at an index the run has
+  // already passed: the progress bar drops back and the gradient step it applies is unaccounted for.
+  // The press that finishes a run is the exception: its iteration takes fit's terminal branch, which
+  // never reaches stepModeCallback, so the flag stays set until the first step of the next step-mode
+  // run releases it. Nothing else does: a plain run detaches stepModeCallback and never gets there.
+  stepIsInFlight = false
   // Which run the continuation above would belong to. Bumped wherever a run starts or ends, and
   // read by stepModeCallback across its CODAP writes, because those take seconds and the pane's
   // Cancel button is live throughout them.
@@ -825,13 +833,20 @@ export class ModelManager {
 
   async stepModeCallback(iIteration: number, iCost: number, iWeights: number[], continueCallback: (iter: number) => void) {
     const tRunID = this.stepModeRunID
-    await this.computeResults(iWeights)
-    // Clearing the field is not enough on its own: a step is between its gradient work and the end
-    // of its writes for as long as those writes take, so a Cancel or a new run pressed in that
-    // window would be undone here by the step it interrupted handing its continuation back.
-    if (tRunID !== this.stepModeRunID) return
-    this.stepModeContinueCallback = continueCallback
-    this.stepModeIteration = iIteration
+    try {
+      await this.computeResults(iWeights)
+      // Clearing the field is not enough on its own: a step is between its gradient work and the end
+      // of its writes for as long as those writes take, so a Cancel or a new run pressed in that
+      // window would be undone here by the step it interrupted handing its continuation back.
+      if (tRunID !== this.stepModeRunID) return
+      this.stepModeContinueCallback = continueCallback
+      this.stepModeIteration = iIteration
+    } finally {
+      // Released even when the writes failed, or one failed step would leave Step dead for the rest
+      // of the run. Only for the run this step belonged to, though: a step left writing by a run that
+      // has since been abandoned would otherwise drop a guard the next run's own step is holding.
+      if (tRunID === this.stepModeRunID) this.stepIsInFlight = false
+    }
   }
 
   nextStep() {
@@ -841,11 +856,17 @@ export class ModelManager {
       return;
     }
 
+    // Ignored rather than queued: the press asks for one more iteration, and the step already in
+    // flight is the one delivering it.
+    if (this.stepIsInFlight) return;
+
     const tLogisticModel = trainingStore.model.logisticModel;
     tLogisticModel.trace = trainingStore.model.trainingInStepMode;
     tLogisticModel.stepModeCallback = tLogisticModel.trace ? this.stepModeCallback : undefined;
 
-    this.stepModeContinueCallback?.(this.stepModeIteration + 1);
+    if (!this.stepModeContinueCallback) return;
+    this.stepIsInFlight = true;
+    this.stepModeContinueCallback(this.stepModeIteration + 1);
   }
 
   fillOutCurrentStoredModel(iLogisticModel: LogisticRegression): StoredAIModel {

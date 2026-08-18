@@ -1,9 +1,9 @@
-import codapInterface from "../lib/CodapInterface";
 import { Feature } from "../stores/store_types_and_constants";
 import { featureStore } from "../stores/feature_store";
 import { trainingStore } from "../stores/training_store";
 import {
-  buildTargetCases, mockCodap, seedTokenMapWithUnigrams, setUpStores, stopAnyRunInFlight, waitUntil
+  buildTargetCases, interceptCodapRequests, mockCodap, seedTokenMapWithUnigrams, setUpStores, stopAnyRunInFlight,
+  waitUntil
 } from "../test/training-fixtures";
 import { CaseInfo } from "../types/codap-api-types";
 import { ModelManager } from "./model_manager";
@@ -80,29 +80,6 @@ describe("ModelManager training a model after a step-mode run in the same sessio
 
     return trainingStore.trainingResults[0].storedModel.storedTokens
       .map(iToken => ({ name: iToken.name, weight: iToken.weight }));
-  }
-
-  /**
-   * Holds the next few CODAP requests open instead of answering them, which is what a step's writes
-   * are for as long as they take: one case per token plus one per row, seconds of them on a real
-   * corpus, throughout which the pane's Cancel button is live.
-   */
-  function heldCodap() {
-    const mock = codapInterface.sendRequest as jest.Mock;
-    const answer = mock.getMockImplementation() as (request: any) => any;
-    const held: Array<() => void> = [];
-    let toHold = 0;
-    mock.mockImplementation((request: any) => {
-      const result = answer(request);
-      if (toHold <= 0) return result;
-      toHold--;
-      return new Promise(resolve => { held.push(() => resolve(result)); });
-    });
-    return {
-      holdNext: (count: number) => { toHold = count; },
-      heldCount: () => held.length,
-      release: () => held.splice(0).forEach(iRelease => iRelease())
-    };
   }
 
   beforeEach(() => {
@@ -186,7 +163,7 @@ describe("ModelManager training a model after a step-mode run in the same sessio
     const modelManager = new ModelManager();
     await stepOnce(modelManager, ngramFeature);
     const { logisticModel } = trainingStore.model;
-    const codap = heldCodap();
+    const codap = interceptCodapRequests();
 
     // A step whose weight write has been issued and not yet answered, which is where a run spends
     // most of a step. The labels are written after it, so holding the first holds the step.
@@ -214,7 +191,7 @@ describe("ModelManager training a model after a step-mode run in the same sessio
     const { ngramFeature, targetCases } = startSession({ stepMode: true });
     const modelManager = new ModelManager();
     await stepOnce(modelManager, ngramFeature);
-    const codap = heldCodap();
+    const codap = interceptCodapRequests();
 
     codap.holdNext(1);
     modelManager.nextStep();
