@@ -180,7 +180,13 @@ export class LogisticRegression {
     this.stepModeCallback = undefined;
   }
 
-  fit(data: number[][]) {
+  /**
+   * `iStartIteration` and `iStartTheta` exist so that an interrupted run can be picked up where it
+   * stopped. Omitting both is exactly today's behavior: start at iteration 0 from zeroed weights. A
+   * resume calls this twice, once to replay silently up to the saved iteration and once to hand
+   * control back with the real callbacks attached.
+   */
+  fit(data: number[][], iStartIteration = 0, iStartTheta?: number[]) {
     this.dim = data[0].length;
 
     const X: number[][] = [];
@@ -190,7 +196,8 @@ export class LogisticRegression {
       X.push([constant, ...row]);
       Y.push(row[row.length - 1]);
     });
-    this.theta = new Array(this.dim).fill(0.0);
+    // Copied rather than adopted, so the caller's array is not aliased by the loop
+    this.theta = iStartTheta ? iStartTheta.slice() : new Array(this.dim).fill(0.0);
 
     const oneIteration = async (iIteration: number) => {
       if (iIteration < this.iterations) {
@@ -224,7 +231,7 @@ export class LogisticRegression {
       }
     }
 
-    oneIteration(0);
+    oneIteration(iStartIteration);
   }
 
   grad(X: number[][], Y: number[], theta: number[]) {

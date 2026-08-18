@@ -71,6 +71,8 @@ export const SQ: ISQ = {
     trainingCancel: 'Click to cancel the training of this model.',
     trainingInterrupted: 'This training run was stopped and cannot be continued. ' +
       'Press Cancel to start over.',
+    trainingCatchingUp: 'This training run is being restored to where it left off. ' +
+      'It will be ready in a moment.',
     trainingNewModel: 'Click to begin training a new model with features you created.',
     trainingMakeModelInactive: 'Uncheck this box to hide this model’s results and feature weights.',
     trainingMakeModelActive: 'Check this box to show this model’s results and feature weights.',
