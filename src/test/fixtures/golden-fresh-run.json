@@ -1025,17 +1025,7 @@
     ],
     "requestShape": [
       "update dataContext[reviews].selectionList",
-      "get dataContext[Features].itemSearch[name==long]",
-      "get dataContext[Features].itemSearch[name==sour]",
-      "get dataContext[Features].itemSearch[name==good]",
-      "get dataContext[Features].itemSearch[name==bad]",
-      "get dataContext[Features].itemSearch[name==stale]",
-      "get dataContext[Features].itemSearch[name==bland]",
-      "get dataContext[Features].itemSearch[name==creamy]",
-      "get dataContext[Features].itemSearch[name==rich]",
-      "get dataContext[Features].itemSearch[name==sweet]",
-      "get dataContext[Features].itemSearch[name==icy]",
-      "get dataContext[Features].itemSearch[name==fresh]",
+      "get dataContext[Features].itemSearch[*]",
       "update dataContext[Features].collection[weights].attribute[weight]",
       "update dataContext[Features].collection[weights].attribute[model name]",
       "get dataContext[Features].collection[features].caseCount",
@@ -1056,5 +1046,7 @@
       "create dataContext[reviews].collection",
       "get dataContext[reviews].collection[results].caseFormulaSearch[true]"
     ]
-  }
+  },
+  "amendedOn": "2026-08-18",
+  "amendment": "STORYQ-88 replaced prepWeightsCollection's one itemSearch per token with a single itemSearch[*], grouped by token in the plugin, so the 11 per-token searches at positions 1-11 became one at position 1. That is the only line of this artifact that changed: the token array, the encoded matrix, the prep branches, both case-ID maps and the remaining 20 requests all reproduced unchanged against the amended code, which is what confirms the change is confined to how the question is asked. Everything else here is still the pre-change capture."
 }

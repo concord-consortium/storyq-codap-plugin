@@ -240,8 +240,15 @@ export function mockCodap() {
     if (/\.collectionList$/.test(resource)) {
       return { success: true, values: [{ id: 1, name: kTargetCollectionName, title: kTargetCollectionName }] };
     }
-    if (/itemSearch\[name==/.test(resource)) {
-      return { success: true, values: [{ id: "1", values: { "model name": "" } }] };
+    // The Features dataset before any model has been trained: one item per token, each joining a
+    // feature case to its single weight case, and none of them carrying a model name yet.
+    if (/itemSearch\[\*]/.test(resource)) {
+      return {
+        success: true,
+        values: Object.keys(featureStore.tokenMap).map((iName, iIndex) => ({
+          id: String(iIndex), values: { name: iName, "model name": "" }
+        }))
+      };
     }
     if (/\.caseCount$/.test(resource)) return { success: true, values: kFeatureCaseCount };
     const byIndex = resource.match(/caseByIndex\[(\d+)]/);

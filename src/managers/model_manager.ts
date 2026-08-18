@@ -16,7 +16,7 @@ import { trainingStore } from "../stores/training_store";
 import { computeKappa } from "../utilities/utilities";
 import {
   APIRequest, CaseInfo, CaseValues, CreateCaseResponse, CreateCaseValue, GetCaseByIDResponse, GetCaseCountResponse,
-  GetCaseFormulaSearchResponse, GetCollectionListResponse, GetItemSearchResponse, UpdateCaseValue
+  GetCaseFormulaSearchResponse, GetCollectionListResponse, GetItemSearchResponse, ItemValues, UpdateCaseValue
 } from "../types/codap-api-types";
 
 export class ModelManager {
@@ -52,24 +52,48 @@ export class ModelManager {
   async prepWeightsCollection(iTokens: Token[]) {
 
     /**
-     * We test to see if the weight case for each token has an empty model name
+     * We test to see if the weight case for each token has an empty model name.
+     *
+     * One search for every item, grouped by token here, rather than a search per token. CODAP's
+     * itemSearch is an unindexed scan of the dataset's items, so a search per token was both a round
+     * trip and a full scan per token: at the token cap that measured about 0.8 s before a single
+     * gradient step, and it grew with every model trained, because the create branch adds a weight
+     * case per token per model to the items being scanned. This is one round trip and one scan
+     * whatever the vocabulary, and it does not grow.
+     *
+     * The verdict is unchanged for every input. Matching on `name` in the plugin selects the same
+     * items the per-token search matched, in the same order, because both walk the dataset's items
+     * in order; taking the first match per token and folding over the tokens is what the loop did.
+     * Stopping early, which the sequential version could do, only ever changed how many searches
+     * were issued: tIsEmpty only moves true to false, and only on an iteration that also sets
+     * tFoundOne true, so continuing past the exit cannot change tFoundOne && tIsEmpty.
      */
     async function allFirstWeightCasesAreEmpty() {
       const tAttrName = 'name'
+      if (iTokens.length === 0) return false;
+      const tResult = await codapInterface.sendRequest({
+        action: 'get',
+        resource: `dataContext[${datasetName}].itemSearch[*]`
+      }) as GetItemSearchResponse;
+      if (!tResult.success || !tResult.values) return false;
+
+      // The first item carrying each name, which is what itemSearch[name==token] returned
+      const tFirstItemNamed: Record<string, ItemValues> = {};
+      tResult.values.forEach(iItem => {
+        const tName = String(iItem.values[tAttrName]);
+        if (!(tName in tFirstItemNamed)) tFirstItemNamed[tName] = iItem.values;
+      });
+
       let tIsEmpty = true,
         tFoundOne = false;
-      for (let tIndex = 0; tIndex < iTokens.length && tIsEmpty; tIndex++) {
-        const tFormula = `${tAttrName}==${iTokens[tIndex].token}`,
-          tFirstChildResult = await codapInterface.sendRequest({
-            action: 'get',
-            resource: `dataContext[${datasetName}].itemSearch[${tFormula}]`
-          }) as GetItemSearchResponse;
-        if (tFirstChildResult.success && tFirstChildResult.values && tFirstChildResult.values.length > 0) {
+      iTokens.forEach(iToken => {
+        const tItem = tFirstItemNamed[iToken.token];
+        if (tItem) {
           tFoundOne = true
-          const tName = tFirstChildResult.values[0].values['model name']
+          const tName = tItem['model name']
           tIsEmpty = tIsEmpty && (!tName || tName === '')
         }
-      }
+      });
       return tFoundOne && tIsEmpty
     }
 
