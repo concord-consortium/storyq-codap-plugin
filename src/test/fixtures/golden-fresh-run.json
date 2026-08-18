@@ -1,5 +1,5 @@
 {
-  "purpose": "Pre-change baseline for STORYQ-87 requirement 7c, covering the four places requirement 7b constrains that golden-weights.json does not reach: buildModel's encoding, the two prep steps' create-versus-update branches, and the CODAP traffic a fresh run generates. A fresh run of this configuration must still produce all of this afterwards.",
+  "purpose": "Pre-change baseline for a fresh training run, covering the four places golden-weights.json does not reach: buildModel's encoding, the two prep steps' create-versus-update branches, and the CODAP traffic a fresh run generates. Captured from the build at the head of master before the resume work landed, so that sharing the encoding between a fresh run and a resume could be shown to leave a fresh run untouched. A fresh run of this configuration must still produce all of this afterwards.",
   "capturedOn": "2026-08-17",
   "capturedFromCommit": "1c377990b23fce4ce745f8f99c8f886cee846ac5",
   "companionArtifact": "golden-weights.json covers LogisticRegression.fit; this covers everything around it.",

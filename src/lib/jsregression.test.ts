@@ -1,4 +1,4 @@
-import golden from "../../specs/STORYQ-87-resume-interrupted-training-run/golden-weights.json";
+import golden from "../test/fixtures/golden-weights.json";
 import { getDefaultLogisticRegression, LogisticRegression } from "./jsregression";
 
 /**

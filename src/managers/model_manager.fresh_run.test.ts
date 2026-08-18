@@ -1,4 +1,4 @@
-import golden from "../../specs/STORYQ-87-resume-interrupted-training-run/golden-fresh-run.json";
+import golden from "../test/fixtures/golden-fresh-run.json";
 import { featureStore } from "../stores/feature_store";
 import { Token } from "../stores/store_types_and_constants";
 import { trainingStore } from "../stores/training_store";

@@ -1,5 +1,5 @@
 {
-  "purpose": "Pre-change golden weights for STORYQ-87 requirement 7c. Captured from the build at the head of master before any resume work landed. A fresh run of this configuration must still produce these values afterwards, bit for bit.",
+  "purpose": "Pre-change golden weights for LogisticRegression.fit. Captured from the build at the head of master before the resume work landed, so that giving fit its two optional start parameters could be shown to leave a fresh run untouched. A fresh run of this configuration must still produce these values afterwards, bit for bit.",
   "capturedOn": "2026-08-16",
   "capturedFromCommit": "1c377990b23fce4ce745f8f99c8f886cee846ac5",
   "dataset": {
@@ -17,7 +17,7 @@
     "iterations": 20,
     "usePoint5AsProbThreshold": true
   },
-  "howToDriveIt": "trace: true with a stepModeCallback that immediately calls next(i + 1). That configuration, and only that one, runs the whole fit synchronously, so the test needs no waiting. See finding 6.",
+  "howToDriveIt": "trace: true with a stepModeCallback that immediately calls next(i + 1). That configuration, and only that one, runs the whole fit synchronously, so the test needs no waiting.",
   "determinismCheck": {
     "twoIdenticalRunsMatch": true,
     "reproducedUnderProjectRunner": true,
