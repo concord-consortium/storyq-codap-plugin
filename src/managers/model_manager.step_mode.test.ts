@@ -49,15 +49,23 @@ describe("ModelManager training a model after a step-mode run in the same sessio
   }
 
   /**
-   * + New Model with the unigram feature chosen, then Train. The AIModel is the one the session
-   * already had, because + New Model resets it rather than replacing it.
+   * + New Model with the unigram feature chosen, which is the wide run. The AIModel is the one the
+   * session already had, because + New Model resets it rather than replacing it, and the token map
+   * is cleared and reseeded because that is where a chosen unigram feature's tokens come from.
    */
-  async function trainPlainModel(modelManager: ModelManager, ngramFeature: Feature, targetCases: CaseInfo[]) {
+  function startNewModelWithUnigrams(ngramFeature: Feature, targetCases: CaseInfo[]) {
     trainingStore.model.reset();
     ngramFeature.chosen = true;
     featureStore.clearTokens();
     seedTokenMapWithUnigrams(targetCases);
     trainingStore.model.setName(kPlainModelName);
+  }
+
+  /**
+   * The new model above, trained to completion the way the Train button trains it.
+   */
+  async function trainPlainModel(modelManager: ModelManager, ngramFeature: Feature, targetCases: CaseInfo[]) {
+    startNewModelWithUnigrams(ngramFeature, targetCases);
     trainingStore.model.setIterations(kIterations);
     trainingStore.model.setBeingConstructed(true);
 
@@ -131,11 +139,7 @@ describe("ModelManager training a model after a step-mode run in the same sessio
     modelManager.nextStep();
     await waitUntil(() => modelManager.stepModeIteration === 1, "the second step has finished");
 
-    trainingStore.model.reset();
-    ngramFeature.chosen = true;
-    featureStore.clearTokens();
-    seedTokenMapWithUnigrams(targetCases);
-    trainingStore.model.setName(kPlainModelName);
+    startNewModelWithUnigrams(ngramFeature, targetCases);
     await modelManager.buildModel();
 
     expect(modelManager.stepModeContinueCallback).toBeNull();
@@ -185,5 +189,30 @@ describe("ModelManager training a model after a step-mode run in the same sessio
     expect(modelManager.stepModeIteration).toBe(0);
     modelManager.nextStep();
     expect(logisticModel.theta).toEqual([]);
+  });
+
+  it("leaves a model started inside that same window with no continuation to inherit", async () => {
+    const { ngramFeature, targetCases } = startSession({ stepMode: true });
+    const modelManager = new ModelManager();
+    await stepOnce(modelManager, ngramFeature);
+    const codap = heldCodap();
+
+    codap.holdNext(1);
+    modelManager.nextStep();
+    await waitUntil(() => codap.heldCount() === 1, "the step's weight write has been issued");
+
+    // Cancel, then + New Model and Train, all inside the outstanding write. What turns the late
+    // write away is the run ID Cancel took: every route from a run in progress to the next
+    // buildModel goes through Cancel, so buildModel's own bump is defensive rather than reachable.
+    await modelManager.cancel();
+    startNewModelWithUnigrams(ngramFeature, targetCases);
+    trainingStore.model.setTrainingInProgress(true);
+    await modelManager.buildModel();
+
+    codap.release();
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    expect(modelManager.stepModeContinueCallback).toBeNull();
+    expect(modelManager.stepModeIteration).toBe(0);
   });
 });
