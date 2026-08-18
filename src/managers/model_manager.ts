@@ -23,6 +23,10 @@ export class ModelManager {
 
   stepModeContinueCallback: ((iIteration: number) => void) | null = null
   stepModeIteration: number = 0
+  // Which run the continuation above would belong to. Bumped wherever a run starts or ends, and
+  // read by stepModeCallback across its CODAP writes, because those take seconds and the pane's
+  // Cancel button is live throughout them.
+  stepModeRunID = 0
 
   constructor() {
     this.progressBar = this.progressBar.bind(this)
@@ -811,10 +815,16 @@ export class ModelManager {
   forgetStepModeContinuation() {
     this.stepModeContinueCallback = null
     this.stepModeIteration = 0
+    this.stepModeRunID++
   }
 
   async stepModeCallback(iIteration: number, iCost: number, iWeights: number[], continueCallback: (iter: number) => void) {
+    const tRunID = this.stepModeRunID
     await this.computeResults(iWeights)
+    // Clearing the field is not enough on its own: a step is between its gradient work and the end
+    // of its writes for as long as those writes take, so a Cancel or a new run pressed in that
+    // window would be undone here by the step it interrupted handing its continuation back.
+    if (tRunID !== this.stepModeRunID) return
     this.stepModeContinueCallback = continueCallback
     this.stepModeIteration = iIteration
   }

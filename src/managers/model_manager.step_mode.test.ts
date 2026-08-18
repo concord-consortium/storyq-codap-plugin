@@ -1,3 +1,4 @@
+import codapInterface from "../lib/CodapInterface";
 import { Feature } from "../stores/store_types_and_constants";
 import { featureStore } from "../stores/feature_store";
 import { trainingStore } from "../stores/training_store";
@@ -73,6 +74,29 @@ describe("ModelManager training a model after a step-mode run in the same sessio
       .map(iToken => ({ name: iToken.name, weight: iToken.weight }));
   }
 
+  /**
+   * Holds the next few CODAP requests open instead of answering them, which is what a step's writes
+   * are for as long as they take: one case per token plus one per row, seconds of them on a real
+   * corpus, throughout which the pane's Cancel button is live.
+   */
+  function heldCodap() {
+    const mock = codapInterface.sendRequest as jest.Mock;
+    const answer = mock.getMockImplementation() as (request: any) => any;
+    const held: Array<() => void> = [];
+    let toHold = 0;
+    mock.mockImplementation((request: any) => {
+      const result = answer(request);
+      if (toHold <= 0) return result;
+      toHold--;
+      return new Promise(resolve => { held.push(() => resolve(result)); });
+    });
+    return {
+      holdNext: (count: number) => { toHold = count; },
+      heldCount: () => held.length,
+      release: () => held.splice(0).forEach(iRelease => iRelease())
+    };
+  }
+
   beforeEach(() => {
     mockCodap();
   });
@@ -132,5 +156,34 @@ describe("ModelManager training a model after a step-mode run in the same sessio
     // step applied over the emptied vector rather than as nothing at all
     expect(logisticModel.theta).toEqual([]);
     expect(modelManager.stepModeContinueCallback).toBeNull();
+  });
+
+  it("does not let a step that was still writing hand its continuation back after Cancel", async () => {
+    const { ngramFeature } = startSession({ stepMode: true });
+    const modelManager = new ModelManager();
+    await stepOnce(modelManager, ngramFeature);
+    const { logisticModel } = trainingStore.model;
+    const codap = heldCodap();
+
+    // A step whose weight write has been issued and not yet answered, which is where a run spends
+    // most of a step. The labels are written after it, so holding the first holds the step.
+    codap.holdNext(1);
+    modelManager.nextStep();
+    await waitUntil(() => codap.heldCount() === 1, "the step's weight write has been issued");
+
+    await modelManager.cancel();
+    expect(modelManager.stepModeContinueCallback).toBeNull();
+
+    codap.release();
+    // The rest of stepModeCallback is a microtask behind the writes it was awaiting, so this is what
+    // it takes to see what the step does once they answer
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    // Recording the continuation now would put back exactly what Cancel took away, and nothing runs
+    // between here and the next model to take it away again
+    expect(modelManager.stepModeContinueCallback).toBeNull();
+    expect(modelManager.stepModeIteration).toBe(0);
+    modelManager.nextStep();
+    expect(logisticModel.theta).toEqual([]);
   });
 });
