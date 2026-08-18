@@ -330,6 +330,7 @@ export class ModelManager {
     trainingStore.setTrainingCouldNotBeResumed(false);
     trainingStore.setResumeIsPending(false);
     trainingStore.setRestoringRun(false);
+    this.forgetStepModeContinuation();
     await wipeWeights();
     await wipeResultsInTarget();
   }
@@ -633,6 +634,7 @@ export class ModelManager {
     trainingStore.setTrainingCouldNotBeResumed(false)
     trainingStore.setResumeIsPending(false)
     trainingStore.setRestoringRun(false)
+    this.forgetStepModeContinuation()
 
     // The TextBox does this on blur, which covers the student who types a name. It does not cover a
     // hand-edited document, a second plugin instance, or a name arriving from anywhere but that
@@ -796,6 +798,19 @@ export class ModelManager {
         tModel.reset()
       }
     })
+  }
+
+  /**
+   * The continuation a step-mode run leaves behind is that fit's own oneIteration, closed over that
+   * fit's rows, and this manager outlives any one run because the pane keeps a single instance for
+   * its lifetime. Left in place it drives the next run: nextStep calls it unconditionally, so a plain
+   * run started after a step-mode one gets a second loop over the same theta. When the feature set
+   * has changed as well, that loop reads the previous run's shorter rows against the current dim and
+   * every weight becomes NaN. So it is dropped wherever a run starts or ends.
+   */
+  forgetStepModeContinuation() {
+    this.stepModeContinueCallback = null
+    this.stepModeIteration = 0
   }
 
   async stepModeCallback(iIteration: number, iCost: number, iWeights: number[], continueCallback: (iter: number) => void) {
