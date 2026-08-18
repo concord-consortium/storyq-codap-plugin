@@ -843,8 +843,9 @@ export class ModelManager {
       this.stepModeIteration = iIteration
     } finally {
       // Released even when the writes failed, or one failed step would leave Step dead for the rest
-      // of the run
-      this.stepIsInFlight = false
+      // of the run. Only for the run this step belonged to, though: a step left writing by a run that
+      // has since been abandoned would otherwise drop a guard the next run's own step is holding.
+      if (tRunID === this.stepModeRunID) this.stepIsInFlight = false
     }
   }
 

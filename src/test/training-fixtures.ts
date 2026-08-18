@@ -301,7 +301,8 @@ export function interceptCodapRequests() {
     failNext: (count: number) => { toFail = count; },
     heldCount: () => held.length,
     failedCount: () => failed,
-    release: () => held.splice(0).forEach(iRelease => iRelease())
+    // Oldest first, so that a test holding two can answer the older one on its own
+    release: (count?: number) => held.splice(0, count ?? held.length).forEach(iRelease => iRelease())
   };
 }
 

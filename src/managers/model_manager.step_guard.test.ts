@@ -24,6 +24,19 @@ describe("ModelManager stepping while a step is still writing to CODAP", () => {
     await waitUntil(() => modelManager.stepModeContinueCallback != null, "the first step has finished");
   }
 
+  /**
+   * + New Model in the same session, taken as far as its own first step. The AIModel is the one the
+   * session already had, because + New Model resets it rather than replacing it.
+   */
+  async function startNextStepModeRun(modelManager: ModelManager, iName: string) {
+    trainingStore.model.reset();
+    trainingStore.model.setName(iName);
+    trainingStore.model.setTrainingInStepMode(true);
+    trainingStore.model.setTrainingInProgress(true);
+    await modelManager.buildModel();
+    await waitUntil(() => modelManager.stepModeContinueCallback != null, `${iName}'s first step has finished`);
+  }
+
   beforeEach(() => {
     mockCodap();
   });
@@ -85,6 +98,34 @@ describe("ModelManager stepping while a step is still writing to CODAP", () => {
     await waitUntil(() => modelManager.stepModeIteration === 1, "the repeated step has finished");
 
     expect(trainingStore.model.iteration).toBe(1);
+  });
+
+  it("does not let an abandoned run's late write release the guard a newer run is holding", async () => {
+    const modelManager = new ModelManager();
+    await startStepModeRun(modelManager);
+    const codap = interceptCodapRequests();
+
+    // A step of the first run, left writing, and then the run abandoned under it
+    codap.holdNext(1);
+    modelManager.nextStep();
+    await waitUntil(() => codap.heldCount() === 1, "the abandoned run's write has been issued");
+    await modelManager.cancel();
+
+    // A second run, far enough along to have a continuation of its own, with a step of its own
+    // writing when the first run's write finally answers
+    await startNextStepModeRun(modelManager, "second model");
+    const { logisticModel } = trainingStore.model;
+    codap.holdNext(1);
+    modelManager.nextStep();
+    await waitUntil(() => codap.heldCount() === 2, "the second run's write has been issued");
+
+    codap.release(1);
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    // The second run's step is still writing, so its guard has to still be up
+    const gradientSteps = jest.spyOn(logisticModel, "grad");
+    modelManager.nextStep();
+    expect(gradientSteps).not.toHaveBeenCalled();
   });
 
   it("advances one iteration per press once each step's writes are answered", async () => {
