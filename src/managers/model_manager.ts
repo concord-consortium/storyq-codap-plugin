@@ -26,7 +26,7 @@ export class ModelManager {
   // Which run the continuation above would belong to. Bumped wherever a run starts or ends, and
   // read by stepModeCallback across its CODAP writes, because those take seconds and the pane's
   // Cancel button is live throughout them.
-  stepModeRunID = 0
+  private stepModeRunID: number = 0
 
   constructor() {
     this.progressBar = this.progressBar.bind(this)
@@ -799,6 +799,11 @@ export class ModelManager {
         await domainStore.syncWeightsAndResultsWithActiveModels()
         await domainStore.recreateUsagesAndFeatureIDs(tModel.ignoreStopWords)
 
+        // A finished run is an ended run. fit's terminal branch reports through progressCallback and
+        // never reaches stepModeCallback, so without this the last step's continuation outlives the
+        // run, and a Step press landing in the tail below drives it a second time: another completed
+        // record, and a second reset that wipes a name the student has since typed.
+        this.forgetStepModeContinuation()
         tModel.reset()
       }
     })
@@ -810,7 +815,7 @@ export class ModelManager {
    * its lifetime. Left in place it drives the next run: nextStep calls it unconditionally, so a plain
    * run started after a step-mode one gets a second loop over the same theta. When the feature set
    * has changed as well, that loop reads the previous run's shorter rows against the current dim and
-   * every weight becomes NaN. So it is dropped wherever a run starts or ends.
+   * every weight becomes NaN. So it is dropped wherever a run starts, is cancelled, or finishes.
    */
   forgetStepModeContinuation() {
     this.stepModeContinueCallback = null

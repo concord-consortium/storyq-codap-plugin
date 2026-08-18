@@ -146,6 +146,25 @@ describe("ModelManager training a model after a step-mode run in the same sessio
     expect(modelManager.stepModeIteration).toBe(0);
   });
 
+  it("drops the continuation when a run finishes rather than being cancelled", async () => {
+    const { ngramFeature } = startSession({ stepMode: true });
+    // Short enough that two presses reach the end
+    trainingStore.model.setIterations(2);
+    const modelManager = new ModelManager();
+    await stepOnce(modelManager, ngramFeature);
+
+    modelManager.nextStep();
+    await waitUntil(() => modelManager.stepModeIteration === 1, "the second step has finished");
+    // The press that reaches the last iteration takes fit's terminal branch, which reports through
+    // progressCallback and never reaches stepModeCallback
+    modelManager.nextStep();
+    await waitUntil(() => trainingStore.trainingResults.length > 0 && trainingStore.model.name === "",
+      "the run has finished");
+
+    expect(modelManager.stepModeContinueCallback).toBeNull();
+    expect(modelManager.stepModeIteration).toBe(0);
+  });
+
   it("drops the continuation when the stepped run is cancelled", async () => {
     const { ngramFeature } = startSession({ stepMode: true });
     const modelManager = new ModelManager();
