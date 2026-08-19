@@ -30,7 +30,9 @@ const tSourceHtml = fs.readFileSync(kSource, "utf8");
 // inside its own version folder and useless anywhere else
 const tTopHtml = tSourceHtml.replace(/(src|href)="\.\//g, `$1="${tPrefix}/`);
 if (tTopHtml === tSourceHtml) {
-  // Rather than upload a file whose every path silently resolves to the wrong folder
+  // The rewrite depends on homepage being ".". Remove it or set it to an absolute URL and
+  // react-scripts emits "/static/..." instead, leaving nothing here to rewrite. Fail the build
+  // rather than upload a file whose every path silently resolves to the wrong folder.
   throw new Error(`build-index-top: found no "./" asset paths in ${kSource}`);
 }
 
