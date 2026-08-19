@@ -58,6 +58,10 @@ const Storyq = observer(class Storyq extends Component<IStoryqProps, {}> {
       // to live in TestingPanel.
       this.testingManager = new TestingManager(kNonePresent)
       this.handleCaseNotification = this.handleCaseNotification.bind(this)
+
+      // Only visible when the plugin is opened on its own, since inside CODAP it is an iframe and
+      // CODAP owns the tab. Set from the same constant the pane shows, so the two cannot disagree.
+      document.title = `${this.kPluginName} ${this.kVersion}`;
       codapInterface.on('notify', '*', 'createCases', this.handleCaseNotification);
       new NotificationManager();
 
