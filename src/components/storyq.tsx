@@ -1,5 +1,6 @@
 import { observer } from "mobx-react";
 import React, { Component } from 'react';
+import packageJson from "../../package.json";
 import { initializePlugin, registerObservers } from '../lib/codap-helper';
 import codapInterface, { CODAP_Notification } from "../lib/CodapInterface";
 import { ModelManager } from "../managers/model_manager";
@@ -38,7 +39,10 @@ interface IStorage {
 interface IStoryqProps {}
 const Storyq = observer(class Storyq extends Component<IStoryqProps, {}> {
     private kPluginName = kStoryQPluginName;
-    private kVersion = "2.21.0";
+    // From package.json so a release bump has one place to change. The tag deploys to
+    // version/v<package.json version>, so anything else here would report a version that is
+    // not the one being served.
+    private kVersion = packageJson.version;
     private kInitialDimensions = {
       width: getPluginWidth(),
       height: pluginHeight
@@ -58,6 +62,10 @@ const Storyq = observer(class Storyq extends Component<IStoryqProps, {}> {
       // to live in TestingPanel.
       this.testingManager = new TestingManager(kNonePresent)
       this.handleCaseNotification = this.handleCaseNotification.bind(this)
+
+      // Only visible when the plugin is opened on its own, since inside CODAP it is an iframe and
+      // CODAP owns the tab. Set from the same constant the pane shows, so the two cannot disagree.
+      document.title = `${this.kPluginName} ${this.kVersion}`;
       codapInterface.on('notify', '*', 'createCases', this.handleCaseNotification);
       new NotificationManager();
 
