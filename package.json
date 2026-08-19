@@ -78,6 +78,7 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
+    "postbuild": "node bin/build-index-top.js",
     "eject": "react-scripts eject",
     "deploy": "bin/deploy_storyq",
     "test": "jest",
