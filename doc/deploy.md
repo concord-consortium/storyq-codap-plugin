@@ -65,3 +65,13 @@ Previously we would do releases by updating a branch named `production`. This wo
 With this new approach a release is done by copying a single small html file from a version folder up to the top level. This means the javascript and css is not rebuilt just to promote a version. Therefore the exact build products can be tested before it is released. 
 
 Because deploying a version or branch only updates files within a folder specific to that version or branch, the utility used to copy files up to S3 can be more simple and efficient. In the previous model when the utility was uploading a production branch it would need to make sure to ignore the branch and version folders. Otherwise it might delete these folders because they aren't part of the upload. Even if the utility was configured to never delete files, it still needed to load the meta data of all of the files in the branch and version folders. It did this to know what has changed between local and remote. And S3's APIs don't support filtering listings of files other than a folder prefix. 
+
+A released version is promoted to the top-level `index.html` by [`release.yml`](../.github/workflows/release.yml) via `workflow_dispatch`.
+
+## AWS Access
+
+The GitHub actions in this project are allowed to update files in S3 using OIDC. An IAM role has been created in AWS with a trust policy that allows GitHub actions in this specific repository to assume this IAM role. The IAM role has a `RepoName` tag and a managed policy that uses this tag to give the role's users permission to update files in `models-resources/storyq-codap-plugin`.
+
+Because this project's S3 folder is `storyq`, not `storyq-codap-plugin`, the role also has an extra inline policy, `storyq-prefix-object-access`, that grants the same access to `models-resources/storyq` instead.
+
+See [deploy-setup.md in starter-projects](https://github.com/concord-consortium/starter-projects/blob/main/doc/deploy-setup.md) for how the AWS side is set up.
