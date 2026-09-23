@@ -2,6 +2,10 @@
 
 This is a bare-bones React project, created with the `--typescript` version of [Create React App](https://github.com/facebook/create-react-app), and left un-ejected. This is simply a trivial React view with the libraries for using the [CODAP Plugin API](https://github.com/concord-consortium/codap/wiki/CODAP-Data-Interactive-Plugin-API).
 
+## Deployment
+
+S3 deployment is handled by GitHub Actions using OIDC for AWS authentication. See [deploy-setup.md in starter-projects](https://github.com/concord-consortium/starter-projects/blob/main/doc/deploy-setup.md) for how the AWS side is set up, and [doc/deploy.md](doc/deploy.md) for how deploys work in this repo.
+
 ## Development
 
 ### Initial steps
