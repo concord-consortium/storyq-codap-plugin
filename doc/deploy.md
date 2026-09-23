@@ -75,3 +75,5 @@ The GitHub actions in this project are allowed to update files in S3 using OIDC.
 Because this project's S3 folder is `storyq`, not `storyq-codap-plugin`, the role also has an extra inline policy, `storyq-prefix-object-access`, that grants the same access to `models-resources/storyq` instead.
 
 See [deploy-setup.md in starter-projects](https://github.com/concord-consortium/starter-projects/blob/main/doc/deploy-setup.md) for how the AWS side is set up.
+
+Two hardening options sometimes suggested in code review — splitting the build and the deploy into separate jobs, and pinning actions to a commit SHA — have been considered and declined. See [Hardening we have chosen not to do](https://github.com/concord-consortium/starter-projects/blob/main/doc/deploy-setup.md#hardening-we-have-chosen-not-to-do) for the reasons.
